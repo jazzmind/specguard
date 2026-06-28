@@ -1,0 +1,77 @@
+---
+description: TypeScript standards for SpecGuard — ESM, strict types, ai-sdk, Zod schemas
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# TypeScript Standards
+
+## Module Format
+
+ESM throughout. `"type": "module"` in `package.json`. All imports use `.js` extension (TypeScript resolves to `.ts` at compile time):
+
+```typescript
+// ✅
+import { parseSpec } from './spec-parser.js';
+
+// ❌
+import { parseSpec } from './spec-parser';
+```
+
+## Strict Types
+
+- No `any`. Use `unknown` and narrow.
+- No default exports. Named exports only.
+- Explicit return types on all exported functions.
+- `satisfies` over `as` for type assertions.
+
+## LLM Calls
+
+Never call ai-sdk directly from pipelines or adapters. Route through `src/core/llm.ts`:
+
+```typescript
+// ✅
+import { llmGenerateObject } from '../core/llm.js';
+const result = await llmGenerateObject({ schema: MySchema, prompt, system });
+
+// ❌
+import { generateObject } from 'ai';
+```
+
+## Zod Schemas
+
+All LLM output schemas defined with Zod in the same file that uses them. Schema name matches the type it validates:
+
+```typescript
+const specFileSchema = z.object({
+  title: z.string(),
+  scenarios: z.array(scenarioSchema),
+});
+type SpecFile = z.infer<typeof specFileSchema>;
+```
+
+## Error Handling
+
+Never silently swallow errors. Every `catch` must either re-throw or return a typed error result:
+
+```typescript
+// ✅
+try {
+  return await readFile(path, 'utf-8');
+} catch (err) {
+  throw new SpecGuardError(`Cannot read spec file: ${path}`, { cause: err });
+}
+
+// ❌
+try {
+  return await readFile(path, 'utf-8');
+} catch {}
+```
+
+## File I/O
+
+Never call `fs` directly from pipeline or core logic files. Use `src/core/writer.ts` for writes, `src/core/reader.ts` for reads. This makes pipelines testable without touching the filesystem.
+
+## Exit Codes
+
+CLI commands exit with typed codes (see `src/core/exit-codes.ts`). Never `process.exit(1)` — always use the named constant.

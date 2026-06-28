@@ -1,0 +1,46 @@
+---
+description: SpecGuard development conventions — spec coverage, pipeline patterns, bootstrapping loop
+alwaysApply: true
+---
+
+# SpecGuard Dev Rules
+
+## Spec Coverage
+
+Every module in `src/` must have a corresponding spec in `specs/`. Before writing a new module:
+1. Check `specs/` for an existing spec covering it
+2. If missing, create the spec first (see `specs/README.md` for format)
+3. The spec is the source of truth — implement what the spec says, then update the spec if the implementation reveals gaps
+
+## After Each Plan Phase
+
+When you complete a plan phase (a logical unit of implementation work):
+1. Look at what was just built or changed
+2. Check whether any spec in `specs/` needs to be created or updated to reflect it
+3. If the spec for a new module doesn't exist, write it now — do not defer
+4. If a spec's scenarios no longer match the code, update the spec
+
+This is the metacircular loop: SpecGuard enforces spec coverage on itself as it's built.
+
+## Pipeline Pattern
+
+Each pipeline lives in `src/pipelines/<name>.ts` and exports a single async function:
+
+```typescript
+export async function runReverse(config: SpecGuardConfig, opts: ReverseOpts): Promise<PipelineResult>
+```
+
+- Accept typed config + options, return `PipelineResult`
+- Call LLM via `src/core/llm.ts` (wraps ai-sdk) — never call ai-sdk directly from pipelines
+- Write output files via `src/core/writer.ts` — never call `fs` directly from pipelines
+- All LLM schemas defined with Zod in the pipeline file
+
+## Spec Directory Layout
+
+```
+specs/
+  core/          # Core modules (parser, CLI, config, LLM adapter)
+  pipelines/     # One spec per pipeline
+  adapters/      # Runner and scanner adapters
+  README.md
+```

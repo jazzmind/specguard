@@ -1,0 +1,75 @@
+{
+  "_comment": "SpecGuard configured to build SpecGuard — metacircular bootstrap",
+  "apps": [
+    {
+      "name": "specguard-core",
+      "repo": ".",
+      "specDir": "specs/core",
+      "sources": {
+        "api": ["src/core/**/*.ts"],
+        "tests": ["tests/core/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/core/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
+    },
+    {
+      "name": "specguard-pipelines",
+      "repo": ".",
+      "specDir": "specs/pipelines",
+      "sources": {
+        "api": ["src/pipelines/**/*.ts"],
+        "tests": ["tests/pipelines/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/pipelines/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
+    },
+    {
+      "name": "specguard-adapters",
+      "repo": ".",
+      "specDir": "specs/adapters",
+      "sources": {
+        "api": ["src/adapters/**/*.ts"],
+        "tests": ["tests/adapters/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/adapters/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
+    }
+  ],
+  "runners": {
+    "playwright": "local",
+    "semgrep": "docker",
+    "bandit": "auto",
+    "testRunner": "local"
+  },
+  "llm": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "apiKeyEnv": "ANTHROPIC_API_KEY"
+  },
+  "triggers": {
+    "onPlanPhase": true,
+    "onSecurityFiles": ["**/auth/**", "**/middleware/**"],
+    "onPR": true,
+    "healAfterGenerate": false
+  },
+  "heal": {
+    "maxRetries": 2,
+    "testCommand": "npm test"
+  },
+  "matrix": {
+    "format": "json",
+    "output": ".specguard/traceability.json"
+  }
+}
