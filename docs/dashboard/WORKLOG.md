@@ -7,6 +7,32 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 5: CLI runner + dashboard host (vscode wiring)
+
+- Implemented `extension/src/dashboard/cli.ts` — resolves the CLI binary path and spawns
+  it with stdout/stderr streamed line-by-line via an `onLine` callback.
+  - `resolveCliPath(workspaceRoot)`: checks `specguard.cliPath` setting first, then
+    `node_modules/.bin/specguard`, then `src/cli/index.ts`, falling back to the local bin path.
+  - `spawnCli(cliPath, args, cwd, onLine)`: dispatches to `node` (`.js`), `npx tsx` (`.ts`),
+    or direct execution based on the path extension; uses `shell: true` on Windows.
+- Implemented `extension/src/dashboard/host.ts` — `DashboardHost` class wiring vscode
+  filesystem watchers, command handling, pipeline execution, and coverage/matrix refresh.
+  - `start()`: creates a `FileSystemWatcher` for `**/{specs,tests,docs}/**/*.{md,ts,js}`,
+    posts `artifact` events on create/change, and calls `refresh()` immediately.
+  - `handle(cmd)`: dispatches `refresh`, `openFile` (via `showTextDocument`), and `run`
+    commands.
+  - `run(pipeline, extra)`: posts `pipeline:start`, spawns CLI streaming logs as
+    `pipeline:log` events, posts `pipeline:done` with exit code, then calls `refresh()`.
+  - `refresh()`: runs `specguard status` and posts `coverage` event via `parseCoverageText`;
+    reads `.specguard/traceability.json` and posts `matrix` event via `toMatrixModel`.
+    Both are best-effort with independent error handling posting `error` events on failure.
+  - `dispose()`: disposes the watcher.
+- Also fixed a pre-existing TypeScript error in `flow-events.test.ts` (Task 4 artifact):
+  optional-chained `.kind` access on a discriminated union now uses `toMatchObject` to avoid
+  the TS2339 narrowing error.
+- `npm run lint` (tsc --noEmit): clean.
+- `npm run build` (esbuild): emits `dist/extension.js` 14.9 kb, `dist/extension.js.map` 27.8 kb.
+
 ## 2026-06-28 — Task 4: Flow event mappers + CLI arg builder (pure)
 
 - Implemented `extension/src/dashboard/flow-events.ts` — pure mappers for file-change
