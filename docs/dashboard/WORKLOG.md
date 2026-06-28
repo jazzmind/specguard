@@ -13,7 +13,7 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
   collapsible table (Spec / Source / Tests / Docs columns); empty state shows a "Run matrix"
   button that posts `{ type: 'run', pipeline: 'matrix' }`.
 - Created `extension/webview/src/views/ActivityView.tsx` — pipeline runner with:
-  - Animated counters for specs / tests / docs from `vm.artifacts`.
+  - Counters for specs / tests / docs from `vm.artifacts`.
   - `<select>` over `RUNNABLE_PIPELINES`; destructive entries flagged with ⚠.
   - `confirm()` guard before posting `run` for any `destructive: true` pipeline.
   - Live log `<pre>` block rendered from `vm.logs[pipeline]`.
