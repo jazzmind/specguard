@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import type { CoverageProvider } from './sidebar.js';
 import { registerMcpForCursor } from './mcp-registration.js';
+import { openDashboardPanel } from './dashboard/panel.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -110,6 +111,11 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.refreshCoverage', () => {
       void coverageProvider.refresh();
     }),
+  );
+
+  // --- specguard.openDashboard ----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.openDashboard', () => openDashboardPanel(context)),
   );
 }
 

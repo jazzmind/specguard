@@ -26,7 +26,8 @@
   "activationEvents": [
     "workspaceContains:.specguard/config.json",
     "onCommand:specguard.init",
-    "onView:specguard.coverageView"
+    "onView:specguard.coverageView",
+    "onCommand:specguard.openDashboard"
   ],
   "main": "./dist/extension.js",
   "icon": "resources/icon.png",
@@ -66,6 +67,11 @@
         "command": "specguard.refreshCoverage",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "specguard.openDashboard",
+        "title": "SpecGuard: Open Dashboard",
+        "icon": "$(graph)"
       }
     ],
     "menus": {
@@ -84,6 +90,11 @@
       "view/title": [
         {
           "command": "specguard.refreshCoverage",
+          "when": "view == specguard.coverageView",
+          "group": "navigation"
+        },
+        {
+          "command": "specguard.openDashboard",
           "when": "view == specguard.coverageView",
           "group": "navigation"
         }
