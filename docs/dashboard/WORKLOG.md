@@ -7,6 +7,17 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 2: Coverage text parser (extract + reuse)
+
+- Extracted the private `parseStatusJson` function from `extension/src/sidebar.ts` into a new
+  tested pure module `extension/src/dashboard/coverage-parse.ts` exporting `parseCoverageText`.
+- Followed strict TDD: wrote the failing test first, confirmed RED, then implemented, confirmed GREEN.
+- Removed the two local interface declarations (`CoverageItem`, `AppCoverage`) from `sidebar.ts`;
+  both are now imported from `./dashboard/protocol.js` (shared source of truth).
+- `sidebar.ts` now calls `parseCoverageText(raw)` imported from `./dashboard/coverage-parse.js` — DRY.
+- `npm run lint` (tsc --noEmit) is clean; `npm run build` emits `dist/extension.js` (14.9 kb).
+- Test: 1/1 passing (`parseCoverageText` parses app name, items, and summary percentage correctly).
+
 ## 2026-06-28 — Task 1: Extension test harness + flow protocol/metadata
 
 - Installed **Vitest 3** to `extension/` as the test runner (`npm test` = `vitest run`).
