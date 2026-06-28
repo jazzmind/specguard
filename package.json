@@ -1,0 +1,35 @@
+{
+  "name": "specguard",
+  "version": "0.1.0",
+  "description": "SpecGuard — Living Specification QA agent CLI + MCP server",
+  "type": "module",
+  "bin": {
+    "specguard": "./dist/cli/index.js",
+    "specguard-mcp": "./dist/mcp/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "tsx src/cli/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ai": "^4",
+    "@ai-sdk/anthropic": "^1",
+    "@ai-sdk/openai": "^1",
+    "zod": "^3",
+    "fast-glob": "^3",
+    "commander": "^13",
+    "@modelcontextprotocol/sdk": "^1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "vitest": "^3",
+    "@types/node": "^22",
+    "tsx": "^4"
+  }
+}
