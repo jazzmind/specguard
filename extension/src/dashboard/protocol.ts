@@ -1,5 +1,19 @@
 /** Shared message + model contracts between the extension host and the webview. */
 
+export type ActivityStatus = 'running' | 'pass' | 'fail' | 'error' | 'info';
+export type ActivitySource = 'extension' | 'mcp' | 'cli';
+
+export interface ActivityEntry {
+  id: string;
+  timestamp: number;
+  pipeline: string;
+  status: ActivityStatus;
+  source: ActivitySource;
+  message?: string;
+  durationMs?: number;
+  counts?: { created?: number; updated?: number; skipped?: number; failed?: number };
+}
+
 export interface CoverageItem { app: string; key: string; hasSpec: boolean; hasTest: boolean; specPath?: string; }
 export interface AppCoverage { name: string; specCount: number; sourceCount: number; testCount: number; percentage: number; items: CoverageItem[]; }
 
@@ -15,7 +29,23 @@ export type DashboardEvent =
   | { type: 'artifact'; kind: 'spec' | 'test' | 'doc'; path: string; change: 'create' | 'update' }
   | { type: 'matrix'; data: MatrixModel }
   | { type: 'coverage'; data: AppCoverage[] }
+  | { type: 'activity'; entries: ActivityEntry[] }
+  | { type: 'findings'; data: FindingItem[] }
   | { type: 'error'; scope: string; message: string };
+
+export type FindingSeverity = 'critical' | 'error' | 'warning' | 'info';
+export type FindingCategory = 'lint' | 'security' | 'deps' | 'dead-code' | 'quality';
+
+export interface FindingItem {
+  id: string;
+  severity: FindingSeverity;
+  category: FindingCategory;
+  file: string;
+  line?: number;
+  message: string;
+  rule?: string;
+  source: string;
+}
 
 export type DashboardCommand =
   | { type: 'run'; pipeline: string; args?: string[] }
@@ -42,13 +72,18 @@ export const PIPELINE_NODES: PipelineNode[] = [
   { id: 'drift', label: 'drift', kind: 'pipeline', from: ['specs'] },
   { id: 'matrix', label: 'matrix', kind: 'pipeline', from: ['specs'] },
   { id: 'traceability', label: 'Traceability', kind: 'artifact', from: ['matrix'] },
+  { id: 'quality', label: 'quality', kind: 'pipeline', from: ['code'] },
+  { id: 'deps', label: 'deps', kind: 'pipeline', from: ['code'] },
+  { id: 'commit', label: 'commit', kind: 'pipeline', from: ['tests', 'user-docs', 'traceability'] },
 ];
 
 /** Pipelines runnable from the Activity tab and whether they need a confirm. */
-export const RUNNABLE_PIPELINES: { id: string; destructive: boolean }[] = [
+export const RUNNABLE_PIPELINES: { id: string; destructive: boolean; label?: string }[] = [
   { id: 'status', destructive: false },
   { id: 'drift', destructive: false },
   { id: 'matrix', destructive: false },
+  { id: 'quality', destructive: false, label: 'quality (lint + dead code)' },
+  { id: 'deps', destructive: false, label: 'deps (audit + unused)' },
   { id: 'reverse', destructive: true },
   { id: 'generate', destructive: true },
   { id: 'heal', destructive: true },
@@ -56,4 +91,5 @@ export const RUNNABLE_PIPELINES: { id: string; destructive: boolean }[] = [
   { id: 'docs', destructive: true },
   { id: 'validate', destructive: true },
   { id: 'import', destructive: true },
+  { id: 'commit', destructive: true, label: 'commit (stage specguard files)' },
 ];

@@ -133,6 +133,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show spec coverage percentage in the status bar."
+        },
+        "specguard.autoDocs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically regenerate documentation when a spec file changes (debounced 3s)."
         }
       }
     }
@@ -143,6 +148,10 @@
     "build": "npm run build:webview && npm run build:host",
     "watch": "npm run build:host -- --watch",
     "package": "vsce package",
+    "release": "node scripts/release.mjs",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major",
+    "release:dry-run": "node scripts/release.mjs patch --dry-run",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },
