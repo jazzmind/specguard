@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-06-28 — Final review fixes
+
+- **Fix 1 (host-side modal confirm)**: Added `RUNNABLE_PIPELINES` value import to `extension/src/dashboard/host.ts`
+  alongside the existing `import type` line. Inserted a destructive-confirm gate at the top of `run()` using
+  `vscode.window.showWarningMessage({ modal: true })` before `pipeline:start` is posted. Posts
+  `pipeline:log … 'cancelled by user'` and returns early on dismiss. Removed the unreliable
+  `window.confirm()` guard from `extension/webview/src/views/ActivityView.tsx`; the `run` handler
+  now directly posts `{ type: 'run', pipeline }`. The `RUNNABLE_PIPELINES` import and ` ⚠` destructive
+  markers in the `<option>` list are preserved. `FlowView.tsx` is unchanged — the host gate covers it too.
+- **Fix 2 (coverage flag reconcile)**: Changed `extension/src/sidebar.ts` line 97 from
+  `['status', '--json']` to `['status']` to match the host's call and the text parser in use.
+- **Fix 3 (error message clarity)**: Replaced three occurrences of `(err as Error).message ?? String(err)`
+  with `err instanceof Error ? err.message : String(err)` in `extension/src/dashboard/host.ts`.
+- **Fix 4 (test title accuracy)**: Renamed the reducer test from
+  `'appends logs and records artifacts/coverage/matrix'` to `'appends logs and records artifacts'`
+  in `extension/webview/src/reducer.test.ts`. Assertions unchanged.
+- Verification:
+  - `cd extension && npm run lint` → tsc --noEmit clean (0 errors).
+  - `cd extension && npm run build` → webview 35 modules → `media/main.js` 149.98 kB; host esbuild → `dist/extension.js` 22.7 kB.
+  - `cd extension && npx vitest run` → **10/10 passed** (coverage-parse, flow-events, matrix-model, protocol).
+  - `cd extension/webview && npm run build && npx vitest run` → build clean, **4/4 reducer tests passed**.
+
 ## 2026-06-28 — Task 10: Build wiring, packaging ignore, docs, full verification
 
 - Modified `extension/package.json` scripts:

@@ -10,9 +10,7 @@ export function ActivityView({ vm }: { vm: ViewModel }) {
     tests: vm.artifacts.filter((a) => a.kind === 'test').length,
     docs: vm.artifacts.filter((a) => a.kind === 'doc').length,
   };
-  const entry = RUNNABLE_PIPELINES.find((p) => p.id === pipeline);
   const run = () => {
-    if (entry?.destructive && !confirm(`Run "${pipeline}"? It may call the LLM and write files.`)) return;
     vscodeApi.postMessage({ type: 'run', pipeline });
   };
   const log = vm.logs[pipeline] ?? [];

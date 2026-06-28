@@ -17,7 +17,7 @@ describe('reduce', () => {
     const vm = reduce(initialViewModel(), { type: 'pipeline:done', pipeline: 'status', exitCode: 4 });
     expect(vm.nodeStates['status']).toBe('done');
   });
-  it('appends logs and records artifacts/coverage/matrix', () => {
+  it('appends logs and records artifacts', () => {
     let vm = initialViewModel();
     vm = reduce(vm, { type: 'pipeline:log', pipeline: 'drift', line: 'hello' });
     expect(vm.logs['drift']).toEqual(['hello']);

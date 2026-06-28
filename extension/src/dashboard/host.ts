@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { DashboardEvent, DashboardCommand } from './protocol.js';
+import { RUNNABLE_PIPELINES } from './protocol.js';
 import { resolveCliPath, spawnCli } from './cli.js';
 import { parseCoverageText } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
@@ -33,6 +34,18 @@ export class DashboardHost {
   }
 
   private async run(pipeline: string, extra: string[]): Promise<void> {
+    const entry = RUNNABLE_PIPELINES.find((p) => p.id === pipeline);
+    if (entry?.destructive) {
+      const choice = await vscode.window.showWarningMessage(
+        `Run "${pipeline}"? It may call the LLM and write files.`,
+        { modal: true },
+        'Run',
+      );
+      if (choice !== 'Run') {
+        this.post({ type: 'pipeline:log', pipeline, line: 'cancelled by user' });
+        return;
+      }
+    }
     this.post({ type: 'pipeline:start', pipeline });
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
@@ -41,7 +54,7 @@ export class DashboardHost {
       this.post({ type: 'pipeline:done', pipeline, exitCode: code });
       await this.refresh();
     } catch (err) {
-      this.post({ type: 'error', scope: pipeline, message: (err as Error).message ?? String(err) });
+      this.post({ type: 'error', scope: pipeline, message: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -53,7 +66,7 @@ export class DashboardHost {
       await spawnCli(cli, ['status'], this.workspaceRoot, (l) => { out += l + '\n'; });
       this.post({ type: 'coverage', data: parseCoverageText(out) });
     } catch (err) {
-      this.post({ type: 'error', scope: 'status', message: (err as Error).message ?? String(err) });
+      this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
     }
     // Matrix from traceability.json (if present)
     try {
@@ -63,7 +76,7 @@ export class DashboardHost {
         this.post({ type: 'matrix', data: toMatrixModel(raw) });
       }
     } catch (err) {
-      this.post({ type: 'error', scope: 'matrix', message: (err as Error).message ?? String(err) });
+      this.post({ type: 'error', scope: 'matrix', message: err instanceof Error ? err.message : String(err) });
     }
   }
 
