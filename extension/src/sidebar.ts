@@ -94,7 +94,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
     try {
       const cli = await resolveCliPath(workspaceRoot);
-      const raw = await runCli(cli, ['status', '--json'], workspaceRoot);
+      const raw = await runCli(cli, ['status'], workspaceRoot);
       this._apps = parseCoverageText(raw);
     } catch (err) {
       this._error = (err as Error).message ?? String(err);
