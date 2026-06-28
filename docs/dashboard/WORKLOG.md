@@ -7,6 +7,23 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 1: Extension test harness + flow protocol/metadata
+
+- Installed **Vitest 3** to `extension/` as the test runner (`npm test` = `vitest run`).
+- Created `extension/vitest.config.ts` with node environment, configured to discover `src/**/*.test.ts`.
+- Implemented `extension/src/dashboard/protocol.ts` — shared message/model contracts between host
+  and webview:
+  - Event types: `pipeline:{start|log|done}`, artifact changes, matrix/coverage updates, errors.
+  - Command types: run pipelines, refresh, open file.
+  - `PipelineNode[]` metadata (PIPELINE_NODES) describing the flow graph per README architecture:
+    inputs (docs-in, code) → pipelines (import, reverse, ...) → artifacts (specs, tests, docs, traceability).
+  - `RUNNABLE_PIPELINES[]` listing the 10 pipelines runnable from the Activity tab + destructive flags.
+- Added `extension/src/dashboard/protocol.test.ts` with 3 tests:
+  - Non-input nodes must have upstream sources.
+  - All `from` references must be valid node IDs.
+  - Core pipelines (reverse, generate, drift, matrix, status) must be in RUNNABLE_PIPELINES.
+- All tests pass (3/3); committed via the main git workflow.
+
 ## 2026-06-28 — Design approved, repo synced
 
 - Synced the single working folder to the latest `origin/build/specguard-impl`
