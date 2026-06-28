@@ -1,10 +1,18 @@
 # SpecGuard Dashboard — Design
 
+> **⚠️ SUPERSEDED (2026-06-28).** This standalone Hono + React web-app design is
+> no longer the chosen direction. After discovering the existing VS Code extension
+> and the transcript's emphasis on a live, animated, in-IDE visualization, the
+> dashboard is now a **webview inside the existing extension**. See the active
+> spec: [2026-06-28-specguard-extension-dashboard-design.md](./2026-06-28-specguard-extension-dashboard-design.md).
+> Kept for history and for any reusable pieces (typed API client, drift-row transform).
+
 <!--
   topic: specguard-dashboard
   date: 2026-06-28
-  status: approved
-  branch: feat/dashboard (worktree off build/specguard-impl)
+  status: superseded
+  superseded-by: 2026-06-28-specguard-extension-dashboard-design.md
+  branch: feat/dashboard
 -->
 
 ## Overview
