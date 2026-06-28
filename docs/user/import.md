@@ -1,69 +1,66 @@
 ---
 title: "Import Pipeline"
 sidebar_label: "Import Pipeline"
+description: "The Import Pipeline transforms existing requirement documents — such as PRDs, Jira exports, or Markdown notes — into Living Specification format, giving brownfield teams a fast on-ramp into SpecGuard."
+category: "pipelines"
+order: 10
 generated: true
 ---
 
 # Import Pipeline
 
-## Overview
-
-The Import Pipeline is your starting point when you already have requirements documentation — product requirement docs (PRDs), Jira exports, plain Markdown notes, or anything in between. It reads your existing document and transforms it into a properly structured Living Specification, making that new spec file the authoritative source of truth going forward.
+The Import Pipeline is your starting point if your team already has requirements documentation outside of SpecGuard. It reads an existing document — a PRD, a Jira export, a plain Markdown file, or any text-based source — and uses an LLM to reshape it into the standard Living Specification format. From that point on, the generated spec file becomes the single source of truth; the original document is no longer authoritative.
 
 ---
 
-## Supported Input Types
+## Supported Input Sources
 
-You can point the importer at any of the following sources:
+You can point the Import Pipeline at any of the following:
 
-| Input | Description |
+| Source type | Example |
 |---|---|
-| `.md` file | A local Markdown file |
-| `.txt` file | A local plain-text file |
-| URL | Any publicly reachable `https://` URL |
+| Markdown file | `./docs/my-feature.md` |
+| Plain text file | `./notes/requirements.txt` |
+| Remote URL (HTTPS) | `https://example.com/prd.md` |
+
+Remote URLs are fetched securely over HTTPS.
 
 ---
 
 ## What Gets Generated
 
-The importer uses an LLM to restructure your source document into the standard Living Spec format, which includes:
+The LLM transforms your source document into a fully structured Living Spec file containing all standard sections:
 
-- An **H1 title** and metadata header
-- An **Overview** section
+- **H1 title** — derived from the document's own title
+- **Metadata comment block**
+- **Overview**
 - **Acceptance Criteria**
 - **Scenarios**
 - **Security Notes**
 
-The output file is written to your app's configured spec directory (`specDir`) and named after the source document. The filename is derived by slugifying the document's title — taken from its H1 heading or, if none is present, its first line.
-
-For example, a document titled **"User Authentication Flow"** would produce a file named `user-authentication-flow.md`.
+The output file is written to your configured spec directory (`app.specDir`) and named using a URL-friendly slug derived from the document's title (its H1 heading, or first line if no heading is present). For example, a document titled *"User Authentication Flow"* would produce `user-authentication-flow.md`.
 
 ---
 
 ## Basic Usage
 
-```
-specguard import <file-or-url>
-```
-
-### Examples
-
-Import a local Markdown file:
-
-```
-specguard import ./docs/auth-requirements.md
+```bash
+specguard import <source>
 ```
 
-Import a plain-text file:
+Where `<source>` is a file path or a URL.
 
-```
-specguard import ./notes/onboarding.txt
-```
+**Examples:**
 
-Import from a URL:
+```bash
+# Import a local Markdown file
+specguard import ./docs/onboarding-prd.md
 
-```
-specguard import https://example.com/requirements/payments.md
+# Import a plain text file
+specguard import ./notes/billing-requirements.txt
+
+# Import from a remote URL
+specguard import https://example.com/specs/search-feature.md
 ```
 
 ---
@@ -72,32 +69,41 @@ specguard import https://example.com/requirements/payments.md
 
 ### `--app <name>`
 
-Specifies which app's `specDir` the output file should be written to. This flag is **required** when your configuration defines more than one app.
+Specifies which app's `specDir` the output file should be written to. This option is **required** when your SpecGuard configuration defines multiple apps.
 
-```
-specguard import ./requirements.md --app payments-service
+```bash
+specguard import ./docs/prd.md --app payments
 ```
 
 ### `--out <path>`
 
-Overrides the default output path entirely, writing the generated spec to the location you specify instead.
+Overrides the default output path entirely. Use this when you want to control exactly where the generated spec file is saved, regardless of `specDir` or the derived name.
 
-```
-specguard import ./requirements.md --out ./specs/custom-name.md
+```bash
+specguard import ./docs/prd.md --out ./specs/custom-name.md
 ```
 
 ### `--force`
 
-By default, if a spec file with the same derived name already exists in the target directory, the import is skipped to prevent accidental overwrites. Pass `--force` to overwrite the existing file.
+By default, if a spec file with the same derived name already exists in the target directory, the import is **skipped** to prevent accidental overwrites. Pass `--force` to overwrite the existing file.
 
-```
-specguard import ./requirements.md --force
+```bash
+specguard import ./docs/prd.md --force
 ```
 
 ---
 
-## Behavior & Notes
+## Exit Codes
 
-- **The generated spec becomes the source of truth.** Once imported, you should treat the Living Spec file — not the original document — as the canonical record of your requirements.
-- **Existing files are protected by default.** Without `--force`, the importer will not overwrite a spec that already exists at the target path.
-- The command exits with code `0` on success and `1` if an error occurs.
+| Code | Meaning |
+|---|---|
+| `0` | Import completed successfully |
+| `1` | An error occurred |
+
+---
+
+## Tips & Gotchas
+
+- **The generated spec is the source of truth.** Once imported, edit the `.md` spec file directly — do not re-import the original document to make changes, as this will overwrite your work (unless you use `--force` intentionally).
+- **Duplicate protection is on by default.** If you run the same import twice without `--force`, the second run is safely skipped.
+- **Multi-app projects need `--app`.** If your config defines more than one app, SpecGuard cannot infer which `specDir` to use — always supply `--app` in that case.

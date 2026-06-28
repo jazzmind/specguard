@@ -12,6 +12,7 @@ import * as path from 'path';
 import type { AppCoverage } from './dashboard/protocol.js';
 import { parseCoverageText } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
+import { getActiveWorkspaceRoot } from './workspace-state.js';
 
 // ---------------------------------------------------------------------------
 // Tree item types
@@ -106,6 +107,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       return this._buildOutputItems();
     }
 
+
     // App children: spec items
     if (element.appData) {
       return element.appData.items.map((item) => {
@@ -136,7 +138,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   }
 
   private _buildOutputItems(): CoverageTreeItem[] {
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const root = getActiveWorkspaceRoot();
     if (!root) return [];
 
     const items: CoverageTreeItem[] = [];
@@ -193,7 +195,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   }
 
   private async loadCoverage(): Promise<void> {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const workspaceRoot = getActiveWorkspaceRoot();
     if (!workspaceRoot) {
       this._apps = [];
       return;
@@ -230,16 +232,12 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 // ---------------------------------------------------------------------------
 
 function runCli(cliPath: string, args: string[], cwd: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: string[] = [];
-    spawnCli(cliPath, args, cwd, (line) => chunks.push(line))
-      .then((code) => {
-        if (code !== 0 && code !== 4) {
-          reject(new Error(`specguard status exited with code ${code}`));
-        } else {
-          resolve(chunks.join('\n'));
-        }
-      })
-      .catch(reject);
+  const chunks: string[] = [];
+  const handle = spawnCli(cliPath, args, cwd, (line) => chunks.push(line));
+  return handle.promise.then((code) => {
+    if (code !== 0 && code !== 4) {
+      throw new Error(`specguard status exited with code ${code}`);
+    }
+    return chunks.join('\n');
   });
 }

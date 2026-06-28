@@ -3,12 +3,12 @@
  *
  * - In-memory ring buffer of the last 500 entries (ActivityEntry[])
  * - Persisted to .specguard/activity-log.json (append-only, rotated at 1 MB)
- * - VS Code OutputChannel "SpecGuard" for searchable, searchable logs
+ * - VS Code OutputChannel "SpecGuard" for searchable logs
  *
  * This module is the bridge between:
- *   - Extension host pipeline runs (DashboardHost calls appendEntry)
+ *   - Extension host pipeline runs (DashboardHost calls append)
  *   - MCP tool invocations (server.ts appends via the file directly)
- *   - The webview (host.ts watches the file and pushes ActivityLog events)
+ *   - The webview (host.ts watches the file and pushes activity events)
  */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -52,15 +52,30 @@ export class ActivityLogService {
     this.channel = vscode.window.createOutputChannel('SpecGuard');
     this.logFile = path.join(workspaceRoot, '.specguard', 'activity-log.json');
     this._loadExisting();
+    this._reconcileStaleRunning();
   }
 
-  /** Append a new entry; write to file + output channel. */
+  /**
+   * Append a new entry; write to file + output channel.
+   *
+   * When appending a terminal status (pass/fail/error), the most-recent
+   * matching `running` entry for the same pipeline+source is removed from the
+   * in-memory buffer so the feed shows one consolidated row per run rather
+   * than a start row and an end row.
+   */
   append(entry: Omit<ActivityEntry, 'id' | 'timestamp'>): ActivityEntry {
     const full: ActivityEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: Date.now(),
       ...entry,
     };
+
+    // Remove the dangling `running` entry when we get a terminal status.
+    const terminal: ActivityStatus[] = ['pass', 'fail', 'error'];
+    if (terminal.includes(full.status)) {
+      const idx = this._findLastRunning(full.pipeline, full.source);
+      if (idx !== -1) this.entries.splice(idx, 1);
+    }
 
     // In-memory ring buffer
     this.entries.push(full);
@@ -96,6 +111,49 @@ export class ActivityLogService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * After loading from file, mark any `running` entry that has no later
+   * terminal (pass/fail/error) entry for the same pipeline+source as stale.
+   * This handles crashes / hard restarts where the completion was never written.
+   */
+  private _reconcileStaleRunning(): void {
+    const terminal = new Set<ActivityStatus>(['pass', 'fail', 'error']);
+    const terminatedKeys = new Set<string>();
+
+    // Walk newest-first to build the set of pipelines that did complete.
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const e = this.entries[i];
+      if (terminal.has(e.status)) terminatedKeys.add(`${e.pipeline}::${e.source}`);
+    }
+
+    let changed = false;
+    for (const e of this.entries) {
+      if (e.status === 'running' && !terminatedKeys.has(`${e.pipeline}::${e.source}`)) {
+        e.status = 'error';
+        e.message = 'stale — never completed (extension restarted)';
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      // Persist the corrected state
+      try {
+        const dir = path.dirname(this.logFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(this.logFile, JSON.stringify(this.entries, null, 2), 'utf-8');
+      } catch { /* best-effort */ }
+    }
+  }
+
+  /** Find the index of the most-recent `running` entry for this pipeline+source. */
+  private _findLastRunning(pipeline: string, source: ActivitySource): number {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const e = this.entries[i];
+      if (e.status === 'running' && e.pipeline === pipeline && e.source === source) return i;
+    }
+    return -1;
+  }
+
   private _loadExisting(): void {
     try {
       if (!fs.existsSync(this.logFile)) return;
@@ -120,7 +178,6 @@ export class ActivityLogService {
         try {
           const stat = fs.statSync(this.logFile);
           if (stat.size > MAX_FILE_BYTES) {
-            // Rotate: keep only the last 200 entries
             const raw = JSON.parse(fs.readFileSync(this.logFile, 'utf-8')) as ActivityEntry[];
             existing = Array.isArray(raw) ? raw.slice(-200) : [];
           } else {

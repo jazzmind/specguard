@@ -9,13 +9,19 @@ const DEFAULT_DOC_BODY = '# Spec Parser\n\nThis feature parses your specs into s
 
 vi.mock('../../src/core/llm.js', () => ({
   llmGenerateText: vi.fn(async () => DEFAULT_DOC_BODY),
+  llmGenerateObject: vi.fn(async () => ({
+    description: 'Parses your specs into structured data.',
+    category: 'core',
+    order: 10,
+    body: DEFAULT_DOC_BODY,
+  })),
 }));
 
-import { llmGenerateText } from '../../src/core/llm.js';
+import { llmGenerateObject } from '../../src/core/llm.js';
 import { runDocGenerate, stripForDocs } from '../../src/pipelines/doc-generate.js';
 import type { SpecGuardConfig } from '../../src/core/types.js';
 
-const mockedLlm = llmGenerateText as unknown as ReturnType<typeof vi.fn>;
+const mockedLlm = llmGenerateObject as unknown as ReturnType<typeof vi.fn>;
 
 let rootDir: string;
 
@@ -83,9 +89,16 @@ async function writeSpec(rel: string, content = SPEC_BODY): Promise<void> {
   await writeFile(abs, content, 'utf-8');
 }
 
+const DEFAULT_DOC_OBJECT = {
+  description: 'Parses your specs into structured data.',
+  category: 'core',
+  order: 10,
+  body: DEFAULT_DOC_BODY,
+};
+
 beforeEach(async () => {
   mockedLlm.mockReset();
-  mockedLlm.mockResolvedValue(DEFAULT_DOC_BODY);
+  mockedLlm.mockResolvedValue(DEFAULT_DOC_OBJECT);
   rootDir = await mkdtemp(path.join(os.tmpdir(), 'specguard-docs-'));
 });
 

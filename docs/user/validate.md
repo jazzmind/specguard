@@ -1,68 +1,109 @@
 ---
 title: "Validate Pipeline"
 sidebar_label: "Validate Pipeline"
+description: "The Validate Pipeline drives a real browser against your running application to verify that every acceptance criterion in a Living Specification is actually met, producing evidence-backed verdicts of PASS, FAIL, BLOCKED, or INCONCLUSIVE."
+category: "pipelines"
+order: 10
 generated: true
 ---
 
 # Validate Pipeline
 
-The Validate Pipeline is SpecGuard's core verification engine. It opens a real browser, navigates to your running application, and checks whether every acceptance criterion in your Living Specifications is actually being met — producing evidence-backed verdicts you can trust.
+The Validate Pipeline is SpecGuard's core verification engine. It launches a real browser, navigates to your application, and checks whether every acceptance criterion defined in a Living Specification is genuinely satisfied — not just assumed. Results are backed by concrete evidence and written to a persistent history file so you can track quality over time.
+
+---
 
 ## How It Works
 
-The pipeline runs each specification through a four-stage loop:
+The pipeline follows a four-stage **PERCEIVE → PLAN → ACT → VERIFY** loop for each specification it processes.
 
-1. **Perceive** — SpecGuard navigates to the URL defined in your spec, captures a screenshot, and collects an accessibility snapshot of the page.
-2. **Plan** — The AI compares your acceptance criteria against what it perceived and plans the interaction steps needed to verify each one.
-3. **Act** — Those steps are executed in a real browser via Playwright. Any actions classified as destructive or outbound are automatically blocked before they run.
-4. **Verify** — The AI evaluates the outcome of each action against your acceptance criteria and assigns a verdict.
+### 1. PERCEIVE
+SpecGuard navigates to the URL declared in the spec's metadata, then captures a screenshot and an accessibility snapshot of the page. This gives the pipeline a ground-truth view of the application's current state.
+
+### 2. PLAN
+An LLM compares the acceptance criteria from the spec against the perceived page state and produces a sequence of interaction steps needed to exercise the feature under test.
+
+### 3. ACT
+The planned steps are executed in the browser via Playwright. Before any action runs, the built-in **guardrails** layer inspects it. Any action classified as `destructive` or `outbound` is blocked and never executed, keeping your data and external services safe.
+
+### 4. VERIFY
+After the interactions complete, the LLM evaluates each acceptance criterion against the resulting page state and assigns a **verdict**.
+
+---
 
 ## Verdicts
 
-Every acceptance criterion in a spec receives one of four verdicts:
+Every acceptance criterion in a spec receives exactly one of the following verdicts:
 
 | Verdict | Meaning |
 |---|---|
-| `PASS` | The criterion is met. |
-| `FAIL` | The criterion is not met. A piece of evidence (screenshot path, HTTP status, or console error) is always cited. |
-| `BLOCKED` | The action required to verify this criterion was blocked by guardrails. |
-| `INCONCLUSIVE` | SpecGuard could not determine whether the criterion is met or not. |
+| `PASS` | The criterion is demonstrably satisfied. |
+| `FAIL` | The criterion is not met. Evidence is always cited (screenshot path, HTTP status, or console error). |
+| `BLOCKED` | The pipeline could not reach the state needed to evaluate the criterion (e.g., a required action was blocked by guardrails). |
+| `INCONCLUSIVE` | The available evidence was insufficient to make a definitive determination. |
 
-## Running Validations
+---
 
-Validate a single spec by its key:
+## Running the Pipeline
 
-```
-specguard validate --spec <key>
-```
+Use the `--spec` flag to validate a single specification, or `--all` to validate every spec that declares a `url:` metadata field.
 
-Validate all specs that have a `url:` field defined:
+```bash
+# Validate one spec by its key
+specguard validate --spec my-feature/login
 
-```
+# Validate all specs that have a url: field
 specguard validate --all
 ```
 
-### Spec Requirements
+> **Note:** Any spec that does not have a `url:` metadata field is automatically skipped. You will see a `[skip]` message in the output for those specs.
 
-Each spec must include a `url:` field in its metadata for the pipeline to navigate to your application. Specs without a `url:` field are skipped automatically.
+---
 
-If your spec includes an `auth:` metadata field referencing an auth profile, SpecGuard will invoke the auth state machine to establish the correct session before validation begins.
+## Authentication
 
-## Evidence and Results
+If a spec includes an `auth:` metadata field referencing an auth profile, the pipeline automatically invokes the auth state machine before beginning the PERCEIVE stage. This ensures the browser session is authenticated correctly before any criteria are evaluated.
 
-All evidence collected during a run — screenshots, HTTP status codes, and console errors — is saved to:
+---
+
+## Evidence & Results
+
+### Evidence Files
+For every spec that is validated, SpecGuard saves supporting evidence to:
 
 ```
 .specguard/evidence/<spec-key>/
 ```
 
-Every run appends its results to `.specguard/validation-history.json`, giving you a persistent record of how your specs have fared over time.
+Evidence can include screenshots, recorded HTTP status codes, and captured browser console errors. Every `FAIL` verdict is required to reference at least one piece of evidence from this directory.
+
+### Validation History
+All results are appended to a single history file:
+
+```
+.specguard/validation-history.json
+```
+
+This file accumulates runs over time, giving you a full audit trail of when criteria passed or failed.
+
+---
 
 ## Exit Codes
 
-| Code | Meaning |
-|---|---|
-| `0` | All criteria passed. |
-| `1` | One or more criteria failed. |
+The pipeline communicates its overall outcome through the process exit code, making it straightforward to integrate with CI/CD pipelines.
 
-This makes the Validate Pipeline straightforward to integrate into CI workflows — a non-zero exit code signals that your application is not meeting its specification.
+| Exit Code | Meaning |
+|---|---|
+| `0` | All acceptance criteria passed. |
+| `1` (`ValidationFailed`) | One or more criteria received a `FAIL` verdict. |
+
+---
+
+## Spec Metadata Reference
+
+The following metadata fields in your Living Specification affect how the Validate Pipeline behaves:
+
+| Field | Required | Description |
+|---|---|---|
+| `url:` | **Yes** | The URL the pipeline navigates to. Specs without this field are skipped. |
+| `auth:` | No | References an auth profile. When present, the auth state machine is invoked before validation begins. |

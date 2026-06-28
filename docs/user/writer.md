@@ -1,23 +1,39 @@
 ---
 title: "File Writer"
 sidebar_label: "File Writer"
+description: "The File Writer is a core module that handles all filesystem writes across SpecGuard pipelines, automatically creating missing directories and ensuring consistent UTF-8 encoding."
+category: "core"
+order: 20
 generated: true
 ---
 
 # File Writer
 
-The File Writer is the single, consistent way SpecGuard writes files to disk. Every pipeline routes its output through this module, which means you always get the same predictable behavior: files are written in UTF-8, and any folders that need to exist along the way are created for you automatically.
+The File Writer is the single, consistent interface that every SpecGuard pipeline uses to write files to disk. Rather than calling the filesystem directly, pipelines delegate all write operations to this module — keeping encoding, error handling, and directory management uniform across the entire tool.
 
 ## What It Does
 
+Whenever SpecGuard needs to write output to disk, the File Writer takes care of two things automatically:
+
+1. **Creates any missing parent directories.** You never need to manually create a folder structure before writing a file. If the destination path contains directories that don't yet exist, they are created recursively before the file is written.
+2. **Writes content as UTF-8.** All file output is encoded as UTF-8, ensuring consistent, predictable text files regardless of the pipeline producing them.
+
+## Key Operations
+
 ### Writing a File
 
-When you call `writeFile(path, content)`, the module writes your content to the specified path as a UTF-8 encoded file. You don't need to worry about whether the destination folder exists — if any part of the directory path is missing, it is created automatically before the file is written. This means you can write to a deeply nested path like `output/docs/api/reference.md` without manually creating each intermediate folder first.
+The `writeFile(path, content)` operation writes the given text content to the specified path. If any intermediate directories in the path are missing, they are created automatically before the write takes place. You do not need to call any directory-creation step yourself — a single call is all that's needed.
+
+**Example flow:**
+
+- You specify an output path such as `dist/reports/summary.md`.
+- If `dist/` or `dist/reports/` do not exist, the File Writer creates them.
+- The content is then written to `dist/reports/summary.md` as a UTF-8 text file.
 
 ### Ensuring a Directory Exists
 
-The `ensureDir(dir)` function creates a directory at the given path, including any missing parent directories. If the directory already exists, the call succeeds quietly — nothing is overwritten or disrupted. This is useful when you need to guarantee a folder is in place before performing a series of related writes.
+The `ensureDir(dir)` operation guarantees that a given directory path exists. It creates the directory (and any missing parents) recursively. If the directory already exists, the operation completes successfully without error — making it safe to call at any point without needing to check first.
 
-## Consistent Behavior Across Pipelines
+## Why This Matters
 
-Because all pipelines use the File Writer rather than calling the filesystem directly, encoding and directory-creation behavior is uniform throughout SpecGuard. You won't encounter situations where one pipeline creates missing directories and another doesn't — the rules are the same everywhere.
+By routing all filesystem writes through the File Writer, SpecGuard pipelines stay focused on generating content rather than managing filesystem concerns. Encoding is always consistent, nested output paths just work, and there is no risk of a pipeline failing simply because an output folder hasn't been created yet.

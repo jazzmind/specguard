@@ -1,0 +1,370 @@
+{
+  "generatedAt": "2026-06-28T22:38:23.343Z",
+  "apps": [
+    {
+      "name": "specguard-core",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 0,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        }
+      ]
+    },
+    {
+      "name": "specguard-pipelines",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 0,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        }
+      ]
+    },
+    {
+      "name": "specguard-adapters",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 0,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    }
+  ],
+  "totalVulnerabilities": 21,
+  "totalUnused": 0,
+  "totalMissing": 0
+}

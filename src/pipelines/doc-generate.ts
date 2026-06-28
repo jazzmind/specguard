@@ -43,9 +43,26 @@ import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
 
+/** Category values from most general to most specific — the DocsView groups by this. */
+const DOC_CATEGORIES = ['overview', 'getting-started', 'core', 'pipelines', 'adapters', 'reference'] as const;
+type DocCategory = typeof DOC_CATEGORIES[number];
+
 /** Schema for the LLM's structured doc output. */
 const DocOutputSchema = z.object({
   description: z.string().describe('One or two sentences summarising what this feature does for the user.'),
+  category: z.enum(DOC_CATEGORIES).describe(
+    'The documentation category that best fits this page. ' +
+    '"overview" = high-level product introduction; ' +
+    '"getting-started" = installation, first steps, quickstart; ' +
+    '"core" = foundational concepts and configuration; ' +
+    '"pipelines" = pipeline-specific reference; ' +
+    '"adapters" = adapter/runner-specific reference; ' +
+    '"reference" = CLI flags, config schema, advanced options.',
+  ),
+  order: z.number().int().min(0).max(999).describe(
+    'Sort order within the category (0 = first, 999 = last). ' +
+    'Overview pages should be 0-9; core fundamentals 10-49; specific features 50-99; edge-case / advanced 100+.',
+  ),
   body: z.string().describe('The full user-facing documentation body in Markdown prose (no frontmatter, no wrapping code fence).'),
 });
 
@@ -84,6 +101,12 @@ const SYSTEM_PROMPT = [
   '  features, flags, commands, or behavior that the spec does not describe.',
   '- For `description`: one or two plain-English sentences summarising the feature',
   '  at a glance (shown in the dashboard card). No markdown, no code.',
+  '- For `category`: pick the most accurate category from the enum. Prefer',
+  '  "overview" for top-level product intro, "getting-started" for install/quickstart,',
+  '  "core" for foundational config/types, "pipelines" for any specguard pipeline,',
+  '  "adapters" for runner adapters, "reference" for CLI/config reference material.',
+  '- For `order`: assign a logical reading order within the category (0 = read first).',
+  '  Overview pages 0-9, fundamentals 10-49, specifics 50-99.',
   '- For `body`: the full documentation in Markdown prose.',
   '  Do NOT wrap it in a code fence. Do NOT emit YAML frontmatter.',
 ].join('\n');
@@ -207,13 +230,15 @@ function stripWrappingFence(text: string): string {
 }
 
 /** Build the YAML frontmatter block for a doc page. */
-function frontmatter(title: string, description: string): string {
+function frontmatter(title: string, description: string, category: string, order: number): string {
   const safe = (s: string) => s.replace(/"/g, '\\"');
   const lines = [
     '---',
     `title: "${safe(title)}"`,
     `sidebar_label: "${safe(title)}"`,
     `description: "${safe(description)}"`,
+    `category: "${safe(category)}"`,
+    `order: ${order}`,
     'generated: true',
     '---',
     '',
@@ -309,7 +334,7 @@ export async function runDocGenerate(
         schema: DocOutputSchema,
       });
       const body = stripWrappingFence(output.body);
-      const doc = `${frontmatter(title, output.description)}\n${body}\n`;
+      const doc = `${frontmatter(title, output.description, output.category, output.order)}\n${body}\n`;
       await writeFile(targetDoc, doc);
       log(`[doc] ${key}`);
       result.items.push({ key, status: 'created', path: targetDoc });

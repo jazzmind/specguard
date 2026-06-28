@@ -1,82 +1,115 @@
 ---
 title: "Doc Generation Pipeline"
 sidebar_label: "Doc Generation Pipeline"
+description: "The Doc Generation Pipeline transforms Living Spec Markdown files into polished, user-facing documentation pages by stripping internal sections and rewriting the content with an LLM, then writing the output to a configurable docs directory."
+category: "pipelines"
+order: 20
 generated: true
 ---
 
 # Doc Generation Pipeline
 
-## What This Pipeline Does
-
-The Doc Generation Pipeline takes your internal Living Specification files and transforms them into polished, user-facing documentation pages. Rather than exposing raw spec content — which includes developer-oriented sections like scenarios and security notes — the pipeline strips away the internal scaffolding and uses an AI model to rewrite what remains as clear, friendly prose that your users can actually read and act on.
-
-The resulting documentation pages are written to an output directory (defaulting to `docs/user/`) and are ready to publish as-is.
+The Doc Generation Pipeline takes your Living Spec Markdown files and turns them into clean, friendly documentation pages ready for your users. It strips out internal-only content, sends the meaningful parts to an LLM for rewriting, prepends YAML frontmatter, and writes the finished pages to your docs output directory.
 
 ---
 
 ## How It Works
 
-When you run the pipeline, it:
+When you run the pipeline, each spec file goes through three stages:
 
-1. **Reads your spec files** — either a single spec you specify, or every spec across all configured apps.
-2. **Strips internal-only content** — the metadata comment, the `## Scenarios` section, and the `## Security Notes` section are removed before anything is sent to the AI model. Only the Overview, Acceptance Criteria, Dependencies, and similar sections are passed along.
-3. **Rewrites the content** — the AI model transforms the remaining spec content into user-facing Markdown documentation. Acceptance Criteria, for example, are reframed as capability and usage descriptions rather than developer checklists. The output is always accurate to the source spec — the model never invents features, flags, or behavior that the spec doesn't describe.
-4. **Prepends YAML frontmatter** — each generated page automatically receives frontmatter with a `title`, `sidebar_label` (both set to the spec's title), and `generated: true`.
-5. **Writes the output file** — the page is saved to the output directory. Because generated docs are always reproducible, any existing file at that path is simply overwritten with no warning or error.
+1. **Strip internal sections** — The pipeline removes content that is not meant for end users: the metadata comment block, the `## Scenarios` section, and the `## Security Notes` section. Each of these sections is removed from its heading through to the next `##`-level heading (or the end of the file). What remains — typically the Overview, Acceptance Criteria, Dependencies, and any other sections you have written — is passed forward.
+
+2. **LLM rewrite** — The stripped source is sent to the LLM, which rewrites it as user-facing Markdown documentation. The LLM is instructed to stay strictly accurate to the spec content (it will never invent features, flags, or behavior), to reframe any "Acceptance Criteria" as readable capability and usage prose rather than a developer checklist, and to return a Markdown body only (no wrapping code fence, no frontmatter).
+
+3. **Write output** — YAML frontmatter is prepended to the generated body, and the finished file is written to the output directory. Because documentation pages are regenerable artifacts, any existing file at the target path is simply overwritten — there is no skip step and no error if the file already exists.
 
 ---
 
 ## Running the Pipeline
 
-The pipeline is configured through `SpecGuardConfig`, which your tooling loads and passes in — there is no automatic config discovery inside the pipeline itself.
+The pipeline is config-driven. The caller loads a `SpecGuardConfig` and passes it in; no config discovery happens inside the pipeline itself.
 
 ### Process a single spec
 
-Use `--spec` with either a spec key or a direct file path:
-
 ```
---spec core/spec-parser
+--spec <key|path>
 ```
 
-A spec key like `core/spec-parser` is resolved under the matching app's configured `specDir`. If you supply a direct `.md` path instead, it is used exactly as given.
+Pass either a spec key (e.g. `core/spec-parser`) or a direct `.md` file path:
+
+- **Spec key** — resolved under the matching app's `specDir`. For example, `core/spec-parser` looks up the app whose `specDir` contains that key and resolves the full path from there.
+- **Direct path** — a `.md` path is used verbatim, exactly as supplied.
 
 ### Process all specs
-
-Use `--all` to process every spec found under each app's `specDir`:
 
 ```
 --all
 ```
 
+Processes every spec found under each app's `specDir` using `loadAllSpecs`. Useful for a full documentation rebuild.
+
 ---
 
 ## Output Location
 
-Generated documentation files are written to:
+Generated files are written to:
 
 ```
 <out>/<feature>.md
 ```
 
-- `<out>` defaults to `docs/user/`, resolved relative to your project's root directory. You can configure a different output path.
-- `<feature>` is the spec file's path relative to its owning app's `specDir`, preserving any subdirectory structure.
+| Part | Description |
+|---|---|
+| `out` | Output directory. Defaults to `docs/user`, resolved relative to `config.rootDir`. |
+| `feature` | The spec's path relative to its owning app's `specDir`. |
 
-For example, a spec at `specs/core/spec-parser.md` (with `specDir` pointing to `specs/core/`) would produce `docs/user/spec-parser.md`.
+For example, a spec at `apps/core/specs/config.md` (where `specDir` is `apps/core/specs`) would be written to `docs/user/config.md` by default.
+
+### YAML Frontmatter
+
+Every generated page receives frontmatter in this shape:
+
+```yaml
+---
+title: <spec title>
+sidebar_label: <spec title>
+generated: true
+---
+```
+
+Both `title` and `sidebar_label` are set to the spec's title as parsed from the source file.
 
 ---
 
-## Results and Error Handling
+## Spec-to-App Mapping
 
-After a run, the pipeline returns a result summary that includes:
-
-- **Counts** of how many specs were processed, succeeded, and failed.
-- **Per-item detail** so you can see exactly what happened to each spec.
-- **Progress messages** emitted during the run.
-
-If the AI model encounters an error while processing a particular spec, that spec is recorded as `failed` and the pipeline continues with the remaining specs. The overall exit code is non-zero only if **every** attempted spec failed — a partial success is treated as a successful run.
+Each spec file is matched to its owning app by comparing the spec file's location against each app's resolved `specDir`. This is the same mapping convention used by the Forward Generate pipeline, so your app configuration works consistently across both pipelines.
 
 ---
 
-## A Note on Accuracy
+## Error Handling and Results
 
-The AI model that rewrites your specs is explicitly instructed to stay faithful to the source content. It will not introduce features, configuration flags, commands, or behavior that your spec does not describe. What you write in your Living Spec is exactly what gets documented — no more, no less.
+The pipeline is designed to be resilient across bulk runs:
+
+- If the LLM returns an error for a particular spec, that spec is recorded as **failed** and the pipeline continues processing the remaining specs.
+- When the run completes, a `PipelineResult` is returned containing:
+  - **Counts** — how many specs were processed, succeeded, and failed.
+  - **Per-item detail** — the outcome for each individual spec.
+  - **Progress messages** — status updates emitted during the run.
+- The exit code is **non-zero only if every attempted spec failed**. A partial success (some specs generated, some failed) exits cleanly.
+
+---
+
+## Internal Architecture
+
+All LLM calls are routed through `core/llm.ts` (`llmGenerateText`). All file reads and writes are routed through `core/reader.ts` and `core/writer.ts` respectively. No paths are hard-coded in the pipeline itself.
+
+**Dependencies:**
+
+| Module | Used for |
+|---|---|
+| `core/spec-parser` | `parseSpecContent`, `loadAllSpecs` |
+| `core/llm` | LLM adapter (`llmGenerateText`) |
+| `core/config` | `AppConfig` (`specDir`) |
+| `core/writer` | Writing output files |
+| `pipelines/forward-generate` | Shared spec → app → feature mapping convention |

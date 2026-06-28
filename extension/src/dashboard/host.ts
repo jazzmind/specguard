@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo } from './protocol.js';
+import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation } from './protocol.js';
 import { RUNNABLE_PIPELINES } from './protocol.js';
-import { resolveCliPath, spawnCli } from './cli.js';
+import { resolveCliPath, spawnCli, SpawnHandle } from './cli.js';
 import { parseCoverageText } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';
@@ -19,8 +19,10 @@ export class DashboardHost {
   private lastActivityCount = 0;
   /** Last drift exit code, to suppress duplicate activity log entries. */
   private lastDriftCode: number | undefined = undefined;
+  /** Handles for in-flight CLI spawns, keyed by pipeline id. */
+  private activeRuns = new Map<string, SpawnHandle>();
 
-  constructor(private post: (e: DashboardEvent) => void, private workspaceRoot: string) {
+  constructor(private post: (e: DashboardEvent) => void, public readonly workspaceRoot: string) {
     this.activityLog = new ActivityLogService(workspaceRoot);
     this.autoDocsTimer = new Map();
   }
@@ -74,13 +76,25 @@ export class DashboardHost {
       return;
     }
     if (cmd.type === 'run') return this.run(cmd.pipeline, cmd.args ?? []);
+    if (cmd.type === 'cancel') return this._cancelPipeline(cmd.pipeline);
+    if (cmd.type === 'runSequence') return this._runSequence(cmd.pipelines);
   }
 
   getActivityLog(): ActivityLogService {
     return this.activityLog;
   }
 
+  // ---------------------------------------------------------------------------
+  // Pipeline execution
+  // ---------------------------------------------------------------------------
+
   private async run(pipeline: string, extra: string[]): Promise<void> {
+    // Guard: refuse concurrent runs of the same pipeline.
+    if (this.activeRuns.has(pipeline)) {
+      this.post({ type: 'pipeline:log', pipeline, line: `[warn] ${pipeline} is already running — use Cancel first` });
+      return;
+    }
+
     const entry = RUNNABLE_PIPELINES.find((p) => p.id === pipeline);
     if (entry?.destructive) {
       const choice = await vscode.window.showWarningMessage(
@@ -96,23 +110,26 @@ export class DashboardHost {
 
     this.post({ type: 'pipeline:start', pipeline });
     const startMs = Date.now();
-
-    // Log start to activity log
     this.activityLog.append({ pipeline, status: 'running', source: 'extension' });
 
     const collectedLines: string[] = [];
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
-      const code = await spawnCli(cli, cliArgsFor(pipeline, extra), this.workspaceRoot,
+      const handle = spawnCli(cli, cliArgsFor(pipeline, extra), this.workspaceRoot,
         (line) => {
           this.post({ type: 'pipeline:log', pipeline, line });
           collectedLines.push(line);
         });
+      this.activeRuns.set(pipeline, handle);
 
-      const ok = code === 0 || code === 4;
+      const code = await handle.promise;
+      this.activeRuns.delete(pipeline);
+
+      const cancelled = code === -1;
+      const ok = !cancelled && (code === 0 || code === 4);
+
       this.post({ type: 'pipeline:done', pipeline, exitCode: code });
 
-      // Emit lastRun summary with the tail of output for inline error display
       const runInfo: PipelineRunInfo = {
         pipeline,
         status: ok ? 'pass' : 'fail',
@@ -122,39 +139,100 @@ export class DashboardHost {
       };
       this.post({ type: 'pipeline:lastRun', info: runInfo });
 
-      // Log completion to activity log
       this.activityLog.append({
         pipeline,
-        status: ok ? 'pass' : 'fail',
+        status: cancelled ? 'error' : ok ? 'pass' : 'fail',
         source: 'extension',
         durationMs: Date.now() - startMs,
-        message: `exit code ${code}`,
+        message: cancelled ? 'cancelled by user' : `exit code ${code}`,
       });
+
+      // Pipeline-specific post-run: read JSON output files and push rich events
+      if (!cancelled) {
+        if (pipeline === 'analyze') {
+          this._pushAnalysisResult();
+        } else if (pipeline === 'plan-fix') {
+          this._pushFixPlan();
+        }
+      }
 
       await this.refresh();
     } catch (err) {
+      this.activeRuns.delete(pipeline);
       const msg = err instanceof Error ? err.message : String(err);
       this.post({ type: 'error', scope: pipeline, message: msg });
       this.post({
         type: 'pipeline:lastRun',
-        info: {
-          pipeline,
-          status: 'fail',
-          exitCode: 1,
-          finishedAt: new Date().toISOString(),
-          tail: [msg],
-        },
+        info: { pipeline, status: 'fail', exitCode: 1, finishedAt: new Date().toISOString(), tail: [msg] },
       });
       this.activityLog.append({ pipeline, status: 'error', source: 'extension', message: msg });
     }
   }
+
+  private _cancelPipeline(pipeline: string): void {
+    const handle = this.activeRuns.get(pipeline);
+    if (!handle) {
+      this.post({ type: 'pipeline:log', pipeline, line: `[warn] ${pipeline} is not currently running` });
+      return;
+    }
+    handle.kill();
+    this.activeRuns.delete(pipeline);
+    this.post({ type: 'pipeline:log', pipeline, line: '[cancelled]' });
+    this.post({ type: 'pipeline:done', pipeline, exitCode: -1 });
+    this.activityLog.append({ pipeline, status: 'error', source: 'extension', message: 'cancelled by user' });
+  }
+
+  private async _runSequence(pipelines: string[]): Promise<void> {
+    for (const p of pipelines) {
+      await this.run(p, []);
+    }
+  }
+
+  private _pushAnalysisResult(): void {
+    try {
+      const analysisFile = path.join(this.workspaceRoot, '.specguard', 'analysis.json');
+      if (!fs.existsSync(analysisFile)) return;
+      const data = JSON.parse(fs.readFileSync(analysisFile, 'utf-8')) as {
+        recommendations: AnalysisRecommendation[];
+      };
+      this.post({ type: 'analyze:result', recommendations: data.recommendations ?? [] });
+    } catch { /* best-effort */ }
+  }
+
+  private _pushFixPlan(): void {
+    try {
+      const planFile = path.join(this.workspaceRoot, '.specguard', 'fix-plan.json');
+      if (!fs.existsSync(planFile)) return;
+      const data = JSON.parse(fs.readFileSync(planFile, 'utf-8')) as {
+        title: string;
+        summary: string;
+        sourcePipeline: string;
+        steps: Array<{ id: string; description: string; action: string; pipeline?: string; file?: string; command?: string }>;
+      };
+      this.post({
+        type: 'fix-plan',
+        plan: {
+          title: data.title,
+          summary: data.summary,
+          sourcePipeline: data.sourcePipeline ?? 'unknown',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          steps: data.steps as any,
+        },
+      });
+    } catch { /* best-effort */ }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Refresh
+  // ---------------------------------------------------------------------------
 
   async refresh(): Promise<void> {
     // Coverage (best-effort, lenient text parse)
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
       let out = '';
-      await spawnCli(cli, ['status'], this.workspaceRoot, (l) => { out += l + '\n'; });
+      const h = spawnCli(cli, ['status'], this.workspaceRoot, (l) => { out += l + '\n'; });
+      await h.promise;
       this.post({ type: 'coverage', data: parseCoverageText(out) });
     } catch (err) {
       this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
@@ -169,12 +247,17 @@ export class DashboardHost {
     } catch (err) {
       this.post({ type: 'error', scope: 'matrix', message: err instanceof Error ? err.message : String(err) });
     }
-    // Emit existing doc artifacts with metadata so the Docs tab is populated on load
+    // Emit existing doc artifacts with metadata
     this._pushExistingDocs();
+    // Push last analysis result and fix plan if present
+    this._pushAnalysisResult();
+    this._pushFixPlan();
     // Findings from quality/dep JSON outputs (if present)
     this._pushFindings();
-    // Activity log entries
+    // Activity log entries (also syncs MCP-driven nodeStates)
     this._pushActivityLog();
+    // Sync pipeline states from activity log (covers MCP-driven runs)
+    this._syncMcpNodeStates();
   }
 
   dispose(): void {
@@ -184,6 +267,9 @@ export class DashboardHost {
     this.activityLog.dispose();
     if (this.driftTimer) clearTimeout(this.driftTimer);
     this.autoDocsTimer?.forEach((t) => clearTimeout(t));
+    // Kill any in-flight processes
+    this.activeRuns.forEach((h) => h.kill());
+    this.activeRuns.clear();
   }
 
   // ---------------------------------------------------------------------------
@@ -198,9 +284,9 @@ export class DashboardHost {
     try {
       this.activityWatcher = fs.watch(logFile, { persistent: false }, () => {
         this._pushActivityLog();
+        this._syncMcpNodeStates();
       });
     } catch {
-      // File may not exist yet — retry after a delay
       setTimeout(() => this._watchActivityLog(logFile), 5_000);
     }
   }
@@ -213,6 +299,42 @@ export class DashboardHost {
     }
   }
 
+  /**
+   * Read the activity log and emit pipeline:start / pipeline:done events for
+   * pipelines driven by MCP (agent-driven), so the FlowView cards reflect live
+   * agent activity without the extension having spawned those processes.
+   */
+  private _syncMcpNodeStates(): void {
+    const entries = this.activityLog.getEntries();
+    // Find the latest entry per pipeline from MCP source.
+    const latest = new Map<string, ActivityEntry>();
+    for (const e of entries) {
+      if (e.source === 'mcp') {
+        const prev = latest.get(e.pipeline);
+        if (!prev || e.timestamp > prev.timestamp) latest.set(e.pipeline, e);
+      }
+    }
+    for (const [pipeline, e] of latest) {
+      if (this.activeRuns.has(pipeline)) continue; // Extension owns this run
+      if (e.status === 'running') {
+        this.post({ type: 'pipeline:start', pipeline });
+      } else {
+        const exitCode = e.status === 'pass' ? 0 : 1;
+        this.post({ type: 'pipeline:done', pipeline, exitCode });
+        this.post({
+          type: 'pipeline:lastRun',
+          info: {
+            pipeline,
+            status: e.status === 'pass' ? 'pass' : 'fail',
+            exitCode,
+            finishedAt: new Date(e.timestamp).toISOString(),
+            tail: e.message ? [e.message] : [],
+          },
+        });
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Background drift run (triggered by source file changes)
   // ---------------------------------------------------------------------------
@@ -221,9 +343,9 @@ export class DashboardHost {
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
       const lines: string[] = [];
-      const code = await spawnCli(cli, ['drift'], this.workspaceRoot, (l) => lines.push(l));
+      const h = spawnCli(cli, ['drift'], this.workspaceRoot, (l) => lines.push(l));
+      const code = await h.promise;
       const hasDrift = code === 3;
-      // Only write to the activity log when the drift state actually changes
       if (code !== this.lastDriftCode) {
         this.lastDriftCode = code;
         this.activityLog.append({
@@ -257,13 +379,13 @@ export class DashboardHost {
   }
 
   private async _runAutoDocs(specRel: string): Promise<void> {
-    // Derive spec key from relative path like specs/core/parser.md -> core/parser
     const match = specRel.match(/specs[/\\](.+)\.md$/i);
     if (!match) return;
     const specKey = match[1].replace(/\\/g, '/');
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
-      await spawnCli(cli, ['docs', '--spec', specKey], this.workspaceRoot, () => { /* suppress */ });
+      const h = spawnCli(cli, ['docs', '--spec', specKey], this.workspaceRoot, () => { /* suppress */ });
+      await h.promise;
       this.activityLog.append({ pipeline: 'docs', status: 'pass', source: 'extension', message: `auto-generated for ${specKey}` });
       this._pushActivityLog();
     } catch {
@@ -285,9 +407,7 @@ export class DashboardHost {
         if (Array.isArray(raw.apps)) {
           configApps = raw.apps.map((a) => a.name ?? '').filter(Boolean);
         }
-      } catch {
-        // Best-effort
-      }
+      } catch { /* Best-effort */ }
     }
     const info: WorkspaceInfo = {
       name: path.basename(this.workspaceRoot),
@@ -303,15 +423,9 @@ export class DashboardHost {
   // Doc artifact metadata
   // ---------------------------------------------------------------------------
 
-  /**
-   * Read YAML frontmatter from a generated doc file and extract `title` and
-   * `description`. Returns an empty object if the file can't be read or has
-   * no frontmatter — the caller spreads the result so missing keys are fine.
-   */
-  private _readDocMeta(absPath: string): { title?: string; description?: string } {
+  private _readDocMeta(absPath: string): { title?: string; description?: string; category?: string; order?: number } {
     try {
       const content = fs.readFileSync(absPath, 'utf-8');
-      // YAML frontmatter is between the first two `---` lines.
       const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
       if (!match) return {};
       const block = match[1];
@@ -319,17 +433,18 @@ export class DashboardHost {
         const m = block.match(new RegExp(`^${key}:\\s*"?(.*?)"?\\s*$`, 'm'));
         return m ? m[1].replace(/\\"/g, '"') : undefined;
       };
-      return { title: extract('title'), description: extract('description') };
+      const orderStr = extract('order');
+      return {
+        title: extract('title'),
+        description: extract('description'),
+        category: extract('category'),
+        order: orderStr !== undefined ? parseInt(orderStr, 10) : undefined,
+      };
     } catch {
       return {};
     }
   }
 
-  /**
-   * Walk `docs/user/` and emit an artifact event for every existing `.md` file.
-   * This populates the Docs tab when the dashboard first opens rather than
-   * waiting for a pipeline run.
-   */
   private _pushExistingDocs(): void {
     const docsDir = path.join(this.workspaceRoot, 'docs', 'user');
     if (!fs.existsSync(docsDir)) return;
@@ -363,7 +478,6 @@ export class DashboardHost {
         const raw = JSON.parse(fs.readFileSync(file, 'utf-8')) as unknown;
         if (!raw || typeof raw !== 'object') return;
 
-        // code-quality.json format
         const asQuality = raw as { findings?: unknown[] };
         if (Array.isArray(asQuality.findings)) {
           for (const f of asQuality.findings) {
@@ -380,9 +494,7 @@ export class DashboardHost {
             });
           }
         }
-      } catch {
-        // Best-effort
-      }
+      } catch { /* Best-effort */ }
     };
 
     tryLoad(path.join(this.workspaceRoot, '.specguard', 'code-quality.json'), 'lint');

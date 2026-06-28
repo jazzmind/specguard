@@ -41,17 +41,45 @@ export interface WorkspaceInfo {
   configApps: string[];
 }
 
+/** A recommended action from the analyze pipeline. */
+export interface AnalysisRecommendation {
+  pipeline: string;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+/** A single step in a fix plan produced by the plan-fix pipeline. */
+export interface FixPlanStep {
+  id: string;
+  description: string;
+  action: 'run-pipeline' | 'edit-file' | 'run-command';
+  pipeline?: string;
+  file?: string;
+  content?: string;
+  command?: string;
+}
+
+export interface FixPlan {
+  title: string;
+  summary: string;
+  steps: FixPlanStep[];
+  /** Pipeline that produced the failures this plan addresses. */
+  sourcePipeline: string;
+}
+
 export type DashboardEvent =
   | { type: 'pipeline:start'; pipeline: string }
   | { type: 'pipeline:log'; pipeline: string; line: string }
   | { type: 'pipeline:done'; pipeline: string; exitCode: number; counts?: PipelineCounts }
   | { type: 'pipeline:lastRun'; info: PipelineRunInfo }
-  | { type: 'artifact'; kind: 'spec' | 'test' | 'doc'; path: string; change: 'create' | 'update'; title?: string; description?: string }
+  | { type: 'artifact'; kind: 'spec' | 'test' | 'doc'; path: string; change: 'create' | 'update'; title?: string; description?: string; category?: string; order?: number }
   | { type: 'matrix'; data: MatrixModel }
   | { type: 'coverage'; data: AppCoverage[] }
   | { type: 'activity'; entries: ActivityEntry[] }
   | { type: 'findings'; data: FindingItem[] }
   | { type: 'workspace'; info: WorkspaceInfo }
+  | { type: 'analyze:result'; recommendations: AnalysisRecommendation[] }
+  | { type: 'fix-plan'; plan: FixPlan }
   | { type: 'error'; scope: string; message: string };
 
 export type FindingSeverity = 'critical' | 'error' | 'warning' | 'info';
@@ -70,6 +98,8 @@ export interface FindingItem {
 
 export type DashboardCommand =
   | { type: 'run'; pipeline: string; args?: string[] }
+  | { type: 'cancel'; pipeline: string }
+  | { type: 'runSequence'; pipelines: string[] }
   | { type: 'refresh' }
   | { type: 'openFile'; path: string };
 
@@ -154,6 +184,7 @@ export const RUNNABLE_PIPELINES: { id: string; destructive: boolean; label?: str
   { id: 'matrix', destructive: false },
   { id: 'quality', destructive: false, label: 'quality (lint + dead code)' },
   { id: 'deps', destructive: false, label: 'deps (audit + unused)' },
+  { id: 'analyze', destructive: false, label: 'analyze (smart diagnostics)' },
   { id: 'reverse', destructive: true },
   { id: 'generate', destructive: true },
   { id: 'heal', destructive: true },

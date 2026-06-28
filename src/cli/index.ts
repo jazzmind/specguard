@@ -7,6 +7,27 @@
  * handler in `./commands/` which in turn calls a pipeline.
  */
 import { createRequire } from 'node:module';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Auto-load .specguard/.env before any pipeline runs so secrets are available
+// even when the user hasn't exported them in their shell.
+(function loadSpecGuardEnv() {
+  const envFile = join(process.cwd(), '.specguard', '.env');
+  if (!existsSync(envFile)) return;
+  try {
+    for (const raw of readFileSync(envFile, 'utf-8').split('\n')) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq < 1) continue;
+      const key = line.slice(0, eq).trim();
+      const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+      if (key && !(key in process.env)) process.env[key] = val;
+    }
+  } catch { /* best-effort */ }
+})();
+
 import { Command, CommanderError } from 'commander';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
@@ -26,12 +47,18 @@ import { makeStub } from './commands/stubs.js';
 import { qualityCommand } from './commands/quality.js';
 import { depsCommand } from './commands/deps.js';
 import { commitCommand } from './commands/commit.js';
+import { analyzeCommand } from './commands/analyze.js';
+import { planFixCommand } from './commands/plan-fix.js';
 
-// Resolve version from package.json relative to this module. The bin maps to
-// dist/cli/index.js, so package.json sits two directories up in both src and
-// dist layouts.
-const require = createRequire(import.meta.url);
-const pkg = require('../../package.json') as { version: string };
+// Resolve version from package.json. Falls back gracefully when the CLI is
+// bundled into the extension (installed at a path where ../../package.json
+// doesn't exist).
+let _cliVersion = '0.1.0';
+try {
+  const require = createRequire(import.meta.url);
+  const pkg = require('../../package.json') as { version: string };
+  _cliVersion = pkg.version;
+} catch { /* bundled deployment — version unavailable */ }
 
 /** Merge a subcommand's own options with the global `--config` option. */
 function withGlobals<T extends object>(cmd: Command, local: T): T & GlobalOpts {
@@ -44,7 +71,7 @@ const program = new Command();
 program
   .name('specguard')
   .description('SpecGuard — Living Specification QA agent')
-  .version(pkg.version, '-v, --version', 'print the SpecGuard version')
+  .version(_cliVersion, '-v, --version', 'print the SpecGuard version')
   .option('--config <path>', 'path to .specguard/config.json')
   .showHelpAfterError('(add --help for usage)')
   // Throw instead of calling process.exit directly so we control exit codes.
@@ -215,6 +242,25 @@ program
   .option('--app <name>', 'restrict to a single app')
   .action(async (opts: { dryRun?: boolean; message?: string; app?: string }, cmd: Command) => {
     await commitCommand(withGlobals(cmd, opts));
+  });
+
+// --- analyze --------------------------------------------------------------
+program
+  .command('analyze')
+  .description('run all diagnostic checks and return recommendations')
+  .option('--auto-fix', 'automatically run recommended pipelines after analysis')
+  .action(async (opts: { autoFix?: boolean }, cmd: Command) => {
+    await analyzeCommand(withGlobals(cmd, opts));
+  });
+
+// --- plan-fix -------------------------------------------------------------
+program
+  .command('plan-fix')
+  .description('generate a fix plan from pipeline findings')
+  .requiredOption('--pipeline <name>', 'pipeline that produced the findings (e.g. validate, security)')
+  .requiredOption('--issues <text>', 'summary of issues to fix')
+  .action(async (opts: { pipeline: string; issues: string }, cmd: Command) => {
+    await planFixCommand(withGlobals(cmd, opts));
   });
 
 // --- status ---------------------------------------------------------------

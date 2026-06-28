@@ -111,10 +111,20 @@ Each spec is Markdown with a metadata comment block and these sections:
 - \`specguard status\` — report spec coverage
 `;
 
+const DOT_ENV_TEMPLATE = `# SpecGuard environment variables
+# This file is git-ignored — add your real API key below.
+ANTHROPIC_API_KEY=your-api-key-here
+`;
+
+const DOT_GITIGNORE_SPECGUARD = `.specguard/.env
+`;
+
 export async function initCommand(opts: InitOpts): Promise<void> {
   const cwd = process.cwd();
   const configPath = path.join(cwd, '.specguard', 'config.json');
   const specsReadmePath = path.join(cwd, 'specs', 'README.md');
+  const dotEnvPath = path.join(cwd, '.specguard', '.env');
+  const gitignorePath = path.join(cwd, '.gitignore');
 
   let framework = await detectFramework(cwd);
   if (opts.withPlaywright) framework = 'playwright';
@@ -136,8 +146,23 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     created.push('specs/README.md');
   }
 
-  // .cursor skill / mcp.json wiring is best-effort and optional in Phase 1.
-  // Skipped here; surface a note so users know it's not automated yet.
+  // Create .specguard/.env with placeholder if missing
+  if (await fileExists(dotEnvPath)) {
+    skipped.push('.specguard/.env');
+  } else {
+    await writeFile(dotEnvPath, DOT_ENV_TEMPLATE);
+    created.push('.specguard/.env');
+  }
+
+  // Ensure .gitignore lists .specguard/.env (best-effort)
+  try {
+    let gitignoreContent = (await fileExists(gitignorePath)) ? await readFile(gitignorePath) : '';
+    if (!gitignoreContent.includes('.specguard/.env')) {
+      gitignoreContent += (gitignoreContent.endsWith('\n') ? '' : '\n') + DOT_GITIGNORE_SPECGUARD;
+      await writeFile(gitignorePath, gitignoreContent);
+      created.push('.gitignore (updated)');
+    }
+  } catch { /* best-effort */ }
 
   process.stdout.write(`specguard init (framework: ${framework})\n`);
   for (const f of created) process.stdout.write(`  created  ${f}\n`);
@@ -145,8 +170,12 @@ export async function initCommand(opts: InitOpts): Promise<void> {
   process.stdout.write('  note     .cursor skill / mcp.json wiring not automated yet (Phase 1)\n');
   process.stdout.write('\nNext steps:\n');
   process.stdout.write('  1. Review .specguard/config.json and adjust app sources/globs\n');
-  process.stdout.write('  2. Set your LLM API key env var (see config.llm.apiKeyEnv)\n');
-  process.stdout.write('  3. Run `specguard reverse --app app` to generate your first specs\n');
+  process.stdout.write('  2. Add your Anthropic API key to .specguard/.env (it is git-ignored)\n');
+  process.stdout.write('  3. Open the SpecGuard dashboard in the VS Code extension to run pipelines\n');
+  process.stdout.write('     (recommended — the dashboard uses the bundled CLI automatically)\n');
+  process.stdout.write('  4. Or run pipelines from the terminal using the extension\'s bundled CLI:\n');
+  process.stdout.write('     node ~/.cursor/extensions/specguard.specguard-*/dist/cli.js reverse --app app\n');
+  process.stdout.write('     NOTE: `npx specguard` resolves a different unrelated npm package — avoid it.\n');
 
   process.exit(0);
 }
