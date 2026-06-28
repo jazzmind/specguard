@@ -7,6 +7,24 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 7: Webview scaffold, tested event reducer, Vite→media build
+
+- Created `extension/webview/` — a second Vite + React build inside the extension.
+- **Package layout**: `package.json` (ESM, private), `vite.config.ts` (outDir `../media`,
+  entryFileNames `main.js`), `tsconfig.json` (Bundler moduleResolution, react-jsx).
+- **Protocol re-export** (`src/protocol.ts`): re-exports type-only contracts plus the two
+  const arrays `PIPELINE_NODES` / `RUNNABLE_PIPELINES` from `../../src/dashboard/protocol.js`.
+  Vite bundles the host file at build time — no `vscode` import is pulled in, so it
+  bundles cleanly (verified by the build step).
+- **TDD reducer** (`src/reducer.ts`) — strict RED → GREEN:
+  - RED: `npx vitest run src/reducer.test.ts` → FAIL (Cannot find module `./reducer.js`).
+  - GREEN: 4/4 tests passing after implementing `initialViewModel` + `reduce`.
+  - Reducer honours exit-code 4 as `done` (coverage gap, not failure), matching CLI convention.
+- **React shell**: `src/main.tsx`, `src/App.tsx` (tab shell wired to `useReducer` + message
+  listener), `src/vscode.ts` (`acquireVsCodeApi` guard).
+- **Build**: `npm run build` → `extension/media/main.js` (145.53 kB) + `index.html`;
+  28 modules transformed in 844 ms.
+
 ## 2026-06-28 — Task 6 fixes: Strong CSP nonce + track webview message disposable
 
 - `extension/src/dashboard/panel.ts` — two security/correctness fixes:
