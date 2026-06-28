@@ -1,0 +1,41 @@
+rules:
+  - id: specguard-dangerously-set-inner-html
+    pattern: |
+      dangerouslySetInnerHTML={{ __html: $VALUE }}
+    message: |
+      dangerouslySetInnerHTML used with dynamic content. Ensure the spec's
+      Visual Expectations section documents that this component accepts rich
+      text, and add a scenario verifying XSS mitigation (e.g., DOMPurify).
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      owasp: "A03:2021 – Injection (XSS)"
+      specguard_category: xss-surface
+
+  - id: specguard-innerhtml-assignment
+    pattern: |
+      $EL.innerHTML = $VALUE
+    message: |
+      Direct innerHTML assignment with dynamic value. If this renders
+      user-supplied content, XSS is possible. The spec must include a scenario
+      covering malicious input in this field.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A03:2021 – Injection (XSS)"
+      specguard_category: xss-surface
+
+  - id: specguard-eval-usage
+    patterns:
+      - pattern: eval($CODE)
+      - pattern: new Function($CODE)
+    message: |
+      eval() or new Function() with dynamic argument detected. This creates an
+      XSS/code-injection surface. Remove or restrict to trusted static strings.
+      Add a SpecGuard security scenario verifying that user input never reaches
+      this code path.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      owasp: "A03:2021 – Injection"
+      specguard_category: xss-surface

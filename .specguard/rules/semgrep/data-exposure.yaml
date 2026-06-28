@@ -1,0 +1,44 @@
+rules:
+  - id: specguard-password-in-response
+    patterns:
+      - pattern: |
+          $RES.json({..., password: ..., ...})
+      - pattern: |
+          $RES.send({..., password: ..., ...})
+    message: |
+      Response includes a 'password' field. Check that the spec does NOT list
+      'password' as a field returned by this endpoint. Passwords must never be
+      included in API responses.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      owasp: "A02:2021 – Cryptographic Failures"
+      specguard_category: data-exposure
+
+  - id: specguard-token-in-response
+    pattern: |
+      $RES.json({..., token: $VALUE, ...})
+    message: |
+      Response includes a 'token' field in the JSON body. Verify the spec
+      declares this as intentional. If this is an auth token, prefer returning
+      it in an httpOnly cookie rather than the response body.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A02:2021 – Cryptographic Failures"
+      specguard_category: data-exposure
+
+  - id: specguard-console-log-sensitive
+    patterns:
+      - pattern: console.log(..., $SECRET, ...)
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: (password|secret|token|apiKey|api_key|privateKey|private_key)
+    message: |
+      Possible sensitive data logged via console.log. Remove or redact before
+      committing. SpecGuard will flag this in security test stubs.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A09:2021 – Security Logging and Monitoring Failures"
+      specguard_category: data-exposure

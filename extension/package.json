@@ -1,0 +1,142 @@
+{
+  "name": "specguard",
+  "displayName": "SpecGuard",
+  "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
+  "version": "0.1.0",
+  "publisher": "specguard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/specguard/specguard"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "qa",
+    "testing",
+    "specifications",
+    "cursor",
+    "mcp"
+  ],
+  "activationEvents": [
+    "workspaceContains:.specguard/config.json",
+    "onCommand:specguard.init",
+    "onView:specguard.coverageView"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "resources/icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "specguard.init",
+        "title": "SpecGuard: Initialize",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "specguard.status",
+        "title": "SpecGuard: Show Coverage",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "specguard.drift",
+        "title": "SpecGuard: Check Drift",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "specguard.generateTests",
+        "title": "SpecGuard: Generate Tests",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "specguard.securityScan",
+        "title": "SpecGuard: Security Scan",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "specguard.registerMcp",
+        "title": "SpecGuard: Register MCP Server (Cursor)",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "specguard.refreshCoverage",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "specguard.generateTests",
+          "when": "resourceExtname == .md && resourcePath =~ /specs/",
+          "group": "specguard@1"
+        },
+        {
+          "command": "specguard.securityScan",
+          "when": "resourceExtname == .md && resourcePath =~ /specs/",
+          "group": "specguard@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "specguard.refreshCoverage",
+          "when": "view == specguard.coverageView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "specguard.coverageView",
+          "name": "SpecGuard Coverage",
+          "icon": "$(shield)",
+          "contextualTitle": "SpecGuard"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "specguard.coverageView",
+        "contents": "No SpecGuard config found.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs."
+      }
+    ],
+    "configuration": {
+      "title": "SpecGuard",
+      "properties": {
+        "specguard.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to specguard CLI binary. Leave empty to use the version installed in the workspace."
+        },
+        "specguard.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh coverage when spec files change."
+        },
+        "specguard.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show spec coverage percentage in the status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
+    "watch": "npm run build -- --watch",
+    "package": "vsce package",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^22",
+    "typescript": "^5.7",
+    "esbuild": "^0.24",
+    "@vscode/vsce": "^3"
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "generatedAt": "2026-06-28T18:24:50.615Z",
+  "entries": [
+    {
+      "specKey": "cli",
+      "title": "CLI Entrypoint",
+      "appName": "specguard-core",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "src/cli/index.ts"
+    },
+    {
+      "specKey": "config",
+      "title": "Config Loader",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/config.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/core/config.ts"
+    },
+    {
+      "specKey": "llm",
+      "title": "LLM Adapter",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/llm.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/core/llm.ts"
+    },
+    {
+      "specKey": "mcp-server",
+      "title": "MCP Server",
+      "appName": "specguard-core",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "src/mcp/server.ts"
+    },
+    {
+      "specKey": "spec-parser",
+      "title": "Spec Parser",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/spec-parser.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/core/spec-parser.ts"
+    },
+    {
+      "specKey": "writer",
+      "title": "File Writer",
+      "appName": "specguard-core",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "src/core/writer.ts"
+    },
+    {
+      "specKey": "doc-generate",
+      "title": "Doc Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/doc-generate.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/doc-generate.ts"
+    },
+    {
+      "specKey": "drift",
+      "title": "Drift Detection Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/drift.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/drift.ts"
+    },
+    {
+      "specKey": "forward-generate",
+      "title": "Forward Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/forward-generate.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/forward-generate.ts"
+    },
+    {
+      "specKey": "heal",
+      "title": "Self-Healing Test Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/heal.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/heal.ts"
+    },
+    {
+      "specKey": "import",
+      "title": "Import Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/import.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/import.ts"
+    },
+    {
+      "specKey": "matrix",
+      "title": "Matrix Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/matrix.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/matrix.ts"
+    },
+    {
+      "specKey": "reverse-generate",
+      "title": "Reverse Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/reverse-generate.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/reverse-generate.ts"
+    },
+    {
+      "specKey": "security",
+      "title": "Security Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/security.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/security.ts"
+    },
+    {
+      "specKey": "status",
+      "title": "Status Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/status.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/status.ts"
+    },
+    {
+      "specKey": "validate",
+      "title": "Validate Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/validate.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/pipelines/validate.ts"
+    },
+    {
+      "specKey": "auth-state-machine",
+      "title": "Auth State Machine",
+      "appName": "specguard-adapters",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/auth-state-machine.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/adapters/auth-state-machine.ts"
+    },
+    {
+      "specKey": "docker",
+      "title": "Docker Runner Adapter",
+      "appName": "specguard-adapters",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/docker.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/adapters/docker.ts"
+    },
+    {
+      "specKey": "guardrails",
+      "title": "Guardrails",
+      "appName": "specguard-adapters",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/guardrails.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/adapters/guardrails.ts"
+    },
+    {
+      "specKey": "npm-audit",
+      "title": "npm-audit Adapter",
+      "appName": "specguard-adapters",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/npm-audit.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/adapters/npm-audit.ts"
+    },
+    {
+      "specKey": "playwright",
+      "title": "Playwright Adapter",
+      "appName": "specguard-adapters",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/playwright.test.ts"
+      ],
+      "docs": [],
+      "sourceModule": "src/adapters/playwright.ts"
+    }
+  ]
+}

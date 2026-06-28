@@ -146,7 +146,7 @@ describe('runSecurity', () => {
 
   it('scenario 5: --with-sast with findings sets exitCode 5 and reports them', async () => {
     await writeSpec('specs/core/llm.md');
-    const sastSpy = vi.spyOn(sast, 'run').mockReturnValue({
+    const sastSpy = vi.spyOn(sast, 'run').mockResolvedValue({
       ok: true,
       findings: [
         {
@@ -173,7 +173,7 @@ describe('runSecurity', () => {
 
   it('scenario 6: --with-sast when tool unavailable does not throw, exitCode 0', async () => {
     await writeSpec('specs/core/llm.md');
-    const sastSpy = vi.spyOn(sast, 'run').mockReturnValue({ ok: false, findings: [] });
+    const sastSpy = vi.spyOn(sast, 'run').mockResolvedValue({ ok: false, findings: [] });
 
     const res = await runSecurity(makeConfig(), { spec: 'core/llm', withSast: true });
 

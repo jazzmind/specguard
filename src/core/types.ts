@@ -141,6 +141,29 @@ export interface MatrixConfig {
   output: string;
 }
 
+/** A named authentication profile for the validate pipeline. */
+export interface AuthProfile {
+  /** Profile name, referenced by spec `auth:` metadata. */
+  name: string;
+  /** URL of the login page. */
+  loginUrl: string;
+  /** Name of env var holding the username. */
+  usernameEnvVar: string;
+  /** Name of env var holding the password. */
+  passwordEnvVar: string;
+  /** Optional selector for the username input (default: [name="username"], [type="email"]). */
+  usernameSelector?: string;
+  /** Optional selector for the password input (default: [type="password"]). */
+  passwordSelector?: string;
+  /** Optional selector for the submit button (default: [type="submit"]). */
+  submitSelector?: string;
+}
+
+/** Authentication configuration block. */
+export interface AuthConfig {
+  profiles: AuthProfile[];
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
   apps: AppConfig[];
@@ -149,6 +172,7 @@ export interface SpecGuardConfig {
   triggers?: TriggersConfig;
   heal?: HealConfig;
   matrix?: MatrixConfig;
+  auth?: AuthConfig;
   /** Directory the config was loaded from (the dir containing `.specguard/`). */
   rootDir?: string;
 }

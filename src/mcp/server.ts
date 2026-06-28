@@ -32,6 +32,9 @@ import { runStatus } from '../pipelines/status.js';
 import { runDrift } from '../pipelines/drift.js';
 import { runSecurity } from '../pipelines/security.js';
 import { runDocGenerate } from '../pipelines/doc-generate.js';
+import { runValidate } from '../pipelines/validate.js';
+import { runMatrix } from '../pipelines/matrix.js';
+import { runImport } from '../pipelines/import.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 
@@ -207,38 +210,85 @@ export function buildServer(): McpServer {
     },
   );
 
-  // --- Stub tools (not yet backed by a pipeline; mirror the CLI stubs) ------
+  // --- Validate -------------------------------------------------------------
 
   server.registerTool(
     'specguard_validate',
     {
-      description: 'Validate specs against the running app (CLI: specguard validate). Not yet implemented.',
+      description:
+        'Validate specs against the running app using PERCEIVE-PLAN-ACT-VERIFY browser loop (CLI: specguard validate). Requires @playwright/test installed and a running app.',
       inputSchema: {
-        spec: z.string().optional(),
-        all: z.boolean().optional(),
-        url: z.string().optional(),
-        auth: z.string().optional(),
-        out: z.string().optional(),
+        spec: z.string().optional().describe('Spec key to validate.'),
+        all: z.boolean().optional().describe('Validate all specs with url: metadata.'),
+        baseUrl: z.string().optional().describe('Base URL of the running app.'),
+        app: z.string().optional().describe('Limit to a single app.'),
         cwd: z.string().optional(),
       },
     },
-    async (): Promise<ToolResult> =>
-      textResult('specguard_validate is not yet implemented (pipeline pending).'),
+    async ({ spec, all, baseUrl, app, cwd }): Promise<ToolResult> => {
+      try {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runValidate(config, { spec, all, baseUrl, app });
+        return toolResult(result);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
   );
+
+  // --- Matrix ---------------------------------------------------------------
 
   server.registerTool(
     'specguard_matrix',
     {
       description:
-        'Generate the requirement-to-test traceability matrix (CLI: specguard matrix). Not yet implemented.',
+        'Build the requirement-to-test traceability matrix (CLI: specguard matrix). Outputs traceability.json.',
       inputSchema: {
-        out: z.string().optional(),
-        format: z.string().optional(),
+        out: z.string().optional().describe('Output file path.'),
+        format: z.string().optional().describe('json or csv.'),
+        app: z.string().optional().describe('Limit to a single app.'),
         cwd: z.string().optional(),
       },
     },
-    async (): Promise<ToolResult> =>
-      textResult('specguard_matrix is not yet implemented (pipeline pending).'),
+    async ({ out, format, app, cwd }): Promise<ToolResult> => {
+      try {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runMatrix(config, {
+          out,
+          format: (format as 'json' | 'csv') ?? 'json',
+          app,
+        });
+        return toolResult(result);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // --- Import ---------------------------------------------------------------
+
+  server.registerTool(
+    'specguard_import',
+    {
+      description:
+        'Import an external requirements document (Markdown file or URL) and convert it to a Living Spec (CLI: specguard import).',
+      inputSchema: {
+        source: z.string().describe('File path or https:// URL to import.'),
+        app: z.string().optional().describe('Target app from config.'),
+        out: z.string().optional().describe('Override output spec path.'),
+        force: z.boolean().optional().describe('Overwrite existing spec.'),
+        cwd: z.string().optional(),
+      },
+    },
+    async ({ source, app, out, force, cwd }): Promise<ToolResult> => {
+      try {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runImport(config, { source, app, out, force });
+        return toolResult(result);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
   );
 
   // --- Utility tools -------------------------------------------------------

@@ -31,7 +31,6 @@
  * a concrete, machine-detected problem in the source.
  */
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 
 import type {
   SpecGuardConfig,
@@ -47,6 +46,7 @@ import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs, extractSection } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
+import { runContainer } from '../adapters/docker.js';
 
 export interface SecurityOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
@@ -188,39 +188,38 @@ function stripFences(text: string): string {
 }
 
 /**
- * SAST seam — exported so tests can mock `sast.run`. Invokes Semgrep via Docker
- * over `targetDir`. Never throws: if Docker/Semgrep is unavailable, or the
- * invocation fails, it returns `{ findings: [], ok: false }`.
+ * SAST seam — exported so tests can mock `sast.run`. Invokes Semgrep via the
+ * Docker adapter over `targetDir`. Never throws: if Docker/Semgrep is
+ * unavailable, or the invocation fails, it returns `{ findings: [], ok: false }`.
  */
 export const sast = {
-  run(targetDir: string): SastResult {
+  async run(targetDir: string, rulesDir?: string): Promise<SastResult> {
     try {
-      const proc = spawnSync(
-        'docker',
-        [
-          'run',
-          '--rm',
-          '-v',
-          `${targetDir}:/src`,
-          'returntocorp/semgrep',
-          'semgrep',
-          '--json',
-          '--config',
-          'auto',
-          '/src',
-        ],
-        { encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 },
-      );
-
-      // spawnSync sets `error` when the binary cannot be spawned at all.
-      if (proc.error) {
-        return { findings: [], ok: false };
+      const args: string[] = ['semgrep', '--json'];
+      if (rulesDir) {
+        args.push('--config', '/rules', '--config', 'p/owasp-top-ten');
+      } else {
+        args.push('--config', 'auto');
       }
-      if (typeof proc.stdout !== 'string' || proc.stdout.trim() === '') {
-        return { findings: [], ok: false };
+      args.push('/src');
+
+      const volumes = [{ host: targetDir, container: '/src', mode: 'ro' as const }];
+      if (rulesDir) {
+        volumes.push({ host: rulesDir, container: '/rules', mode: 'ro' as const });
       }
 
-      const parsed = JSON.parse(proc.stdout) as {
+      const result = await runContainer({
+        image: 'semgrep/semgrep',
+        tag: '1.78.0',
+        volumes,
+        args,
+      });
+
+      if (!result.ok && result.stdout.trim() === '') {
+        return { findings: [], ok: false };
+      }
+
+      const parsed = JSON.parse(result.stdout) as {
         results?: Array<{
           check_id?: string;
           path?: string;
@@ -237,7 +236,6 @@ export const sast = {
       }));
       return { findings, ok: true };
     } catch {
-      // Parse failure or any unexpected error: degrade gracefully.
       return { findings: [], ok: false };
     }
   },
@@ -306,15 +304,15 @@ export async function runSecurity(
   const sastByRepo = new Map<string, SastResult>();
   let sawRealFindings = false;
 
-  const runSastForApp = (app: AppConfig): SastResult => {
+  const runSastForApp = async (app: AppConfig, rulesDir?: string): Promise<SastResult> => {
     const repoAbs = resolveFromRoot(config, app.repo);
-    const cached = sastByRepo.get(repoAbs);
+    const cacheKey = `${repoAbs}:${rulesDir ?? ''}`;
+    const cached = sastByRepo.get(cacheKey);
     if (cached) return cached;
     let res: SastResult;
     try {
-      res = sast.run(repoAbs);
+      res = await sast.run(repoAbs, rulesDir);
     } catch {
-      // Defensive: the seam already swallows errors, but never let it bubble.
       res = { findings: [], ok: false };
     }
     if (!res.ok) {
@@ -329,7 +327,7 @@ export async function runSecurity(
     } else {
       log(`[sast] ${app.name}: no findings`);
     }
-    sastByRepo.set(repoAbs, res);
+    sastByRepo.set(cacheKey, res);
     return res;
   };
 
@@ -390,7 +388,11 @@ export async function runSecurity(
     // Run SAST per owning app when requested, and feed findings into the prompt.
     let sastFindings: SastFinding[] = [];
     if (opts.withSast) {
-      sastFindings = runSastForApp(app).findings;
+      const rulesDir = resolveFromRoot(config, '.specguard/rules/semgrep');
+      const { fileExists: fe } = await import('../core/reader.js');
+      const hasRules = await fe(rulesDir);
+      const sastResult = await runSastForApp(app, hasRules ? rulesDir : undefined);
+      sastFindings = sastResult.findings;
     }
 
     const prompt = [

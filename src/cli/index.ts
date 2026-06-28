@@ -19,6 +19,9 @@ import { healCommand } from './commands/heal.js';
 import { securityCommand } from './commands/security.js';
 import { docsCommand } from './commands/docs.js';
 import { initCommand } from './commands/init.js';
+import { validateCommand } from './commands/validate.js';
+import { matrixCommand } from './commands/matrix.js';
+import { importCommand } from './commands/import.js';
 import { makeStub } from './commands/stubs.js';
 
 // Resolve version from package.json relative to this module. The bin maps to
@@ -57,10 +60,13 @@ program
 program
   .command('import')
   .description('import an external document into a spec')
-  .argument('<file>', 'document to import')
+  .argument('<file>', 'document to import (file path or https:// URL)')
   .option('--app <name>', 'target app from config')
-  .option('--format <format>', 'source format')
-  .action(makeStub('import'));
+  .option('--out <path>', 'override output spec path')
+  .option('--force', 'overwrite existing spec')
+  .action(async (file: string, opts: { app?: string; out?: string; force?: boolean }, cmd: Command) => {
+    await importCommand(file, withGlobals(cmd, opts));
+  });
 
 // --- reverse --------------------------------------------------------------
 program
@@ -109,11 +115,17 @@ program
   .command('validate')
   .description('validate specs against the running app')
   .option('--spec <key>', 'target a single spec')
-  .option('--all', 'process all specs')
+  .option('--all', 'process all specs with url: metadata')
   .option('--url <url>', 'base URL of the running app')
-  .option('--auth <profile>', 'auth profile from config')
-  .option('--out <path>', 'write report to path')
-  .action(makeStub('validate'));
+  .option('--app <name>', 'limit to a single app')
+  .action(
+    async (
+      opts: { spec?: string; all?: boolean; url?: string; app?: string },
+      cmd: Command,
+    ) => {
+      await validateCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- security -------------------------------------------------------------
 program
@@ -162,8 +174,13 @@ program
   .command('matrix')
   .description('build the requirement-to-test traceability matrix')
   .option('--out <path>', 'output path')
-  .option('--format <format>', 'json or markdown')
-  .action(makeStub('matrix'));
+  .option('--format <format>', 'json or csv (default: json)')
+  .option('--app <name>', 'limit to a single app')
+  .action(
+    async (opts: { out?: string; format?: string; app?: string }, cmd: Command) => {
+      await matrixCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- status ---------------------------------------------------------------
 program

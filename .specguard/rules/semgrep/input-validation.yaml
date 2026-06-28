@@ -1,0 +1,38 @@
+rules:
+  - id: specguard-missing-input-validation-express
+    patterns:
+      - pattern: |
+          $APP.$METHOD($PATH, async ($REQ, $RES) => {
+            ...
+            $REQ.body.$FIELD
+            ...
+          })
+      - pattern-not: |
+          $APP.$METHOD($PATH, async ($REQ, $RES) => {
+            ...
+            $VALIDATE(...)
+            ...
+          })
+    message: |
+      Request handler reads from req.body without apparent validation.
+      SpecGuard rule: every scenario input listed in the spec must have
+      corresponding server-side validation. Add a Zod/Joi/express-validator
+      parse before accessing req.body fields.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A03:2021 – Injection"
+      specguard_category: input-validation
+
+  - id: specguard-direct-query-string-use
+    pattern: |
+      $REQ.query.$PARAM
+    message: |
+      Direct use of query parameter without validation. Ensure the spec scenario
+      that produces this input has an acceptance criterion covering invalid/
+      malicious input, and that this code validates/sanitises before use.
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      owasp: "A03:2021 – Injection"
+      specguard_category: input-validation

@@ -1,0 +1,85 @@
+{
+  "version": "OWASP Top 10 2021",
+  "mapping": {
+    "A01": {
+      "id": "A01:2021",
+      "name": "Broken Access Control",
+      "description": "Restrictions on what authenticated users are allowed to do are often not properly enforced.",
+      "specSections": ["Security Notes", "Acceptance Criteria"],
+      "specKeywords": ["auth:", "role", "permission", "access", "unauthorized", "403"],
+      "semgrepRules": ["specguard-auth-boundary-missing-middleware", "specguard-auth-boundary-hardcoded-admin-check"]
+    },
+    "A02": {
+      "id": "A02:2021",
+      "name": "Cryptographic Failures",
+      "description": "Failures related to cryptography (or lack thereof) which often lead to exposure of sensitive data.",
+      "specSections": ["Security Notes"],
+      "specKeywords": ["password", "token", "secret", "encrypt", "hash", "TLS", "HTTPS"],
+      "semgrepRules": ["specguard-password-in-response", "specguard-token-in-response", "specguard-console-log-sensitive"]
+    },
+    "A03": {
+      "id": "A03:2021",
+      "name": "Injection",
+      "description": "Injection flaws, such as SQL, NoSQL, OS, and LDAP injection, occur when untrusted data is sent to an interpreter as part of a command or query.",
+      "specSections": ["Security Notes", "Scenarios"],
+      "specKeywords": ["input", "query", "search", "filter", "sql", "command", "eval"],
+      "semgrepRules": ["specguard-missing-input-validation-express", "specguard-direct-query-string-use", "specguard-dangerously-set-inner-html", "specguard-innerhtml-assignment", "specguard-eval-usage"]
+    },
+    "A04": {
+      "id": "A04:2021",
+      "name": "Insecure Design",
+      "description": "Missing or ineffective control design.",
+      "specSections": ["Overview", "Acceptance Criteria"],
+      "specKeywords": ["rate limit", "abuse", "brute force", "throttle"],
+      "semgrepRules": []
+    },
+    "A05": {
+      "id": "A05:2021",
+      "name": "Security Misconfiguration",
+      "description": "Security misconfiguration is the most commonly seen issue.",
+      "specSections": ["Security Notes"],
+      "specKeywords": ["config", "CORS", "CSP", "header", "default", "debug"],
+      "semgrepRules": []
+    },
+    "A06": {
+      "id": "A06:2021",
+      "name": "Vulnerable and Outdated Components",
+      "description": "Components with known vulnerabilities.",
+      "specSections": ["Dependencies"],
+      "specKeywords": ["dependency", "version", "package", "library"],
+      "semgrepRules": []
+    },
+    "A07": {
+      "id": "A07:2021",
+      "name": "Identification and Authentication Failures",
+      "description": "Confirmation of the user's identity, authentication, and session management.",
+      "specSections": ["Security Notes", "Scenarios"],
+      "specKeywords": ["login", "session", "JWT", "cookie", "logout", "2FA", "MFA"],
+      "semgrepRules": []
+    },
+    "A08": {
+      "id": "A08:2021",
+      "name": "Software and Data Integrity Failures",
+      "description": "Code and infrastructure that does not protect against integrity violations.",
+      "specSections": ["Security Notes"],
+      "specKeywords": ["upload", "deserialization", "integrity", "checksum", "signature"],
+      "semgrepRules": []
+    },
+    "A09": {
+      "id": "A09:2021",
+      "name": "Security Logging and Monitoring Failures",
+      "description": "Insufficient logging and monitoring.",
+      "specSections": ["Security Notes"],
+      "specKeywords": ["log", "audit", "monitor", "alert", "event"],
+      "semgrepRules": ["specguard-console-log-sensitive"]
+    },
+    "A10": {
+      "id": "A10:2021",
+      "name": "Server-Side Request Forgery (SSRF)",
+      "description": "SSRF flaws occur whenever a web application is fetching a remote resource without validating the user-supplied URL.",
+      "specSections": ["Security Notes"],
+      "specKeywords": ["fetch", "URL", "proxy", "webhook", "callback", "redirect"],
+      "semgrepRules": []
+    }
+  }
+}

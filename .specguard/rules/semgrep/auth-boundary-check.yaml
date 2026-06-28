@@ -1,0 +1,32 @@
+rules:
+  - id: specguard-auth-boundary-missing-middleware
+    patterns:
+      - pattern: |
+          $APP.get($PATH, $HANDLER)
+      - pattern-not: |
+          $APP.get($PATH, $MIDDLEWARE, ...)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: "^['\"]/(admin|dashboard|api/private|settings|user|account)"
+    message: |
+      Route $PATH appears to be a protected route but has no middleware.
+      SpecGuard rule: verify that auth: metadata in the spec for this route
+      matches the middleware applied here.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A01:2021 – Broken Access Control"
+      specguard_category: auth-boundary
+
+  - id: specguard-auth-boundary-hardcoded-admin-check
+    pattern: |
+      if ($VAR === "admin") { ... }
+    message: |
+      Hardcoded role check "admin" detected. Use a centralised RBAC middleware
+      rather than inline role comparisons. Check that the spec's auth: field
+      matches the intended access control.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      owasp: "A01:2021 – Broken Access Control"
+      specguard_category: auth-boundary
