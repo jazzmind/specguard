@@ -173,7 +173,7 @@ specguard generate --spec api/users --framework pytest
 
 ### Pipeline 4: Heal — Run Tests + Self-Correct
 
-Runs the generated tests, captures failures, and uses the LLM to diagnose and fix broken test code. This closes the generate-run-fix loop without human intervention.
+Runs the generated tests, captures failures, and uses the LLM to diagnose and fix broken test code. This closes the generate-run-fix loop without human intervention. Incorporates guardrails to prevent destructive actions during test execution.
 
 ```bash
 specguard heal --spec auth/login          # run + fix tests for one spec
@@ -190,28 +190,103 @@ specguard heal --max-retries 3            # limit self-heal attempts
 6. If test bug: regenerate the failing test, re-run. Repeat up to `--max-retries`.
 7. If app bug: report it as a validation issue linked to the spec scenario.
 
-**Output:** Fixed test files + a heal report showing what was corrected and what remains broken (likely app bugs).
+**Defect attribution:** Not all failures are equal. The heal pipeline distinguishes:
+- **Test bug** — selector changed, timing issue, test logic error → fix the test
+- **App bug** — 5xx from a user-driven action, missing element that spec says must exist → flag as defect
+- **Infra artifact** — network timeout, CI flake, navigation failure to a constructed URL → retry, don't flag
+
+This mirrors the [QA-Agent](./QA-Agent-README.md) approach: a 5xx counts as a defect only when it's *feature-driven* (clicking product UI). A 5xx from raw navigation to a hand-built URL is infrastructure noise.
+
+**Guardrails:** When the heal loop re-runs tests against a live app, actions are classified before execution:
+- **Safe** — read, navigate, fill form, click non-destructive buttons → execute
+- **Destructive** — delete, archive, purge, drop → block and flag
+- **Outbound** — send email, invite user, trigger payment → block and flag
+
+This prevents a self-healing test from accidentally deleting production data.
+
+**Output:** Fixed test files + a heal report showing what was corrected, what remains broken (app bugs), and any blocked actions.
 
 ---
 
 ### Pipeline 5: Validation — Live App + Spec → Issue Reports
 
-Navigates to the live application, captures screenshots, HTML, and the ARIA accessibility tree, then sends all of it to the LLM with the spec for structured issue analysis.
+Drives a real browser through the spec's scenarios using a **PERCEIVE → PLAN → ACT → VERIFY** agent loop, then produces a structured, evidence-backed issue report. This is not a static screenshot comparison — it exercises multi-step flows as described in the spec's `## Scenarios` section.
 
 ```bash
 specguard validate --spec auth/login --url http://localhost:3000
 specguard validate --all --url http://localhost:3000
 specguard validate --all --url https://staging.example.com --out reports/validation.json
+specguard validate --spec admin/users --url http://localhost:3000 --auth admin
+```
+
+**The validation loop (per scenario):**
+
+```
+PERCEIVE  → snapshot page (element list + screenshot + ARIA tree)
+PLAN      → reason: which element, which action, why (mapped to spec step)
+ACT       → one browser action (click, type, navigate)
+VERIFY    → re-snapshot, check expected results from spec, capture evidence
+            ↓
+         Flow complete? → next scenario
+         Not yet? → back to PERCEIVE
+```
+
+**Authentication:** Pages requiring login are handled by a **deterministic auth state machine** — not by the LLM. The state machine:
+1. Navigates to the login page
+2. Fills credentials from config (never sent to the LLM provider)
+3. Handles 2FA if required (email OTP extraction)
+4. Hands the authenticated browser session to the validation agent
+
+This eliminates LLM spend on auth, prevents credential exposure, and makes login auditable. Configure auth per spec via the `auth:` metadata field and `.specguard/config.json`:
+
+```json
+{
+  "auth": {
+    "admin": {
+      "loginUrl": "/login",
+      "username": "${ADMIN_USER}",
+      "password": "${ADMIN_PASS}",
+      "2fa": "email"
+    },
+    "user": {
+      "loginUrl": "/login",
+      "username": "${TEST_USER}",
+      "password": "${TEST_PASS}"
+    }
+  }
+}
 ```
 
 **Issue types:**
 
 | Type | Description |
 |---|---|
-| `functional` | Page doesn't match the spec's Visual Expectations |
+| `functional` | Page doesn't match the spec's Visual Expectations or scenario expected results |
 | `ux` | Violates UX Guidelines (loading states, error specificity, focus) |
 | `accessibility` | Fails ARIA, WCAG 2.2 AA, or keyboard navigation requirements |
 | `visual` | Layout breaks, missing content, rendering problems |
+| `runtime` | 5xx errors, unhandled exceptions, or console errors during flow execution |
+
+**Evidence-backed verdicts:** Every issue must cite specific evidence — a screenshot path, HTTP status code, console error, or ARIA snapshot diff. Issues without evidence are discarded. This makes reports trustworthy and actionable.
+
+```json
+{
+  "type": "functional",
+  "severity": "major",
+  "description": "Submit button remains disabled after valid form input",
+  "evidence": [
+    "screenshots/auth-login-step3.png",
+    "aria: button[name='Submit'][disabled]"
+  ],
+  "spec_scenario": "Scenario 1: Valid email entry",
+  "spec_step": 3
+}
+```
+
+**Defect attribution:** Not all errors are defects:
+- **5xx from a user-driven action** (clicking a button the spec says to click) → real defect, report it
+- **5xx from navigation to a constructed URL** → infrastructure artifact, retry silently
+- **4xx** (missing assets, auth chatter, prefetch) → never a defect on its own
 
 **Severity:** `critical` / `major` / `minor`. Exits non-zero when critical or major issues are found — safe for CI gates.
 
@@ -304,6 +379,26 @@ specguard matrix --format csv             # export as CSV (Jira-importable)
   }
 }
 ```
+
+---
+
+### Validation Memory
+
+SpecGuard maintains a **per-host validation registry** — tracking what's been validated, when, and what the result was. This complements drift detection with runtime evidence.
+
+```bash
+specguard status --validated               # show validation history
+```
+
+After each validation run, SpecGuard records:
+- Host + spec key + scenario name
+- Last validation timestamp
+- Result (pass/fail/blocked)
+- Evidence paths (screenshots, reports)
+
+This enables intelligent scheduling: `specguard validate --stale` re-validates only specs whose underlying code has changed since their last passing validation. Combined with drift detection, this gives a complete picture of "what's tested, what's stale, what's broken."
+
+The registry is stored locally in `.specguard/validation-history.json` and is designed to be committed to the repo (no secrets, no large binaries — just metadata).
 
 ---
 
@@ -510,11 +605,19 @@ Add to `.cursor/mcp.json`:
       "security": {
         "enabled": true,
         "sast": ["semgrep"],
+        "customRules": true,
         "owasp_mapping": true
       },
       "docs": true
     }
   ],
+  "runners": {
+    "playwright": "local",
+    "semgrep": "docker",
+    "bandit": "auto",
+    "zap": "docker",
+    "testRunner": "local"
+  },
   "llm": {
     "provider": "anthropic",
     "model": "claude-sonnet-4-6",
@@ -712,6 +815,174 @@ SpecGuard generalises the approach proven in [practera-test-suite](https://githu
 
 The spec format is **fully compatible**. Any `specs/` directory from the Practera test suite works with SpecGuard out of the box.
 
+### Patterns Adopted from QA-Agent
+
+The [QA-Agent](./QA-Agent-README.md) project is an autonomous browser-driven QA tester. SpecGuard adopts several of its patterns:
+
+| QA-Agent Pattern | SpecGuard Adoption |
+|---|---|
+| PERCEIVE-PLAN-ACT-VERIFY agent loop | `validate` pipeline drives multi-step flows, not just static screenshots |
+| Deterministic auth state machine | Auth handled by code, not LLM — credentials never reach the model |
+| Guardrails (`classify_action()`) | `heal` and `validate` block destructive/outbound actions before execution |
+| Evidence-backed verdicts | Every issue must cite screenshot, HTTP status, or console error |
+| Defect attribution (5xx from action vs navigation) | Distinguish app bugs from infra artifacts in reports |
+| Per-domain feature memory | Validation history tracks what's been tested per host, when, and result |
+
+**Not adopted** (different architectural goals):
+- Multi-tenant SaaS deployment — SpecGuard is a dev tool, not a hosted service
+- Human-in-the-loop steering — contradicts the parallel-agent autonomous design
+- DeepAgents/LangGraph framework — SpecGuard uses ai-sdk directly
+- Web UI / SPA — SpecGuard's UI is the IDE extension
+- OpenRouter routing — SpecGuard supports providers directly
+
+---
+
+## Runtime Architecture
+
+SpecGuard separates what it **owns** (brain) from what it **delegates to** (runners/scanners). The CLI probes the environment and uses the best available runner via tiered resolution.
+
+### What Ships With SpecGuard (npm package)
+
+| Layer | Contents | Language |
+|---|---|---|
+| Core | Spec parser, LLM orchestration, pipeline logic | TypeScript |
+| Adapters | Thin wrappers that invoke runners via local or Docker | TypeScript |
+| Security Rules | Custom Semgrep rulesets (`.yaml`), OWASP mapping data | YAML/JSON |
+| Docker Shims | `docker run` commands with correct mounts/args/tags | Shell |
+
+### What Does NOT Ship With SpecGuard
+
+| Tool | How It's Resolved | Why |
+|---|---|---|
+| Playwright browsers | User runs `npx playwright install` | 400MB+ binary, project-specific version |
+| Test frameworks (Jest, Vitest, pytest) | User's project `devDependencies` | Already in their project |
+| Semgrep binary | Docker container (`semgrep/semgrep:1.78.0`) | Avoid Python dep on host |
+| Bandit | Docker container (`python:3.12-slim` + pip) | Python-only projects |
+| OWASP ZAP | Docker container (`zaproxy/zap-stable`) | Java runtime, heavy |
+| Python itself | Not required unless using native SAST mode | Keep Node-only for most users |
+
+### Tiered Runner Resolution
+
+For each external tool, SpecGuard resolves in this order:
+
+```
+1. Local install detected on PATH? → use it directly (fastest, zero overhead)
+2. Docker/Colima available? → use pinned container image (reliable fallback)
+3. Neither? → offer to auto-install or error with clear instructions
+```
+
+Config controls the strategy per tool:
+
+```json
+{
+  "runners": {
+    "playwright": "local",
+    "semgrep": "docker",
+    "bandit": "auto",
+    "zap": "docker",
+    "testRunner": "local"
+  }
+}
+```
+
+| Mode | Behaviour |
+|---|---|
+| `"local"` | Expect the tool on PATH or in `node_modules`. Error if missing. |
+| `"docker"` | Always use the pinned container image. Requires Docker. |
+| `"auto"` | Try local first, fall back to Docker, error if neither available. |
+
+### Playwright Strategy
+
+Playwright is Node-native — no container needed for most use cases:
+
+- SpecGuard declares `@playwright/test` as an **optional peer dependency**
+- If the project already uses Playwright, SpecGuard uses their version
+- If not, `specguard init --with-playwright` adds it to the project's `devDependencies`
+- Browser binaries are managed by Playwright itself (`npx playwright install chromium`)
+- For CI without a display server, Playwright's built-in headless mode handles this
+
+### Security Scanner Strategy
+
+**Custom rules ship as data, not as binaries.** SpecGuard's security value-add is spec-aware rulesets:
+
+```
+.specguard/
+  rules/
+    semgrep/
+      auth-boundary-check.yaml    # verify auth middleware matches spec auth: metadata
+      input-validation.yaml       # check that spec scenario inputs have validation
+      data-exposure.yaml          # flag fields in API responses not declared in spec
+      xss-surface.yaml            # form inputs identified in spec Visual Expectations
+    owasp/
+      mapping.json                # OWASP Top 10 → spec section mapping
+```
+
+These rules are **portable YAML** — they ship with the npm package and run on any Semgrep instance (local or Docker):
+
+```bash
+# What SpecGuard actually executes:
+docker run --rm \
+  -v "${PROJECT_DIR}:/src" \
+  -v "${SPECGUARD_RULES}:/rules" \
+  semgrep/semgrep:1.78.0 \
+  semgrep scan --config /rules --config p/owasp-top-ten /src
+```
+
+The LLM then receives both the SAST findings and the spec context to produce contextualised security test stubs — understanding *why* a finding matters for this specific feature.
+
+### Auth State Machine
+
+Validation of authenticated pages uses a **deterministic state machine** — not the LLM. This is a direct adoption of the [QA-Agent](./QA-Agent-README.md) pattern that eliminates LLM spend on auth, prevents credential retries, and keeps passwords out of LLM context.
+
+```
+NavigateToLogin
+    → FillCredentials (from config, env vars — never sent to LLM)
+    → WaitForResult
+        → Success → hand session to validation agent
+        → 2FA Required → extract code (IMAP or browser-based webmail)
+            → EnterCode → Success
+        → LoginFailed → abort with clear error
+```
+
+**Credential isolation:** Usernames and passwords are loaded from environment variables referenced in config. They exist in-memory only during the login flow and are never included in any LLM prompt, log output, or report. The `redact()` utility strips them from any string before logging.
+
+**Per-auth-scope sessions:** Config defines named auth profiles (e.g., `admin`, `user`, `viewer`). Each spec's `auth:` metadata references a profile. The validation pipeline logs in once per profile and reuses the session across all specs requiring that profile.
+
+### Guardrails
+
+When SpecGuard drives a browser (validation, heal), every action is classified before execution:
+
+| Classification | Examples | Behaviour |
+|---|---|---|
+| **Safe** | Navigate, read text, fill form, click navigation | Execute immediately |
+| **Destructive** | Delete, archive, purge, drop, remove | Block, log, flag in report |
+| **Outbound** | Send, invite, share, publish, pay, submit payment | Block, log, flag in report |
+
+Classification is keyword-based on the action's description/label (not LLM-driven — deterministic and fast). This is a safety net, not a permission system: it prevents the most common destructive mistakes without adding latency.
+
+Blocked actions appear in the validation/heal report as `BLOCKED` verdicts with the reason.
+
+### CI / GitHub Actions
+
+A GitHub Action (`specguard/action@v1`) handles environment setup:
+
+```yaml
+- uses: specguard/action@v1
+  with:
+    scanners: semgrep,bandit    # pulls Docker images, caches layers
+    playwright: true             # installs browsers
+```
+
+This avoids every CI workflow needing to manually configure Docker pulls and Playwright installs.
+
+### Environment Requirements Summary
+
+| Environment | Required | Optional |
+|---|---|---|
+| Local dev | Node.js 20+ | Docker (for SAST scanners) |
+| CI | Node.js 20+, Docker | — |
+| IDE agent (Cursor) | Node.js 20+ | Docker (scanners run if available) |
+
 ---
 
 ## Design Decisions
@@ -726,30 +997,59 @@ The spec format is **fully compatible**. Any `specs/` directory from the Practer
 
 **Hybrid security: LLM + SAST.** Pure LLM security analysis misses things scanners catch (regex-based CVE patterns, known-vulnerable dependency versions). Pure SAST misses semantic issues (is this auth check actually protecting the right resource?). The hybrid feeds SAST findings into the LLM for contextual reasoning against the spec.
 
+**Native brain, containerised scanners.** The CLI itself is pure TypeScript/Node — zero Python, Java, or Go required on the host. Heavyweight tools (Semgrep, Bandit, ZAP) run in pinned Docker containers with SpecGuard's custom rules mounted as volumes. This gives reproducibility without polluting the host environment. Playwright is the exception — it's Node-native and runs locally for speed.
+
+**Security rules as portable data.** SpecGuard ships custom Semgrep rulesets as YAML files, not as scanner binaries. The rules are spec-aware (they reference spec metadata like `auth:` scopes and scenario inputs). This means the security intelligence is in the rules + LLM reasoning, not in a proprietary scanner.
+
 ---
 
 ## Roadmap
+
+### Phase 1: Core
 
 - [ ] CLI binary (TypeScript, ships as npm package)
 - [ ] MCP server (`specguard-mcp`)
 - [ ] Cursor Skill (`SKILL.md`)
 - [ ] `specguard init` scaffolding
+- [ ] Tiered runner resolution (local → Docker → error)
+- [ ] Docker adapter shims for scanner containers
+
+### Phase 2: Pipelines
+
 - [ ] Pipeline: Import (PRD/Jira/Markdown → specs)
 - [ ] Pipeline: Reverse Generation (code → specs)
 - [ ] Pipeline: Forward Generation (Playwright, Jest, Vitest)
-- [ ] Pipeline: Heal (run + fix loop)
-- [ ] Pipeline: Validation (live app)
-- [ ] Pipeline: Security (LLM + Semgrep)
+- [ ] Pipeline: Heal (run + fix loop + guardrails)
+- [ ] Pipeline: Validation (PERCEIVE-PLAN-ACT-VERIFY agent loop)
+- [ ] Pipeline: Security (LLM + custom Semgrep rules)
 - [ ] Pipeline: Doc Generation
 - [ ] Pipeline: Drift Detection
 - [ ] Pipeline: Traceability Matrix
 - [ ] `specguard status` coverage report
-- [ ] Ollama / local model support
+- [ ] Deterministic auth state machine (login + 2FA)
+- [ ] Action guardrails (safe/destructive/outbound classification)
+- [ ] Evidence-backed verdicts (screenshot + HTTP + console citing)
+- [ ] Defect attribution (app bug vs infra artifact)
+- [ ] Validation memory (per-host history registry)
+
+### Phase 3: Security Rules
+
+- [ ] Custom Semgrep rulesets: auth-boundary-check
+- [ ] Custom Semgrep rulesets: input-validation
+- [ ] Custom Semgrep rulesets: data-exposure
+- [ ] Custom Semgrep rulesets: xss-surface
+- [ ] OWASP Top 10 → spec section mapping (JSON)
+- [ ] SAST: Bandit adapter (Python projects)
+- [ ] SAST: npm audit adapter (Node projects)
+- [ ] SAST: OWASP ZAP adapter (dynamic scanning)
+
+### Phase 4: Distribution
+
+- [ ] GitHub Action (`specguard/action@v1`) with Docker layer caching
 - [ ] VS Code / Cursor Extension
+- [ ] Ollama / local model support
 - [ ] Forward Generation: pytest / JUnit support
 - [ ] Forward Generation: Cypress support
-- [ ] SAST: Bandit (Python), npm audit (Node)
-- [ ] GitHub Actions integration
 - [ ] Web dashboard for spec coverage
 - [ ] Zephyr Scale / Jira integration for traceability
 
