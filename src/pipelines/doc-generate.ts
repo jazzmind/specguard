@@ -26,6 +26,7 @@
  * The PipelineItem key / log key is `<app.name>/<feature>`.
  */
 import path from 'node:path';
+import { z } from 'zod';
 
 import type {
   SpecGuardConfig,
@@ -40,7 +41,30 @@ import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
-import { llmGenerateText } from '../core/llm.js';
+import { llmGenerateObject } from '../core/llm.js';
+
+/** Category values from most general to most specific — the DocsView groups by this. */
+const DOC_CATEGORIES = ['overview', 'getting-started', 'core', 'pipelines', 'adapters', 'reference'] as const;
+type DocCategory = typeof DOC_CATEGORIES[number];
+
+/** Schema for the LLM's structured doc output. */
+const DocOutputSchema = z.object({
+  description: z.string().describe('One or two sentences summarising what this feature does for the user.'),
+  category: z.enum(DOC_CATEGORIES).describe(
+    'The documentation category that best fits this page. ' +
+    '"overview" = high-level product introduction; ' +
+    '"getting-started" = installation, first steps, quickstart; ' +
+    '"core" = foundational concepts and configuration; ' +
+    '"pipelines" = pipeline-specific reference; ' +
+    '"adapters" = adapter/runner-specific reference; ' +
+    '"reference" = CLI flags, config schema, advanced options.',
+  ),
+  order: z.number().int().min(0).max(999).describe(
+    'Sort order within the category (0 = first, 999 = last). ' +
+    'Overview pages should be 0-9; core fundamentals 10-49; specific features 50-99; edge-case / advanced 100+.',
+  ),
+  body: z.string().describe('The full user-facing documentation body in Markdown prose (no frontmatter, no wrapping code fence).'),
+});
 
 export interface DocsOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
@@ -75,8 +99,16 @@ const SYSTEM_PROMPT = [
   '  of developer tasks.',
   '- Stay strictly accurate to the supplied spec content. Do NOT invent',
   '  features, flags, commands, or behavior that the spec does not describe.',
-  '- Output ONLY the Markdown body. Do NOT wrap the whole document in a code',
-  '  fence, and do NOT emit YAML frontmatter (the tool adds frontmatter).',
+  '- For `description`: one or two plain-English sentences summarising the feature',
+  '  at a glance (shown in the dashboard card). No markdown, no code.',
+  '- For `category`: pick the most accurate category from the enum. Prefer',
+  '  "overview" for top-level product intro, "getting-started" for install/quickstart,',
+  '  "core" for foundational config/types, "pipelines" for any specguard pipeline,',
+  '  "adapters" for runner adapters, "reference" for CLI/config reference material.',
+  '- For `order`: assign a logical reading order within the category (0 = read first).',
+  '  Overview pages 0-9, fundamentals 10-49, specifics 50-99.',
+  '- For `body`: the full documentation in Markdown prose.',
+  '  Do NOT wrap it in a code fence. Do NOT emit YAML frontmatter.',
 ].join('\n');
 
 /** Resolve a possibly-relative path against the config root dir. */
@@ -198,16 +230,20 @@ function stripWrappingFence(text: string): string {
 }
 
 /** Build the YAML frontmatter block for a doc page. */
-function frontmatter(title: string): string {
-  const safe = title.replace(/"/g, '\\"');
-  return [
+function frontmatter(title: string, description: string, category: string, order: number): string {
+  const safe = (s: string) => s.replace(/"/g, '\\"');
+  const lines = [
     '---',
-    `title: "${safe}"`,
-    `sidebar_label: "${safe}"`,
+    `title: "${safe(title)}"`,
+    `sidebar_label: "${safe(title)}"`,
+    `description: "${safe(description)}"`,
+    `category: "${safe(category)}"`,
+    `order: ${order}`,
     'generated: true',
     '---',
     '',
-  ].join('\n');
+  ];
+  return lines.join('\n');
 }
 
 /**
@@ -289,15 +325,16 @@ export async function runDocGenerate(
 
     attempted += 1;
     try {
-      const raw = await llmGenerateText({
+      const output = await llmGenerateObject({
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
         system: SYSTEM_PROMPT,
         prompt,
+        schema: DocOutputSchema,
       });
-      const body = stripWrappingFence(raw);
-      const doc = `${frontmatter(title)}\n${body}\n`;
+      const body = stripWrappingFence(output.body);
+      const doc = `${frontmatter(title, output.description, output.category, output.order)}\n${body}\n`;
       await writeFile(targetDoc, doc);
       log(`[doc] ${key}`);
       result.items.push({ key, status: 'created', path: targetDoc });

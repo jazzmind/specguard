@@ -7,16 +7,32 @@ import * as path from 'path';
 import * as fs from 'fs';
 import type { CoverageProvider } from './sidebar.js';
 import { registerMcpForCursor } from './mcp-registration.js';
+import { openDashboardPanel } from './dashboard/panel.js';
+import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot } from './workspace-state.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
   coverageProvider: CoverageProvider,
   statusBarItem: vscode.StatusBarItem | undefined,
 ): void {
+  // --- specguard.switchProject ----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.switchProject', async () => {
+      const picked = await pickWorkspaceRoot();
+      if (!picked) return;
+      await setActiveWorkspaceRoot(picked);
+      void coverageProvider.refresh();
+      const folderName = path.basename(picked);
+      vscode.window.showInformationMessage(`SpecGuard: switched to project "${folderName}"`);
+      // Reopen dashboard pointed at new root
+      openDashboardPanel(context);
+    }),
+  );
+
   // --- specguard.init -------------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.init', async () => {
-      const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const ws = getActiveWorkspaceRoot();
       if (!ws) {
         vscode.window.showErrorMessage('No workspace folder open.');
         return;
@@ -54,7 +70,7 @@ export function registerCommands(
   // --- specguard.drift ------------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.drift', () => {
-      const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const ws = getActiveWorkspaceRoot();
       if (!ws) return;
       runInTerminal(ws, 'drift', 'SpecGuard Drift');
     }),
@@ -63,12 +79,11 @@ export function registerCommands(
   // --- specguard.generateTests ----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.generateTests', async (uri?: vscode.Uri) => {
-      const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const ws = getActiveWorkspaceRoot();
       if (!ws) return;
 
       let specKey: string | undefined;
       if (uri) {
-        // Derive a spec key from the file path
         specKey = deriveSpecKey(ws, uri.fsPath);
       } else {
         specKey = await vscode.window.showInputBox({
@@ -85,7 +100,7 @@ export function registerCommands(
   // --- specguard.securityScan -----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.securityScan', async (uri?: vscode.Uri) => {
-      const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const ws = getActiveWorkspaceRoot();
       if (!ws) return;
 
       let specKey: string | undefined;
@@ -110,6 +125,11 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.refreshCoverage', () => {
       void coverageProvider.refresh();
     }),
+  );
+
+  // --- specguard.openDashboard ----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.openDashboard', () => openDashboardPanel(context)),
   );
 }
 

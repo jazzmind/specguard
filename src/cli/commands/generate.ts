@@ -1,7 +1,7 @@
 /**
  * `specguard generate` — generate tests from specs (Phase 4 forward pipeline).
  */
-import { runForwardGenerate } from '../../pipelines/forward-generate.js';
+import { runForwardGenerate, type TestType } from '../../pipelines/forward-generate.js';
 import { loadCliConfig, type GlobalOpts } from './helpers.js';
 
 export interface GenerateCliOpts extends GlobalOpts {
@@ -10,6 +10,7 @@ export interface GenerateCliOpts extends GlobalOpts {
   framework?: string;
   app?: string;
   force?: boolean;
+  type?: TestType;
 }
 
 export async function generateCommand(opts: GenerateCliOpts): Promise<void> {
@@ -20,6 +21,7 @@ export async function generateCommand(opts: GenerateCliOpts): Promise<void> {
     framework: opts.framework,
     app: opts.app,
     force: opts.force,
+    type: opts.type,
   });
 
   for (const line of result.messages) {

@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "publisher": "specguard",
   "repository": {
     "type": "git",
@@ -26,7 +26,9 @@
   "activationEvents": [
     "workspaceContains:.specguard/config.json",
     "onCommand:specguard.init",
-    "onView:specguard.coverageView"
+    "onView:specguard.coverageView",
+    "onCommand:specguard.openDashboard",
+    "onView:specguard-sidebar"
   ],
   "main": "./dist/extension.js",
   "icon": "resources/icon.png",
@@ -66,6 +68,16 @@
         "command": "specguard.refreshCoverage",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "specguard.openDashboard",
+        "title": "SpecGuard: Open Dashboard",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "specguard.switchProject",
+        "title": "SpecGuard: Switch Project",
+        "icon": "$(folder-active)"
       }
     ],
     "menus": {
@@ -83,26 +95,44 @@
       ],
       "view/title": [
         {
+          "command": "specguard.switchProject",
+          "when": "view == specguard.coverageView",
+          "group": "navigation@0"
+        },
+        {
           "command": "specguard.refreshCoverage",
           "when": "view == specguard.coverageView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "specguard.openDashboard",
+          "when": "view == specguard.coverageView",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "specguard-sidebar",
+          "title": "SpecGuard",
+          "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "explorer": [
+      "specguard-sidebar": [
         {
           "id": "specguard.coverageView",
-          "name": "SpecGuard Coverage",
-          "icon": "$(shield)",
-          "contextualTitle": "SpecGuard"
+          "name": "Coverage",
+          "icon": "$(shield)"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "specguard.coverageView",
-        "contents": "No SpecGuard config found.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs."
+        "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs.\n[Open Dashboard](command:specguard.openDashboard)"
       }
     ],
     "configuration": {
@@ -122,21 +152,35 @@
           "type": "boolean",
           "default": true,
           "description": "Show spec coverage percentage in the status bar."
+        },
+        "specguard.autoDocs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically regenerate documentation when a spec file changes (debounced 3s)."
         }
       }
     }
   },
   "scripts": {
-    "build": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
-    "watch": "npm run build -- --watch",
+    "build:webview": "npm --prefix webview install && npm --prefix webview run build",
+    "build:host": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
+    "build:cli": "esbuild ../src/cli/index.ts --bundle --platform=node --format=cjs --outfile=dist/cli.js --sourcemap",
+    "build": "npm run build:webview && npm run build:cli && npm run build:host",
+    "watch": "npm run build:host -- --watch",
     "package": "vsce package",
-    "lint": "tsc --noEmit"
+    "release": "node scripts/release.mjs",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major",
+    "release:dry-run": "node scripts/release.mjs patch --dry-run",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
     "@types/node": "^22",
     "typescript": "^5.7",
     "esbuild": "^0.24",
-    "@vscode/vsce": "^3"
+    "@vscode/vsce": "^3",
+    "vitest": "^3"
   }
 }

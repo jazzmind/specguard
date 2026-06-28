@@ -15,6 +15,8 @@ Config-driven source discovery: the `.specguard/config.json` app definition prov
 ## Acceptance Criteria
 
 - [ ] Reads app config from `SpecGuardConfig` (no filesystem calls to locate config — caller loads it)
+- [ ] `--app <name>` targets a single app; `--all` processes every app in config (one or the other is required)
+- [ ] CLI exits with code 1 if neither `--app` nor `--all` is provided
 - [ ] Expands source globs relative to the app's `repo` directory
 - [ ] Groups discovered files by type (`routes`, `pages`, `api`, `tests`)
 - [ ] For each logical "feature" discovered, checks whether a spec already exists in `specDir`
