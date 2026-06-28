@@ -14,6 +14,8 @@ import type { GlobalOpts } from './commands/helpers.js';
 import { reverseCommand } from './commands/reverse.js';
 import { statusCommand } from './commands/status.js';
 import { driftCommand } from './commands/drift.js';
+import { generateCommand } from './commands/generate.js';
+import { healCommand } from './commands/heal.js';
 import { initCommand } from './commands/init.js';
 import { makeStub } from './commands/stubs.js';
 
@@ -76,7 +78,16 @@ program
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
   .option('--framework <name>', 'override test framework')
-  .action(makeStub('generate'));
+  .option('--app <name>', 'limit to a single app')
+  .option('--force', 'overwrite existing test files')
+  .action(
+    async (
+      opts: { spec?: string; all?: boolean; framework?: string; app?: string; force?: boolean },
+      cmd: Command,
+    ) => {
+      await generateCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- heal -----------------------------------------------------------------
 program
@@ -85,7 +96,11 @@ program
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
   .option('--max-retries <n>', 'maximum heal attempts')
-  .action(makeStub('heal'));
+  .action(
+    async (opts: { spec?: string; all?: boolean; maxRetries?: string }, cmd: Command) => {
+      await healCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- validate -------------------------------------------------------------
 program

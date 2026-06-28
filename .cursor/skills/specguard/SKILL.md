@@ -9,9 +9,9 @@ description: >-
   tests generated from a spec, or asks to validate the live app against a spec.
 ---
 
-# SpecGuard Parallel Agent (Bootstrap v0.3 — Phase 3)
+# SpecGuard Parallel Agent (Bootstrap v0.4 — Phase 4)
 
-The `specguard` CLI now exists for **reverse**, **status**, and **drift**. Prefer the CLI for those operations; the remaining steps (test generation, security) are still manual until their pipelines land. Run the CLI with `npx tsx src/cli/index.ts <command>` (source) or `specguard <command>` once built and linked.
+The `specguard` CLI now exists for **reverse**, **status**, **drift**, **generate**, and **heal**. Prefer the CLI for those operations; the remaining steps (security) are still manual until their pipelines land. Run the CLI with `npx tsx src/cli/index.ts <command>` (source) or `specguard <command>` once built and linked.
 
 ## When to Run
 
@@ -79,14 +79,20 @@ What this module does and why it exists.
 | `src/adapters/*.ts` | `specs/adapters/<name>.md` |
 | `src/cli/*.ts` | `specs/core/cli.md` |
 
-## Manual Test Generation (until `specguard generate` exists)
+## Test Generation + Self-Healing (CLI)
 
-When a spec has stable scenarios and the corresponding source module is written:
-1. Read the spec's `## Scenarios` section
-2. Read the source module
-3. Write a test file at `tests/<area>/<name>.test.ts` using Vitest
-4. Each scenario → one `it()` block with the scenario name as the title
-5. Use `src/core/spec-parser.ts` as a reference for the first test file structure
+Generate tests from specs, then heal any that fail:
+
+```bash
+# Generate a test file per spec (one it() per scenario); skips existing files
+npx tsx src/cli/index.ts generate --all        # or --spec <key>, --force to overwrite
+
+# Run tests and auto-fix test-bugs (vs. reporting real app-bugs); exit 7 if still broken
+npx tsx src/cli/index.ts heal --all            # or --spec <key>, --max-retries <n>
+```
+
+- `generate` writes `<testOutput>/<feature>.test.ts`, one `it()` per scenario, importing the module from the spec's `meta.module`. Requires `ANTHROPIC_API_KEY` (or the configured `llm.apiKeyEnv`).
+- `heal` runs `config.heal.testCommand`, parses failures, and asks the LLM to classify each as a **test bug** (rewritten + re-run, up to `maxRetries`) or an **app bug** (reported, source never touched).
 
 ## Security Check (until `specguard security` exists)
 
@@ -99,7 +105,7 @@ When auth, middleware, or API files change:
 
 As each CLI command is implemented, update this skill to call it:
 - ✅ `specguard reverse` / `status` / `drift` built (Phase 3) → CLI invocation in use above
-- `specguard generate` built → replace "Manual Test Generation" with CLI invocation
+- ✅ `specguard generate` / `heal` built (Phase 4) → CLI invocation in use above
 - `specguard security` built → replace "Security Check" with CLI invocation
 
 Track the current bootstrap state at the top of this file by updating the version comment.
