@@ -1,5 +1,31 @@
 # SpecGuard Extension Dashboard — Worklog
 
+---
+
+## 2026-06-28 — Task 10: Build wiring, packaging ignore, docs, full verification
+
+- Modified `extension/package.json` scripts:
+  - Added `build:webview`: `npm --prefix webview install && npm --prefix webview run build`
+  - Added `build:host`: `esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap`
+  - Changed `build`: `npm run build:webview && npm run build:host` (chains webview first)
+- Modified `extension/.vscodeignore`: added `webview/**` (exclude source) and `!media/**` (ship built assets).
+- Created `extension/README.md`: added Features overview and Dashboard section documenting the `Open Dashboard` command and the dev build command.
+- Dashboard unit tests:
+  - `cd extension && npx vitest run`: **10/10 passed** (coverage-parse, matrix-model, flow-events, protocol).
+  - `cd extension/webview && npx vitest run`: **4/4 passed** (reducer).
+- Full extension build (`cd extension && npm run build`):
+  - Webview: Vite 6 — 35 modules → `media/main.js` 150.09 kB (gzip 48.27 kB), `media/main.css` 0.86 kB.
+  - Host: esbuild → `dist/extension.js` 21.8 kB, `dist/extension.js.map` 41.7 kB.
+- Non-interactive smoke:
+  - `extension/media/main.js` — **EXISTS** ✓
+  - `extension/dist/extension.js` — **EXISTS** ✓
+  - `extension/src/dashboard/panel.ts` line 34 — references `path.join(extPath, 'media', 'main.js')` ✓
+  - (Interactive F5 smoke left to user.)
+- Root CLI regression (`npm test` from repo root): **145 passed, 2 failed**.
+  - Known pre-existing failure 1: `tests/adapters/playwright.test.ts` — screenshot label sanitisation (`:` in Windows temp path).
+  - Known pre-existing failure 2: `tests/pipelines/matrix.test.ts` — basename convention.
+  - **No new regressions.**
+
 A running log of the dashboard work, updated as we go (per the user's request to
 document continuously). Newest entries at the top.
 
