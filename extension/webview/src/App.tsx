@@ -3,6 +3,9 @@ import type { DashboardEvent } from './protocol.js';
 import { initialViewModel, reduce, type ViewModel } from './reducer.js';
 import { vscodeApi } from './vscode.js';
 import { FlowView } from './views/FlowView.js';
+import { MatrixView } from './views/MatrixView.js';
+import { DocsView } from './views/DocsView.js';
+import { ActivityView } from './views/ActivityView.js';
 
 type Tab = 'flow' | 'matrix' | 'docs' | 'activity';
 
@@ -27,9 +30,9 @@ export function App() {
       </header>
       <main>
         {tab === 'flow' && <FlowView vm={vm} />}
-        {tab === 'matrix' && <pre>Matrix view (Task 9) — rows: {vm.matrix?.rows.length ?? 0}</pre>}
-        {tab === 'docs' && <pre>Docs view (Task 9)</pre>}
-        {tab === 'activity' && <pre>Activity view (Task 9) — artifacts: {vm.artifacts.length}</pre>}
+        {tab === 'matrix' && <MatrixView vm={vm} />}
+        {tab === 'docs' && <DocsView vm={vm} />}
+        {tab === 'activity' && <ActivityView vm={vm} />}
       </main>
       {vm.errors.length > 0 && <footer className="sg-errors">{vm.errors.at(-1)}</footer>}
     </div>
