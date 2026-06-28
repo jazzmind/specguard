@@ -130,13 +130,15 @@
     "build": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
     "watch": "npm run build -- --watch",
     "package": "vsce package",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
     "@types/node": "^22",
     "typescript": "^5.7",
     "esbuild": "^0.24",
-    "@vscode/vsce": "^3"
+    "@vscode/vsce": "^3",
+    "vitest": "^3"
   }
 }
