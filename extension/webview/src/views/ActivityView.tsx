@@ -4,7 +4,7 @@ import { RUNNABLE_PIPELINES } from '../protocol.js';
 import { vscodeApi } from '../vscode.js';
 
 export function ActivityView({ vm }: { vm: ViewModel }) {
-  const [pipeline, setPipeline] = useState('status');
+  const [pipeline, setPipeline] = useState(RUNNABLE_PIPELINES[0].id);
   const counts = {
     specs: vm.artifacts.filter((a) => a.kind === 'spec').length,
     tests: vm.artifacts.filter((a) => a.kind === 'test').length,
