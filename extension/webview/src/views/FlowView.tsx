@@ -357,10 +357,8 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
                 <PipelineCard
                   id="import"
                   label="import"
-                  description="Converts a PRD, Jira ticket, or doc into a spec. Requires a source file argument."
+                  description="Converts a PRD, Jira ticket, or doc into a spec. Click Run to pick a file."
                   state="idle"
-                  disabled
-                  disabledHint="Run from terminal: specguard import <file>"
                   selectedLog={selectedLog}
                   onSelectLog={setSelectedLog}
                 />

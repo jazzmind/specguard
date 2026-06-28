@@ -133,17 +133,16 @@ export function OverviewView({ vm }: { vm: ViewModel }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <button
-                  disabled
+                  onClick={() => vscodeApi.postMessage({ type: 'run', pipeline: 'import' })}
                   style={{
-                    padding: '5px 12px', background: '#1e1e1e', color: '#555',
-                    border: '1px solid #333', borderRadius: 4, cursor: 'not-allowed', fontSize: 11, whiteSpace: 'nowrap',
+                    padding: '5px 12px', background: '#1e1e1e', color: '#ccc',
+                    border: '1px solid #555', borderRadius: 4, cursor: 'pointer', fontSize: 11, whiteSpace: 'nowrap',
                   }}
                 >
                   Run import
                 </button>
                 <span style={{ fontSize: 11, color: '#888', paddingTop: 4 }}>
-                  Import from a PRD or Jira ticket — run from terminal:{' '}
-                  <code style={{ background: '#2a2a2a', padding: '1px 4px', borderRadius: 3 }}>specguard import &lt;file&gt;</code>
+                  Import from a PRD or Jira ticket — a file picker will open
                 </span>
               </div>
             </div>
