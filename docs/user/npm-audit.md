@@ -1,22 +1,65 @@
 ---
 title: "npm-audit Adapter"
 sidebar_label: "npm-audit Adapter"
+description: "The npm-audit adapter runs npm audit in your project directory and normalises the results into the same finding shape used by the security pipeline, letting you surface dependency vulnerabilities alongside SAST findings."
+category: "adapters"
+order: 50
 generated: true
 ---
 
 # npm-audit Adapter
 
-## Overview
-
-The **npm-audit adapter** integrates Node.js dependency vulnerability scanning into your security pipeline. It runs `npm audit` against your project and normalises the results into the same finding format used by Semgrep SAST checks — so you get a unified view of both code-level and dependency-level security issues in one place.
-
-The adapter handles both the npm audit v1 and v2 JSON output formats automatically, so it works regardless of which version of npm your project uses.
+The **npm-audit adapter** integrates Node.js dependency vulnerability scanning into SpecGuard's security pipeline. It runs `npm audit --json` inside your project directory and normalises the results into the same `SastFinding[]` shape used by the rest of the security pipeline — meaning known dependency vulnerabilities appear right alongside your Semgrep SAST findings, in a single unified report.
 
 ---
 
-## What It Does
+## How It Works
 
-When invoked, the adapter runs `npm audit --json` inside your project directory and converts the output into a list of `SastFinding` objects. These findings slot directly into the security pipeline alongside any Semgrep results, letting your test stubs and pipeline tooling treat dependency vulnerabilities and static analysis findings uniformly.
+When invoked, the adapter:
+
+1. Runs `npm audit --json` in the specified project directory using Node.js's built-in `child_process.spawnSync`.
+2. Parses the JSON output — supporting **both** the npm audit v1 format (keyed on `advisories`) and the npm audit v2 format (keyed on `vulnerabilities`).
+3. Normalises each vulnerability into a `SastFinding` object with the following fields:
+
+| Field | Value |
+|---|---|
+| `ruleId` | `npm-audit/<packageName>` |
+| `path` | `package.json` |
+| `message` | Human-readable description of the vulnerability |
+| `severity` | Severity level reported by npm audit |
+
+4. Returns a result object of the shape `NpmAuditResult { findings, ok }`.
+
+---
+
+## Return Value
+
+The adapter always returns an `NpmAuditResult` object — it **never throws**. The shape is:
+
+```ts
+{
+  ok: boolean;
+  findings: SastFinding[];
+}
+```
+
+- **`findings`** — An array of normalised `SastFinding` objects, one per detected vulnerability. This array is empty when there are no vulnerabilities or when the adapter cannot run.
+- **`ok`** — A boolean indicating whether the adapter ran and produced valid output successfully.
+  - `true` — npm audit ran and its output was parsed successfully. Note that `ok: true` does **not** mean your project is vulnerability-free; findings may still be present.
+  - `false` — npm was unavailable in the environment, or the output was not valid JSON. In this case, `findings` will be an empty array.
+
+> **Tip:** Think of `ok` as a health signal for the adapter itself, not a pass/fail verdict on your dependencies. A non-empty `findings` array alongside `ok: true` is the normal, expected result when vulnerabilities are detected.
+
+---
+
+## npm Audit Format Compatibility
+
+The adapter transparently handles both major npm audit JSON formats:
+
+- **v1** (npm 6 and earlier) — output uses the `advisories` key.
+- **v2** (npm 7 and later) — output uses the `vulnerabilities` key.
+
+No configuration is required; the adapter detects the format automatically.
 
 ---
 
@@ -25,54 +68,42 @@ When invoked, the adapter runs `npm audit --json` inside your project directory 
 Call `runNpmAudit` with the path to your project directory:
 
 ```ts
-const { findings, ok } = await runNpmAudit('/path/to/your/project');
+import { runNpmAudit } from './adapters/npm-audit';
+
+const { ok, findings } = runNpmAudit('/path/to/your/project');
+
+if (!ok) {
+  console.warn('npm audit could not be run. Is npm available in this environment?');
+} else {
+  console.log(`Found ${findings.length} dependency vulnerability finding(s).`);
+}
 ```
 
-### Return Value
-
-`runNpmAudit` returns an `NpmAuditResult` object with two fields:
-
-| Field | Type | Description |
-|---|---|---|
-| `findings` | `SastFinding[]` | The list of vulnerability findings discovered by `npm audit`. May be empty. |
-| `ok` | `boolean` | Whether the adapter ran successfully. See details below. |
-
-**`ok` does not indicate whether vulnerabilities were found.** A result with `ok: true` and a non-empty `findings` array simply means the adapter ran successfully and found some issues — this is expected and normal. `ok` is only `false` when the adapter itself could not complete its work (for example, if npm is not available or produced unexpected output).
-
----
-
-## Finding Format
-
-Each entry in the `findings` array follows the standard `SastFinding` shape used across the security pipeline:
-
-| Field | Value |
-|---|---|
-| `ruleId` | `npm-audit/<packageName>` — identifies the vulnerable package |
-| `path` | `package.json` |
-| `message` | A description of the vulnerability |
-| `severity` | The severity level reported by npm |
-
-For example, a vulnerability in the `lodash` package would produce a finding with `ruleId: 'npm-audit/lodash'`.
+The returned `findings` can be passed directly into the security pipeline alongside any Semgrep SAST findings, since they share the same `SastFinding[]` type.
 
 ---
 
 ## Error Handling
 
-The adapter is designed to be safe to call in any environment. It **never throws**. If npm is not installed, is not accessible in the current environment, or produces output that cannot be parsed as JSON, `runNpmAudit` returns:
+The adapter is designed to be safe to call in any environment:
 
-```ts
-{ ok: false, findings: [] }
-```
-
-This means you can safely include the adapter in CI pipelines and test stubs without needing to guard against exceptions.
+- If `npm` is not installed or not on the `PATH`, the adapter returns `{ ok: false, findings: [] }`.
+- If `npm audit` produces output that is not valid JSON (e.g. due to an unexpected error), the adapter returns `{ ok: false, findings: [] }`.
+- The adapter will **never throw an exception**, so it is safe to use without a surrounding `try/catch`.
 
 ---
 
-## Format Compatibility
+## Finding Shape Reference
 
-The adapter transparently supports both npm audit output formats:
+Each normalised finding conforms to the `SastFinding` type from the security pipeline:
 
-- **v2** (npm 7+) — uses the `vulnerabilities` key in the JSON output
-- **v1** (npm 6 and earlier) — uses the `advisories` key in the JSON output
+```ts
+{
+  ruleId: 'npm-audit/<packageName>',  // e.g. 'npm-audit/lodash'
+  path: 'package.json',
+  message: string,                    // Vulnerability description from npm audit
+  severity: string,                   // e.g. 'high', 'critical', 'moderate'
+}
+```
 
-No configuration is needed; the adapter detects the format automatically.
+This consistent shape means vulnerability findings from `npm audit` are fully interoperable with findings from other security pipeline adapters such as Semgrep.

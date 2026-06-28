@@ -1,54 +1,92 @@
 ---
 title: "Config Loader"
 sidebar_label: "Config Loader"
+description: "The Config Loader finds, reads, and validates your .specguard/config.json file, making it the single source of configuration for every SpecGuard command."
+category: "core"
+order: 10
 generated: true
 ---
 
 # Config Loader
 
-## Overview
-
-The Config Loader is responsible for finding and reading the `.specguard/config.json` file that powers every SpecGuard command. Whenever you run a SpecGuard command, the loader automatically locates your configuration, validates it, and makes it available to the rest of the pipeline — you never need to point SpecGuard at your config file manually.
+The Config Loader is the heart of SpecGuard's configuration system. Every command you run — from linting pipelines to generating reports — draws its settings from a single `.specguard/config.json` file. The Config Loader is responsible for finding that file, reading it, and making sure it's valid before any pipeline ever sees it.
 
 ---
 
-## How SpecGuard Finds Your Config
+## How It Works
 
-When a SpecGuard command runs, the loader starts in the current working directory and walks up through parent directories until it finds a `.specguard/config.json` file. This means you can run SpecGuard commands from anywhere inside your project and it will correctly locate your configuration at the project root.
+When SpecGuard starts, it calls `loadConfig()` internally. You don't need to invoke this yourself; it runs automatically as part of every SpecGuard command. Here's what happens under the hood:
 
-The directory that contains the `.specguard/` folder is automatically recorded as `rootDir`. All other paths in your configuration are resolved relative to this directory, so you can use project-relative paths throughout your config without worrying about where you invoke SpecGuard from.
+1. **Directory search** — Starting from your current working directory (or a directory you specify), the loader walks up through parent directories until it finds a folder named `.specguard/` containing a `config.json` file.
+2. **Parsing** — The file is read and parsed as JSON.
+3. **Validation** — The parsed content is checked against SpecGuard's configuration schema to make sure all required fields are present and correctly typed.
+4. **Root resolution** — The directory that contains the `.specguard/` folder is recorded as `rootDir`. Pipelines use this to resolve any paths in your config relative to your project root.
 
----
-
-## What Happens When Config Is Loaded
-
-Once the config file is found, SpecGuard:
-
-1. **Reads and parses** the JSON file.
-2. **Validates** the parsed content against the expected configuration schema.
-3. **Returns** the validated configuration, with `rootDir` set to the directory containing `.specguard/`.
-
-If your config file includes a `_comment` field (a common convention for leaving notes in JSON files), SpecGuard ignores it gracefully. Any additional unknown keys in the file are also tolerated and passed through without causing errors.
+The loader is the **only** way configuration enters SpecGuard. Pipelines never read `config.json` directly — they always receive a validated, fully-resolved config object.
 
 ---
 
-## Error Conditions
+## Locating Your Config File
 
-### Config Not Found
+SpecGuard looks for `.specguard/config.json` by starting at the current working directory and climbing up through each parent directory in turn. This means you can run SpecGuard commands from any subdirectory of your project and it will still find the right config file at the project root.
 
-If SpecGuard cannot locate a `.specguard/config.json` file in the current directory or any of its ancestors, it will throw a `ConfigNotFoundError`. If you see this error, make sure:
-
-- You are running the command from within your project directory.
-- Your project has a `.specguard/config.json` file at the root level.
-
-### Config Invalid
-
-If a `.specguard/config.json` file is found but its contents do not match the expected structure, SpecGuard will throw a `ConfigInvalidError` with a descriptive message explaining what is wrong. Review the message to identify which field is missing or incorrectly formatted, then correct your config file accordingly.
+```
+my-project/          ← .specguard/config.json lives here (rootDir)
+├── .specguard/
+│   └── config.json
+├── src/
+│   └── feature/     ← you can run `specguard` from here and it still works
+└── ...
+```
 
 ---
 
-## Notes for Config Authors
+## Error Handling
 
-- Place your `.specguard/config.json` at the root of your repository so it is discoverable from any subdirectory.
-- Use project-relative paths for any path values in your config — SpecGuard resolves them against `rootDir` automatically.
-- You may include a `_comment` field anywhere in your config JSON to leave notes for your team; SpecGuard will ignore it.
+The Config Loader raises clear, descriptive errors so you always know exactly what went wrong.
+
+### Config file not found
+
+If no `.specguard/config.json` is found in the current directory or any of its ancestors, SpecGuard throws a **`ConfigNotFoundError`**. This typically means:
+
+- You're running SpecGuard outside of a project that has been initialised.
+- The `.specguard/` folder or `config.json` file is missing or misnamed.
+
+**Fix:** Make sure a `.specguard/config.json` file exists somewhere in your project tree. See the [Getting Started guide](#) for how to initialise a new config.
+
+### Config file is invalid
+
+If the file is found but its contents don't match the expected shape — for example, a required field is missing or a value has the wrong type — SpecGuard throws a **`ConfigInvalidError`** with a human-readable message describing exactly which part of the config is invalid.
+
+**Fix:** Review the error message and compare your `config.json` against the [Config Reference](#).
+
+---
+
+## Flexible Config Authoring
+
+The loader is intentionally lenient in a few ways to make your config file easier to maintain:
+
+- **Comments field** — You can include a `_comment` field anywhere in your config (a common convention for adding notes to JSON files). The loader ignores it completely.
+- **Unknown keys** — Extra fields that SpecGuard doesn't recognise are silently passed through rather than causing an error. This means you can add your own metadata or future-proof your config without breaking anything.
+
+---
+
+## The `rootDir` Property
+
+After loading, the resolved config object includes a `rootDir` property set to the absolute path of the directory that contains your `.specguard/` folder. You'll see this referenced in pipeline and adapter documentation — it's the base path against which all relative paths in your config are resolved.
+
+You don't need to set `rootDir` yourself; it is always computed automatically by the loader.
+
+---
+
+## Summary
+
+| Behaviour | Detail |
+|---|---|
+| **Entry point** | `loadConfig(cwd?)` — `cwd` defaults to `process.cwd()` |
+| **Search strategy** | Walks up from `cwd` to find the nearest `.specguard/config.json` |
+| **On missing file** | Throws `ConfigNotFoundError` |
+| **On invalid content** | Throws `ConfigInvalidError` with a readable message |
+| **Tolerates** | `_comment` fields and unknown keys |
+| **Sets** | `rootDir` to the directory containing `.specguard/` |
+| **Used by** | Every SpecGuard pipeline and command |

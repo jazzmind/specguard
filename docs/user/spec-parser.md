@@ -1,79 +1,72 @@
 ---
 title: "Spec Parser"
 sidebar_label: "Spec Parser"
+description: "The Spec Parser reads Living Specification Markdown files and turns them into structured data objects that every SpecGuard pipeline can work with, with zero external dependencies."
+category: "core"
+order: 10
 generated: true
 ---
 
 # Spec Parser
 
-## Overview
-
-The Spec Parser reads Living Specification Markdown files and turns them into structured data your pipelines and tooling can work with. It is the foundational piece of the SpecGuard system — every part of the pipeline that needs to read a spec goes through this parser.
-
-Specs are written in a conventional Markdown format: an H1 title, an HTML comment block for metadata, and H2/H3 sections for content and scenarios. If you have existing specs from `practera-test-suite/packages/spec-tools`, they are fully compatible and can be read by this parser without any changes.
+The Spec Parser is the foundational module of SpecGuard. Every pipeline starts here — it reads your Living Specification Markdown files and converts them into structured `ParsedSpec` objects that the rest of the system can reliably work with.
 
 ---
 
-## The Spec File Format
+## What It Does
 
-A valid spec file looks like this:
+When you point SpecGuard at a spec file, the parser handles all of the following automatically:
+
+- **Extracts the document title** from the top-level H1 heading.
+- **Reads metadata** from the `<!-- key: value -->` HTML comment block at the top of the file, turning it into a typed `SpecMeta` object.
+- **Captures all H2 sections** by name as individual string fields, so any section of your spec (e.g. `## Overview`, `## Dependencies`) is directly accessible.
+- **Parses scenarios** — the `## Scenarios` section is parsed into a structured array of `SpecScenario` objects, each containing the scenario name, its steps, and expected results.
+- **Derives a stable `specKey`** for every file based on its path relative to your specs root directory. For example, a file at `core/spec-parser.md` gets the key `core/spec-parser`. This key is used consistently across all pipelines to identify and cross-reference specs.
+
+---
+
+## Spec File Format
+
+Your spec files are standard Markdown with a few conventions:
 
 ```markdown
-# My Feature Name
+<!-- key: specguard-core/spec-parser -->
+<!-- status: active -->
 
-<!-- key: my-feature/feature-name -->
-<!-- status: draft -->
-<!-- owner: platform-team -->
+# Spec Parser
 
 ## Overview
 
-A short description of what this feature does.
+A short description of the feature...
 
 ## Scenarios
 
-### User logs in successfully
-- Given the user is on the login page
-- When they enter valid credentials
-- Then they are redirected to the dashboard
+### My Scenario Name
+
+Steps and expected results go here.
 ```
 
-The parser understands the following conventions:
+- **Metadata block**: An HTML comment block at the top of the file using `key: value` pairs per line.
+- **H1 title**: The document's primary heading, parsed as the spec title.
+- **H2 sections**: Any number of named sections (e.g. `## Overview`, `## Acceptance Criteria`). Sections that are absent from a file are returned as empty strings — the parser never throws an error for a missing section.
+- **H2 Scenarios section**: The special `## Scenarios` section is parsed deeply into structured `SpecScenario` objects. If this section is absent, an empty array is returned.
 
-- **H1 heading** — the human-readable title of the spec.
-- **HTML comment metadata block** — one or more `<!-- key: value -->` lines placed near the top of the file. These are parsed into a typed metadata object.
-- **H2 sections** — named content sections (e.g. `## Overview`, `## Dependencies`). Each section's content is available as a string field.
-- **`## Scenarios` section** — a specially handled section where each H3 heading becomes a named scenario, complete with its steps and expected results.
-
----
-
-## What the Parser Produces
-
-When a spec file is parsed, you get back a `ParsedSpec` object containing:
-
-| Field | Description |
-|---|---|
-| `title` | The text of the H1 heading. |
-| `specKey` | A stable identifier derived from the file's path relative to your specs root directory (e.g. `core/spec-parser`). |
-| `meta` | A typed `SpecMeta` object built from the HTML comment metadata block. |
-| `sections` | A map of H2 section names to their content as strings. |
-| `scenarios` | An array of `SpecScenario` objects, each with a name, steps, and expected results. |
-
-### Handling Missing Sections
-
-The parser is designed to be forgiving. If a section is absent from a spec file — including `## Scenarios` — the parser returns an empty string or an empty array rather than throwing an error. Your tooling can safely read any spec file without needing to guard against missing sections.
+> **Compatibility note:** The Spec Parser is fully compatible with the format used in `practera-test-suite/packages/spec-tools/src/spec-parser.ts`. Any spec written for that project can be read by SpecGuard without modification.
 
 ---
 
 ## Loading Multiple Specs
 
-The `loadAllSpecs(dir)` function lets you point the parser at a directory and load every spec it contains in one call. It recursively finds all `.md` files within that directory and its subdirectories, automatically skipping any `README.md` files.
+Use `loadAllSpecs(dir)` to recursively discover and parse every spec in a directory tree. It finds all `.md` files under the given directory, automatically skipping any `README.md` files, and returns a parsed object for each one.
 
-Each discovered file is parsed and returned as a `ParsedSpec`, with its `specKey` derived from its path relative to the root directory you provided.
+This is the typical entry point when running a full pipeline across your entire spec suite.
 
 ---
 
-## Design Notes
+## Reliability and Purity
 
-**Zero dependencies.** The Spec Parser has no runtime dependencies beyond Node.js built-ins. You can add it to any project without pulling in additional packages.
+The Spec Parser is designed to be predictable and safe to use anywhere:
 
-**Pure functions.** Where possible, the parser's functions accept file content as a plain string rather than reading from the filesystem themselves. This makes them straightforward to test and compose — pass in a string, get back structured data.
+- **Graceful handling of missing content**: If a section or metadata field is absent, the parser returns an empty string or empty array rather than throwing. Your pipelines will never crash due to an incomplete spec file.
+- **Pure functions**: Parsing functions accept file content as a plain string and have no side effects. There are no hidden filesystem reads or global state mutations, making the parser easy to test and compose.
+- **Zero external dependencies**: The Spec Parser relies only on Node.js built-ins. There is nothing extra to install and no version conflicts to manage.

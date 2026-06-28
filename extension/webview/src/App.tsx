@@ -28,10 +28,12 @@ export function App() {
   const [vm, dispatch] = useReducer((s: ViewModel, e: DashboardEvent) => reduce(s, e), undefined, initialViewModel);
   const [tab, setTab] = useState<Tab>('overview');
 
-  // Count running pipelines for badge
+  // Count running pipelines for the activity badge.
+  // nodeStates tracks extension-spawned runs; activity covers MCP-driven runs.
+  // Use the larger of the two to avoid double-counting when the host syncs MCP
+  // state back into nodeStates.
   const runningCount = Object.values(vm.nodeStates).filter((s) => s === 'running').length;
-  const mcpRunningCount = vm.activity.filter((e) => e.status === 'running').length;
-  const totalRunning = runningCount + mcpRunningCount;
+  const totalRunning = runningCount;
 
   useEffect(() => {
     const onMsg = (ev: MessageEvent<DashboardEvent>) => dispatch(ev.data);
@@ -78,7 +80,7 @@ export function App() {
       </header>
       <main>
         {tab === 'overview' && <OverviewView vm={vm} />}
-        {tab === 'flow' && <FlowView vm={vm} />}
+        {tab === 'flow' && <FlowView vm={vm} dispatch={dispatch} />}
         {tab === 'activity' && (
           <div>
             <ActivityFeed vm={vm} />

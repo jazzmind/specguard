@@ -1,105 +1,118 @@
 ---
 title: "Self-Healing Test Pipeline"
 sidebar_label: "Self-Healing Test Pipeline"
+description: "The Self-Healing Test Pipeline automatically runs your test suite, uses an LLM to classify each failure as either a stale test or a real application bug, rewrites and re-runs failing tests up to a configurable retry limit, and produces a detailed heal report — never touching your application source code."
+category: "pipelines"
+order: 50
 generated: true
 ---
 
 # Self-Healing Test Pipeline
 
-## What It Does
+The Self-Healing Test Pipeline keeps your test suite green by automatically diagnosing and repairing tests that have drifted out of sync with your application. It runs your tests, asks an LLM to decide whether each failure is the *test's* fault or the *application's* fault, rewrites broken tests when appropriate, and repeats — all without ever modifying your application source code.
 
-The Self-Healing Test Pipeline runs your project's test suite and automatically attempts to fix any failing tests. For each failure, it asks an AI model to determine *who is at fault*:
+---
 
-- **The test itself** — a stale assertion, a drifted selector, or bad test setup that no longer reflects the current codebase.
-- **The application** — a real bug that the test correctly caught.
+## How It Works
 
-When the test is at fault, the pipeline rewrites the test code and re-runs the suite, repeating this loop until all fixable tests pass or the retry budget is exhausted. When the application is at fault, the pipeline reports the bug clearly and **never modifies your application source code**.
+When you invoke the heal pipeline, it follows this sequence:
 
-At the end of a run, you receive a heal report summarising how many tests were fixed, how many remain broken, and how many failures point to genuine application bugs.
+1. **Run your test suite.** The pipeline executes your configured test command and captures the results.
+2. **Parse the failures.** It extracts every failing test — its file path, test name, and failure message — from the test runner's output.
+3. **Classify each failure with the LLM.** For each failing test, the pipeline reads the test source (and, where available, the corresponding spec) and asks the LLM to make a determination:
+   - **`test-bug`** — The test itself is wrong: a stale assertion, a drifted selector, bad setup, etc.
+   - **`app-bug`** — The test is correct and has caught a real bug in the application.
+4. **Rewrite and re-run (test bugs only).** When the LLM identifies a test bug, the pipeline rewrites the test file with the LLM's suggested fix and re-runs the full suite. This classify → rewrite → re-run loop repeats until the test passes or the retry budget is exhausted.
+5. **Report application bugs without touching code.** When the LLM identifies an application bug, the failure is recorded with the LLM's reasoning and the pipeline moves on. Your application source is never modified.
+6. **Produce a heal report.** After all retries are complete, the pipeline summarises how many tests were fixed, how many remain broken, and how many failures were attributed to application bugs.
 
 ---
 
 ## Configuration
 
-The pipeline reads its settings from the `config.heal` section of your project configuration:
+The pipeline reads its settings from the `config.heal` block in your SpecGuard configuration file:
 
-| Setting | Default | Description |
+| Option | Default | Description |
 |---|---|---|
 | `testCommand` | `npm test` | The command used to run your test suite. |
-| `maxRetries` | `2` | How many times the pipeline will attempt to rewrite and re-run failing tests before giving up. |
+| `maxRetries` | `2` | Maximum number of rewrite-and-re-run cycles per failing test. |
 
-Both settings can be overridden at invocation time, so you can run a one-off heal with a different command or a higher retry budget without changing your config file.
+You can override either option at invocation time — per-invocation values always take precedence over the configuration file.
+
+**Example `config.heal` block:**
+
+```json
+{
+  "heal": {
+    "testCommand": "npx vitest run",
+    "maxRetries": 3
+  }
+}
+```
 
 ---
 
-## How a Heal Run Works
+## Test Runner Integration
 
-### 1. Running the Suite
+The pipeline appends vitest's JSON reporter to your test command automatically:
 
-The pipeline runs your configured test command with Vitest's JSON reporter appended automatically. It captures the full output and exit code — a failing suite does not stop the pipeline from continuing.
+```
+<testCommand> -- --reporter=json
+```
 
-### 2. Parsing Results
+This produces a Jest-compatible JSON document on stdout that the pipeline parses to identify failures. The parser is tolerant of extra output surrounding the JSON (log lines, banners, etc.) — it locates the first complete `{...}` object in stdout and parses that.
 
-The pipeline extracts the structured JSON test report from the command output, even if the output contains extra noise around it. For each test result, it identifies:
+A failing test is any entry in `assertionResults` with `"status": "failed"`. The pipeline records:
+- **File** — the absolute path from `testResults[].name`
+- **Test name** — from the `title` or `fullName` field
+- **Failure message** — the joined contents of `failureMessages`
 
-- The **file path** of the test.
-- The **test name**.
-- The **failure message**.
+If the JSON output cannot be located or parsed at all, the pipeline records a `"could not parse test output"` message and continues gracefully — it never crashes due to malformed runner output.
 
-If the output cannot be parsed at all (for example, if the runner produced no JSON), the pipeline records a "could not parse test output" message and continues gracefully — it will never crash due to malformed output.
+---
 
-If **no tests are failing**, the pipeline exits immediately with a clean result and makes no AI calls.
+## Early Exit: All Tests Passing
 
-### 3. Classifying Each Failure
-
-For every failing test, the pipeline reads the test source file and, where available, the corresponding specification for additional context. It then asks the AI model to classify the failure as one of:
-
-- **`test-bug`** — the test code needs to be updated.
-- **`app-bug`** — the application code has a real defect.
-
-The AI provides a reason for its classification alongside any proposed fix.
-
-### 4. Fixing Test Bugs
-
-When a failure is classified as `test-bug`, the pipeline:
-
-1. Writes the AI's corrected test code to the test file.
-2. Re-runs the full test suite.
-3. Checks whether the previously failing tests now pass.
-
-This classify → rewrite → re-run loop repeats up to `maxRetries` times. If a test is still failing after all retries, it is recorded as **still-broken**.
-
-### 5. Reporting Application Bugs
-
-When a failure is classified as `app-bug`, the pipeline records it as a failed item with the AI's reason as the message. **No application source files are touched.** These failures count against the final exit code because the suite is still red.
+If the initial test run produces no failures, the pipeline exits immediately with exit code `0` and the message `"all tests passing"`. No LLM calls are made.
 
 ---
 
 ## The Heal Report
 
-After all retries are complete, the pipeline produces a summary with three counts:
+After the pipeline finishes, it appends a human-readable summary to the result messages. The report breaks down results into three categories:
 
-- **Fixed** — tests that were failing and are now passing.
-- **Still-broken** — tests that remained failing after all retry attempts.
-- **App-bugs** — tests that correctly identified a defect in the application.
+- **Fixed** — tests that were classified as test bugs and successfully repaired within the retry budget.
+- **Still broken** — tests that were classified as test bugs but could not be fixed after all retries.
+- **App bugs** — tests that the LLM determined are correctly catching real application bugs.
 
-These counts are included as readable lines in the pipeline result output.
+### Exit Codes
 
----
-
-## Exit Codes
-
-| Code | Meaning |
+| Condition | Exit Code |
 |---|---|
-| `0` | All tests are passing — nothing needed fixing, or all fixable tests were healed. |
-| `7` (`HealFailed`) | One or more tests remain broken after retries, including any app-bug failures. |
+| All tests passing (or all test-bugs fixed) | `0` |
+| Any tests remain broken after retries (including app-bugs) | `7` (`HealFailed`) |
 
-Exit code `7` means your suite is still red and human attention is required — either to fix the application bug the test caught, or to investigate a test the pipeline could not automatically repair.
+An exit code of `7` means the suite is still red — either some test rewrites did not succeed within the retry budget, or the LLM identified application bugs that need developer attention.
 
 ---
 
-## What the Pipeline Will Never Do
+## What the Pipeline Will and Won't Do
 
-- Modify application source code, even if it believes the application is buggy.
-- Crash or throw an error due to unparseable test runner output.
-- Make AI calls when all tests are already passing.
+| Action | Behaviour |
+|---|---|
+| Rewrite a failing test file | ✅ Yes, when classified as a test bug |
+| Re-run the full suite after a rewrite | ✅ Yes, up to `maxRetries` times |
+| Modify application source code | ❌ Never |
+| Report application bugs with reasoning | ✅ Yes, as failed pipeline items |
+| Make LLM calls when no tests are failing | ❌ Never |
+
+---
+
+## Dependencies
+
+The Self-Healing Test Pipeline builds on several SpecGuard core subsystems:
+
+- **LLM** — All language model calls are routed through the central LLM module (`llmGenerateObject`) for structured classification responses.
+- **Reader / Writer** — All test file reads and rewrites go through the standard file I/O abstractions.
+- **Spec Parser** — Used to locate the spec file corresponding to a test file, giving the LLM additional context when classifying failures.
+- **Exit Codes** — Uses the shared `HealFailed` exit code (`7`) to signal an unresolved red suite.

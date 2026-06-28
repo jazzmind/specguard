@@ -1,16 +1,36 @@
 ---
 title: "Reverse Generation Pipeline"
 sidebar_label: "Reverse Generation Pipeline"
+description: "The Reverse Generation Pipeline reads your existing source code and automatically produces or updates Living Spec Markdown files, making it the go-to tool for bringing brownfield codebases into SpecGuard without writing specs from scratch."
+category: "pipelines"
+order: 20
 generated: true
 ---
 
 # Reverse Generation Pipeline
 
-## What This Pipeline Does
+## What It Does
 
-The Reverse Generation Pipeline reads your existing codebase — components, routes, API handlers, and tests — and automatically produces Living Spec Markdown files for features that don't yet have a spec. If code has changed since a spec was last written, it can update stale specs to match. This makes it the go-to starting point for **brownfield projects**, where you want to bring an existing codebase under spec coverage without writing specs from scratch.
+The Reverse Generation Pipeline is SpecGuard's answer to the classic brownfield problem: you have a working codebase, but no Living Specs to go with it. Instead of requiring you to write specs from scratch, this pipeline reads your existing source files — components, routes, API handlers, and tests — and uses an LLM to generate structured Living Spec Markdown files for you.
 
-Source files are discovered using the glob patterns you define in your `.specguard/config.json` app definition, so no file paths are hard-coded and the pipeline adapts to your project's structure.
+If a spec already exists for a feature, the pipeline can detect that and skip it, so you never accidentally overwrite work you've already done. When code changes and a spec becomes stale, you can force a regeneration to bring it back in sync.
+
+---
+
+## How Source Files Are Discovered
+
+The pipeline is entirely config-driven. It reads your app definition from `.specguard/config.json`, which contains glob patterns for each category of source file:
+
+| Category | What it covers |
+|----------|---------------|
+| `routes` | Route definition files |
+| `pages` | Page-level components or views |
+| `api` | API handler files |
+| `tests` | Existing test files |
+
+All globs are expanded relative to the app's configured `repo` directory — no file paths are hard-coded anywhere in the pipeline.
+
+> **Context limit:** To keep LLM prompts manageable, each source file is capped at **20,000 characters**. Files longer than this are automatically truncated, and a `... (truncated)` marker is appended so the model knows the content was cut.
 
 ---
 
@@ -18,71 +38,74 @@ Source files are discovered using the glob patterns you define in your `.specgua
 
 You must tell the pipeline which app (or apps) to process. Two flags control this:
 
-| Flag | Effect |
-|---|---|
-| `--app <name>` | Processes a single named app from your config |
-| `--all` | Processes every app defined in your config |
+```
+# Process a single app by name
+specguard reverse-generate --app <name>
 
-Exactly one of these flags is required. If you omit both, the command exits immediately with an error.
-
-**Examples:**
-
-```bash
-# Generate specs for a single app
-specguard reverse-generate --app my-web-app
-
-# Generate specs for all configured apps
+# Process every app defined in your config
 specguard reverse-generate --all
+```
+
+One of `--app` or `--all` is **required**. If you omit both, the CLI exits with code `1` and an error message.
+
+### Forcing Regeneration
+
+By default, if a spec file already exists for a discovered feature, the pipeline skips it and logs a `[skip]` line. To overwrite existing specs — for example, after significant code changes — add the `--force` flag:
+
+```
+specguard reverse-generate --app <name> --force
 ```
 
 ---
 
-## How Source Files Are Discovered
+## What Gets Generated
 
-For each app, the pipeline expands the glob patterns defined in your app config relative to that app's repository root. Discovered files are grouped into four categories:
+For each logical feature the pipeline discovers (a distinct page, route, or functional area), it:
 
-- **Routes** — URL routing definitions
-- **Pages** — page-level components or views
-- **API** — API handler files
-- **Tests** — existing test files
+1. **Checks** whether a spec already exists at `<specDir>/<area>/<feature>.md`.
+2. **Skips** the feature (with a `[skip]` log entry) if a spec exists and `--force` is not set.
+3. **Calls the LLM** to generate a spec if no spec exists, or if `--force` is set.
+4. **Writes** the generated spec to `<specDir>/<area>/<feature>.md`, creating any intermediate directories as needed.
 
-These groups are passed together as context when generating a spec, giving the language model a complete picture of each feature area.
-
-> **Note:** To keep generation reliable and within context limits, each individual source file is capped at 20,000 characters. Files longer than this are truncated automatically, with a `... (truncated)` marker appended.
+At the end of a run, the pipeline reports a summary with counts of specs **created**, **skipped**, and **failed**.
 
 ---
 
-## What Gets Generated (and What Gets Skipped)
+## How the LLM Generates Specs
 
-For each logical feature the pipeline discovers, it checks whether a spec file already exists in your configured `specDir`.
+The pipeline sends the LLM a carefully structured prompt that includes:
 
-- **No existing spec** — the pipeline calls the LLM and writes a new spec to `<specDir>/<area>/<feature>.md`. Any intermediate directories are created automatically.
-- **Spec already exists** — the pipeline skips that feature and logs a `[skip]` line, leaving your existing spec untouched.
-- **Spec already exists, but you want to regenerate it** — pass the `--force` flag to overwrite existing specs.
+- A **system prompt** defining the exact Living Spec format (HTML comment block, H2 sections).
+- All **relevant source files** for the feature as context.
+- The **target spec key** so the model knows what it is writing.
 
-At the end of a run, the pipeline reports a summary of how many specs were **created**, **skipped**, and **failed**.
+The system prompt instructs the model to follow these rules:
 
----
+- Write **one spec per distinct page, route, or feature area** — no bundling unrelated features together.
+- **Only document behaviour that is visible in the provided source code** — no invented or assumed functionality.
+- Keep the `## Overview` section to **3–6 sentences**.
+- Make every scenario step **observable by a test tool** — concrete and specific, not abstract.
+- Output **only the Markdown content** — no preamble, explanation, or commentary.
 
-## What the Generated Specs Look Like
-
-The pipeline instructs the language model to produce specs that follow SpecGuard's standard format. Specifically, each generated spec:
-
-- Covers **one distinct page, route, or feature area** — the pipeline does not bundle unrelated features into a single file.
-- Documents **only behaviour that is visible in the provided source code** — the model does not invent or assume functionality.
-- Uses the **standard spec format**, including the required HTML comment block and H2 section headings.
-- Keeps the `## Overview` section to **3–6 sentences**.
-- Writes scenario steps that are **observable by a test tool** — concrete and specific, not abstract descriptions.
-- Outputs **only the Markdown content**, with no preamble or explanation added by the model.
+This means the specs you get back are immediately usable as Living Specs and are grounded entirely in your actual code.
 
 ---
 
-## Configuration Reference
+## Pipeline Result
 
-The pipeline reads all app definitions from your `SpecGuardConfig` (loaded via `.specguard/config.json`). Each app entry should include:
+After each run, the pipeline returns a structured result containing:
 
-- Glob patterns for `routes`, `pages`, `api`, and `tests` source files
-- A `repo` directory that globs are expanded relative to
-- A `specDir` pointing to where generated spec files should be written
+| Field | Description |
+|-------|-------------|
+| `created` | Number of new spec files written |
+| `skipped` | Number of features skipped because a spec already existed |
+| `failed` | Number of features where generation or writing failed |
 
-Refer to the [Config documentation](../core/config.md) for the full `AppConfig` schema.
+---
+
+## Related Concepts
+
+- **Spec Parser** — used internally to check whether an existing spec is present for a given feature.
+- **LLM Adapter** — the abstraction layer the pipeline uses to call the language model.
+- **App Config (`AppConfig`)** — defines glob patterns and the `repo` root; drives all source discovery.
+- **Writer** — handles file output and directory creation for generated specs.

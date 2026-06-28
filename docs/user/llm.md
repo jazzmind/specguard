@@ -1,19 +1,26 @@
 ---
 title: "LLM Adapter"
 sidebar_label: "LLM Adapter"
+description: "The LLM Adapter is SpecGuard's single, unified interface for all language model access — pipelines call it directly instead of importing provider SDKs, keeping LLM usage consistent and secure across the system."
+category: "adapters"
+order: 10
 generated: true
 ---
 
 # LLM Adapter
 
-## Overview
+The LLM Adapter is the single, unified gateway through which all of SpecGuard's pipelines interact with large language models. Rather than importing provider SDKs directly, every pipeline routes its LLM calls through this adapter. This keeps provider configuration, API key handling, and output validation in one place — making your setup easier to reason about and your secrets easier to protect.
 
-The LLM Adapter is SpecGuard's single, unified gateway to large language model providers. All AI-powered pipelines within SpecGuard route their requests through this module — no pipeline talks to a provider SDK directly. This design keeps provider configuration, credential handling, and error behaviour consistent across the entire application.
+---
 
-The adapter supports two modes of interaction:
+## What It Does
 
-- **Free-form text generation** — ask the model a question or prompt and receive a plain text response.
-- **Structured object generation** — ask the model to produce output that conforms to a [Zod](https://zod.dev/) schema, receiving a validated, typed object in return.
+The adapter exposes two core functions that cover the full range of LLM use cases inside SpecGuard:
+
+- **`llmGenerateText(opts)`** — Sends a prompt to the configured model and returns the generated text as a plain string. Use this whenever you need free-form natural language output.
+- **`llmGenerateObject(opts)`** — Sends a prompt and returns a structured object that has been validated against a [Zod](https://zod.dev/) schema you supply. Use this when you need reliable, typed data back from the model.
+
+Under the hood, the adapter wraps **ai-sdk v4** (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/openai`) and handles provider selection and credential resolution automatically based on your configuration.
 
 ---
 
@@ -21,55 +28,66 @@ The adapter supports two modes of interaction:
 
 The adapter currently supports two LLM providers:
 
-| Provider key | Backed by |
+| Provider | SDK Used |
 |---|---|
-| `anthropic` | Anthropic Claude models |
-| `openai` | OpenAI models |
+| `anthropic` | `@ai-sdk/anthropic` (`createAnthropic`) |
+| `openai` | `@ai-sdk/openai` (`createOpenAI`) |
 
-The provider and model to use are determined by your SpecGuard configuration (the `LlmConfig` shape), which specifies a `provider`, a `model`, and an `apiKeyEnv` field naming the environment variable that holds your API key.
-
----
-
-## API Key Resolution
-
-SpecGuard reads your API key from the environment variable named by the `apiKeyEnv` field in your configuration. For example, if `apiKeyEnv` is `"ANTHROPIC_API_KEY"`, the adapter looks up `process.env.ANTHROPIC_API_KEY` at runtime.
-
-**The key value is never logged.** SpecGuard is careful to ensure that your API key does not appear in any log output or error messages, regardless of what goes wrong.
+The provider is selected from your `LlmConfig` (defined in `src/core/types.ts`). If you specify a provider name that is not one of the above, the adapter will throw a `SpecGuardError` immediately, so misconfiguration is caught early rather than at runtime.
 
 ---
 
-## Error Behaviour
+## Configuration
 
-The adapter raises a `SpecGuardError` in two situations:
+Your `LlmConfig` object drives the adapter's behaviour. It contains three fields:
 
-- **Missing or empty API key** — if the environment variable named by `apiKeyEnv` is unset or contains an empty string, the adapter throws immediately with a descriptive message. The message will tell you *which variable* is missing, but will never include the key's value.
-- **Unknown provider** — if the `provider` field in your configuration is not one of the supported values, the adapter throws rather than silently falling back to a default.
+- **`provider`** — Which LLM provider to use (`"anthropic"` or `"openai"`).
+- **`model`** — The model identifier to pass to the provider (e.g. a specific Claude or GPT model name).
+- **`apiKeyEnv`** — The **name** of the environment variable that holds your API key (e.g. `"ANTHROPIC_API_KEY"`).
 
-In both cases the error is a `SpecGuardError`, so it can be caught and handled consistently alongside other SpecGuard errors.
+The adapter reads the actual key value from `process.env[apiKeyEnv]` at call time and passes it directly to the provider factory. **The key value itself is never written to any log output** — only the environment variable name is referenced in error messages, so your credentials stay safe even when debugging.
 
 ---
 
-## Usage
+## API Key Handling
 
-Pipelines and internal tooling interact with the adapter through two functions:
+The adapter enforces strict rules around API key resolution:
 
-### `llmGenerateText(opts)`
+- If the environment variable named by `apiKeyEnv` is **unset or empty**, the adapter throws a `SpecGuardError`. The error message will tell you which environment variable is missing, but will **never** include the key's value.
+- This validation happens before any network call is made, so you get a clear, actionable error rather than a cryptic provider rejection.
 
-Sends a prompt to the configured provider and model, and returns the generated text as a string. Use this when you need a free-form natural language response.
+Make sure the appropriate environment variable is set in your runtime environment before invoking any pipeline that uses the LLM Adapter.
 
-### `llmGenerateObject(opts)`
+---
 
-Sends a prompt to the configured provider and model, instructing it to produce structured output. The response is validated against a Zod schema you supply; the function returns the validated, typed object. Use this when you need the model's output to conform to a specific data shape.
+## Advanced: `resolveModel`
 
-Both functions accept options that include your `LlmConfig` (provider, model, and API key environment variable name) alongside the prompt or schema relevant to each call.
+The adapter also exports a lower-level helper:
+
+```ts
+resolveModel(provider: string, model: string, apiKeyEnv: string)
+```
+
+This function encapsulates provider instantiation and API key resolution. It is exported primarily to make the missing-key validation path independently testable, but you can also use it if you need to construct a model instance outside of the standard `llmGenerateText` / `llmGenerateObject` flow.
 
 ---
 
 ## Dependencies
 
-The adapter is built on the following libraries:
+The LLM Adapter relies on the following internal and external packages:
 
-- [`ai`](https://www.npmjs.com/package/ai) v4 — the AI SDK core
-- [`@ai-sdk/anthropic`](https://www.npmjs.com/package/@ai-sdk/anthropic) v1 — Anthropic provider integration
-- [`@ai-sdk/openai`](https://www.npmjs.com/package/@ai-sdk/openai) v1 — OpenAI provider integration
-- [`zod`](https://www.npmjs.com/package/zod) v3 — schema validation for structured output
+| Dependency | Purpose |
+|---|---|
+| `src/core/types.ts` | `LlmConfig` type (provider, model, apiKeyEnv) |
+| `src/core/errors.ts` | `SpecGuardError` for structured error throwing |
+| `ai` (v4) | Core ai-sdk runtime |
+| `@ai-sdk/anthropic` (v1) | Anthropic provider integration |
+| `@ai-sdk/openai` (v1) | OpenAI provider integration |
+| `zod` (v3) | Schema validation for `llmGenerateObject` |
+
+---
+
+## Security Notes
+
+- **Never log your API key.** The adapter is designed so that the resolved key value is passed only to the provider factory and is never surfaced in logs, error messages, or console output.
+- **Use environment variables.** Store your API keys in environment variables and reference them by name in `apiKeyEnv`. Do not hard-code key values in your configuration files.

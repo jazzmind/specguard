@@ -1,39 +1,31 @@
 ---
 title: "Security Pipeline"
 sidebar_label: "Security Pipeline"
+description: "The Security Pipeline generates OWASP-annotated security test stubs from a spec's Security Notes section and can optionally run a Semgrep SAST scan, turning documented security constraints into executable vitest tests."
+category: "pipelines"
+order: 60
 generated: true
 ---
 
 # Security Pipeline
 
-## What It Does
+## Overview
 
-The Security Pipeline turns the security constraints documented in your specs into executable test stubs — automatically. For each spec that contains a `## Security Notes` section, the pipeline reads those constraints alongside the referenced source module and asks the AI to generate a [vitest](https://vitest.dev/) test file. Every generated test is annotated with the relevant [OWASP Top 10](https://owasp.org/www-project-top-ten/) category, giving you a direct, traceable link from documented security requirement to runnable test.
+The Security Pipeline bridges the gap between documented security requirements and executable tests. For every spec that contains a `## Security Notes` section, the pipeline reads those constraints, inspects the referenced source module, and asks the LLM to produce a ready-to-run **vitest security test file** — with every generated test annotated with its relevant [OWASP Top 10](https://owasp.org/www-project-top-ten/) category.
 
-Optionally, you can pair stub generation with a live [Semgrep](https://semgrep.dev/) SAST scan of your source tree. When real findings are discovered, they are fed back into the AI prompt so the generated stubs target the concrete issues Semgrep found — not just the abstract constraints in the spec.
+Optionally, you can enable a **Semgrep SAST scan** with `--with-sast`. When real findings are returned, they are fed directly into the LLM prompt so the generated stubs target concrete, known issues in your codebase rather than generic patterns.
+
+This is the security half of SpecGuard's requirement-to-test traceability story: your documented security constraints drive your security test suite.
 
 ---
 
-## Generated Test Files
+## How It Works
 
-Security test stubs are written to:
-
-```
-tests/security/<feature>.test.ts
-```
-
-resolved relative to your project's `rootDir`. The `<feature>` path mirrors the spec's location inside the owning app's `specDir`, with the `.md` extension dropped. For example, a spec at `specDir/auth/login.md` produces `tests/security/auth/login.test.ts`.
-
-Each generated test file contains vitest stubs where every individual test is prefixed with a comment identifying its OWASP category, for example:
-
-```ts
-// OWASP A01: Broken Access Control
-it('should reject requests from unauthenticated users', () => {
-  // TODO: implement
-});
-```
-
-> **Note:** The pipeline will never overwrite an existing security test file. If a file already exists for a spec, that spec is skipped and recorded as such in the run summary.
+1. **Spec resolution** — The pipeline locates the spec (by key or path) and extracts its `## Security Notes` section.
+2. **Source module reading** — The source file named in the spec's `meta.module` field is read. If the file is missing or unreadable, the pipeline notes this in the LLM prompt and continues rather than failing.
+3. **Optional SAST scan** — When `--with-sast` is supplied, Semgrep is invoked via Docker over the owning app's repository. If Docker or Semgrep is unavailable, a warning is logged and the pipeline proceeds without findings.
+4. **LLM generation** — The LLM is prompted to emit a single, complete vitest test file. Each test is prefixed with an OWASP category comment (e.g. `// OWASP A01: Broken Access Control`). The model is instructed to output only valid test code — no Markdown fences, no prose. Any accidental fences in the output are stripped automatically.
+5. **File output** — The generated file is written to `tests/security/<feature>.test.ts`, resolved against your app's `rootDir`. The `<feature>` segment mirrors the spec's path relative to the app's `specDir`, with the `.md` extension dropped.
 
 ---
 
@@ -41,71 +33,115 @@ it('should reject requests from unauthenticated users', () => {
 
 ### Process a single spec
 
-Use `--spec` with either a spec key or a direct path to a Markdown file:
-
-```
-specguard security --spec auth/login
-specguard security --spec ./specs/auth/login.md
+```bash
+specguard security --spec core/auth
 ```
 
-A spec key (e.g. `auth/login`) is resolved under the matching app's configured `specDir`. A direct `.md` path is used as-is.
+You can supply either a **spec key** (resolved under the matching app's `specDir`) or a **direct path** to a `.md` file:
+
+```bash
+specguard security --spec ./specs/core/auth.md
+```
 
 ### Process all specs
 
-Use `--all` to run the pipeline over every spec found under each app's `specDir`:
-
-```
+```bash
 specguard security --all
 ```
 
-### Include a SAST scan
+Processes every spec found under each configured app's `specDir`.
 
-Add `--with-sast` to any invocation to run a Semgrep scan over the owning app's source repository before generating stubs:
+### Enable the SAST scan
+
+```bash
+specguard security --spec core/auth --with-sast
+```
+
+Runs Semgrep via Docker over the app's repository before generating stubs. Any findings are summarised and included in the LLM prompt, producing regression-focused test stubs for real issues.
+
+---
+
+## Output
+
+Generated test files are placed at:
 
 ```
-specguard security --spec auth/login --with-sast
-specguard security --all --with-sast
+<rootDir>/tests/security/<feature>.test.ts
 ```
 
-When Semgrep is available and returns findings, those findings are summarised and included in the AI prompt so the generated stubs address real, detected issues. The findings are also included in the run's result detail.
+For example, a spec at `specs/core/auth.md` (with `specDir` set to `specs/`) produces:
 
-If Docker or Semgrep is unavailable, the SAST step is skipped with a warning — stub generation continues normally and nothing fails.
+```
+tests/security/core/auth.test.ts
+```
+
+> **Existing files are never overwritten.** If a security test file already exists for a spec, that spec is recorded as `skipped` and a `[skip]` message is logged. Delete or rename the existing file if you want to regenerate it.
 
 ---
 
 ## Exit Codes
 
-| Situation | Exit code |
+| Condition | Exit Code |
 |---|---|
-| Stubs generated successfully (with or without skips) | `0` |
-| `--with-sast` ran and returned real findings | `5` |
+| Stubs generated successfully (no SAST, or SAST returned no findings) | `0` |
+| `--with-sast` ran and returned real findings | `5` (`SecurityIssues`) |
 
-An exit code of `5` signals that Semgrep found issues worth attention, even if stub generation itself succeeded. This makes the pipeline suitable for use in CI gates.
-
----
-
-## How the AI Uses Your Spec
-
-The pipeline extracts the `## Security Notes` section from each spec and reads the source module named in the spec's metadata. If the source module is missing or unreadable, the AI is informed of this and generation continues — a missing source file is never a hard failure.
-
-The AI is instructed to:
-
-- Produce a single, complete vitest test file of security stubs
-- Annotate every test with the relevant OWASP Top 10 category
-- Derive tests from the spec's Security Notes and the surface area of the source module
-- Target any SAST findings with concrete regression stubs when findings are provided
-- Output only valid TypeScript test code — no Markdown, no prose
-
-Any accidental Markdown fences in the AI's output are stripped automatically before the file is written.
+Generating stubs alone — even if some specs are skipped — exits with `0`. Exit code `5` is reserved exclusively for the case where the SAST scan surfaces real issues, signalling to your CI pipeline that findings need attention.
 
 ---
 
-## Run Summary
+## Generated Test Format
 
-After each run, the pipeline reports:
+Each generated test file is a standard vitest file. Every test stub is prefixed with an OWASP Top 10 annotation comment derived from the spec's Security Notes:
 
-- How many specs were **generated**, **skipped** (file already exists), or **failed** (AI error)
-- Per-spec detail including any SAST findings
-- Progress messages throughout the run
+```typescript
+// OWASP A01: Broken Access Control
+it('should reject requests from unauthenticated users', async () => {
+  // TODO: implement security test
+});
 
-A failure on one spec does not stop the pipeline — remaining specs are always processed.
+// OWASP A03: Injection
+it('should sanitise user-supplied input before passing to the query layer', async () => {
+  // TODO: implement security test
+});
+```
+
+When `--with-sast` is used and findings are returned, additional stubs targeting those specific findings are included in the file.
+
+---
+
+## Error Handling
+
+- **LLM errors** for a single spec are recorded as `failed` and logged. The pipeline continues processing any remaining specs.
+- **Missing source modules** are noted in the prompt; the pipeline does not fail.
+- **Unavailable Docker/Semgrep** when using `--with-sast` logs a `[warn]` and the pipeline continues without SAST findings.
+
+The pipeline always returns a `PipelineResult` containing counts, per-item detail, and progress messages. The CLI renders the final summary automatically.
+
+---
+
+## Configuration
+
+The Security Pipeline reads app configuration from your `SpecGuardConfig`. Each app entry supplies:
+
+| Field | Purpose |
+|---|---|
+| `specDir` | Root directory for specs; used to resolve spec keys and derive output paths |
+| `repo` | Path to the source repository scanned by Semgrep when `--with-sast` is used |
+| `framework` | Test framework (vitest is used for security stubs) |
+| `rootDir` | Root against which `tests/security/` output paths are resolved |
+
+See the [Configuration reference](../core/config) for full details.
+
+---
+
+## Dependencies
+
+The Security Pipeline builds on the following SpecGuard internals:
+
+- **`core/spec-parser`** — spec loading, parsing, and `## Security Notes` extraction
+- **`core/llm`** — LLM access via `llmGenerateText`
+- **`core/reader` / `core/writer`** — all file I/O
+- **`core/config`** — `AppConfig` resolution
+- **`adapters/semgrep`** — Semgrep SAST adapter (Docker invocation)
+- **`pipelines/forward-generate`** — shares the spec → app → feature-naming convention

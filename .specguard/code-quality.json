@@ -1,0 +1,318 @@
+{
+  "generatedAt": "2026-06-28T22:38:15.308Z",
+  "apps": [
+    {
+      "name": "specguard-core",
+      "errorCount": 0,
+      "warningCount": 6,
+      "findings": [
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    },
+    {
+      "name": "specguard-pipelines",
+      "errorCount": 0,
+      "warningCount": 6,
+      "findings": [
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    },
+    {
+      "name": "specguard-adapters",
+      "errorCount": 0,
+      "warningCount": 6,
+      "findings": [
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    }
+  ],
+  "totalErrors": 0,
+  "totalWarnings": 18
+}

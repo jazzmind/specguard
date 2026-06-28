@@ -1,109 +1,112 @@
 ---
 title: "Forward Generation Pipeline"
 sidebar_label: "Forward Generation Pipeline"
+description: "The Forward Generation Pipeline reads your Living Spec Markdown files and automatically generates executable test files, turning each scenario into a ready-to-run test block in your chosen framework."
+category: "pipelines"
+order: 20
 generated: true
 ---
 
 # Forward Generation Pipeline
 
-## What This Does
+## What It Does
 
-The Forward Generation Pipeline reads your Living Spec Markdown files and produces ready-to-run test files from them. Think of it as the spec-to-test direction of traceability: you write a spec, and SpecGuard generates the corresponding test code so your requirements are immediately backed by executable validation.
+The Forward Generation Pipeline is the **spec-to-test** half of SpecGuard's requirement-to-test traceability story. It reads your Living Spec Markdown files and produces executable test files from them — the direct inverse of the [Reverse Generation Pipeline](reverse-generate.md).
 
-Every `### Scenario` block in a spec becomes exactly one `it()` / test block in the generated file, titled with the scenario name. The module under test is pulled from the spec's own `module` metadata, so the generated import statement points at the right place automatically.
-
-This is the forward half of SpecGuard's requirement-to-test traceability loop — the [Reverse Generation Pipeline](../reverse-generate) is its counterpart, going the other direction.
+For every spec it processes, each `### Scenario` section becomes exactly one `it()` / test block in the output file, titled with the scenario name and wired up to import the module under test declared in the spec's `module` metadata. The result is a test suite that is structurally driven by your specifications: if a scenario exists in the spec, a test exists in the code.
 
 ---
 
-## How to Use It
+## How It Works
 
-### Processing a single spec
+### Spec Resolution
 
-Pass `--spec` with either a spec key or a direct file path:
+You can target a single spec or your entire spec library:
 
-```
-specguard forward-generate --spec core/spec-parser
-specguard forward-generate --spec path/to/my-feature.md
-```
+- **`--spec <key|path>`** — processes exactly one spec.
+  - A *spec key* such as `core/spec-parser` is resolved relative to the matching app's `specDir` as defined in your `SpecGuardConfig`.
+  - A *direct path* ending in `.md` is used verbatim.
+- **`--all`** — processes every spec found under each app's `specDir`.
 
-A spec key like `core/spec-parser` is resolved relative to the matching app's configured `specDir`. A path ending in `.md` is used exactly as given.
+### Mapping Specs to Apps
 
-### Processing all specs at once
+Each spec file is matched back to its owning app by comparing the spec's file location against the `specDir` configured for each app in `SpecGuardConfig`. This is how the pipeline knows which framework to use and where to write the output — no paths are hard-coded.
 
-```
-specguard forward-generate --all
-```
+### Parsing and Test Generation
 
-This processes every spec found under each app's `specDir` as defined in your `SpecGuardConfig`.
+Once a spec is located, it is parsed with `parseSpecContent`. Every `### Scenario` in the file becomes one `it()` / test block. The pipeline sends the parsed spec to the configured LLM with a strict prompt that instructs it to:
 
----
+- Emit a **single, complete** test file in the requested framework.
+- Create **exactly one** `it()` / test block per scenario, using the scenario name as the test title.
+- Import the module under test from the path declared in the spec's `module` metadata.
+- Translate each scenario's steps and expected results into **arrange / act / assert** code.
+- Output **only** valid test code — no Markdown fences, no prose, no explanation.
 
-## Configuration
+Any accidental Markdown code fences in the LLM response are stripped automatically before the file is written.
 
-The pipeline is entirely config-driven — no paths are hard-coded. It reads your `SpecGuardConfig` to determine:
+### Output Location
 
-| Setting | What it controls |
-|---|---|
-| `specDir` | Where specs live for each app; used to resolve spec keys and match specs back to their owning app |
-| `testOutput` | The directory where generated test files are written |
-| `framework` | The default test framework for each app (`vitest`, `playwright`, or `jest`) |
-
-### Overriding the test framework
-
-If you want to generate tests for a different framework than the app default, pass `--framework`:
-
-```
-specguard forward-generate --spec core/spec-parser --framework jest
-```
-
-Supported values are `vitest`, `playwright`, and `jest`.
-
----
-
-## Where Output Files Are Written
-
-Generated test files land at:
+Generated test files are written to:
 
 ```
 <app.testOutput>/<feature>.test.ts
 ```
 
-where `<feature>` is the spec's path relative to the app's `specDir`. Because the area is already encoded in your `testOutput` configuration, the path stays clean and predictable.
+where `feature` is the spec's path relative to the app's `specDir`. Because the area is already encoded in `testOutput`, the directory structure stays clean and predictable.
 
 ---
 
-## Skipping Existing Files
+## Choosing a Framework
 
-If a test file already exists at the target path, the pipeline **skips it by default** and records it as `skipped` in the results. This protects any manual edits you may have made.
-
-To overwrite existing files, pass `--force`:
+The target test framework defaults to the **owning app's `framework`** setting (`vitest`, `playwright`, or `jest`). You can override this for a single run with the `--framework` flag:
 
 ```
-specguard forward-generate --all --force
+--framework vitest
+--framework jest
+--framework playwright
 ```
 
 ---
 
-## What the Generated Tests Look Like
+## Skipping and Overwriting Existing Tests
 
-SpecGuard instructs the underlying LLM to produce a single, complete test file with:
+To protect hand-edited test files, the pipeline checks whether the output file already exists before writing:
 
-- **One `it()` / test block per scenario**, titled exactly with the scenario name from your spec
-- **An import statement** pointing at the module declared in the spec's `module` metadata
-- **Arrange / act / assert code** translated from each scenario's steps and expected results
-- **No extra prose, no Markdown fences** — only valid, runnable test code
+- **File exists, no `--force`** — the spec is skipped. A `[skip]` line is logged and the item is recorded as `skipped` in the results.
+- **File exists with `--force`**, or **file does not exist** — the LLM is called, the output is written, a `[gen]` line is logged, and the item is recorded as `created`.
+
+Use `--force` only when you intentionally want to regenerate and overwrite an existing test file.
 
 ---
 
-## Results and Error Handling
+## Error Handling
 
-After a run, the pipeline returns a summary with counts and per-item detail that the CLI renders for you. Each spec ends up in one of three states:
+If the LLM returns an error for a particular spec, that spec is recorded as `failed` and the pipeline continues processing the remaining specs. A single failure does not abort the entire run.
 
-| Status | Meaning |
+---
+
+## Results
+
+The pipeline returns a `PipelineResult` containing:
+
+- **Counts** — how many specs were `created`, `skipped`, and `failed`.
+- **Per-item detail** — the outcome for each individual spec processed.
+- **Progress messages** — logged during the run; the CLI renders a human-readable summary at the end.
+
+---
+
+## Configuration Reference
+
+The pipeline reads all of its settings from `SpecGuardConfig` — the caller is responsible for loading the config and passing it in. The relevant per-app fields are:
+
+| Field | Description |
 |---|---|
-| `created` | Test file was successfully generated and written |
-| `skipped` | Test file already existed and `--force` was not set |
-| `failed` | The LLM returned an error for this spec |
+| `specDir` | Root directory where Living Spec Markdown files live. Used to resolve spec keys and match specs to their owning app. |
+| `framework` | Default test framework (`vitest`, `jest`, or `playwright`). Overridable with `--framework`. |
+| `testOutput` | Directory where generated test files are written. |
 
-A failure on one spec does **not** stop the pipeline — remaining specs continue to be processed, and the failure is recorded in the final summary.
+---
+
+## Related Pipelines
+
+- **[Reverse Generation Pipeline](reverse-generate.md)** — the inverse: reads existing test files and generates or updates Living Spec Markdown from them. The two pipelines share the same feature-naming convention so their outputs stay in sync.

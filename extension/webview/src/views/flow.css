@@ -180,6 +180,62 @@
 .sg-wf-btn-destructive { border-color: #6a4020; color: #e2c08d; }
 .sg-wf-btn-destructive:hover:not(:disabled) { background: #2a1e0e; border-color: #e2c08d; }
 
+/* ── Cancel button ─────────────────────────────────────────────────────── */
+.sg-wf-btn-cancel {
+  border-color: #5a3a3a;
+  color: #f48771;
+}
+.sg-wf-btn-cancel:hover { background: #2a1a1a; border-color: #f48771; }
+
+/* ── Fix button ─────────────────────────────────────────────────────────── */
+.sg-wf-btn-fix {
+  border-color: #3a5a3a;
+  color: #4ec9b0;
+}
+.sg-wf-btn-fix:hover { background: #1a2a1a; border-color: #4ec9b0; }
+
+/* ── Log toggle ─────────────────────────────────────────────────────────── */
+.sg-log-toggle {
+  font-size: 9px;
+  color: #555;
+  background: none;
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.sg-log-toggle:hover { color: #888; border-color: #555; }
+
+/* ── Live log panel ─────────────────────────────────────────────────────── */
+.sg-log-panel {
+  margin-top: 8px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sg-log-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+}
+.sg-log-panel-title { font-size: 10px; color: #666; font-family: monospace; }
+.sg-log-panel-body {
+  margin: 0;
+  padding: 6px 8px;
+  background: #111;
+  color: #aaa;
+  font-size: 10px;
+  font-family: 'Menlo', 'Consolas', monospace;
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* ── Error tail ────────────────────────────────────────────────────────── */
 .sg-error-tail {
   margin: 4px 0 0;
@@ -193,4 +249,67 @@
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* ── Analyze panel ─────────────────────────────────────────────────────── */
+.sg-analyze-panel {
+  background: #1e1e1e;
+  border: 1px solid #4a3820;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.sg-analyze-header { margin-bottom: 10px; }
+.sg-analyze-title { font-size: 12px; font-weight: 700; color: #e2c08d; }
+.sg-analyze-sub { font-size: 11px; color: #666; margin-left: 8px; }
+.sg-analyze-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+  font-size: 11px;
+}
+.sg-analyze-row:last-of-type { border-bottom: none; }
+.sg-analyze-pipeline { font-family: monospace; font-weight: 600; color: #ddd; min-width: 80px; }
+.sg-analyze-priority { font-size: 10px; min-width: 50px; }
+.sg-analyze-reason { color: #888; flex: 1; }
+
+/* ── Fix plan panel ─────────────────────────────────────────────────────── */
+.sg-fix-plan {
+  background: #1a1e1a;
+  border: 1px solid #3a5a3a;
+  border-radius: 6px;
+  padding: 12px;
+}
+.sg-fix-plan-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.sg-fix-plan-title { font-size: 13px; font-weight: 700; color: #4ec9b0; }
+.sg-fix-plan-src { font-size: 10px; color: #666; }
+.sg-fix-plan-summary { font-size: 11px; color: #999; margin: 0 0 10px; }
+.sg-fix-plan-steps { margin: 0 0 4px; padding-left: 18px; }
+.sg-fix-plan-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: #ccc;
+}
+.sg-fix-plan-action-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #2a2a2a;
+  color: #888;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sg-fix-plan-code {
+  font-size: 10px;
+  font-family: monospace;
+  color: #aaa;
+  background: #2a2a2a;
+  padding: 1px 4px;
+  border-radius: 3px;
 }

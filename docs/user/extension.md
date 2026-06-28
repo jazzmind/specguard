@@ -1,84 +1,118 @@
 ---
 title: "SpecGuard VS Code Extension"
 sidebar_label: "SpecGuard VS Code Extension"
+description: "The SpecGuard VS Code and Cursor extension brings spec coverage, pipeline status, and drift detection directly into your editor, with a sidebar, coverage tree view, and interactive dashboard panel."
+category: "adapters"
+order: 10
 generated: true
 ---
 
 # SpecGuard VS Code Extension
 
-The SpecGuard extension for VS Code and Cursor brings spec coverage, pipeline management, and drift detection directly into your editor. Everything you need to understand and maintain your specification health is available without leaving the IDE.
+The SpecGuard extension for VS Code and Cursor brings your spec coverage, pipeline status, and drift detection directly into the editor — no context-switching required. Everything you need to understand and act on your specification health is available without leaving your IDE.
 
 ---
 
-## Getting Started
+## What the Extension Provides
 
-After installing the extension, a **SpecGuard icon** appears in the Activity Bar on the left side of VS Code. Click it to open the SpecGuard sidebar, which gives you a live view of your workspace's spec coverage at a glance.
+Once installed, the extension adds three main surfaces to your editor:
 
-To open the full dashboard, run the **SpecGuard: Open Dashboard** command from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). The dashboard opens as a panel in your editor. If you open it again while it's already open, VS Code will bring the existing panel into focus rather than opening a second one.
+| Surface | What it does |
+|---|---|
+| **Activity Bar icon** | A dedicated SpecGuard icon in the activity bar opens the sidebar at any time. |
+| **Coverage tree view** | A sidebar panel showing per-app spec and test counts, plus output summaries (Specs, Tests, Docs, and Traceability status). |
+| **Dashboard webview panel** | A rich, interactive dashboard for exploring coverage, running pipelines, and reviewing drift findings. |
+
+All operations are powered by the `specguard` CLI. The extension shells out to it for every action — no business logic is duplicated inside the extension itself.
 
 ---
 
 ## The Sidebar
 
-The sidebar organises information into two sections:
+Click the SpecGuard icon in the activity bar to open the sidebar. It is divided into two sections:
 
-- **Coverage** — shows per-application spec and test counts, so you can quickly see which parts of your codebase have strong or weak coverage.
-- **Outputs** — shows aggregate counts for Specs, Tests, and Docs across your workspace, along with the current Traceability status.
+- **Coverage** — shows per-app spec and test counts at a glance.
+- **Outputs** — shows aggregate counts for Specs, Tests, and Docs, along with the current Traceability status.
 
-The sidebar updates using the same `specguard` CLI that powers the rest of the extension — there is no separate data source to keep in sync.
+This gives you a live summary of your workspace's specification health without needing to open the full dashboard.
 
 ---
 
 ## The Dashboard
 
-The dashboard is a rich panel that gives you a full picture of your workspace's specification health. A **workspace info bar** runs across the top of every tab, showing your folder name, path, configuration status, and the list of apps the extension has detected.
+Run the **`specguard.openDashboard`** command (via the Command Palette or a keybinding) to open the full dashboard panel. The dashboard is a singleton — if it is already open, the existing panel is brought into focus rather than opening a duplicate.
 
-### Overview Tab
+### Workspace Info Bar
 
-The dashboard opens on the **Overview** tab by default. Here you'll find:
+A workspace info bar is displayed at the top of every dashboard tab. It shows your folder name, path, configuration status, and the list of apps detected in your workspace.
 
-- Your **workspace name** and a **coverage summary** for the whole project.
-- **Spec, test, and doc counts** at a glance.
-- The **last known drift and matrix status**, so you know whether your specs are in sync with your code.
-- A **recent activity feed** showing what has run and when.
-- A **Getting Started guide** that appears automatically when no specs exist yet, walking you through your first steps with SpecGuard.
+### Overview Tab (Default)
+
+The dashboard opens on the **Overview** tab by default. It surfaces:
+
+- **Workspace name and path**
+- **Coverage summary** — overall spec and test coverage at a glance
+- **Spec / Test / Doc counts**
+- **Last drift and matrix status**
+- **Recent activity feed** — a running log of pipeline runs and drift checks
+- **Getting Started guide** — shown automatically when no specs exist yet, to help you bootstrap your first specification
 
 ### Pipelines Tab
 
-The **Pipelines tab** is where you run SpecGuard operations. It is organised into three workflow-oriented sections rather than a flat list, reflecting the natural order of working with specs.
+The Pipelines tab is organised as a set of workflow-oriented cards, grouped into three sections:
 
-**Bootstrap** (visible only when no specs exist yet)
-This section surfaces the tools you need to get started — including the `reverse` command to generate specs from existing code, and `import` to bring in specs from another source. Note that `import` is shown as a disabled card with a hint to use the terminal directly, since it requires interactive input that works best outside the extension.
+#### Bootstrap *(shown only when no specs exist)*
+| Pipeline | Notes |
+|---|---|
+| `reverse` | Generates specs from your existing code. |
+| `import` | Shown as a **disabled card** with a hint to use the terminal instead. |
 
-**Main Loop**
-Once you have specs, this section is your day-to-day workspace. Each of the following operations appears as a card:
+#### Main Loop
+Each of the following pipelines is shown as a card with a description, a last-run status chip, and a **Run** button:
 
-| Operation | What it does |
-|-----------|--------------|
-| **generate** | Creates or updates spec files |
-| **security** | Runs security-focused spec checks |
-| **validate** | Validates specs against your codebase |
-| **docs** | Generates documentation from specs |
-| **drift** | Checks for drift between specs and code |
-| **matrix** | Runs the coverage matrix |
-| **quality** | Assesses spec quality |
-| **deps** | Analyses dependency coverage |
+`generate` · `security` · `validate` · `docs` · `drift` · `matrix` · `quality` · `deps`
 
-Each card shows a description of the operation, a status chip indicating whether the last run **passed**, **failed**, or has **never been run**, and how long ago that run occurred. If a run failed, the card also displays the tail of the error output inline so you can diagnose the problem without switching to a terminal. A **Run** button on each card lets you trigger the operation immediately.
+#### Finalise
+| Pipeline | Notes |
+|---|---|
+| `heal` | Repairs spec inconsistencies. |
+| `commit` | Commits the current spec state. |
 
-**Finalise**
-This section contains the **heal** and **commit** operations for wrapping up a spec cycle.
+### Pipeline Cards
+
+Every pipeline card shows:
+
+- **Last run status** — `pass`, `fail`, or `never`
+- **Time since last run** — e.g. "3 minutes ago"
+- **Inline error tail** — when the last run failed, a short tail of the error output is shown directly on the card so you can diagnose issues without leaving the dashboard
+
+After every pipeline run, a `pipeline:lastRun` event is recorded and stored, keeping the status chips and activity feed up to date.
 
 ---
 
 ## Drift Detection
 
-SpecGuard monitors your workspace for drift in the background. Checks are debounced so that a check runs no more than once every **30 seconds**, keeping resource usage low. The activity feed in the Overview tab is only updated when the drift state actually changes — you won't see noise from repeated checks that find nothing new.
+The extension runs a background drift check automatically. Checks are **debounced to 30 seconds** to avoid unnecessary CLI invocations. The activity log is only updated when the drift state actually changes — so you won't see noise from repeated identical results.
 
 ---
 
-## How the Extension Works
+## Multi-App Workspaces
 
-The extension shells out to the `specguard` CLI for all operations. No business logic is duplicated inside the extension itself, which means the behaviour you see in the IDE is always consistent with running `specguard` commands directly in your terminal.
+When you run `specguard reverse` from the dashboard, it uses the `--all` flag to iterate over every app defined in your workspace configuration. You do not need to run reverse-engineering per app manually.
 
-The dashboard communicates with the extension host using VS Code's standard message-passing API. When you click **Run** on a pipeline card, the dashboard sends a command to the host, which invokes the appropriate CLI operation and streams results — coverage data, matrix output, findings, activity events, and workspace information — back to the dashboard as they arrive.
+---
+
+## How the Dashboard Communicates
+
+The dashboard webview and the extension host communicate via VS Code's `postMessage` / `onDidReceiveMessage` API. The extension host translates dashboard actions (such as clicking **Run** on a pipeline card) into CLI invocations, and pushes the following events back to the dashboard:
+
+| Event | Description |
+|---|---|
+| `workspace` | Emitted on startup; carries folder name, path, config status, and app list. |
+| `coverage` | Updated spec and test coverage data. |
+| `matrix` | Latest matrix run results. |
+| `findings` | Drift or security findings. |
+| `activity` | Recent activity log entries. |
+| `pipeline:lastRun` | Emitted after every pipeline run with status and timing. |
+
+This clean separation means the dashboard UI always reflects the true state of your CLI and workspace, with no stale or duplicated data.

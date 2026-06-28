@@ -38,6 +38,8 @@ import { runImport } from '../pipelines/import.js';
 import { runCodeQuality } from '../pipelines/code-quality.js';
 import { runDepCheck } from '../pipelines/dep-check.js';
 import { runGitOps } from '../pipelines/git-ops.js';
+import { runAnalyze } from '../pipelines/analyze.js';
+import { runPlanFix } from '../pipelines/plan-fix.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
@@ -357,6 +359,66 @@ export function buildServer(): McpServer {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runGitOps(config, { dryRun, message, app });
         return toolResult(result);
+      }).catch(errorResult),
+  );
+
+  // --- Analyze & Plan Fix ---------------------------------------------------
+
+  server.registerTool(
+    'specguard_analyze',
+    {
+      description:
+        'Run all diagnostic checks (status, drift, quality, deps) and return prioritised recommendations for which pipelines to run next. Call this first when you are unsure what needs to be done.',
+      inputSchema: {
+        autoFix: z.boolean().optional().describe('Automatically run recommended pipelines after analysis.'),
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ autoFix, cwd }): Promise<ToolResult> =>
+      withActivityLog('analyze', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runAnalyze(config, { autoFix });
+        const recs = result.analysisReport?.recommendations ?? [];
+        const summary =
+          recs.length === 0
+            ? 'Workspace is healthy — nothing to do.'
+            : `${recs.length} recommendation(s):\n` +
+              recs.map((r) => `  [${r.priority}] ${r.pipeline}: ${r.reason}`).join('\n');
+        return toolResult({ ...result, messages: [...result.messages, summary] });
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_plan_fix',
+    {
+      description:
+        'Given a summary of pipeline failures, use the LLM to produce a structured, step-by-step fix plan. The plan is written to .specguard/fix-plan.json and returned as text. Present the plan to the user for approval before executing.',
+      inputSchema: {
+        pipeline: z.string().describe('The pipeline that produced the failures (e.g. "validate", "security").'),
+        issues: z.string().describe('Human-readable summary of the issues found.'),
+        logLines: z.array(z.string()).optional().describe('Optional: last N log lines from the failing pipeline for extra context.'),
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ pipeline, issues, logLines, cwd }): Promise<ToolResult> =>
+      withActivityLog('plan-fix', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runPlanFix(config, {
+          sourcePipeline: pipeline,
+          issuesSummary: issues,
+          logLines,
+        });
+        const planText = result.plan
+          ? [
+              `Fix Plan: ${result.plan.title}`,
+              result.plan.summary,
+              '',
+              ...result.plan.steps.map((s) => `  ${s.id}: ${s.description}`),
+              '',
+              'Plan saved to .specguard/fix-plan.json — present to user for approval before executing.',
+            ].join('\n')
+          : 'Failed to generate fix plan.';
+        return toolResult({ ...result, messages: [planText] });
       }).catch(errorResult),
   );
 

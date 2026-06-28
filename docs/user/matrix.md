@@ -1,47 +1,44 @@
 ---
 title: "Matrix Pipeline"
 sidebar_label: "Matrix Pipeline"
+description: "The Matrix Pipeline generates a traceability matrix that cross-references your specs, test files, documentation, and source modules, helping teams instantly see which requirements are covered and which are not."
+category: "pipelines"
+order: 50
 generated: true
 ---
 
 # Matrix Pipeline
 
-## Overview
+The Matrix Pipeline gives your team a living traceability matrix — a structured map that cross-references every spec against its related test files, documentation pages, and source modules. At a glance, you can answer questions like:
 
-The Matrix Pipeline generates a **traceability matrix** that maps your specifications to the tests, documentation files, and source modules that relate to them. The result is saved to `.specguard/traceability.json` by default (or a path you configure), and can also be exported as a CSV file for compliance and audit purposes.
-
-Use the matrix to answer questions like:
-
-- *Which tests cover this requirement?*
-- *Which requirements have no tests yet?*
+- *"Which tests cover this requirement?"*
+- *"Which requirements have no tests yet?"*
 
 ---
 
-## What the Matrix Contains
+## How It Works
 
-For every spec in your project, the matrix produces an entry with the following information:
+When you run the Matrix Pipeline, SpecGuard scans your project and builds a matrix entry for every spec it finds. Each entry records:
 
 | Field | Description |
 |---|---|
 | `specKey` | The unique identifier for the spec |
-| `title` | The human-readable title of the spec |
-| `tests` | Paths to test files matched to this spec |
-| `docs` | Paths to documentation files matched to this spec |
-| `sources` | Source module paths associated with this spec |
+| `title` | The human-readable spec title |
+| `tests` | Paths to matched test files |
+| `docs` | Paths to matched documentation files |
+| `sources` | Paths to matched source module files |
 
-### How Files Are Matched
+### Matching Rules
 
-SpecGuard uses a straightforward naming convention to link files to specs automatically:
+SpecGuard uses simple, predictable basename matching to link files to specs:
 
-- **Test files** — A test file is matched to a spec when its filename (minus the `.test.ts` extension) matches the spec key's base name. For example, `auth-login.test.ts` matches the spec keyed `auth-login`.
-- **Documentation files** — A doc file is matched when its filename (minus the `.md` extension) matches the spec key's base name. For example, `auth-login.md` matches the same spec.
-- **Source modules** — Source files are drawn from the `module:` metadata field in the spec itself, when that field is present.
+- **Test files** — A test file matches a spec when its basename (with `.test.ts` removed) matches the spec key's basename. For example, `auth-login.test.ts` matches the spec key `auth-login`.
+- **Doc files** — A doc file matches a spec when its basename (with `.md` removed) matches the spec key's basename. For example, `auth-login.md` matches `auth-login`.
+- **Source files** — Source files are taken directly from the spec's `module:` metadata field when it is present, rather than inferred by name.
 
 ---
 
 ## Output
-
-### JSON (Default)
 
 By default, the matrix is written to:
 
@@ -49,45 +46,80 @@ By default, the matrix is written to:
 .specguard/traceability.json
 ```
 
-You can change this path by setting `matrix.output` in your SpecGuard configuration file.
+You can change this path using the `matrix.output` option in your SpecGuard configuration file.
 
-### CSV Export
+### JSON Output
 
-If you need a spreadsheet-friendly format for compliance teams or audits, pass the `--format csv` flag. This produces a `.csv` file with the following columns:
+The default JSON output contains an array of matrix entries, one per spec:
+
+```json
+[
+  {
+    "specKey": "auth/auth-login",
+    "title": "User Login",
+    "tests": ["src/auth/auth-login.test.ts"],
+    "docs": ["docs/auth-login.md"],
+    "sources": ["src/auth/login.ts"]
+  }
+]
+```
+
+### CSV Output
+
+For compliance teams or reporting workflows, you can request CSV output using the `--format csv` flag. The CSV file includes the following columns:
+
+| Column | Description |
+|---|---|
+| `specKey` | The spec's unique key |
+| `title` | The spec title |
+| `testCount` | Number of matched test files |
+| `docCount` | Number of matched doc files |
+| `sourceModule` | The source module path (from `module:` metadata) |
 
 ```
-specKey, title, testCount, docCount, sourceModule
+specKey,title,testCount,docCount,sourceModule
+auth/auth-login,User Login,1,1,src/auth/login.ts
 ```
 
 ---
 
 ## Usage
 
-Run the matrix pipeline with:
+Run the Matrix Pipeline using the SpecGuard CLI:
 
 ```bash
+# Generate the default JSON traceability matrix
 specguard run matrix
-```
 
-**Export as CSV:**
-
-```bash
+# Generate a CSV matrix for compliance reporting
 specguard run matrix --format csv
-```
 
-**Scope to a single app:**
-
-If your project contains multiple apps, you can limit the matrix to the specs belonging to one app using the `--app` flag:
-
-```bash
+# Scope the matrix to a single app's specs
 specguard run matrix --app <name>
 ```
 
-Replace `<name>` with the name of the app you want to scope to.
+### Options
+
+| Flag | Description |
+|---|---|
+| `--format csv` | Write output as a CSV file instead of JSON |
+| `--app <name>` | Scope the matrix to only the specs belonging to the named app |
 
 ---
 
-## Notes
+## Exit Behaviour
 
-- The matrix pipeline is **informational** — it always exits successfully regardless of coverage gaps. Missing tests or docs are surfaced in the output for your review, but they do not cause the pipeline to fail.
-- Coverage gaps (specs with empty `tests` or `docs` arrays) are a useful starting point for prioritising new test or documentation work.
+The Matrix Pipeline is **informational** — it always exits with code `0`. It will never fail your CI pipeline, regardless of how many specs are unmatched. Use the output to inform your team, not to gate builds.
+
+---
+
+## Configuration Reference
+
+You can configure the output path in your SpecGuard config file:
+
+```yaml
+matrix:
+  output: .specguard/traceability.json  # default
+```
+
+Change `output` to any relative path where you'd like the matrix file written.

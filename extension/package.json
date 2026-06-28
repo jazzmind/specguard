@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "publisher": "specguard",
   "repository": {
     "type": "git",
@@ -73,6 +73,11 @@
         "command": "specguard.openDashboard",
         "title": "SpecGuard: Open Dashboard",
         "icon": "$(graph)"
+      },
+      {
+        "command": "specguard.switchProject",
+        "title": "SpecGuard: Switch Project",
+        "icon": "$(folder-active)"
       }
     ],
     "menus": {
@@ -90,14 +95,19 @@
       ],
       "view/title": [
         {
+          "command": "specguard.switchProject",
+          "when": "view == specguard.coverageView",
+          "group": "navigation@0"
+        },
+        {
           "command": "specguard.refreshCoverage",
           "when": "view == specguard.coverageView",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "specguard.openDashboard",
           "when": "view == specguard.coverageView",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ]
     },
@@ -154,7 +164,8 @@
   "scripts": {
     "build:webview": "npm --prefix webview install && npm --prefix webview run build",
     "build:host": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
-    "build": "npm run build:webview && npm run build:host",
+    "build:cli": "esbuild ../src/cli/index.ts --bundle --platform=node --format=cjs --outfile=dist/cli.js --sourcemap",
+    "build": "npm run build:webview && npm run build:cli && npm run build:host",
     "watch": "npm run build:host -- --watch",
     "package": "vsce package",
     "release": "node scripts/release.mjs",
