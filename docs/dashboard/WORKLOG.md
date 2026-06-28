@@ -29,3 +29,18 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ### Next
 - Implementation plan (writing-plans), then build task-by-task with docs per commit.
+
+## 2026-06-28 — Implementation plan written
+
+- Wrote the 10-task TDD plan:
+  [docs/superpowers/plans/2026-06-28-specguard-extension-dashboard.md](../superpowers/plans/2026-06-28-specguard-extension-dashboard.md).
+- Build setup confirmed: extension bundles via **esbuild** (CJS, `--external:vscode`),
+  had **no test runner** → plan adds **Vitest** to `extension/`. Webview = **Vite +
+  React** in `extension/webview/` building to `extension/media/`.
+- Tested pure cores: `protocol`/node metadata, `coverage-parse` (extracted from
+  `sidebar.ts`, DRY), `matrix-model` (from `traceability.json`), `flow-events`, and
+  the webview `reducer`. vscode-wiring (host, panel) is build/manually verified.
+- Each task commits a WORKLOG update + relevant README change alongside the code.
+
+### Next
+- Execute the plan (subagent-driven or inline), updating docs per task.
