@@ -47,6 +47,7 @@ import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs, extractSection } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
 import { runContainer } from '../adapters/docker.js';
+import { runNpmAudit } from '../adapters/npm-audit.js';
 
 export interface SecurityOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
@@ -299,9 +300,10 @@ export async function runSecurity(
     result.messages.push(line);
   };
 
-  // Run SAST once per owning-app repo (cached) when requested. Real findings
-  // drive the final exit code; an unavailable tool degrades to zero findings.
+  // Run SAST + npm-audit once per owning-app repo (cached) when requested.
+  // Real findings drive the final exit code; unavailable tools degrade to zero findings.
   const sastByRepo = new Map<string, SastResult>();
+  const npmAuditByRepo = new Map<string, SastFinding[]>();
   let sawRealFindings = false;
 
   const runSastForApp = async (app: AppConfig, rulesDir?: string): Promise<SastResult> => {
@@ -329,6 +331,29 @@ export async function runSecurity(
     }
     sastByRepo.set(cacheKey, res);
     return res;
+  };
+
+  const runNpmAuditForApp = async (app: AppConfig): Promise<SastFinding[]> => {
+    const repoAbs = resolveFromRoot(config, app.repo);
+    const cached = npmAuditByRepo.get(repoAbs);
+    if (cached) return cached;
+    const auditResult = await runNpmAudit(repoAbs);
+    if (!auditResult.ok) {
+      log(`[warn] npm audit unavailable for ${app.name} — skipping dep scan`);
+      npmAuditByRepo.set(repoAbs, []);
+      return [];
+    }
+    if (auditResult.findings.length > 0) {
+      sawRealFindings = true;
+      log(`[npm-audit] ${app.name}: ${auditResult.findings.length} vulnerable dep(s)`);
+      for (const f of auditResult.findings.slice(0, 10)) {
+        log(`  - ${f.ruleId}: ${f.message}`);
+      }
+    } else {
+      log(`[npm-audit] ${app.name}: no vulnerabilities`);
+    }
+    npmAuditByRepo.set(repoAbs, auditResult.findings);
+    return auditResult.findings;
   };
 
   /** Count of specs that reached the LLM stage (created + failed). */
@@ -385,14 +410,17 @@ export async function runSecurity(
       }
     }
 
-    // Run SAST per owning app when requested, and feed findings into the prompt.
+    // Run SAST + npm-audit per owning app when requested, and feed findings into the prompt.
     let sastFindings: SastFinding[] = [];
     if (opts.withSast) {
       const rulesDir = resolveFromRoot(config, '.specguard/rules/semgrep');
       const { fileExists: fe } = await import('../core/reader.js');
       const hasRules = await fe(rulesDir);
-      const sastResult = await runSastForApp(app, hasRules ? rulesDir : undefined);
-      sastFindings = sastResult.findings;
+      const [sastResult, auditFindings] = await Promise.all([
+        runSastForApp(app, hasRules ? rulesDir : undefined),
+        runNpmAuditForApp(app),
+      ]);
+      sastFindings = [...sastResult.findings, ...auditFindings];
     }
 
     const prompt = [

@@ -13,7 +13,7 @@ description: >-
 
 The `specguard` CLI and MCP server are fully built. Every operation delegates to the CLI (`npx tsx src/cli/index.ts <command>`, or `specguard <command>` once built and linked) or to the MCP tools (`specguard_*`). No manual steps remain.
 
-Available commands: `init`, `reverse`, `generate`, `heal`, `validate` (stub), `security`, `docs`, `drift`, `matrix` (stub), `status`. The MCP server (`specguard-mcp`, stdio) exposes each pipeline as a `specguard_*` tool plus `specguard_read_spec` / `specguard_write_spec`.
+Available commands: `init`, `reverse`, `generate`, `heal`, `validate`, `security`, `docs`, `drift`, `matrix`, `status`, `analyze`, `plan-fix`, `quality`, `deps`, `commit`, `import`. The MCP server (`specguard-mcp`, stdio) exposes each pipeline as a `specguard_*` tool plus `specguard_read_spec` / `specguard_write_spec`.
 
 ## When to Run
 
@@ -109,11 +109,74 @@ npx tsx src/cli/index.ts docs --all              # or --spec <key>, --out <dir>
 - `security` reads each spec's `## Security Notes` + source module and writes stubs to `tests/security/<feature>.test.ts`; `--with-sast` runs Semgrep in Docker (gracefully degrades if unavailable) and exits 5 on real findings.
 - `docs` strips internal sections (Scenarios, Security Notes, metadata) and emits frontmattered Markdown to `docs/user/` by default.
 
+## Analyze → Plan → Approve → Fix → Verify Loop
+
+When driven by an AI agent, use this complete workflow for autonomous remediation:
+
+### Step 1 — Analyze (smart diagnostics)
+
+```bash
+specguard analyze
+# or via MCP:
+# specguard_analyze { cwd: "/path/to/project" }
+```
+
+Runs status, drift, quality, and dep-check internally. Returns a prioritised recommendation list and writes `.specguard/analysis.json`. **Always start here** instead of guessing which pipeline to run.
+
+### Step 2 — Plan Fix (LLM-generated fix plan)
+
+After a pipeline failure (e.g. `validate`, `security`, `quality`, `deps`), generate a structured fix plan:
+
+```bash
+specguard plan-fix --pipeline validate --issues "3 scenarios failed — auth boundary not enforced"
+# or via MCP:
+# specguard_plan_fix { pipeline: "validate", issues: "...", cwd: "..." }
+```
+
+The plan is written to `.specguard/fix-plan.json` and returned as structured steps. **Present the plan to the user for approval before executing any steps.**
+
+### Step 3 — Human Approval
+
+Show the plan to the user and wait for explicit approval:
+
+```
+Fix Plan: Fix validate failures
+Summary: 3 auth scenarios failed. Apply the following fixes.
+
+  step-1 [run-pipeline]: run heal to auto-fix test code
+  step-2 [edit-file]: update src/middleware/auth.ts (see content hint)
+  step-3 [run-pipeline]: run validate again to verify
+
+Approve and execute? [y/N]
+```
+
+**Never execute fix steps without user confirmation.** The dashboard shows the fix plan as a card with Approve / Reject buttons.
+
+### Step 4 — Execute (after approval)
+
+Execute `run-pipeline` steps via MCP:
+
+```bash
+# specguard_heal { all: true, cwd: "..." }
+# specguard_validate { all: true, cwd: "..." }
+```
+
+For `edit-file` steps, make the code changes described, then re-run the affected pipeline.
+
+### Step 5 — Verify
+
+```bash
+specguard analyze
+# Should return zero recommendations if everything is healthy.
+```
+
 ## Upgrading This Skill
 
-All bootstrap phases are complete (v1.0):
+All bootstrap phases are complete (v2.0):
 - ✅ `specguard reverse` / `status` / `drift` (Phase 3)
 - ✅ `specguard generate` / `heal` (Phase 4)
 - ✅ `specguard security` / `docs` + MCP server (Phase 5)
-
-`validate` and `matrix` remain CLI/MCP stubs (no pipeline yet); implement those pipelines to light them up.
+- ✅ `specguard analyze` / `plan-fix` + VS Code dashboard integration (Phase 6)
+- ✅ Dashboard: Analyze button, AnalyzePanel, FixPlanPanel with human approval
+- ✅ Multi-root workspace support: `specguard.switchProject` command
+- ✅ `specguard init` creates `.specguard/.env` with API key placeholder

@@ -1,0 +1,559 @@
+[
+  {
+    "id": "1782679819982-bie2j",
+    "timestamp": 1782679819982,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782679820405-ngasf",
+    "timestamp": 1782679820405,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 423,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782679940465-crbm6",
+    "timestamp": 1782679940465,
+    "pipeline": "import",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782679940909-5nyxi",
+    "timestamp": 1782679940909,
+    "pipeline": "import",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 444,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782679951965-q6rsn",
+    "timestamp": 1782679951965,
+    "pipeline": "reverse",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782679952404-6p50j",
+    "timestamp": 1782679952404,
+    "pipeline": "reverse",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 439,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782680456059-5r8vx",
+    "timestamp": 1782680456059,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680485164-ruvgk",
+    "timestamp": 1782680485164,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680490676-i0rd4",
+    "timestamp": 1782680490676,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680503724-reht9",
+    "timestamp": 1782680503724,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680518777-fow2i",
+    "timestamp": 1782680518777,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680541928-516oc",
+    "timestamp": 1782680541928,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680573651-p71o8",
+    "timestamp": 1782680573651,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680595811-lb4xa",
+    "timestamp": 1782680595811,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680607434-i79vl",
+    "timestamp": 1782680607434,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680615328-4tomw",
+    "timestamp": 1782680615328,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680625959-jxxdt",
+    "timestamp": 1782680625959,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680633955-hibbs",
+    "timestamp": 1782680633955,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680639087-mux8s",
+    "timestamp": 1782680639087,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680654443-3ty5n",
+    "timestamp": 1782680654443,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782680757432-vitw1",
+    "timestamp": 1782680757432,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782682258121-9hg5x",
+    "timestamp": 1782682258121,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782682258561-sj38o",
+    "timestamp": 1782682258561,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 441,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782682405768-qyij7",
+    "timestamp": 1782682405768,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782682406208-2q9lo",
+    "timestamp": 1782682406208,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 440,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683211637-wtucc",
+    "timestamp": 1782683211637,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683217734-nnre0",
+    "timestamp": 1782683217734,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683227855-nj4ao",
+    "timestamp": 1782683227855,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683234472-aikuq",
+    "timestamp": 1782683234472,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683247827-nkxua",
+    "timestamp": 1782683247827,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683253876-441cf",
+    "timestamp": 1782683253876,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683268751-20kev",
+    "timestamp": 1782683268751,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683301711-ktfcj",
+    "timestamp": 1782683301711,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683317245-sj7wf",
+    "timestamp": 1782683317245,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683359796-q603f",
+    "timestamp": 1782683359796,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683413239-ylvbh",
+    "timestamp": 1782683413239,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683413687-zyyve",
+    "timestamp": 1782683413687,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 448,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683431973-uyber",
+    "timestamp": 1782683431973,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683432404-yiyer",
+    "timestamp": 1782683432404,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 431,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683447686-7txy7",
+    "timestamp": 1782683447686,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683453323-5zz19",
+    "timestamp": 1782683453323,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683460939-6tp13",
+    "timestamp": 1782683460939,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683605477-go0s2",
+    "timestamp": 1782683605477,
+    "pipeline": "generate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683605914-g0tzp",
+    "timestamp": 1782683605914,
+    "pipeline": "generate",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 437,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683622034-6jqik",
+    "timestamp": 1782683622034,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683622467-7yk6w",
+    "timestamp": 1782683622467,
+    "pipeline": "docs",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 433,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683669381-vfwwb",
+    "timestamp": 1782683669381,
+    "pipeline": "security",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683669829-3joui",
+    "timestamp": 1782683669829,
+    "pipeline": "security",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 448,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782683672942-xkki1",
+    "timestamp": 1782683672942,
+    "pipeline": "validate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683673369-bmgqm",
+    "timestamp": 1782683673369,
+    "pipeline": "validate",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 427,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782683678340-b4jdu",
+    "timestamp": 1782683678340,
+    "pipeline": "drift",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683678865-69rjj",
+    "timestamp": 1782683678865,
+    "pipeline": "drift",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 525,
+    "message": "exit code 3"
+  },
+  {
+    "id": "1782683843432-18wbk",
+    "timestamp": 1782683843432,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] specguard-pipelines/code-quality — no spec for changed source — expected specs/pipelines/code-quality.md; [drift] specguard-pipelines/dep-check — no spec for changed source — expected specs/pipelines/dep-check.md; [drift] specguard-pipelines/forward-generate — source modified after spec — spec is stale; [drift] specguard-pipelines/git-ops — no spec for changed source — expected specs/pipelines/git-ops.md; [drift] specguard-pipelines/security — source modified after spec — spec is stale; [drift] specguard-adapters/depcheck — no spec for changed source — expected specs/adapters/depcheck.md; [drift] specguard-adapters/eslint — no spec for changed source — expected specs/adapters/eslint.md; [drift] specguard-adapters/knip — no spec for changed source — expected specs/adapters/knip.md"
+  },
+  {
+    "id": "1782683992189-x8hcj",
+    "timestamp": 1782683992189,
+    "pipeline": "drift",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683992718-mvbg8",
+    "timestamp": 1782683992718,
+    "pipeline": "drift",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 529,
+    "message": "exit code 3"
+  },
+  {
+    "id": "1782683996693-ov3f1",
+    "timestamp": 1782683996693,
+    "pipeline": "generate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782683997131-jfuko",
+    "timestamp": 1782683997131,
+    "pipeline": "generate",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 438,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782684066102-abnhi",
+    "timestamp": 1782684066102,
+    "pipeline": "generate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782684066523-fygb8",
+    "timestamp": 1782684066523,
+    "pipeline": "generate",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 421,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782684081519-h3ikf",
+    "timestamp": 1782684081519,
+    "pipeline": "security",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782684081981-99kw7",
+    "timestamp": 1782684081981,
+    "pipeline": "security",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 462,
+    "message": "exit code 1"
+  },
+  {
+    "id": "1782684386144-m8gg9",
+    "timestamp": 1782684386144,
+    "pipeline": "security",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782685066891-fxh19",
+    "timestamp": 1782685066891,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782685609228-ba3qk",
+    "timestamp": 1782685609228,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782686285609-u23rt",
+    "timestamp": 1782686285609,
+    "pipeline": "analyze",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782686303353-kwpo0",
+    "timestamp": 1782686303353,
+    "pipeline": "analyze",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 17744,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782686347799-yc26a",
+    "timestamp": 1782686347799,
+    "pipeline": "reverse",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782686397584-uoob4",
+    "timestamp": 1782686397584,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782687174750-jx1m3",
+    "timestamp": 1782687174750,
+    "pipeline": "docs",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782687465879-yiz4b",
+    "timestamp": 1782687465879,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  }
+]

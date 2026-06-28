@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-06-28T22:38:23.344Z",
+  "recommendations": [
+    {
+      "pipeline": "reverse",
+      "reason": "31 source files lack Living Specs — run reverse to generate them",
+      "priority": "high"
+    }
+  ],
+  "summary": {
+    "missingSpecs": 31,
+    "driftedSpecs": 0,
+    "qualityFindings": 0,
+    "depFindings": 0
+  }
+}

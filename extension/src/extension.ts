@@ -8,11 +8,16 @@ import * as vscode from 'vscode';
 import { CoverageProvider } from './sidebar.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
+import { initWorkspaceState, getActiveWorkspaceRoot } from './workspace-state.js';
+import { setExtensionPath } from './dashboard/cli.js';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let coverageProvider: CoverageProvider | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  initWorkspaceState(context);
+  setExtensionPath(context.extensionPath);
+
   // Coverage tree view
   coverageProvider = new CoverageProvider();
   const treeView = vscode.window.createTreeView('specguard.coverageView', {
