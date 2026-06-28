@@ -91,17 +91,29 @@ Answers "which specs are stale versus their code?"
 
 - **Data source:** `runDrift(config, opts)` — compares source-file mtime vs. spec
   mtime and maps changed files → specs via config globs.
-- **Layout:** a table, one row per spec, grouped by app:
-  - Spec key (`core/spec-parser`) · status badge (`stable`/`draft`) · linked source
-    module · **drift state**: `in sync` (green) / `source newer` (amber) /
-    `no spec` (red) / `orphan spec` (gray — spec with no source).
-  - Source and spec last-changed timestamps, side by side.
-  - "Changed since" control: `HEAD~1` default, or pick a git ref — passed straight
-    to the pipeline's `--since`.
-- **Drilldown:** click a drifting row → side panel shows the parsed spec (overview,
-  acceptance criteria, scenarios) next to the source files that changed after it.
-- **One action:** "Regenerate spec" on a drifting row → `runReverseGenerate` with
-  `force` for that file, streams logs, refreshes the row.
+- **What `runDrift` reports:** the pipeline returns **only the drifted items** —
+  it does not enumerate in-sync specs. Each item is one of two states, classified
+  from its message:
+  - `source-newer` (amber) — "source modified after spec — spec is stale".
+  - `no-spec` (red) — "no spec for changed source — expected …".
+  An empty report means "no drift since `<ref>`" (the healthy state), shown as a
+  reassuring empty-state message rather than a blank table. (In-sync and orphan
+  enumeration are deliberately **future work** — the drift pipeline is the source
+  of truth for *what drifted*, and its keys (`<appName>/<feature>`) live in a
+  different namespace from `loadAllSpecs` specKeys, so a full merged inventory is
+  not a cheap v1.)
+- **Layout:** a table, one row per drifted item, with: item key
+  (`<appName>/<feature>`) · state badge · the raw drift message · a Regenerate
+  action.
+  - "Changed since" control: `HEAD~1` default, or type a git ref — passed straight
+    to the pipeline's `since` opt.
+- **Drilldown:** click a row → best-effort match to a parsed spec (by feature-name
+  suffix) shown via the shared `SpecPanel`; if no spec matches (the `no-spec`
+  case), show the item's message and expected path instead.
+- **One action:** "Regenerate" on a drifted row → `runReverseGenerate` with
+  `{ app: <first key segment>, force: true }`, streams logs, refreshes the table.
+  Note: this regenerates the app's specs (the item carries the spec path, not the
+  source file), so it is treated as a destructive/confirm action.
 
 ### 2. Coverage (secondary)
 
