@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import { DashboardHost } from './host.js';
 import type { DashboardEvent, DashboardCommand } from './protocol.js';
 
@@ -20,14 +21,16 @@ export function openDashboardPanel(context: vscode.ExtensionContext): void {
 
   const host = new DashboardHost((e: DashboardEvent) => panel?.webview.postMessage(e), workspaceRoot);
   panel.webview.html = renderHtml(panel.webview, context.extensionPath);
-  panel.webview.onDidReceiveMessage((msg: DashboardCommand) => void host.handle(msg));
+  context.subscriptions.push(
+    panel.webview.onDidReceiveMessage((msg: DashboardCommand) => void host.handle(msg)),
+  );
   host.start();
 
   panel.onDidDispose(() => { host.dispose(); panel = undefined; }, null, context.subscriptions);
 }
 
 function renderHtml(webview: vscode.Webview, extPath: string): string {
-  const nonce = String(Date.now()) + Math.round(Math.abs(Math.sin(Date.now())) * 1e6);
+  const nonce = crypto.randomBytes(16).toString('base64');
   const scriptUri = webview.asWebviewUri(vscode.Uri.file(path.join(extPath, 'media', 'main.js')));
   const cssPath = path.join(extPath, 'media', 'main.css');
   const cssTag = fs.existsSync(cssPath)
