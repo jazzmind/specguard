@@ -9,9 +9,11 @@ description: >-
   tests generated from a spec, or asks to validate the live app against a spec.
 ---
 
-# SpecGuard Parallel Agent (Bootstrap v0.4 — Phase 4)
+# SpecGuard Parallel Agent (v1.0)
 
-The `specguard` CLI now exists for **reverse**, **status**, **drift**, **generate**, and **heal**. Prefer the CLI for those operations; the remaining steps (security) are still manual until their pipelines land. Run the CLI with `npx tsx src/cli/index.ts <command>` (source) or `specguard <command>` once built and linked.
+The `specguard` CLI and MCP server are fully built. Every operation delegates to the CLI (`npx tsx src/cli/index.ts <command>`, or `specguard <command>` once built and linked) or to the MCP tools (`specguard_*`). No manual steps remain.
+
+Available commands: `init`, `reverse`, `generate`, `heal`, `validate` (stub), `security`, `docs`, `drift`, `matrix` (stub), `status`. The MCP server (`specguard-mcp`, stdio) exposes each pipeline as a `specguard_*` tool plus `specguard_read_spec` / `specguard_write_spec`.
 
 ## When to Run
 
@@ -94,18 +96,24 @@ npx tsx src/cli/index.ts heal --all            # or --spec <key>, --max-retries 
 - `generate` writes `<testOutput>/<feature>.test.ts`, one `it()` per scenario, importing the module from the spec's `meta.module`. Requires `ANTHROPIC_API_KEY` (or the configured `llm.apiKeyEnv`).
 - `heal` runs `config.heal.testCommand`, parses failures, and asks the LLM to classify each as a **test bug** (rewritten + re-run, up to `maxRetries`) or an **app bug** (reported, source never touched).
 
-## Security Check (until `specguard security` exists)
+## Security Check + Docs (CLI)
 
-When auth, middleware, or API files change:
-1. Read the spec's `## Security Notes` section
-2. Check the changed code against those notes
-3. Flag any discrepancy as a comment in the plan or directly to the user
+```bash
+# Generate OWASP-annotated security test stubs (add --with-sast for Semgrep)
+npx tsx src/cli/index.ts security --all          # or --spec <key>
+
+# Generate user-facing docs from specs
+npx tsx src/cli/index.ts docs --all              # or --spec <key>, --out <dir>
+```
+
+- `security` reads each spec's `## Security Notes` + source module and writes stubs to `tests/security/<feature>.test.ts`; `--with-sast` runs Semgrep in Docker (gracefully degrades if unavailable) and exits 5 on real findings.
+- `docs` strips internal sections (Scenarios, Security Notes, metadata) and emits frontmattered Markdown to `docs/user/` by default.
 
 ## Upgrading This Skill
 
-As each CLI command is implemented, update this skill to call it:
-- ✅ `specguard reverse` / `status` / `drift` built (Phase 3) → CLI invocation in use above
-- ✅ `specguard generate` / `heal` built (Phase 4) → CLI invocation in use above
-- `specguard security` built → replace "Security Check" with CLI invocation
+All bootstrap phases are complete (v1.0):
+- ✅ `specguard reverse` / `status` / `drift` (Phase 3)
+- ✅ `specguard generate` / `heal` (Phase 4)
+- ✅ `specguard security` / `docs` + MCP server (Phase 5)
 
-Track the current bootstrap state at the top of this file by updating the version comment.
+`validate` and `matrix` remain CLI/MCP stubs (no pipeline yet); implement those pipelines to light them up.

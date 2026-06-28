@@ -16,6 +16,8 @@ import { statusCommand } from './commands/status.js';
 import { driftCommand } from './commands/drift.js';
 import { generateCommand } from './commands/generate.js';
 import { healCommand } from './commands/heal.js';
+import { securityCommand } from './commands/security.js';
+import { docsCommand } from './commands/docs.js';
 import { initCommand } from './commands/init.js';
 import { makeStub } from './commands/stubs.js';
 
@@ -120,7 +122,16 @@ program
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
   .option('--with-sast', 'include static analysis (Semgrep/Bandit)')
-  .action(makeStub('security'));
+  .option('--app <name>', 'limit to a single app')
+  .option('--force', 'overwrite existing security tests')
+  .action(
+    async (
+      opts: { spec?: string; all?: boolean; withSast?: boolean; app?: string; force?: boolean },
+      cmd: Command,
+    ) => {
+      await securityCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- docs -----------------------------------------------------------------
 program
@@ -129,7 +140,12 @@ program
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
   .option('--out <path>', 'output directory')
-  .action(makeStub('docs'));
+  .option('--app <name>', 'limit to a single app')
+  .action(
+    async (opts: { spec?: string; all?: boolean; out?: string; app?: string }, cmd: Command) => {
+      await docsCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- drift ----------------------------------------------------------------
 program
