@@ -7,6 +7,18 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 6 fixes: Strong CSP nonce + track webview message disposable
+
+- `extension/src/dashboard/panel.ts` — two security/correctness fixes:
+  - **CSP nonce entropy**: replaced weak `Date.now() + sin(Date.now())` nonce with
+    `crypto.randomBytes(16).toString('base64')` (Node built-in, cryptographically strong).
+    Added `import * as crypto from 'crypto';` alongside existing imports.
+  - **Disposable tracking**: wrapped `panel.webview.onDidReceiveMessage(...)` call in
+    `context.subscriptions.push(...)` so the listener is properly disposed when the
+    extension deactivates (prevents a potential listener leak).
+- `npm run lint` (tsc --noEmit): **clean** — 0 errors, 0 warnings.
+- `npm run build` (esbuild): **clean** — `dist/extension.js` 21.8 kb, `dist/extension.js.map` 41.7 kb.
+
 ## 2026-06-28 — Task 6: Webview panel + command/menu registration
 
 - Created `extension/src/dashboard/panel.ts` — singleton `WebviewPanel` implementation.
