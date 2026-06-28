@@ -7,6 +7,33 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 6: Webview panel + command/menu registration
+
+- Created `extension/src/dashboard/panel.ts` — singleton `WebviewPanel` implementation.
+  - `openDashboardPanel(context)`: creates or reveals the panel; guards against missing
+    workspace folder with a user-facing error message.
+  - Wires `DashboardHost` ↔ webview messaging: host emits `DashboardEvent` via
+    `panel.webview.postMessage`, webview sends `DashboardCommand` back via
+    `onDidReceiveMessage`.
+  - `renderHtml()`: generates CSP-nonce-guarded HTML; references `media/main.js` (built
+    by Task 7) via `webview.asWebviewUri` so the build does not crash when the bundle
+    is absent; conditionally adds `media/main.css` link tag only when the file exists.
+  - `panel.onDidDispose`: calls `host.dispose()` and resets the singleton so a new panel
+    can be opened after the user closes it.
+- Modified `extension/src/commands.ts`:
+  - Added `import { openDashboardPanel } from './dashboard/panel.js'` at the top.
+  - Registered `specguard.openDashboard` command following the existing pattern inside
+    `registerCommands(context, ...)`.
+- Modified `extension/package.json`:
+  - Added `specguard.openDashboard` to `contributes.commands` with `$(graph)` icon.
+  - Added `view/title` menu entry (when `view == specguard.coverageView`, group: navigation).
+  - Added `"onCommand:specguard.openDashboard"` to `activationEvents`.
+- `extension.ts`: no changes needed — it already calls `registerCommands(context, ...)`.
+- `npm run lint` (tsc --noEmit): clean (0 errors, 0 warnings).
+- `npm run build` (esbuild): emits `dist/extension.js` 21.8 kb, `dist/extension.js.map` 41.7 kb.
+- IDE note: VS Code emits an advisory warning that `onCommand:specguard.openDashboard` in
+  `activationEvents` is auto-generated from `contributes`; kept per task brief.
+
 ## 2026-06-28 — Task 5: CLI runner + dashboard host (vscode wiring)
 
 - Implemented `extension/src/dashboard/cli.ts` — resolves the CLI binary path and spawns
