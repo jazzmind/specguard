@@ -1,0 +1,8 @@
+{
+  "name": "specguard-dashboard-webview",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "vite build", "dev": "vite", "test": "vitest run" },
+  "dependencies": { "react": "^18", "react-dom": "^18" },
+  "devDependencies": { "vite": "^6", "@vitejs/plugin-react": "^4", "typescript": "^5.7", "@types/react": "^18", "@types/react-dom": "^18", "vitest": "^3" }
+}

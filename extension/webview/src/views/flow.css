@@ -1,0 +1,12 @@
+.sg-flow { display: flex; gap: 28px; padding: 16px; align-items: flex-start; }
+.sg-col { display: flex; flex-direction: column; gap: 16px; }
+.sg-node { position: relative; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--vscode-panel-border, #444);
+  cursor: default; min-width: 96px; text-align: center; background: var(--vscode-editorWidget-background, #252526); transition: all .25s ease; }
+.sg-pipeline { cursor: pointer; }
+.sg-input { opacity: .85; }
+.sg-artifact { border-style: dashed; }
+.sg-running { animation: sg-pulse 1s infinite; border-color: #e2c08d; box-shadow: 0 0 10px #e2c08d88; }
+.sg-done { border-color: #4ec9b0; box-shadow: 0 0 8px #4ec9b055; }
+.sg-failed { border-color: #f48771; box-shadow: 0 0 8px #f4877155; }
+.sg-node-badge { position: absolute; top: -8px; right: -8px; background: #4ec9b0; color: #000; border-radius: 10px; padding: 0 6px; font-size: 11px; }
+@keyframes sg-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
