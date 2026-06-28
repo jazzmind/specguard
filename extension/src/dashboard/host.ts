@@ -75,9 +75,31 @@ export class DashboardHost {
       await vscode.window.showTextDocument(vscode.Uri.file(path.resolve(this.workspaceRoot, cmd.path)));
       return;
     }
-    if (cmd.type === 'run') return this.run(cmd.pipeline, cmd.args ?? []);
+    if (cmd.type === 'run') {
+      // `import` requires a file argument — open a VS Code file picker first.
+      if (cmd.pipeline === 'import') {
+        await this._runImportWithPicker();
+        return;
+      }
+      return this.run(cmd.pipeline, cmd.args ?? []);
+    }
     if (cmd.type === 'cancel') return this._cancelPipeline(cmd.pipeline);
     if (cmd.type === 'runSequence') return this._runSequence(cmd.pipelines);
+  }
+
+  private async _runImportWithPicker(): Promise<void> {
+    const uris = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      openLabel: 'Import as spec',
+      title: 'Select a PRD, Jira export, or Markdown file to import',
+      filters: { 'Documents': ['md', 'txt', 'yaml', 'yml', 'json'] },
+      defaultUri: vscode.Uri.file(this.workspaceRoot),
+    });
+    if (!uris || uris.length === 0) return;
+    const file = uris[0].fsPath;
+    const rel = path.relative(this.workspaceRoot, file);
+    this.post({ type: 'pipeline:log', pipeline: 'import', line: `Importing: ${rel}` });
+    await this.run('import', [file]);
   }
 
   getActivityLog(): ActivityLogService {
@@ -188,6 +210,50 @@ export class DashboardHost {
     }
   }
 
+  /**
+   * When a project has no source files (e.g. spec was created via `import` from
+   * a PRD), `runStatus` correctly reports 0 source files and 0 specs because
+   * coverage is source-file-driven. This helper reads spec directories from
+   * config.json on disk and bumps the spec count so the dashboard reflects real
+   * spec files that exist.
+   */
+  private _augmentCoverageFromDisk(coverage: import('./protocol.js').AppCoverage[]): void {
+    try {
+      const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+      if (!fs.existsSync(configFile)) return;
+      const config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
+        apps?: Array<{ name: string; specDir: string }>;
+      };
+      if (!Array.isArray(config.apps)) return;
+
+      for (const appCfg of config.apps) {
+        const entry = coverage.find((c) => c.name === appCfg.name);
+        if (!entry || entry.specCount > 0) continue; // already has counted specs
+
+        const specDirAbs = path.isAbsolute(appCfg.specDir)
+          ? appCfg.specDir
+          : path.join(this.workspaceRoot, appCfg.specDir);
+        if (!fs.existsSync(specDirAbs)) continue;
+
+        const mdFiles = fs.readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
+        if (mdFiles.length === 0) continue;
+
+        // Inject spec items so the sidebar and overview show the real specs.
+        entry.specCount = mdFiles.length;
+        entry.percentage = entry.sourceCount > 0
+          ? Math.round((mdFiles.length / entry.sourceCount) * 100)
+          : 100; // no source files but has specs — treat as 100% from import
+        entry.items = mdFiles.map((f) => ({
+          app: entry.name,
+          key: f.replace(/\.md$/, ''),
+          hasSpec: true,
+          hasTest: false,
+          specPath: path.join(specDirAbs, f),
+        }));
+      }
+    } catch { /* best-effort */ }
+  }
+
   private _pushAnalysisResult(): void {
     try {
       const analysisFile = path.join(this.workspaceRoot, '.specguard', 'analysis.json');
@@ -233,7 +299,11 @@ export class DashboardHost {
       let out = '';
       const h = spawnCli(cli, ['status'], this.workspaceRoot, (l) => { out += l + '\n'; });
       await h.promise;
-      this.post({ type: 'coverage', data: parseCoverageText(out) });
+      const coverage = parseCoverageText(out);
+      // Augment: for apps where `status` reports 0 source files (e.g. imported-from-PRD
+      // projects), count spec .md files on disk so the dashboard reflects reality.
+      this._augmentCoverageFromDisk(coverage);
+      this.post({ type: 'coverage', data: coverage });
     } catch (err) {
       this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
     }
