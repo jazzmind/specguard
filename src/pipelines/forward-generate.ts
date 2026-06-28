@@ -43,6 +43,8 @@ import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
 
+export type TestType = 'unit' | 'integration' | 'e2e';
+
 export interface ForwardOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
   spec?: string;
@@ -54,6 +56,8 @@ export interface ForwardOpts {
   app?: string;
   /** Overwrite existing test files. */
   force?: boolean;
+  /** Test type: unit (mock deps), integration (real deps), e2e (Playwright browser). */
+  type?: TestType;
 }
 
 /** A spec file paired with the app whose specDir owns it. */
@@ -63,8 +67,7 @@ interface OwnedSpec {
   specDirAbs: string;
 }
 
-/** System prompt instructing the model how to write a test file from a spec. */
-const SYSTEM_PROMPT = [
+const BASE_RULES = [
   'You are SpecGuard, generating an executable test file from a Living Specification.',
   '',
   'Rules:',
@@ -72,10 +75,44 @@ const SYSTEM_PROMPT = [
   '- Create EXACTLY one test block (it() / test()) per scenario, titled with the scenario name.',
   '- Import the module under test from the provided module path.',
   '- Translate each scenario\'s Steps and Expected Results into arrange / act / assert code.',
-  '- Use the requested framework\'s idioms (vitest: import from "vitest"; jest: global describe/it;',
-  '  playwright: import { test, expect } from "@playwright/test").',
   '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
-].join('\n');
+];
+
+const TYPE_RULES: Record<TestType, string[]> = {
+  unit: [
+    '- TEST TYPE: unit. Mock all external dependencies (db, http, fs) with vitest.fn() / vi.mock().',
+    '- Focus on a single function or class in isolation.',
+    '- Use vitest idioms: import { describe, it, expect, vi } from "vitest".',
+  ],
+  integration: [
+    '- TEST TYPE: integration. Use real dependencies (no mocking); assume test containers / env vars supply backing services.',
+    '- Use vitest idioms with setup/teardown hooks for connection lifecycle.',
+    '- Mark long-running tests with test.timeout(30_000).',
+  ],
+  e2e: [
+    '- TEST TYPE: e2e. Use Playwright Browser automation targeting the live app URL from spec metadata.',
+    '- Use import { test, expect } from "@playwright/test".',
+    '- Navigate the app through user-facing flows described in the spec scenarios.',
+    '- Assert on visible UI state, not implementation details.',
+  ],
+};
+
+/** Build a system prompt adjusted for the requested test type. */
+function buildSystemPrompt(type?: TestType): string {
+  const rules = [...BASE_RULES];
+  if (type && TYPE_RULES[type]) {
+    rules.push(...TYPE_RULES[type]);
+  } else {
+    rules.push(
+      '- Use the requested framework\'s idioms (vitest: import from "vitest"; jest: global describe/it;',
+      '  playwright: import { test, expect } from "@playwright/test").',
+    );
+  }
+  return rules.join('\n');
+}
+
+/** @deprecated Use buildSystemPrompt() with an explicit type instead. */
+const SYSTEM_PROMPT = buildSystemPrompt();
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
@@ -266,15 +303,18 @@ export async function runForwardGenerate(
       continue;
     }
 
-    const framework = opts.framework ?? app.framework;
+    const framework = opts.type === 'e2e' ? 'playwright' : (opts.framework ?? app.framework);
     const moduleUnderTest = spec.meta.module ?? '(unknown — infer from spec)';
+    const testTypeLabel = opts.type ? ` [${opts.type}]` : '';
 
     const prompt = [
-      `Generate a ${framework} test file for this Living Specification.`,
+      `Generate a ${framework} ${opts.type ?? 'unit'} test file for this Living Specification.`,
       `Spec key: ${key}`,
       `Spec title: ${spec.title}`,
+      `Test type: ${opts.type ?? 'unit'}${testTypeLabel}`,
       `Test framework: ${framework}`,
       `Module under test (import this): ${moduleUnderTest}`,
+      ...(spec.meta.url ? [`App URL (for e2e): ${spec.meta.url}`] : []),
       '',
       'Overview:',
       spec.overview || '(none)',
@@ -289,7 +329,7 @@ export async function runForwardGenerate(
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(opts.type),
         prompt,
       });
       const testCode = stripFences(raw);

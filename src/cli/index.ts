@@ -23,6 +23,9 @@ import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
 import { importCommand } from './commands/import.js';
 import { makeStub } from './commands/stubs.js';
+import { qualityCommand } from './commands/quality.js';
+import { depsCommand } from './commands/deps.js';
+import { commitCommand } from './commands/commit.js';
 
 // Resolve version from package.json relative to this module. The bin maps to
 // dist/cli/index.js, so package.json sits two directories up in both src and
@@ -88,12 +91,13 @@ program
   .option('--framework <name>', 'override test framework')
   .option('--app <name>', 'limit to a single app')
   .option('--force', 'overwrite existing test files')
+  .option('--type <type>', 'test type: unit | integration | e2e (default: unit)')
   .action(
     async (
-      opts: { spec?: string; all?: boolean; framework?: string; app?: string; force?: boolean },
+      opts: { spec?: string; all?: boolean; framework?: string; app?: string; force?: boolean; type?: string },
       cmd: Command,
     ) => {
-      await generateCommand(withGlobals(cmd, opts));
+      await generateCommand(withGlobals(cmd, opts as Parameters<typeof generateCommand>[0]));
     },
   );
 
@@ -181,6 +185,36 @@ program
       await matrixCommand(withGlobals(cmd, opts));
     },
   );
+
+// --- quality --------------------------------------------------------------
+program
+  .command('quality')
+  .description('run ESLint + Knip code quality checks')
+  .option('--app <name>', 'limit to a single app')
+  .option('--fix', 'auto-fix ESLint fixable issues')
+  .action(async (opts: { app?: string; fix?: boolean }, cmd: Command) => {
+    await qualityCommand(withGlobals(cmd, opts));
+  });
+
+// --- deps -----------------------------------------------------------------
+program
+  .command('deps')
+  .description('run npm-audit + depcheck dependency health checks')
+  .option('--app <name>', 'limit to a single app')
+  .action(async (opts: { app?: string }, cmd: Command) => {
+    await depsCommand(withGlobals(cmd, opts));
+  });
+
+// --- commit ---------------------------------------------------------------
+program
+  .command('commit')
+  .description('commit SpecGuard-generated files (tests, docs, specs, reports)')
+  .option('--dry-run', 'preview what would be staged without committing')
+  .option('--message <msg>', 'custom commit message suffix')
+  .option('--app <name>', 'restrict to a single app')
+  .action(async (opts: { dryRun?: boolean; message?: string; app?: string }, cmd: Command) => {
+    await commitCommand(withGlobals(cmd, opts));
+  });
 
 // --- status ---------------------------------------------------------------
 program

@@ -1,4 +1,4 @@
-import type { DashboardEvent, AppCoverage, MatrixModel } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
@@ -7,11 +7,13 @@ export interface ViewModel {
   coverage: AppCoverage[];
   matrix: MatrixModel | null;
   artifacts: { kind: string; path: string }[];
+  activity: ActivityEntry[];
+  findings: FindingItem[];
   errors: string[];
 }
 
 export function initialViewModel(): ViewModel {
-  return { nodeStates: {}, logs: {}, coverage: [], matrix: null, artifacts: [], errors: [] };
+  return { nodeStates: {}, logs: {}, coverage: [], matrix: null, artifacts: [], activity: [], findings: [], errors: [] };
 }
 
 export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
@@ -30,6 +32,10 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, coverage: e.data };
     case 'matrix':
       return { ...vm, matrix: e.data };
+    case 'activity':
+      return { ...vm, activity: e.entries };
+    case 'findings':
+      return { ...vm, findings: e.data };
     case 'error':
       return { ...vm, errors: [...vm.errors, `${e.scope}: ${e.message}`].slice(-50) };
     default:

@@ -35,8 +35,12 @@ import { runDocGenerate } from '../pipelines/doc-generate.js';
 import { runValidate } from '../pipelines/validate.js';
 import { runMatrix } from '../pipelines/matrix.js';
 import { runImport } from '../pipelines/import.js';
+import { runCodeQuality } from '../pipelines/code-quality.js';
+import { runDepCheck } from '../pipelines/dep-check.js';
+import { runGitOps } from '../pipelines/git-ops.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
+import { appendActivityLogEntry } from './activity-hook.js';
 
 const SERVER_NAME = 'specguard-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -44,6 +48,40 @@ const SERVER_VERSION = '0.1.0';
 /** Resolve the working directory a tool should load config from. */
 function resolveCwd(cwd?: string): string {
   return cwd ? path.resolve(cwd) : process.cwd();
+}
+
+/**
+ * Wrap a pipeline call with activity logging.
+ * Writes start/end entries to .specguard/activity-log.json so the VS Code
+ * dashboard can show real-time agent activity without the extension needing to
+ * directly observe MCP calls.
+ */
+async function withActivityLog(
+  pipeline: string,
+  cwd: string,
+  fn: () => Promise<ToolResult>,
+): Promise<ToolResult> {
+  const startMs = Date.now();
+  appendActivityLogEntry(cwd, { pipeline, status: 'running', source: 'mcp' });
+  try {
+    const result = await fn();
+    appendActivityLogEntry(cwd, {
+      pipeline,
+      status: result.isError ? 'fail' : 'pass',
+      source: 'mcp',
+      durationMs: Date.now() - startMs,
+    });
+    return result;
+  } catch (err) {
+    appendActivityLogEntry(cwd, {
+      pipeline,
+      status: 'error',
+      source: 'mcp',
+      durationMs: Date.now() - startMs,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 }
 
 /**
@@ -67,15 +105,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ app, file, force, cwd }): Promise<ToolResult> => {
-      try {
+    ({ app, file, force, cwd }): Promise<ToolResult> =>
+      withActivityLog('reverse', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runReverseGenerate(config, { app, file, force });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -89,18 +124,16 @@ export function buildServer(): McpServer {
         framework: z.string().optional().describe('Target framework override (vitest|playwright|jest).'),
         app: z.string().optional().describe('Restrict to a single app by name.'),
         force: z.boolean().optional().describe('Overwrite existing test files.'),
+        type: z.enum(['unit', 'integration', 'e2e']).optional().describe('Test type: unit (mock deps), integration (real deps), e2e (Playwright).'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ spec, all, framework, app, force, cwd }): Promise<ToolResult> => {
-      try {
+    ({ spec, all, framework, app, force, type, cwd }): Promise<ToolResult> =>
+      withActivityLog('generate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runForwardGenerate(config, { spec, all, framework, app, force });
+        const result = await runForwardGenerate(config, { spec, all, framework, app, force, type });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -115,15 +148,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ spec, all, maxRetries, cwd }): Promise<ToolResult> => {
-      try {
+    ({ spec, all, maxRetries, cwd }): Promise<ToolResult> =>
+      withActivityLog('heal', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runHeal(config, { spec, all, maxRetries });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -134,15 +164,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ cwd }): Promise<ToolResult> => {
-      try {
+    ({ cwd }): Promise<ToolResult> =>
+      withActivityLog('status', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runStatus(config);
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -155,15 +182,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ since, spec, cwd }): Promise<ToolResult> => {
-      try {
+    ({ since, spec, cwd }): Promise<ToolResult> =>
+      withActivityLog('drift', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runDrift(config, { since, spec });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -177,15 +201,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ spec, all, withSast, cwd }): Promise<ToolResult> => {
-      try {
+    ({ spec, all, withSast, cwd }): Promise<ToolResult> =>
+      withActivityLog('security', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runSecurity(config, { spec, all, withSast });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   server.registerTool(
@@ -199,15 +220,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    async ({ spec, all, out, cwd }): Promise<ToolResult> => {
-      try {
+    ({ spec, all, out, cwd }): Promise<ToolResult> =>
+      withActivityLog('docs', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runDocGenerate(config, { spec, all, out });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   // --- Validate -------------------------------------------------------------
@@ -225,15 +243,12 @@ export function buildServer(): McpServer {
         cwd: z.string().optional(),
       },
     },
-    async ({ spec, all, baseUrl, app, cwd }): Promise<ToolResult> => {
-      try {
+    ({ spec, all, baseUrl, app, cwd }): Promise<ToolResult> =>
+      withActivityLog('validate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runValidate(config, { spec, all, baseUrl, app });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   // --- Matrix ---------------------------------------------------------------
@@ -250,8 +265,8 @@ export function buildServer(): McpServer {
         cwd: z.string().optional(),
       },
     },
-    async ({ out, format, app, cwd }): Promise<ToolResult> => {
-      try {
+    ({ out, format, app, cwd }): Promise<ToolResult> =>
+      withActivityLog('matrix', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runMatrix(config, {
           out,
@@ -259,10 +274,7 @@ export function buildServer(): McpServer {
           app,
         });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      }).catch(errorResult),
   );
 
   // --- Import ---------------------------------------------------------------
@@ -280,15 +292,72 @@ export function buildServer(): McpServer {
         cwd: z.string().optional(),
       },
     },
-    async ({ source, app, out, force, cwd }): Promise<ToolResult> => {
-      try {
+    ({ source, app, out, force, cwd }): Promise<ToolResult> =>
+      withActivityLog('import', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runImport(config, { source, app, out, force });
         return toolResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
+      }).catch(errorResult),
+  );
+
+  // --- Code quality ---------------------------------------------------------
+
+  server.registerTool(
+    'specguard_quality',
+    {
+      description: 'Run ESLint + Knip code quality checks and write .specguard/code-quality.json (CLI: specguard quality).',
+      inputSchema: {
+        app: z.string().optional().describe('Limit to a single app by name.'),
+        fix: z.boolean().optional().describe('Auto-fix ESLint fixable issues.'),
+        cwd: z.string().optional(),
+      },
     },
+    ({ app, fix, cwd }): Promise<ToolResult> =>
+      withActivityLog('quality', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runCodeQuality(config, { app, fix });
+        return toolResult(result);
+      }).catch(errorResult),
+  );
+
+  // --- Dep-check ------------------------------------------------------------
+
+  server.registerTool(
+    'specguard_deps',
+    {
+      description: 'Run npm-audit + depcheck dependency health checks and write .specguard/dep-check.json (CLI: specguard deps).',
+      inputSchema: {
+        app: z.string().optional().describe('Limit to a single app by name.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ app, cwd }): Promise<ToolResult> =>
+      withActivityLog('deps', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runDepCheck(config, { app });
+        return toolResult(result);
+      }).catch(errorResult),
+  );
+
+  // --- Git-ops --------------------------------------------------------------
+
+  server.registerTool(
+    'specguard_commit',
+    {
+      description: 'Stage and commit SpecGuard-generated files (tests, docs, specs, .specguard/ reports) only. Never commits source code (CLI: specguard commit).',
+      inputSchema: {
+        dryRun: z.boolean().optional().describe('Preview without staging/committing.'),
+        message: z.string().optional().describe('Custom commit message suffix.'),
+        app: z.string().optional().describe('Restrict to a single app.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ dryRun, message, app, cwd }): Promise<ToolResult> =>
+      withActivityLog('commit', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runGitOps(config, { dryRun, message, app });
+        return toolResult(result);
+      }).catch(errorResult),
   );
 
   // --- Utility tools -------------------------------------------------------
