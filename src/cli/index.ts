@@ -75,10 +75,11 @@ program
 program
   .command('reverse')
   .description('generate specs from existing source')
-  .requiredOption('--app <name>', 'target app from config')
-  .option('--file <path>', 'process a single source file')
+  .option('--app <name>', 'target app from config (required unless --all is used)')
+  .option('--all', 'process all apps defined in config')
+  .option('--file <path>', 'process a single source file (only with --app)')
   .option('--force', 'overwrite existing specs')
-  .action(async (opts: { app: string; file?: string; force?: boolean }, cmd: Command) => {
+  .action(async (opts: { app?: string; all?: boolean; file?: string; force?: boolean }, cmd: Command) => {
     await reverseCommand(withGlobals(cmd, opts));
   });
 

@@ -22,15 +22,36 @@ export interface MatrixModel { generatedAt: string | null; rows: MatrixRow[]; }
 
 export type PipelineCounts = { created: number; updated: number; skipped: number; failed: number };
 
+/** Summary of the most recent run of a pipeline. */
+export interface PipelineRunInfo {
+  pipeline: string;
+  status: 'pass' | 'fail' | 'running';
+  exitCode: number;
+  /** ISO timestamp of completion. */
+  finishedAt: string;
+  /** Last few log lines (for showing inline errors). */
+  tail: string[];
+}
+
+export interface WorkspaceInfo {
+  name: string;
+  path: string;
+  configFound: boolean;
+  appCount: number;
+  configApps: string[];
+}
+
 export type DashboardEvent =
   | { type: 'pipeline:start'; pipeline: string }
   | { type: 'pipeline:log'; pipeline: string; line: string }
   | { type: 'pipeline:done'; pipeline: string; exitCode: number; counts?: PipelineCounts }
-  | { type: 'artifact'; kind: 'spec' | 'test' | 'doc'; path: string; change: 'create' | 'update' }
+  | { type: 'pipeline:lastRun'; info: PipelineRunInfo }
+  | { type: 'artifact'; kind: 'spec' | 'test' | 'doc'; path: string; change: 'create' | 'update'; title?: string; description?: string }
   | { type: 'matrix'; data: MatrixModel }
   | { type: 'coverage'; data: AppCoverage[] }
   | { type: 'activity'; entries: ActivityEntry[] }
   | { type: 'findings'; data: FindingItem[] }
+  | { type: 'workspace'; info: WorkspaceInfo }
   | { type: 'error'; scope: string; message: string };
 
 export type FindingSeverity = 'critical' | 'error' | 'warning' | 'info';
@@ -52,29 +73,78 @@ export type DashboardCommand =
   | { type: 'refresh' }
   | { type: 'openFile'; path: string };
 
-/** A node in the system-flow graph. `from` lists upstream node ids feeding it. */
-export interface PipelineNode { id: string; label: string; kind: 'input' | 'pipeline' | 'artifact'; from: string[]; }
+/**
+ * A node in the system-flow graph.
+ * - `from`: upstream node ids feeding it
+ * - `description`: shown as a subtitle under the label
+ * - `requiresInput`: if true, node is not directly runnable from the flow (needs extra CLI args)
+ */
+export interface PipelineNode {
+  id: string;
+  label: string;
+  kind: 'input' | 'pipeline' | 'artifact';
+  from: string[];
+  description?: string;
+  requiresInput?: boolean;
+}
 
 /** The flow graph, mirroring the README architecture diagram. */
 export const PIPELINE_NODES: PipelineNode[] = [
-  { id: 'docs-in', label: 'PRD / Jira / MD', kind: 'input', from: [] },
-  { id: 'code', label: 'Source code', kind: 'input', from: [] },
-  { id: 'import', label: 'import', kind: 'pipeline', from: ['docs-in'] },
-  { id: 'reverse', label: 'reverse', kind: 'pipeline', from: ['code'] },
-  { id: 'specs', label: 'Specs', kind: 'artifact', from: ['import', 'reverse'] },
-  { id: 'generate', label: 'generate', kind: 'pipeline', from: ['specs'] },
-  { id: 'tests', label: 'Tests', kind: 'artifact', from: ['generate'] },
-  { id: 'heal', label: 'heal', kind: 'pipeline', from: ['tests'] },
-  { id: 'security', label: 'security', kind: 'pipeline', from: ['specs'] },
-  { id: 'validate', label: 'validate', kind: 'pipeline', from: ['specs'] },
-  { id: 'docs', label: 'docs', kind: 'pipeline', from: ['specs'] },
-  { id: 'user-docs', label: 'User Docs', kind: 'artifact', from: ['docs'] },
-  { id: 'drift', label: 'drift', kind: 'pipeline', from: ['specs'] },
-  { id: 'matrix', label: 'matrix', kind: 'pipeline', from: ['specs'] },
-  { id: 'traceability', label: 'Traceability', kind: 'artifact', from: ['matrix'] },
-  { id: 'quality', label: 'quality', kind: 'pipeline', from: ['code'] },
-  { id: 'deps', label: 'deps', kind: 'pipeline', from: ['code'] },
-  { id: 'commit', label: 'commit', kind: 'pipeline', from: ['tests', 'user-docs', 'traceability'] },
+  { id: 'docs-in', label: 'PRD / Jira / MD', kind: 'input', from: [], description: 'Source documents' },
+  { id: 'code', label: 'Source code', kind: 'input', from: [], description: 'Your source files' },
+  {
+    id: 'import', label: 'import', kind: 'pipeline', from: ['docs-in'],
+    description: 'Convert a PRD, Jira ticket, or doc into a Living Spec',
+    requiresInput: true,
+  },
+  {
+    id: 'reverse', label: 'reverse', kind: 'pipeline', from: ['code'],
+    description: 'Reverse-engineer Living Specs from existing source code',
+  },
+  { id: 'specs', label: 'Specs', kind: 'artifact', from: ['import', 'reverse'], description: 'Living Specification files' },
+  {
+    id: 'generate', label: 'generate', kind: 'pipeline', from: ['specs'],
+    description: 'Generate test code from specs',
+  },
+  { id: 'tests', label: 'Tests', kind: 'artifact', from: ['generate'], description: 'Generated test files' },
+  {
+    id: 'heal', label: 'heal', kind: 'pipeline', from: ['tests'],
+    description: 'Self-heal failing generated tests with LLM assistance',
+  },
+  {
+    id: 'security', label: 'security', kind: 'pipeline', from: ['specs'],
+    description: 'Generate security tests and run static analysis (SAST)',
+  },
+  {
+    id: 'validate', label: 'validate', kind: 'pipeline', from: ['specs'],
+    description: 'Validate specs against the running app via browser automation',
+  },
+  {
+    id: 'docs', label: 'docs', kind: 'pipeline', from: ['specs'],
+    description: 'Generate user-facing documentation from specs',
+  },
+  { id: 'user-docs', label: 'User Docs', kind: 'artifact', from: ['docs'], description: 'Generated documentation' },
+  {
+    id: 'drift', label: 'drift', kind: 'pipeline', from: ['specs'],
+    description: 'Detect specs that are out of sync with the current source code',
+  },
+  {
+    id: 'matrix', label: 'matrix', kind: 'pipeline', from: ['specs'],
+    description: 'Build traceability matrix linking specs to tests and docs',
+  },
+  { id: 'traceability', label: 'Traceability', kind: 'artifact', from: ['matrix'], description: 'Spec → test → doc map' },
+  {
+    id: 'quality', label: 'quality', kind: 'pipeline', from: ['code'],
+    description: 'Run ESLint and dead-code checks (Knip)',
+  },
+  {
+    id: 'deps', label: 'deps', kind: 'pipeline', from: ['code'],
+    description: 'Audit dependencies for vulnerabilities and unused packages',
+  },
+  {
+    id: 'commit', label: 'commit', kind: 'pipeline', from: ['tests', 'user-docs', 'traceability'],
+    description: 'Stage and commit all SpecGuard-generated files',
+  },
 ];
 
 /** Pipelines runnable from the Activity tab and whether they need a confirm. */

@@ -1,19 +1,21 @@
-import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
   nodeStates: Record<string, NodeState>;
   logs: Record<string, string[]>;
+  lastRunInfo: Record<string, PipelineRunInfo>;
   coverage: AppCoverage[];
   matrix: MatrixModel | null;
-  artifacts: { kind: string; path: string }[];
+  artifacts: { kind: string; path: string; title?: string; description?: string }[];
   activity: ActivityEntry[];
   findings: FindingItem[];
+  workspace: WorkspaceInfo | null;
   errors: string[];
 }
 
 export function initialViewModel(): ViewModel {
-  return { nodeStates: {}, logs: {}, coverage: [], matrix: null, artifacts: [], activity: [], findings: [], errors: [] };
+  return { nodeStates: {}, logs: {}, lastRunInfo: {}, coverage: [], matrix: null, artifacts: [], activity: [], findings: [], workspace: null, errors: [] };
 }
 
 export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
@@ -26,8 +28,14 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
     }
     case 'pipeline:log':
       return { ...vm, logs: { ...vm.logs, [e.pipeline]: [...(vm.logs[e.pipeline] ?? []), e.line] } };
-    case 'artifact':
-      return { ...vm, artifacts: [...vm.artifacts, { kind: e.kind, path: e.path }].slice(-200) };
+    case 'pipeline:lastRun':
+      return { ...vm, lastRunInfo: { ...vm.lastRunInfo, [e.info.pipeline]: e.info } };
+    case 'artifact': {
+      // Upsert by path so re-scans update existing entries rather than duplicating them.
+      const existing = vm.artifacts.filter((a) => a.path !== e.path);
+      const entry = { kind: e.kind, path: e.path, title: e.title, description: e.description };
+      return { ...vm, artifacts: [...existing, entry].slice(-200) };
+    }
     case 'coverage':
       return { ...vm, coverage: e.data };
     case 'matrix':
@@ -36,6 +44,8 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, activity: e.entries };
     case 'findings':
       return { ...vm, findings: e.data };
+    case 'workspace':
+      return { ...vm, workspace: e.info };
     case 'error':
       return { ...vm, errors: [...vm.errors, `${e.scope}: ${e.message}`].slice(-50) };
     default:

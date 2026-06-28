@@ -10,7 +10,15 @@ export function artifactEventFor(path: string, change: 'create' | 'update'): Das
   return kind ? { type: 'artifact', kind, path: p, change } : null;
 }
 
-/** Build CLI args for a pipeline run. */
+/**
+ * Build CLI args for a pipeline run from the dashboard.
+ * Pipelines that require --spec or --all get --all by default so they process
+ * all configured apps/specs rather than failing with "nothing to do".
+ * Pipelines that need positional args (import) are handled by requiresInput on
+ * their PipelineNode and should not be invoked from here.
+ */
 export function cliArgsFor(pipeline: string, extra: string[] = []): string[] {
-  return [pipeline, ...extra];
+  const needsAll = new Set(['docs', 'generate', 'reverse', 'security', 'heal', 'validate']);
+  const defaults = needsAll.has(pipeline) ? ['--all'] : [];
+  return [pipeline, ...defaults, ...extra];
 }

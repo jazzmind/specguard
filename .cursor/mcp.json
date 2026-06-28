@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "specguard-mcp": {
+      "command": "npx",
+      "args": [
+        "specguard-mcp"
+      ],
+      "env": {}
+    }
+  }
+}

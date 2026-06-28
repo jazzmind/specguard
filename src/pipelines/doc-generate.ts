@@ -26,6 +26,7 @@
  * The PipelineItem key / log key is `<app.name>/<feature>`.
  */
 import path from 'node:path';
+import { z } from 'zod';
 
 import type {
   SpecGuardConfig,
@@ -40,7 +41,13 @@ import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
-import { llmGenerateText } from '../core/llm.js';
+import { llmGenerateObject } from '../core/llm.js';
+
+/** Schema for the LLM's structured doc output. */
+const DocOutputSchema = z.object({
+  description: z.string().describe('One or two sentences summarising what this feature does for the user.'),
+  body: z.string().describe('The full user-facing documentation body in Markdown prose (no frontmatter, no wrapping code fence).'),
+});
 
 export interface DocsOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
@@ -75,8 +82,10 @@ const SYSTEM_PROMPT = [
   '  of developer tasks.',
   '- Stay strictly accurate to the supplied spec content. Do NOT invent',
   '  features, flags, commands, or behavior that the spec does not describe.',
-  '- Output ONLY the Markdown body. Do NOT wrap the whole document in a code',
-  '  fence, and do NOT emit YAML frontmatter (the tool adds frontmatter).',
+  '- For `description`: one or two plain-English sentences summarising the feature',
+  '  at a glance (shown in the dashboard card). No markdown, no code.',
+  '- For `body`: the full documentation in Markdown prose.',
+  '  Do NOT wrap it in a code fence. Do NOT emit YAML frontmatter.',
 ].join('\n');
 
 /** Resolve a possibly-relative path against the config root dir. */
@@ -198,16 +207,18 @@ function stripWrappingFence(text: string): string {
 }
 
 /** Build the YAML frontmatter block for a doc page. */
-function frontmatter(title: string): string {
-  const safe = title.replace(/"/g, '\\"');
-  return [
+function frontmatter(title: string, description: string): string {
+  const safe = (s: string) => s.replace(/"/g, '\\"');
+  const lines = [
     '---',
-    `title: "${safe}"`,
-    `sidebar_label: "${safe}"`,
+    `title: "${safe(title)}"`,
+    `sidebar_label: "${safe(title)}"`,
+    `description: "${safe(description)}"`,
     'generated: true',
     '---',
     '',
-  ].join('\n');
+  ];
+  return lines.join('\n');
 }
 
 /**
@@ -289,15 +300,16 @@ export async function runDocGenerate(
 
     attempted += 1;
     try {
-      const raw = await llmGenerateText({
+      const output = await llmGenerateObject({
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
         system: SYSTEM_PROMPT,
         prompt,
+        schema: DocOutputSchema,
       });
-      const body = stripWrappingFence(raw);
-      const doc = `${frontmatter(title)}\n${body}\n`;
+      const body = stripWrappingFence(output.body);
+      const doc = `${frontmatter(title, output.description)}\n${body}\n`;
       await writeFile(targetDoc, doc);
       log(`[doc] ${key}`);
       result.items.push({ key, status: 'created', path: targetDoc });
