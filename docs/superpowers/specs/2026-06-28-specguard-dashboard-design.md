@@ -52,7 +52,7 @@ specguard-dashboard/        # the worktree (branch feat/dashboard, off build/spe
     server/                 # Hono, ESM, TS — imports ../../src pipeline fns directly
       index.ts              # boots server, serves built web/, mounts API
       api.ts                # route handlers → call pipeline functions
-      runner.ts             # wraps pipeline calls, captures logs, streams via SSE
+      runner.ts             # runs a pipeline, then streams result.messages + result via SSE
     web/                    # Vite + React + TS frontend
       src/
         types.ts            # re-exports from ../../src/core/types.ts (single source of truth)
@@ -134,12 +134,20 @@ implemented" note, matching CLI behavior, until they land.
 `GET /api/status`, `GET /api/drift`, `GET /api/specs` → server calls the pipeline
 function, returns JSON (`PipelineResult` / `ParsedSpec[]`). Frontend renders.
 
-### Triggers (streaming)
+### Triggers (post-hoc streaming)
 
-`POST /api/run/:pipeline` opens a **Server-Sent Events** stream. `runner.ts`
-patches the pipeline's logger so each line is emitted as an SSE `log` event; a
-final `result` event carries the `PipelineResult`. The frontend appends logs live,
-then refreshes the affected views.
+`POST /api/run/:pipeline` opens a **Server-Sent Events** stream. The pipeline
+functions accumulate their output in `result.messages` and only return it on
+completion (there is no injectable live logger), so `runner.ts` awaits the
+pipeline, then emits each `result.messages` line as an SSE `log` event followed by
+a final `result` event carrying the `PipelineResult`. The frontend appends the
+logs and refreshes the affected views.
+
+This deliberately makes **zero edits** to the shared `src/pipelines` files (the
+core team's active surface), keeping the dashboard isolated. The SSE framing is
+kept so that genuine live streaming is a drop-in upgrade if the core team later
+adds an optional `onLog` callback to the pipeline opts — that change belongs to
+the core pipelines, not this branch.
 
 ### Error handling
 
