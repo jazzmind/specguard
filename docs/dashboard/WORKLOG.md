@@ -7,6 +7,24 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 8: Animated system-flow view
+
+- Created `extension/webview/src/views/FlowView.tsx` — centerpiece animated graph:
+  - Renders `PIPELINE_NODES` in 6 columns (0–5) per a `COLUMN` map keyed by node ID.
+  - Each node shows `sg-node sg-{kind} sg-{state}` classes: idle (default), running
+    (pulse animation + amber glow), done (teal glow), failed (red glow).
+  - Pipeline nodes are clickable; click posts `{ type: 'run', pipeline: id }` via
+    `vscodeApi.postMessage`, triggering the host runner.
+  - Badge shows log-line count when `vm.logs[id]` is non-empty.
+- Created `extension/webview/src/views/flow.css` — all node/animation styles scoped
+  under `.sg-*` classes; uses VS Code CSS variables for theming compatibility.
+- Modified `extension/webview/src/App.tsx`:
+  - Added `import { FlowView } from './views/FlowView.js';`.
+  - Replaced the `{tab === 'flow' && <pre>Flow view (Task 8)…</pre>}` placeholder with
+    `{tab === 'flow' && <FlowView vm={vm} />}`.
+- Build: `npm run build` → `extension/media/main.js` (147.21 kB) + `main.css` (0.86 kB),
+  32 modules transformed in 728 ms.
+
 ## 2026-06-28 — Task 7: Webview scaffold, tested event reducer, Vite→media build
 
 - Created `extension/webview/` — a second Vite + React build inside the extension.
