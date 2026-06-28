@@ -6,3 +6,5 @@ esbuild.config.ts
 **/*.ts
 **/*.map
 !dist/**
+webview/**
+!media/**

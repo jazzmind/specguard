@@ -8,23 +8,8 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
-
-export interface CoverageItem {
-  app: string;
-  key: string;
-  hasSpec: boolean;
-  hasTest: boolean;
-  specPath?: string;
-}
-
-export interface AppCoverage {
-  name: string;
-  specCount: number;
-  sourceCount: number;
-  testCount: number;
-  percentage: number;
-  items: CoverageItem[];
-}
+import type { AppCoverage, CoverageItem } from './dashboard/protocol.js';
+import { parseCoverageText } from './dashboard/coverage-parse.js';
 
 export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<CoverageTreeItem | undefined | void>();
@@ -109,8 +94,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
     try {
       const cli = await resolveCliPath(workspaceRoot);
-      const raw = await runCli(cli, ['status', '--json'], workspaceRoot);
-      this._apps = parseStatusJson(raw);
+      const raw = await runCli(cli, ['status'], workspaceRoot);
+      this._apps = parseCoverageText(raw);
     } catch (err) {
       this._error = (err as Error).message ?? String(err);
       this._apps = [];
@@ -181,49 +166,3 @@ function runCli(cliPath: string, args: string[], cwd: string): Promise<string> {
   });
 }
 
-/**
- * Parse the text output of `specguard status` (non-JSON format) into
- * AppCoverage objects.
- *
- * The current CLI doesn't have a `--json` flag yet, so we parse the text
- * output. This is intentionally lenient — parse what we can.
- */
-function parseStatusJson(raw: string): AppCoverage[] {
-  const apps: AppCoverage[] = [];
-
-  // Parse sections starting with "# <appName> (specs/<dir>)"
-  const appSections = raw.split(/^# /m).filter(Boolean);
-
-  for (const section of appSections) {
-    const lines = section.split('\n');
-    const header = lines[0] ?? '';
-    const nameMatch = header.match(/^(\S+)/);
-    if (!nameMatch) continue;
-    const name = nameMatch[1];
-
-    const items: CoverageItem[] = [];
-    for (const line of lines.slice(1)) {
-      const okMatch = line.match(/^\s+\[ok\]\s+(\S+)/);
-      const missingMatch = line.match(/^\s+\[missing-spec\]\s+(\S+)/);
-      const noTestMatch = line.match(/^\s+\[ok\]\s+(\S+)\s+\(no test\)/);
-
-      if (noTestMatch) {
-        items.push({ app: name, key: noTestMatch[1], hasSpec: true, hasTest: false });
-      } else if (okMatch) {
-        items.push({ app: name, key: okMatch[1], hasSpec: true, hasTest: true });
-      } else if (missingMatch) {
-        items.push({ app: name, key: missingMatch[1], hasSpec: false, hasTest: false });
-      }
-    }
-
-    // Parse summary line: "<appName>: N source files, M specs (P%), K tests (...)"
-    const summaryMatch = section.match(/(\d+) source files, (\d+) specs \((\d+)%\), (\d+) tests/);
-    const sourceCount = summaryMatch ? parseInt(summaryMatch[1], 10) : items.length;
-    const specCount = summaryMatch ? parseInt(summaryMatch[2], 10) : items.filter((i) => i.hasSpec).length;
-    const percentage = summaryMatch ? parseInt(summaryMatch[3], 10) : 0;
-
-    apps.push({ name, specCount, sourceCount, testCount: 0, percentage, items });
-  }
-
-  return apps;
-}
