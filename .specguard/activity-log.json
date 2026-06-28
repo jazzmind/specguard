@@ -486,5 +486,12 @@
     "source": "extension",
     "durationMs": 462,
     "message": "exit code 1"
+  },
+  {
+    "id": "1782684386144-m8gg9",
+    "timestamp": 1782684386144,
+    "pipeline": "security",
+    "status": "running",
+    "source": "extension"
   }
 ]
