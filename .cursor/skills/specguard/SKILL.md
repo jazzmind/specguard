@@ -9,9 +9,9 @@ description: >-
   tests generated from a spec, or asks to validate the live app against a spec.
 ---
 
-# SpecGuard Parallel Agent (Bootstrap v0)
+# SpecGuard Parallel Agent (Bootstrap v0.3 — Phase 3)
 
-This is the bootstrap version of the SpecGuard skill. It operates **manually** — creating and updating spec files directly — because the `specguard` CLI does not yet exist. As each pipeline is built, this skill will be updated to delegate to the CLI.
+The `specguard` CLI now exists for **reverse**, **status**, and **drift**. Prefer the CLI for those operations; the remaining steps (test generation, security) are still manual until their pipelines land. Run the CLI with `npx tsx src/cli/index.ts <command>` (source) or `specguard <command>` once built and linked.
 
 ## When to Run
 
@@ -20,15 +20,26 @@ Run automatically after any of these events:
 - Security-sensitive files are changed (`**/auth/**`, `**/middleware/**`, `**/api/**`)
 - The user asks for spec coverage, test generation, or validation
 
-## After Each Plan Phase — Manual Reverse
+## After Each Plan Phase — CLI Reverse + Coverage
 
-1. **Identify what changed.** List the files created or modified in this plan phase.
-2. **Check spec coverage.** For each changed `src/` file, look for a corresponding spec in `specs/`.
-   - `src/core/spec-parser.ts` → check `specs/core/spec-parser.md`
-   - `src/pipelines/reverse-generate.ts` → check `specs/pipelines/reverse-generate.md`
-   - `src/adapters/playwright.ts` → check `specs/adapters/playwright.md`
-3. **Create or update specs.** For each file without a spec, create one now using the format in `specs/README.md`.
-4. **Report coverage.** Tell the user: which specs were created, which were updated, and which files still lack specs.
+Run these after every plan phase and report the results to the user:
+
+```bash
+# Generate/update specs for source that lacks them (skips existing specs)
+npx tsx src/cli/index.ts reverse --app specguard-core
+
+# Report spec + test coverage (exit 4 if any source file lacks a spec)
+npx tsx src/cli/index.ts status
+
+# Detect specs that have drifted from changed source (exit 3 if drift found)
+npx tsx src/cli/index.ts drift
+```
+
+- `reverse` skips files that already have a spec; pass `--force` to regenerate.
+- `status` prints per-app coverage and a totals line; a non-zero exit means uncovered features remain.
+- `drift` diffs `HEAD~1..HEAD` by default (`--since <ref>` to widen) and flags specs older than their source.
+
+Report to the user: which specs were created/updated by `reverse`, the coverage % from `status`, and any drift flagged.
 
 ## Spec Format (Quick Reference)
 
@@ -87,7 +98,7 @@ When auth, middleware, or API files change:
 ## Upgrading This Skill
 
 As each CLI command is implemented, update this skill to call it:
-- `specguard reverse` built → replace "Manual Reverse" section with CLI invocation
+- ✅ `specguard reverse` / `status` / `drift` built (Phase 3) → CLI invocation in use above
 - `specguard generate` built → replace "Manual Test Generation" with CLI invocation
 - `specguard security` built → replace "Security Check" with CLI invocation
 

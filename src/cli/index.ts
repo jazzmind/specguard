@@ -13,6 +13,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import type { GlobalOpts } from './commands/helpers.js';
 import { reverseCommand } from './commands/reverse.js';
 import { statusCommand } from './commands/status.js';
+import { driftCommand } from './commands/drift.js';
 import { initCommand } from './commands/init.js';
 import { makeStub } from './commands/stubs.js';
 
@@ -121,7 +122,9 @@ program
   .description('detect specs that have drifted from source')
   .option('--since <ref>', 'git ref to diff against')
   .option('--spec <key>', 'target a single spec')
-  .action(makeStub('drift'));
+  .action(async (opts: { since?: string; spec?: string }, cmd: Command) => {
+    await driftCommand(withGlobals(cmd, opts));
+  });
 
 // --- matrix ---------------------------------------------------------------
 program
@@ -135,8 +138,8 @@ program
 program
   .command('status')
   .description('report spec coverage')
-  .action(async () => {
-    await statusCommand();
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await statusCommand(withGlobals(cmd, {}));
   });
 
 async function main(): Promise<void> {

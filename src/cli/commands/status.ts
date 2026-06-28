@@ -1,9 +1,15 @@
 /**
- * `specguard status` — spec coverage report.
- *
- * STUB for Phase 1. Phase 3 wires this to the status pipeline.
+ * `specguard status` — spec coverage report (Phase 3 pipeline).
  */
-export async function statusCommand(): Promise<void> {
-  process.stdout.write('status: not yet implemented (Phase 3)\n');
-  process.exit(0);
+import { runStatus } from '../../pipelines/status.js';
+import { loadCliConfig, type GlobalOpts } from './helpers.js';
+
+export async function statusCommand(opts: GlobalOpts): Promise<void> {
+  const config = await loadCliConfig(opts);
+  const result = await runStatus(config);
+
+  for (const line of result.messages) {
+    process.stdout.write(`${line}\n`);
+  }
+  process.exit(result.exitCode);
 }
