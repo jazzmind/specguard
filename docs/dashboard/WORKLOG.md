@@ -7,6 +7,22 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 3: Matrix model transform
+
+- Implemented `extension/src/dashboard/matrix-model.ts` — pure transform from
+  `.specguard/traceability.json` shape to flat `MatrixModel` render-ready structure.
+- Exports `toMatrixModel(raw: unknown): MatrixModel` function that:
+  - Safely handles malformed/null input, returning `{ generatedAt: null, rows: [] }`.
+  - Maps `TraceabilityEntry[]` (specKey, title, appName, tests, docs, sourceModule) to
+    `MatrixRow[]` with coverage flags (hasTests, testCount, hasDocs).
+  - Preserves `generatedAt` timestamp from the JSON file.
+- Followed strict TDD: wrote failing test first (RED), confirmed import error, then
+  implemented function, confirmed GREEN (2/2 tests passing).
+- Added `extension/src/dashboard/matrix-model.test.ts` with two test cases:
+  - Correct mapping of entries with coverage flags (tests present vs. absent).
+  - Graceful handling of null/empty input (malformed JSON).
+- `npm run lint` (tsc --noEmit) is clean; no build changes needed (pure TS module).
+
 ## 2026-06-28 — Task 2: Coverage text parser (extract + reuse)
 
 - Extracted the private `parseStatusJson` function from `extension/src/sidebar.ts` into a new
