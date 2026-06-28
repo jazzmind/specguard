@@ -138,8 +138,10 @@
     }
   },
   "scripts": {
-    "build": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
-    "watch": "npm run build -- --watch",
+    "build:webview": "npm --prefix webview install && npm --prefix webview run build",
+    "build:host": "esbuild src/extension.ts --bundle --platform=node --external:vscode --outfile=dist/extension.js --sourcemap",
+    "build": "npm run build:webview && npm run build:host",
+    "watch": "npm run build:host -- --watch",
     "package": "vsce package",
     "lint": "tsc --noEmit",
     "test": "vitest run"
