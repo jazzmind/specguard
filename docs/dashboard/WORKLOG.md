@@ -7,6 +7,25 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 4: Flow event mappers + CLI arg builder (pure)
+
+- Implemented `extension/src/dashboard/flow-events.ts` — pure mappers for file-change
+  classification and CLI argument construction.
+- Exports two functions:
+  - `artifactEventFor(path: string, change: 'create' | 'update'): DashboardEvent | null`
+    classifies file paths into artifact kinds (spec, test, doc) using normalized regexes
+    that handle both `/` and `\` path separators. Returns null for untracked paths.
+  - `cliArgsFor(pipeline: string, extra?: string[]): string[]` builds CLI argument
+    arrays for pipeline execution (pipeline name + optional extra flags).
+- Followed strict TDD: wrote failing test first (RED), confirmed module-not-found error,
+  implemented both functions, confirmed GREEN (4/4 tests passing).
+- Added `extension/src/dashboard/flow-events.test.ts` with four test cases:
+  - Spec path classification (`specs/core/parser.md` → kind: 'spec').
+  - Test and doc path classification (`.test.ts`, `.spec.js`, `.md` under docs/).
+  - Unrelated paths ignored (src/ prefixed paths return null).
+  - CLI args: pipeline-only and pipeline + extras both work correctly.
+- No linting issues; pure TS module with no external dependencies.
+
 ## 2026-06-28 — Task 3: Matrix model transform
 
 - Implemented `extension/src/dashboard/matrix-model.ts` — pure transform from
