@@ -7,6 +7,24 @@ Spec: [docs/superpowers/specs/2026-06-28-specguard-extension-dashboard-design.md
 
 ---
 
+## 2026-06-28 — Task 9: Matrix, Docs, and Activity tabs
+
+- Created `extension/webview/src/views/MatrixView.tsx` — renders `vm.matrix.rows` as a
+  collapsible table (Spec / Source / Tests / Docs columns); empty state shows a "Run matrix"
+  button that posts `{ type: 'run', pipeline: 'matrix' }`.
+- Created `extension/webview/src/views/ActivityView.tsx` — pipeline runner with:
+  - Animated counters for specs / tests / docs from `vm.artifacts`.
+  - `<select>` over `RUNNABLE_PIPELINES`; destructive entries flagged with ⚠.
+  - `confirm()` guard before posting `run` for any `destructive: true` pipeline.
+  - Live log `<pre>` block rendered from `vm.logs[pipeline]`.
+- Created `extension/webview/src/views/DocsView.tsx` — lists `vm.artifacts` filtered by
+  `kind === 'doc'`; each item is a button posting `openFile`; empty state shows "Run docs".
+- Modified `extension/webview/src/App.tsx`:
+  - Added imports for `MatrixView`, `DocsView`, `ActivityView` (`.js` specifiers).
+  - Replaced the three Task-9 placeholder `<pre>` lines with the real view components.
+- Build: `npm run build` → `main.js` 150.09 kB (gzip 48.27 kB), 35 modules in 707 ms.
+- Typecheck: `npx tsc --noEmit -p tsconfig.json` → clean (0 errors).
+
 ## 2026-06-28 — Task 8: Animated system-flow view
 
 - Created `extension/webview/src/views/FlowView.tsx` — centerpiece animated graph:
