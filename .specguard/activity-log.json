@@ -555,5 +555,84 @@
     "status": "pass",
     "source": "extension",
     "message": "no drift detected"
+  },
+  {
+    "id": "1782692734225-0iajp",
+    "timestamp": 1782692734225,
+    "pipeline": "generate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782692874695-1vpu1",
+    "timestamp": 1782692874695,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782692876606-llt5v",
+    "timestamp": 1782692876606,
+    "pipeline": "generate",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 142381,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782693077837-rxdf2",
+    "timestamp": 1782693077837,
+    "pipeline": "analyze",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782693087334-85xqn",
+    "timestamp": 1782693087334,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782693088929-e6aoy",
+    "timestamp": 1782693088930,
+    "pipeline": "analyze",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 11092,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782693099828-lbefq",
+    "timestamp": 1782693099828,
+    "pipeline": "reverse",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782693351217-l0is9",
+    "timestamp": 1782693351217,
+    "pipeline": "security",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782693561573-wg0k6",
+    "timestamp": 1782693561573,
+    "pipeline": "security",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 210356,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782693562426-9967u",
+    "timestamp": 1782693562426,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
   }
 ]

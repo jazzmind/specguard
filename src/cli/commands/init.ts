@@ -154,6 +154,15 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     created.push('.specguard/.env');
   }
 
+  // Create empty drift-registry.json if missing
+  const driftRegistryPath = path.join(cwd, '.specguard', 'drift-registry.json');
+  if (await fileExists(driftRegistryPath)) {
+    skipped.push('.specguard/drift-registry.json');
+  } else {
+    await writeFile(driftRegistryPath, '{}\n');
+    created.push('.specguard/drift-registry.json');
+  }
+
   // Ensure .gitignore lists .specguard/.env (best-effort)
   try {
     let gitignoreContent = (await fileExists(gitignorePath)) ? await readFile(gitignorePath) : '';

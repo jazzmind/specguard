@@ -153,20 +153,62 @@ export async function runStatus(
     }
 
     const appTotal = files.length;
-    log(
-      `  ${app.name}: ${appTotal} source files, ` +
-        `${appSpecs} specs (${pct(appSpecs, appTotal)}%), ` +
-        `${appTests} tests (${pct(appTests, appTotal)}%), ` +
-        `${missing.length} missing specs`,
-    );
-    if (missing.length > 0) {
-      log(`  missing specs: ${missing.join(', ')}`);
-    }
 
-    totalFiles += appTotal;
-    totalSpecs += appSpecs;
-    totalTests += appTests;
-    totalMissingSpecs += missing.length;
+    // Spec-driven pass: for spec-first / import-first projects that have specs
+    // but no matching source files yet, count specs and tests from the specDir
+    // directly so the dashboard reflects reality (e.g. after `specguard import`).
+    if (appTotal === 0) {
+      let specFileCount = 0;
+      let specTestCount = 0;
+      try {
+        const { readdirSync } = await import('node:fs');
+        const entries = readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
+        for (const specFile of entries) {
+          const feature = specFile.replace(/\.md$/, '');
+          const key = `${app.name}/${feature}`;
+          specFileCount += 1;
+
+          const candidates = testCandidates(testOutputAbs, feature);
+          let hasTest = false;
+          for (const c of candidates) {
+            if (await fileExists(c)) { hasTest = true; break; }
+          }
+          if (hasTest) specTestCount += 1;
+
+          result.items.push({
+            key,
+            status: 'ok',
+            path: path.join(specDirAbs, specFile),
+            message: hasTest ? undefined : 'no test yet',
+          });
+          log(hasTest ? `  [ok] ${key}` : `  [ok] ${key} (no test)`);
+        }
+      } catch { /* specDir may not exist — ignore */ }
+
+      if (specFileCount > 0) {
+        log(
+          `  ${app.name}: 0 source files (spec-first), ` +
+            `${specFileCount} specs imported, ` +
+            `${specTestCount} tests`,
+        );
+        totalSpecs += specFileCount;
+        totalTests += specTestCount;
+      }
+    } else {
+      log(
+        `  ${app.name}: ${appTotal} source files, ` +
+          `${appSpecs} specs (${pct(appSpecs, appTotal)}%), ` +
+          `${appTests} tests (${pct(appTests, appTotal)}%), ` +
+          `${missing.length} missing specs`,
+      );
+      if (missing.length > 0) {
+        log(`  missing specs: ${missing.join(', ')}`);
+      }
+      totalFiles += appTotal;
+      totalSpecs += appSpecs;
+      totalTests += appTests;
+      totalMissingSpecs += missing.length;
+    }
   }
 
   log(

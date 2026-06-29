@@ -31,6 +31,7 @@ import { runStatus } from './status.js';
 import { runDrift } from './drift.js';
 import { runCodeQuality } from './code-quality.js';
 import { runDepCheck } from './dep-check.js';
+import { runGapAnalysis } from './gap-analysis.js';
 
 export interface AnalyzeOpts {
   /** Run the recommended pipelines automatically after analysis. */
@@ -51,6 +52,7 @@ export interface AnalysisReport {
     driftedSpecs: number;
     qualityFindings: number;
     depFindings: number;
+    unimplementedSpecs: number;
   };
 }
 
@@ -60,7 +62,7 @@ export async function runAnalyze(
 ): Promise<PipelineResult & { analysisReport: AnalysisReport }> {
   const result = emptyResult('analyze') as PipelineResult & { analysisReport: AnalysisReport };
   const recs: AnalysisRecommendation[] = [];
-  const summary = { missingSpecs: 0, driftedSpecs: 0, qualityFindings: 0, depFindings: 0 };
+  const summary = { missingSpecs: 0, driftedSpecs: 0, qualityFindings: 0, depFindings: 0, unimplementedSpecs: 0 };
 
   const log = (line: string) => { result.messages.push(line); };
 
@@ -129,6 +131,31 @@ export async function runAnalyze(
       reason: 'refresh the traceability matrix linking specs to tests and docs',
       priority: 'low',
     });
+  }
+
+  // --- Gap analysis (unimplemented specs) ---
+  log('[analyze] checking for unimplemented specs...');
+  try {
+    const gapResult = await runGapAnalysis(config, { plan: false }); // no LLM here — just detect
+    const unimpl = gapResult.gaps.filter((g) => g.status === 'unimplemented').length;
+    const partial = gapResult.gaps.filter((g) => g.status === 'partial').length;
+    summary.unimplementedSpecs = unimpl;
+    if (unimpl > 0) {
+      recs.push({
+        pipeline: 'gap-analysis',
+        reason: `${unimpl} spec(s) have no matching source code — run gap-analysis to generate implementation plans`,
+        priority: 'high',
+      });
+    }
+    if (partial > 0) {
+      recs.push({
+        pipeline: 'gap-analysis',
+        reason: `${partial} spec(s) are partially implemented (unchecked acceptance criteria)`,
+        priority: 'medium',
+      });
+    }
+  } catch (err) {
+    log(`[analyze] gap check failed: ${(err as Error).message}`);
   }
 
   // --- Code quality ---

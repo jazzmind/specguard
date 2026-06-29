@@ -49,6 +49,7 @@ import { depsCommand } from './commands/deps.js';
 import { commitCommand } from './commands/commit.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { planFixCommand } from './commands/plan-fix.js';
+import { gapAnalysisCommand } from './commands/gap-analysis.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -194,10 +195,12 @@ program
 // --- drift ----------------------------------------------------------------
 program
   .command('drift')
-  .description('detect specs that have drifted from source')
-  .option('--since <ref>', 'git ref to diff against')
+  .description('detect specs that have drifted from source (hash+LLM by default)')
+  .option('--since <ref>', 'git ref to diff against (default HEAD~1)')
   .option('--spec <key>', 'target a single spec')
-  .action(async (opts: { since?: string; spec?: string }, cmd: Command) => {
+  .option('--force', 'bypass hash cache and re-evaluate all files with LLM')
+  .option('--mtime', 'use legacy mtime-based check instead of hash+LLM')
+  .action(async (opts: { since?: string; spec?: string; force?: boolean; mtime?: boolean }, cmd: Command) => {
     await driftCommand(withGlobals(cmd, opts));
   });
 
@@ -261,6 +264,17 @@ program
   .requiredOption('--issues <text>', 'summary of issues to fix')
   .action(async (opts: { pipeline: string; issues: string }, cmd: Command) => {
     await planFixCommand(withGlobals(cmd, opts));
+  });
+
+// --- gap-analysis ---------------------------------------------------------
+program
+  .command('gap-analysis')
+  .description('detect unimplemented/partial specs and generate implementation plans')
+  .option('--spec <key>', 'restrict to a single spec key (e.g. app/feature)')
+  .option('--all', 'check all apps (default)')
+  .option('--no-plan', 'skip LLM plan generation — only report gaps')
+  .action(async (opts: { spec?: string; all?: boolean; plan?: boolean }, cmd: Command) => {
+    await gapAnalysisCommand(withGlobals(cmd, { spec: opts.spec, all: opts.all, noPlan: opts.plan === false }));
   });
 
 // --- status ---------------------------------------------------------------

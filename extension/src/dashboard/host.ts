@@ -91,6 +91,7 @@ export class DashboardHost {
     }
     if (cmd.type === 'cancel') return this._cancelPipeline(cmd.pipeline);
     if (cmd.type === 'runSequence') return this._runSequence(cmd.pipelines);
+    if (cmd.type === 'runSequenceBatch') return this._runSequenceBatch(cmd.pipelines);
   }
 
   private async _runImportWithPicker(): Promise<void> {
@@ -214,6 +215,67 @@ export class DashboardHost {
     for (const p of pipelines) {
       await this.run(p, []);
     }
+  }
+
+  /** Like _runSequence but shows ONE confirmation dialog for all pipelines instead of per-pipeline prompts. */
+  private async _runSequenceBatch(pipelines: string[]): Promise<void> {
+    if (pipelines.length === 0) return;
+
+    const destructiveIds = pipelines.filter((p) => {
+      const entry = RUNNABLE_PIPELINES.find((e) => e.id === p);
+      return entry?.destructive;
+    });
+
+    if (destructiveIds.length > 0) {
+      const choice = await vscode.window.showWarningMessage(
+        `Run ${pipelines.length} pipeline(s) in sequence: ${pipelines.join(', ')}?\nLLM-powered pipelines will call the AI and write files.`,
+        { modal: true },
+        'Run All',
+      );
+      if (choice !== 'Run All') {
+        for (const p of pipelines) {
+          this.post({ type: 'pipeline:log', pipeline: p, line: 'cancelled by user (batch)' });
+        }
+        return;
+      }
+    }
+
+    // Run each pipeline, bypassing the individual destructive confirmation since we already asked.
+    for (const p of pipelines) {
+      if (this.activeRuns.has(p)) {
+        this.post({ type: 'pipeline:log', pipeline: p, line: `[warn] ${p} is already running — skipped` });
+        continue;
+      }
+      this.post({ type: 'pipeline:start', pipeline: p });
+      const startMs = Date.now();
+      this.activityLog.append({ pipeline: p, status: 'running', source: 'extension' });
+      const collectedLines: string[] = [];
+      try {
+        const cli = await resolveCliPath(this.workspaceRoot);
+        const handle = spawnCli(cli, cliArgsFor(p, []), this.workspaceRoot, (line) => {
+          this.post({ type: 'pipeline:log', pipeline: p, line });
+          collectedLines.push(line);
+        });
+        this.activeRuns.set(p, handle);
+        const code = await handle.promise;
+        this.activeRuns.delete(p);
+        const cancelled = code === -1;
+        const ok = !cancelled && (code === 0 || code === 4);
+        this.post({ type: 'pipeline:done', pipeline: p, exitCode: code });
+        this.post({
+          type: 'pipeline:lastRun',
+          info: { pipeline: p, status: ok ? 'pass' : 'fail', exitCode: code, finishedAt: new Date().toISOString(), tail: collectedLines.filter((l) => l.trim()).slice(-5) },
+        });
+        this.activityLog.append({ pipeline: p, status: cancelled ? 'error' : ok ? 'pass' : 'fail', source: 'extension', durationMs: Date.now() - startMs, message: cancelled ? 'cancelled by user' : `exit code ${code}` });
+      } catch (err) {
+        this.activeRuns.delete(p);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.post({ type: 'pipeline:log', pipeline: p, line: `[error] ${msg}` });
+        this.post({ type: 'pipeline:done', pipeline: p, exitCode: 1 });
+        this.activityLog.append({ pipeline: p, status: 'error', source: 'extension', message: msg });
+      }
+    }
+    await this.refresh();
   }
 
   private _pushAnalysisResult(): void {
