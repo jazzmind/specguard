@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T04:01:03.625Z",
+  "generatedAt": "2026-06-29T10:52:54.482Z",
   "apps": [
     {
       "name": "specguard-core",
@@ -71,8 +71,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -85,9 +83,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -163,8 +159,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -177,9 +171,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -255,8 +247,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -269,9 +259,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -347,8 +335,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -361,9 +347,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -439,8 +423,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -453,9 +435,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -531,8 +511,6 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
@@ -545,9 +523,7 @@
           "rule": "missing-dep",
           "source": "depcheck",
           "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
           ]
         }
@@ -619,8 +595,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -633,9 +607,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     },
@@ -703,8 +675,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -717,9 +687,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     },
@@ -787,8 +755,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -801,9 +767,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     },
@@ -871,8 +835,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -885,9 +847,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     },
@@ -955,8 +915,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -969,9 +927,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     },
@@ -1039,8 +995,6 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
@@ -1053,9 +1007,7 @@
       "rule": "missing-dep",
       "source": "depcheck",
       "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
     }

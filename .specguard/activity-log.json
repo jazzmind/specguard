@@ -43,22 +43,25 @@
     "id": "1782705652306-g5ml5",
     "timestamp": 1782705652306,
     "pipeline": "deps",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782705655540-8rj3b",
     "timestamp": 1782705655540,
     "pipeline": "quality",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782705658968-1g0zk",
     "timestamp": 1782705658968,
     "pipeline": "matrix",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782705659482-k2m74",
@@ -226,5 +229,51 @@
     "status": "pass",
     "source": "extension",
     "message": "no drift detected"
+  },
+  {
+    "id": "1782730363407-iwpcu",
+    "timestamp": 1782730363407,
+    "pipeline": "deps",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782730374493-w45e7",
+    "timestamp": 1782730374493,
+    "pipeline": "deps",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 11086,
+    "message": "exit code 0",
+    "logLines": [
+      "[deps] specguard-core: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-core: 7 vulnerability(ies)",
+      "[depcheck] specguard-core: 0 unused, 2 missing dep(s)",
+      "[deps] specguard-pipelines: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-pipelines: 7 vulnerability(ies)",
+      "[depcheck] specguard-pipelines: 0 unused, 2 missing dep(s)",
+      "[deps] specguard-adapters: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-adapters: 7 vulnerability(ies)",
+      "[depcheck] specguard-adapters: 0 unused, 2 missing dep(s)",
+      "[deps] specguard-cli: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-cli: 7 vulnerability(ies)",
+      "[depcheck] specguard-cli: 0 unused, 2 missing dep(s)",
+      "[deps] specguard-mcp: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-mcp: 7 vulnerability(ies)",
+      "[depcheck] specguard-mcp: 0 unused, 2 missing dep(s)",
+      "[deps] specguard-extension: running npm-audit + depcheck in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[npm-audit] specguard-extension: 7 vulnerability(ies)",
+      "[depcheck] specguard-extension: 0 unused, 2 missing dep(s)",
+      "[deps] wrote /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/.specguard/dep-check.json",
+      "[deps] 42 vulnerability(ies), 0 unused dep(s), 12 missing dep(s)",
+      "deps: 54 finding(s)"
+    ]
+  },
+  {
+    "id": "1782730945671-krtqx",
+    "timestamp": 1782730945671,
+    "pipeline": "commit",
+    "status": "running",
+    "source": "extension"
   }
 ]
