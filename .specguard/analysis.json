@@ -1,11 +1,6 @@
 {
-  "generatedAt": "2026-06-29T00:31:28.919Z",
+  "generatedAt": "2026-06-29T01:00:39.115Z",
   "recommendations": [
-    {
-      "pipeline": "reverse",
-      "reason": "33 source files lack Living Specs — run reverse to generate them",
-      "priority": "high"
-    },
     {
       "pipeline": "gap-analysis",
       "reason": "3 spec(s) have no matching source code — run gap-analysis to generate implementation plans",
@@ -13,7 +8,7 @@
     }
   ],
   "summary": {
-    "missingSpecs": 33,
+    "missingSpecs": 11,
     "driftedSpecs": 0,
     "qualityFindings": 0,
     "depFindings": 0,

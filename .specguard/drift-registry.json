@@ -107,9 +107,9 @@
     "specHash": "8879f9f9df448ea9c44aea9567c738766853b14599ea8b89941473b469583ed5",
     "files": {
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/drift.ts": {
-        "hash": "e906ef5d2c8ed1cfaf133a34e094e01d2377f29ba40e91f6d7056d27de4ff2cb",
-        "lastChecked": "2026-06-29T00:29:47.405Z",
-        "lastVerdict": "no-drift"
+        "hash": "ca4e5463a56d256750fb47af8164102f082a1cd09094951c2be513d572e271a5",
+        "lastChecked": "2026-06-29T01:24:39.731Z",
+        "lastVerdict": "drifted"
       }
     }
   },
@@ -274,6 +274,105 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/core/types.ts": {
         "hash": "c69a2da10d3db24d2f8810d748d363a2bc5855a96a969ff59e7fd016dadffd0a",
         "lastChecked": "2026-06-29T00:39:22.411Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-pipelines/analyze": {
+    "specKey": "specguard-pipelines/analyze",
+    "specHash": "330873bd08247d49607562c188a7c1ec04876612722b7f8b7b59fe17483f1425",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/analyze.ts": {
+        "hash": "bdbd3ac2579a2ba157fbf3d9b0333c8d6cd034338aacc27c20fdf7ff5efc1c3a",
+        "lastChecked": "2026-06-29T00:59:51.468Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-pipelines/code-quality": {
+    "specKey": "specguard-pipelines/code-quality",
+    "specHash": "6328305301e37093b8487c1731503e43387a8599ba01d668d242c1e6fe8063df",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/code-quality.ts": {
+        "hash": "b2685e4d75eb618908213a492128f609436d168d2381494e4bf114b0665f6aed",
+        "lastChecked": "2026-06-29T00:59:51.469Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-pipelines/dep-check": {
+    "specKey": "specguard-pipelines/dep-check",
+    "specHash": "0f9aba7d7ea30ce97a5c479bb3a8f27da832b3682b8672d428a890aaa9162930",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/dep-check.ts": {
+        "hash": "5a8b9ebb4f78ea430b1972ab6444dd670508334261e6600da871d52d525fd3ca",
+        "lastChecked": "2026-06-29T00:59:51.469Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-pipelines/gap-analysis": {
+    "specKey": "specguard-pipelines/gap-analysis",
+    "specHash": "87bde5e37150c192d56d49d30c8432d65b7aebe77293709ff0071194aed0cca4",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/gap-analysis.ts": {
+        "hash": "df133a513680bb7675c085704d0957a004b25078fb6ce46fce1cef004c9939c7",
+        "lastChecked": "2026-06-29T01:24:42.721Z",
+        "lastVerdict": "no-drift"
+      }
+    }
+  },
+  "specguard-pipelines/git-ops": {
+    "specKey": "specguard-pipelines/git-ops",
+    "specHash": "38477ae1965e59d82af72cb02cb5b11156e4558518908a5c979b76edf753bde1",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/git-ops.ts": {
+        "hash": "b774d780351c4c020fb2b2929a0788305d053f960a8aaf6177b8a46730d3c140",
+        "lastChecked": "2026-06-29T00:59:54.977Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-pipelines/plan-fix": {
+    "specKey": "specguard-pipelines/plan-fix",
+    "specHash": "2882f8371bd10500a4fdd7544b2c657280885aa0fe2dc5199425a3ded3b88945",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/plan-fix.ts": {
+        "hash": "0292f824f11166d3d7cb8fb39c37473729cb5191e5bde78c3e81e525a0042f64",
+        "lastChecked": "2026-06-29T00:59:54.977Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-adapters/depcheck": {
+    "specKey": "specguard-adapters/depcheck",
+    "specHash": "197705ac63c1a2d33cd9130eb8ac99c944f0335311f99b2a5d80c597f0ca14fa",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/adapters/depcheck.ts": {
+        "hash": "9c366988ac0a6d9a2996668bbd13b9860eee2bed2d188454ca90107b76f669af",
+        "lastChecked": "2026-06-29T00:59:54.982Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-adapters/eslint": {
+    "specKey": "specguard-adapters/eslint",
+    "specHash": "810e37470d677d68fe4b0192550f15ee1a48dfa6e5d0acf7de39f836f670a1b4",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/adapters/eslint.ts": {
+        "hash": "bf5c6bc875c914783b69b70bf56206396cf4e887acc9c46092308fa57a8b3c6e",
+        "lastChecked": "2026-06-29T00:59:54.982Z",
+        "lastVerdict": "new-file"
+      }
+    }
+  },
+  "specguard-adapters/knip": {
+    "specKey": "specguard-adapters/knip",
+    "specHash": "b25f04a5f3a093869f75866474a8b779350edabeacc80a0b53f23b71bfd607ab",
+    "files": {
+      "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/adapters/knip.ts": {
+        "hash": "ba20e774ef61ee94fbf156ff88f27a389efadbd433d6f33985b8104fc5abab31",
+        "lastChecked": "2026-06-29T00:59:54.982Z",
         "lastVerdict": "new-file"
       }
     }
