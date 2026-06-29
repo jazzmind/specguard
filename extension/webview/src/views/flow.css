@@ -56,6 +56,55 @@
   color: #666;
 }
 
+/* ── Pipeline groups ────────────────────────────────────────────────────── */
+.sg-wf-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sg-wf-group {
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.sg-wf-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--vscode-sideBar-background, #252526);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--vscode-foreground, #ccc);
+  border-bottom: 1px solid transparent;
+}
+.sg-wf-group-header:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+.sg-wf-group-header[aria-expanded="true"] {
+  border-bottom-color: #2a2a2a;
+}
+.sg-wf-group-chevron {
+  font-size: 10px;
+  width: 12px;
+  flex-shrink: 0;
+  color: #888;
+}
+.sg-wf-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vscode-foreground, #ddd);
+}
+.sg-wf-group-sub {
+  font-size: 11px;
+  color: #666;
+}
+.sg-wf-group-body {
+  padding: 10px 12px 12px;
+}
+
 /* ── Bootstrap layout ──────────────────────────────────────────────────── */
 .sg-wf-bootstrap {
   display: flex;
@@ -113,6 +162,7 @@
 }
 .sg-wf-card-failed { border-color: #f4877155; background: #1e1a1a; }
 .sg-wf-card-passed { border-color: #4ec9b044; }
+.sg-wf-card-findings { border-color: #e2c08d55; background: #1c1a14; }
 .sg-wf-card:hover { border-color: #444; }
 
 /* Analyze-triggered highlight — brief pulse then settles to teal border */
@@ -164,6 +214,7 @@
 .sg-chip-pass { background: #1e4620; color: #4ec9b0; }
 .sg-chip-fail { background: #4a1e1e; color: #f48771; }
 .sg-chip-running { background: #3a3020; color: #e2c08d; animation: sg-pulse 1.2s infinite; }
+.sg-chip-findings { background: #3a2e10; color: #e2c08d; }
 
 @keyframes sg-pulse {
   0%, 100% { opacity: 1; }

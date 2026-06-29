@@ -1,5 +1,5 @@
-import { useEffect, useReducer, useState } from 'react';
-import type { DashboardEvent } from './protocol.js';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import type { DashboardEvent, DashboardTab } from './protocol.js';
 import { initialViewModel, reduce, type ViewModel } from './reducer.js';
 import { vscodeApi } from './vscode.js';
 import { OverviewView } from './views/OverviewView.js';
@@ -13,7 +13,7 @@ import { FindingsView } from './views/FindingsView.js';
 import { CoverageView } from './views/CoverageView.js';
 import { PlansView } from './views/PlansView.js';
 
-type Tab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans';
+type Tab = DashboardTab;
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -29,6 +29,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function App() {
   const [vm, dispatch] = useReducer((s: ViewModel, e: DashboardEvent) => reduce(s, e), undefined, initialViewModel);
   const [tab, setTab] = useState<Tab>('overview');
+  const pendingScrollTo = useRef<string | null>(null);
 
   // Count running pipelines for the activity badge.
   // nodeStates tracks extension-spawned runs; activity covers MCP-driven runs.
@@ -38,11 +39,37 @@ export function App() {
   const totalRunning = runningCount;
 
   useEffect(() => {
-    const onMsg = (ev: MessageEvent<DashboardEvent>) => dispatch(ev.data);
+    const onMsg = (ev: MessageEvent<DashboardEvent>) => {
+      const msg = ev.data;
+      if (msg.type === 'navigate') {
+        setTab(msg.tab);
+        if (msg.scrollTo) {
+          pendingScrollTo.current = msg.scrollTo;
+        }
+        return;
+      }
+      dispatch(msg);
+    };
     window.addEventListener('message', onMsg);
     vscodeApi.postMessage({ type: 'refresh' });
     return () => window.removeEventListener('message', onMsg);
   }, []);
+
+  // Scroll to a pipeline card after the tab renders.
+  useEffect(() => {
+    const target = pendingScrollTo.current;
+    if (!target) return;
+    pendingScrollTo.current = null;
+    const tryScroll = (attempts = 0) => {
+      const el = document.getElementById(`sg-card-${target}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (attempts < 5) {
+        setTimeout(() => tryScroll(attempts + 1), 80);
+      }
+    };
+    setTimeout(() => tryScroll(), 50);
+  }, [tab]);
 
   const [refreshing, setRefreshing] = useState(false);
 

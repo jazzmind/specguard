@@ -33,6 +33,12 @@ export interface PipelineRunInfo {
   finishedAt: string;
   /** Last few log lines (for showing inline errors). */
   tail: string[];
+  /**
+   * Number of findings reported by the pipeline (e.g. `deps: 54 finding(s)`).
+   * A value of 0 means the pipeline passed cleanly with nothing to fix.
+   * Undefined means the pipeline did not report findings (non-finding pipeline).
+   */
+  findingCount?: number;
 }
 
 export interface WorkspaceInfo {
@@ -80,6 +86,8 @@ export interface PlanItem {
   completedAt?: string;
 }
 
+export type DashboardTab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans';
+
 export type DashboardEvent =
   | { type: 'pipeline:start'; pipeline: string }
   | { type: 'pipeline:log'; pipeline: string; line: string }
@@ -92,10 +100,12 @@ export type DashboardEvent =
   | { type: 'findings'; data: FindingItem[] }
   | { type: 'workspace'; info: WorkspaceInfo }
   | { type: 'analyze:result'; recommendations: AnalysisRecommendation[] }
-  | { type: 'fix-plan'; plan: FixPlan }
+  | { type: 'fix-plan'; plan: FixPlan | null }
   | { type: 'plans'; items: PlanItem[] }
   | { type: 'clearArtifacts' }
-  | { type: 'error'; scope: string; message: string };
+  | { type: 'error'; scope: string; message: string }
+  /** Navigate to a tab and optionally scroll to a pipeline card. */
+  | { type: 'navigate'; tab: DashboardTab; scrollTo?: string };
 
 export type FindingSeverity = 'critical' | 'error' | 'warning' | 'info';
 export type FindingCategory = 'lint' | 'security' | 'deps' | 'dead-code' | 'quality';

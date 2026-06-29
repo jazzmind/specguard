@@ -192,12 +192,16 @@ export class DashboardHost {
 
       this.post({ type: 'pipeline:done', pipeline, exitCode: code });
 
+      // Parse finding count from lines like "deps: 54 finding(s)" or "quality: 3 finding(s)".
+      const findingCount = parseFindingCount(collectedLines, pipeline);
+
       const runInfo: PipelineRunInfo = {
         pipeline,
         status: ok ? 'pass' : 'fail',
         exitCode: code,
         finishedAt: new Date().toISOString(),
         tail: collectedLines.filter((l) => l.trim()).slice(-5),
+        ...(findingCount !== undefined ? { findingCount } : {}),
       };
       this.post({ type: 'pipeline:lastRun', info: runInfo });
 
@@ -216,6 +220,10 @@ export class DashboardHost {
           this._pushAnalysisResult();
         } else if (pipeline === 'plan-fix') {
           this._pushFixPlan();
+        } else if (pipeline === 'heal' && ok) {
+          // Auto-commit after a successful heal — no user action needed.
+          this.post({ type: 'pipeline:log', pipeline: 'commit', line: '[auto] committing heal output…' });
+          await this.run('commit', ['--pipeline', 'heal']);
         }
       }
 
@@ -731,4 +739,45 @@ export class DashboardHost {
     });
     this.post({ type: 'plans', items });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Scan CLI output lines for the standard "pipeline: N finding(s)" summary.
+ * Returns the total finding count if the pattern is found, or undefined if
+ * this pipeline does not report findings in that format.
+ *
+ * Examples matched:
+ *   "deps: 54 finding(s)"
+ *   "quality: 3 finding(s)"
+ *   "[deps] 42 vulnerability(ies), 0 unused dep(s), 12 missing dep(s)"  → summed
+ */
+function parseFindingCount(lines: string[], pipeline: string): number | undefined {
+  // Primary: "<pipeline>: N finding(s)" on its own line.
+  const summaryRe = new RegExp(`^${pipeline}:\\s+(\\d+)\\s+finding`, 'i');
+  for (const line of lines) {
+    const m = summaryRe.exec(line.trim());
+    if (m) return parseInt(m[1], 10);
+  }
+
+  // Secondary: lines starting with "[deps]" that list counts (e.g. "42 vulnerability(ies)").
+  // Sum all numbers found in bracketed lines for the pipeline.
+  if (pipeline === 'deps') {
+    const bracketRe = /^\[deps\]\s+(.+)$/i;
+    for (const line of lines) {
+      const m = bracketRe.exec(line.trim());
+      if (m) {
+        let total = 0;
+        for (const numMatch of m[1].matchAll(/(\d+)\s+\w/g)) {
+          total += parseInt(numMatch[1], 10);
+        }
+        if (total > 0) return total;
+      }
+    }
+  }
+
+  return undefined;
 }

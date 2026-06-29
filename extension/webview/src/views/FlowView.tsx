@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ViewModel, NodeState } from '../reducer.js';
-import type { PipelineRunInfo, AnalysisRecommendation, FixPlan, FixPlanStep } from '../protocol.js';
+import type { DashboardEvent, PipelineRunInfo, AnalysisRecommendation, FixPlan, FixPlanStep } from '../protocol.js';
 import { vscodeApi } from '../vscode.js';
 import './flow.css';
 
@@ -28,8 +28,16 @@ function cancelPipeline(id: string) {
 // StatusChip
 // ---------------------------------------------------------------------------
 
-function StatusChip({ state, info }: { state: NodeState; info?: PipelineRunInfo }) {
+function StatusChip({ state, info, findingCount }: { state: NodeState | 'done-with-findings'; info?: PipelineRunInfo; findingCount?: number }) {
   if (state === 'running') return <span className="sg-chip sg-chip-running">Running…</span>;
+  if (state === 'done-with-findings') {
+    const ago = info ? timeAgo(info.finishedAt) : '';
+    return (
+      <span className="sg-chip sg-chip-findings" title={`${findingCount} finding(s) — heal to fix`}>
+        {findingCount} finding(s){ago && ` · ${ago}`}
+      </span>
+    );
+  }
   if (state === 'done') {
     const ago = info ? timeAgo(info.finishedAt) : '';
     return <span className="sg-chip sg-chip-pass">Passed {ago && `· ${ago}`}</span>;
@@ -121,6 +129,21 @@ function PipelineCard({
   const tail = isFailed ? (logs?.filter((l) => l.trim()).slice(-5) ?? info?.tail ?? []) : [];
   const logOpen = selectedLog === id;
 
+  // Finding count from last run: undefined = didn't report, 0 = clean pass, >0 = has findings.
+  const findingCount = info?.findingCount;
+  const hasFindings = findingCount !== undefined && findingCount > 0;
+
+  // Show Heal when the pipeline failed OR when it passed but reported findings.
+  // After heal succeeds, the host auto-commits — no Commit button needed.
+  const showHeal = canHeal && (isFailed || (isDone && hasFindings));
+  // Show Commit only when the pipeline passed cleanly with zero findings.
+  const showCommit = canCommit && isDone && !hasFindings && !isFailed;
+  // Show Plan on any failure.
+  const showPlan = isFailed;
+
+  // Annotate status chip if passed-with-findings.
+  const chipState = (isDone && hasFindings) ? 'done-with-findings' as NodeState : state;
+
   const handlePlan = () => {
     const issuesSummary = tail.filter(Boolean).join('; ') || `${id} pipeline failed — see logs for details`;
     runPipeline('plan-fix', ['--pipeline', id, '--issues', issuesSummary]);
@@ -131,7 +154,7 @@ function PipelineCard({
       id={`sg-card-${id}`}
       className={[
         'sg-wf-card',
-        isFailed ? 'sg-wf-card-failed' : isDone ? 'sg-wf-card-passed' : '',
+        isFailed ? 'sg-wf-card-failed' : isDone ? (hasFindings ? 'sg-wf-card-findings' : 'sg-wf-card-passed') : '',
         highlighted ? 'sg-wf-card-highlighted' : '',
       ].filter(Boolean).join(' ')}
     >
@@ -156,13 +179,13 @@ function PipelineCard({
           </button>
         </div>
         <span className="sg-wf-card-desc">{description}</span>
-        {isFailed && <ErrorTail lines={tail} />}
+        {(isFailed || (isDone && hasFindings)) && <ErrorTail lines={tail} />}
         {logOpen && (
           <LiveLogPanel pipeline={id} lines={logs ?? []} isRunning={isRunning} />
         )}
       </div>
       <div className="sg-wf-card-right">
-        <StatusChip state={state} info={info} />
+        <StatusChip state={chipState} info={info} findingCount={findingCount} />
 
         {disabled ? (
           <button className="sg-wf-btn sg-wf-btn-disabled" disabled title={disabledHint}>
@@ -183,7 +206,7 @@ function PipelineCard({
             </button>
 
             {/* Post-run actions */}
-            {isFailed && (
+            {showPlan && (
               <button
                 className="sg-wf-btn sg-wf-btn-plan"
                 onClick={handlePlan}
@@ -192,16 +215,18 @@ function PipelineCard({
                 Plan
               </button>
             )}
-            {isFailed && canHeal && (
+            {showHeal && (
               <button
                 className="sg-wf-btn sg-wf-btn-fix"
-                onClick={() => runPipeline('heal')}
-                title="Auto-heal failing tests with LLM assistance"
+                onClick={() => runPipeline('heal', ['--pipeline', id])}
+                title={hasFindings
+                  ? `${findingCount} finding(s) — heal will fix and auto-commit`
+                  : 'Auto-heal failing tests with LLM assistance (auto-commits on success)'}
               >
                 Heal
               </button>
             )}
-            {isDone && canCommit && (
+            {showCommit && (
               <button
                 className="sg-wf-btn sg-wf-btn-commit"
                 onClick={() => runPipeline('commit', ['--pipeline', id])}
@@ -227,6 +252,34 @@ function SectionHeading({ title, sub }: { title: string; sub: string }) {
     <div className="sg-wf-section-head">
       <span className="sg-wf-section-title">{title}</span>
       <span className="sg-wf-section-sub">{sub}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PipelineGroup — collapsible group of pipeline cards
+// ---------------------------------------------------------------------------
+
+function PipelineGroup({ id, title, sub, defaultOpen, children }: {
+  id: string;
+  title: string;
+  sub: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? true);
+  return (
+    <div className="sg-wf-group" id={`sg-group-${id}`}>
+      <button
+        className="sg-wf-group-header"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className="sg-wf-group-chevron">{open ? '▾' : '▸'}</span>
+        <span className="sg-wf-group-title">{title}</span>
+        <span className="sg-wf-group-sub">{sub}</span>
+      </button>
+      {open && <div className="sg-wf-group-body">{children}</div>}
     </div>
   );
 }
@@ -382,15 +435,19 @@ function FixPlanPanel({ plan, onApprove, onReject }: {
 // Main FlowView
 // ---------------------------------------------------------------------------
 
-// Pipelines that generate test output and can be healed automatically.
-const HEALABLE_PIPELINES = new Set(['generate', 'security', 'validate', 'heal']);
-// Pipelines whose output is worth committing immediately after success.
+// Pipelines that can be healed after failure OR after a pass-with-findings.
+// After a successful heal, the host auto-commits so no Commit button is needed.
+const HEALABLE_PIPELINES = new Set([
+  'generate', 'security', 'validate', 'heal',
+  'deps', 'quality', 'drift',
+]);
+// Pipelines whose clean-pass output (findingCount === 0) is worth committing.
 const COMMITTABLE_PIPELINES = new Set([
   'generate', 'security', 'docs', 'drift', 'matrix', 'reverse', 'gap-analysis',
   'heal', 'validate', 'quality', 'deps',
 ]);
 
-export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknown) => void }) {
+export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: DashboardEvent) => void }) {
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
   const [triggeredPipelines, setTriggeredPipelines] = useState<Set<string>>(new Set());
   const prevNodeStates = useRef<Record<string, NodeState>>({});
@@ -505,23 +562,10 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
           <div className="sg-wf-bootstrap">
             <div className="sg-wf-bootstrap-option">
               <ArrowFlow steps={['Source code', 'reverse', 'Specs']} />
-              <div style={{ marginTop: 8 }}>
-                {card('reverse', 'reverse', 'Reads your source code and generates Living Specs. Best for brownfield projects.', { destructive: true })}
-              </div>
             </div>
             <div className="sg-wf-bootstrap-sep">or</div>
             <div className="sg-wf-bootstrap-option">
               <ArrowFlow steps={['PRD / Jira / MD', 'import', 'Specs']} />
-              <div style={{ marginTop: 8 }}>
-                <PipelineCard
-                  id="import"
-                  label="import"
-                  description="Converts a PRD, Jira ticket, or doc into a spec. Click Run to pick a file."
-                  state="idle"
-                  selectedLog={selectedLog}
-                  onSelectLog={setSelectedLog}
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -567,47 +611,79 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
           />
         )}
 
-        <div className="sg-wf-pipeline-grid">
-          {/* Phase 1 — Spec Creation */}
-          {card('reverse', 'reverse', 'Generate Living Specs from source code (re-run to pick up new files)', { destructive: true })}
-          <PipelineCard
-            id="gap-analysis"
-            label="gap-analysis"
-            description="Detect unimplemented specs and generate implementation plans for your coding agent"
-            state={state('gap-analysis')}
-            info={info('gap-analysis')}
-            logs={logs('gap-analysis')}
-            selectedLog={selectedLog}
-            onSelectLog={setSelectedLog}
-            highlighted={triggeredPipelines.has('gap-analysis')}
-            canHeal={false}
-            canCommit={COMMITTABLE_PIPELINES.has('gap-analysis')}
-            destructive
-            extraActions={
-              <button
-                className="sg-wf-btn"
-                style={{ borderColor: '#3a5a5a', color: '#4fc3f7' }}
-                onClick={() => vscodeApi.postMessage({ type: 'openFile', path: '.specguard/plans' })}
-                title="Open the .specguard/plans/ directory to view generated implementation plans"
-              >
-                Open Plans
-              </button>
-            }
-          />
+        <div className="sg-wf-groups">
 
-          {/* Phase 2 — Generation (write artifacts from specs) */}
-          {card('generate', 'generate', 'Generate test code from specs', { destructive: true })}
-          {card('security', 'security', 'Generate security tests and run SAST analysis', { destructive: true })}
-          {card('docs', 'docs', 'Generate user-facing documentation from specs', { destructive: true })}
+          {/* ── Specs group ──────────────────────────────────────────────── */}
+          <PipelineGroup id="specs" title="Specs" sub="create and refine Living Specification files" defaultOpen>
+            <div className="sg-wf-pipeline-grid">
+              {card('reverse', 'reverse', 'Generate Living Specs from source code (re-run to pick up new files)', { destructive: true })}
+              <PipelineCard
+                id="import"
+                label="import"
+                description="Convert a PRD, Jira ticket, or Markdown doc into a Living Spec"
+                state={state('import')}
+                info={info('import')}
+                logs={logs('import')}
+                selectedLog={selectedLog}
+                onSelectLog={setSelectedLog}
+                highlighted={triggeredPipelines.has('import')}
+                canHeal={false}
+                canCommit={false}
+                destructive
+              />
+              <PipelineCard
+                id="gap-analysis"
+                label="gap-analysis"
+                description="Detect unimplemented specs and generate implementation plans for your coding agent"
+                state={state('gap-analysis')}
+                info={info('gap-analysis')}
+                logs={logs('gap-analysis')}
+                selectedLog={selectedLog}
+                onSelectLog={setSelectedLog}
+                highlighted={triggeredPipelines.has('gap-analysis')}
+                canHeal={false}
+                canCommit={COMMITTABLE_PIPELINES.has('gap-analysis')}
+                destructive
+                extraActions={
+                  <button
+                    className="sg-wf-btn"
+                    style={{ borderColor: '#3a5a5a', color: '#4fc3f7' }}
+                    onClick={() => vscodeApi.postMessage({ type: 'openFile', path: '.specguard/plans' })}
+                    title="Open the .specguard/plans/ directory to view generated implementation plans"
+                  >
+                    Open Plans
+                  </button>
+                }
+              />
+            </div>
+          </PipelineGroup>
 
-          {/* Phase 3 — Validation (check what exists) */}
-          {card('validate', 'validate', 'Validate specs against your running app via browser automation', { destructive: true })}
-          {card('drift', 'drift', 'Detect specs that have drifted out of sync with source code')}
-          {card('matrix', 'matrix', 'Build traceability matrix linking specs → tests → docs')}
+          {/* ── Tests group ──────────────────────────────────────────────── */}
+          <PipelineGroup id="tests" title="Tests" sub="generate, validate, and track test quality" defaultOpen>
+            <div className="sg-wf-pipeline-grid">
+              {card('quality', 'quality', 'Run ESLint and dead-code checks (Knip)')}
+              {card('validate', 'validate', 'Validate specs against your running app via browser automation', { destructive: true })}
+              {card('drift', 'drift', 'Detect specs that have drifted out of sync with source code')}
+              {card('generate', 'generate', 'Generate test code from specs', { destructive: true })}
+            </div>
+          </PipelineGroup>
 
-          {/* Phase 4 — Code Health (independent of specs) */}
-          {card('quality', 'quality', 'Run ESLint and dead-code checks (Knip)')}
-          {card('deps', 'deps', 'Audit dependencies for vulnerabilities and unused packages')}
+          {/* ── Security group ───────────────────────────────────────────── */}
+          <PipelineGroup id="security" title="Security" sub="dependency audit, SAST, and security tests" defaultOpen>
+            <div className="sg-wf-pipeline-grid">
+              {card('deps', 'deps', 'Audit dependencies for vulnerabilities and unused packages')}
+              {card('security', 'security', 'Generate security tests and run SAST analysis', { destructive: true })}
+            </div>
+          </PipelineGroup>
+
+          {/* ── Docs group ───────────────────────────────────────────────── */}
+          <PipelineGroup id="docs" title="Docs" sub="traceability matrix and user-facing documentation" defaultOpen>
+            <div className="sg-wf-pipeline-grid">
+              {card('matrix', 'matrix', 'Build traceability matrix linking specs → tests → docs')}
+              {card('docs', 'docs', 'Generate user-facing documentation from specs', { destructive: true })}
+            </div>
+          </PipelineGroup>
+
         </div>
       </div>
 
