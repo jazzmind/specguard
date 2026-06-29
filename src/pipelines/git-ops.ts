@@ -35,6 +35,16 @@ export interface GitOpsOpts {
   app?: string;
   /** Override the default set of safe root prefixes. Relative to workspaceRoot. */
   scope?: string[];
+  /**
+   * Context from the originating pipeline, used to produce a descriptive
+   * conventional-commit message and a changelog entry.
+   */
+  context?: {
+    /** Pipeline that produced the output being committed, e.g. `generate`. */
+    pipeline: string;
+    /** One-sentence summary of what was done, e.g. "generated tests for 5 specs". */
+    summary?: string;
+  };
 }
 
 /** Seam for test stubbing. */
@@ -136,12 +146,19 @@ export async function runGitOps(
     return result;
   }
 
-  // Build commit message
+  // Build commit message — use conventional-commit style when pipeline context is provided.
   const changedRoots = [...new Set(toStage.map((f) => f.split('/')[0]))].join(', ');
   const autoSummary = `${toStage.length} file(s) in ${changedRoots}`;
-  const commitMsg = opts.message
-    ? `specguard: ${opts.message}`
-    : `specguard: generated — ${autoSummary}`;
+  let commitMsg: string;
+  if (opts.context?.pipeline) {
+    const scope = opts.context.pipeline;
+    const body = opts.message ?? opts.context.summary ?? autoSummary;
+    commitMsg = `specguard(${scope}): ${body}`;
+  } else if (opts.message) {
+    commitMsg = `specguard: ${opts.message}`;
+  } else {
+    commitMsg = `specguard: generated — ${autoSummary}`;
+  }
 
   // Commit
   const commitResult = gitRunner.exec(['commit', '-m', commitMsg], cwd);
@@ -155,5 +172,59 @@ export async function runGitOps(
   log(`[git-ops] committed: ${shortHash} — ${commitMsg}`);
 
   result.created = toStage.length;
+
+  // Append to the append-only changelog.
+  _appendChangelog(cwd, {
+    hash: shortHash,
+    message: commitMsg,
+    pipeline: opts.context?.pipeline,
+    files: toStage,
+    timestamp: new Date().toISOString(),
+  });
+
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Changelog helper
+// ---------------------------------------------------------------------------
+
+interface ChangelogEntry {
+  hash: string;
+  message: string;
+  pipeline?: string;
+  files: string[];
+  timestamp: string;
+}
+
+/**
+ * Append a single entry to `.specguard/changelog.md`.
+ * The file is append-only — never truncated — so every commit is tracked.
+ */
+function _appendChangelog(cwd: string, entry: ChangelogEntry): void {
+  try {
+    const fs = require('fs') as typeof import('fs');
+    const nodePath = require('path') as typeof import('path');
+    const changelogPath = nodePath.join(cwd, '.specguard', 'changelog.md');
+    const isNew = !fs.existsSync(changelogPath);
+
+    const lines: string[] = [];
+    if (isNew) {
+      lines.push('# SpecGuard Changelog', '', '_Append-only log of every SpecGuard commit. Do not edit manually._', '', '---', '');
+    }
+    lines.push(
+      `## ${entry.hash} · ${entry.timestamp}`,
+      '',
+      `**Message:** \`${entry.message}\``,
+      entry.pipeline ? `**Pipeline:** \`${entry.pipeline}\`` : '',
+      '',
+      `**Files committed (${entry.files.length}):**`,
+      ...entry.files.map((f) => `- \`${f}\``),
+      '',
+      '---',
+      '',
+    );
+
+    fs.appendFileSync(changelogPath, lines.filter((l) => l !== undefined).join('\n'));
+  } catch { /* best-effort — never block a commit for a changelog write failure */ }
 }

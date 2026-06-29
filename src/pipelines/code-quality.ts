@@ -176,5 +176,46 @@ export async function runCodeQuality(
     result.exitCode = ExitCode.ValidationFailed;
   }
 
+  // Write an agent-consumable fix plan when issues are found.
+  if (allFindings.length > 0) {
+    try {
+      const { writePlan } = await import('../core/plan-writer.js');
+      const errors = allFindings.filter((f) => f.severity === 'error');
+      const warnings = allFindings.filter((f) => f.severity === 'warning');
+      const deadCode = allFindings.filter((f) => f.category === 'dead-code' || f.category === 'unused-dep');
+      writePlan({
+        pipeline: 'quality',
+        title: `Fix Code Quality Issues — ${errors.length} error(s), ${warnings.length} warning(s)`,
+        summary: `The quality pipeline found ${allFindings.length} issue(s). ` +
+          `Fix ESLint errors first (they block CI), then address dead-code/unused-dep warnings.`,
+        sections: [
+          {
+            heading: 'ESLint Errors (must fix)',
+            items: errors.slice(0, 20).map((f) => `\`${f.file}:${f.line ?? '?'}\` — ${f.rule}: ${f.message}`),
+          },
+          {
+            heading: 'Warnings',
+            items: warnings.slice(0, 15).map((f) => `\`${f.file}\` — ${f.rule}: ${f.message}`),
+          },
+          {
+            heading: 'Dead Code / Unused Deps',
+            items: deadCode.slice(0, 15).map((f) => `\`${f.file}\` — ${f.message}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Address each ESLint error listed above — most have auto-fix via `eslint --fix`.',
+              'Remove or export unused code identified by Knip.',
+              'Remove unused dependencies: `npm uninstall <package>`.',
+              'Run `specguard quality` to confirm all issues are resolved.',
+            ],
+          },
+        ],
+        rootDir: config.rootDir ?? process.cwd(),
+      });
+    } catch { /* best-effort */ }
+  }
+
   return result;
 }

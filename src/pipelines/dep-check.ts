@@ -189,5 +189,46 @@ export async function runDepCheck(
     result.exitCode = ExitCode.SecurityIssues;
   }
 
+  if (allFindings.length > 0) {
+    try {
+      const { writePlan } = await import('../core/plan-writer.js');
+      const vulns = allFindings.filter((f) => f.category === 'vulnerability');
+      const unused = allFindings.filter((f) => f.category === 'unused-dep' || f.category === 'unused-dev-dep');
+      const missing = allFindings.filter((f) => f.category === 'missing-dep');
+      writePlan({
+        pipeline: 'deps',
+        title: `Fix Dependency Issues — ${vulns.length} vuln(s), ${unused.length} unused`,
+        summary: `The deps pipeline found ${vulns.length} vulnerability/ies and ${unused.length} unused package(s). ` +
+          `Address critical/high vulnerabilities immediately; remove unused deps to reduce attack surface.`,
+        sections: [
+          {
+            heading: 'Vulnerabilities (by severity)',
+            items: vulns.slice(0, 20).map((f) => `[${f.severity.toUpperCase()}] \`${f.name}\` — ${f.message}`),
+          },
+          {
+            heading: 'Unused Dependencies',
+            items: unused.slice(0, 15).map((f) => `\`${f.name}\` — ${f.message}`),
+          },
+          {
+            heading: 'Missing Dependencies',
+            items: missing.slice(0, 10).map((f) => `\`${f.name}\` — ${f.message}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Update vulnerable packages: `npm audit fix` (or `npm audit fix --force` for breaking changes).',
+              'Manually update packages that `audit fix` cannot resolve automatically.',
+              'Remove unused dev dependencies: `npm uninstall --save-dev <package>`.',
+              'Add any missing runtime dependencies: `npm install <package>`.',
+              'Run `specguard deps` to confirm no remaining issues.',
+            ],
+          },
+        ],
+        rootDir: config.rootDir ?? process.cwd(),
+      });
+    } catch { /* best-effort */ }
+  }
+
   return result;
 }

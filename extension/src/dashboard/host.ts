@@ -92,6 +92,16 @@ export class DashboardHost {
     if (cmd.type === 'cancel') return this._cancelPipeline(cmd.pipeline);
     if (cmd.type === 'runSequence') return this._runSequence(cmd.pipelines);
     if (cmd.type === 'runSequenceBatch') return this._runSequenceBatch(cmd.pipelines);
+    if (cmd.type === 'clearActivity') {
+      if (cmd.scope === 'completed') {
+        this.activityLog.clearCompleted();
+      } else {
+        this.activityLog.clearAll();
+      }
+      this.lastActivityCount = -1; // force re-push
+      this._pushActivityLog();
+      return;
+    }
   }
 
   private async _runImportWithPicker(): Promise<void> {
@@ -174,6 +184,7 @@ export class DashboardHost {
         source: 'extension',
         durationMs: Date.now() - startMs,
         message: cancelled ? 'cancelled by user' : `exit code ${code}`,
+        logLines: collectedLines,
       });
 
       // Pipeline-specific post-run: read JSON output files and push rich events
@@ -266,7 +277,7 @@ export class DashboardHost {
           type: 'pipeline:lastRun',
           info: { pipeline: p, status: ok ? 'pass' : 'fail', exitCode: code, finishedAt: new Date().toISOString(), tail: collectedLines.filter((l) => l.trim()).slice(-5) },
         });
-        this.activityLog.append({ pipeline: p, status: cancelled ? 'error' : ok ? 'pass' : 'fail', source: 'extension', durationMs: Date.now() - startMs, message: cancelled ? 'cancelled by user' : `exit code ${code}` });
+        this.activityLog.append({ pipeline: p, status: cancelled ? 'error' : ok ? 'pass' : 'fail', source: 'extension', durationMs: Date.now() - startMs, message: cancelled ? 'cancelled by user' : `exit code ${code}`, logLines: collectedLines });
       } catch (err) {
         this.activeRuns.delete(p);
         const msg = err instanceof Error ? err.message : String(err);

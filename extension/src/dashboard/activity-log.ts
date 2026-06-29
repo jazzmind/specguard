@@ -30,6 +30,8 @@ export interface ActivityEntry {
   message?: string;
   durationMs?: number;
   counts?: { created?: number; updated?: number; skipped?: number; failed?: number };
+  /** Full log output captured during this run. */
+  logLines?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -112,13 +114,35 @@ export class ActivityLogService {
   // ---------------------------------------------------------------------------
 
   /**
+   * Remove all entries from the in-memory buffer and the log file.
+   * Active runs (currently `running`) are preserved unless `includeRunning` is true.
+   */
+  clearAll(includeRunning = false): void {
+    this.entries = includeRunning
+      ? []
+      : this.entries.filter((e) => e.status === 'running');
+    this._overwriteFile();
+  }
+
+  /**
+   * Remove all non-running entries (pass/fail/error/info) from the buffer and file.
+   */
+  clearCompleted(): void {
+    this.entries = this.entries.filter((e) => e.status === 'running');
+    this._overwriteFile();
+  }
+
+  /**
    * After loading from file, mark any `running` entry that has no later
    * terminal (pass/fail/error) entry for the same pipeline+source as stale.
+   * Also marks running entries older than 2 hours as stale regardless of context.
    * This handles crashes / hard restarts where the completion was never written.
    */
   private _reconcileStaleRunning(): void {
     const terminal = new Set<ActivityStatus>(['pass', 'fail', 'error']);
     const terminatedKeys = new Set<string>();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    const now = Date.now();
 
     // Walk newest-first to build the set of pipelines that did complete.
     for (let i = this.entries.length - 1; i >= 0; i--) {
@@ -128,21 +152,30 @@ export class ActivityLogService {
 
     let changed = false;
     for (const e of this.entries) {
-      if (e.status === 'running' && !terminatedKeys.has(`${e.pipeline}::${e.source}`)) {
-        e.status = 'error';
-        e.message = 'stale — never completed (extension restarted)';
-        changed = true;
+      if (e.status === 'running') {
+        const isStaleByContext = !terminatedKeys.has(`${e.pipeline}::${e.source}`);
+        const isStaleByAge = (now - e.timestamp) > TWO_HOURS_MS;
+        if (isStaleByContext || isStaleByAge) {
+          e.status = 'error';
+          e.message = isStaleByAge
+            ? 'stale — started >2h ago (likely from a previous session)'
+            : 'stale — never completed (extension restarted)';
+          changed = true;
+        }
       }
     }
 
     if (changed) {
-      // Persist the corrected state
-      try {
-        const dir = path.dirname(this.logFile);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(this.logFile, JSON.stringify(this.entries, null, 2), 'utf-8');
-      } catch { /* best-effort */ }
+      this._overwriteFile();
     }
+  }
+
+  private _overwriteFile(): void {
+    try {
+      const dir = path.dirname(this.logFile);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(this.logFile, JSON.stringify(this.entries, null, 2), 'utf-8');
+    } catch { /* best-effort */ }
   }
 
   /** Find the index of the most-recent `running` entry for this pipeline+source. */

@@ -777,5 +777,38 @@
     "pipeline": "commit",
     "status": "running",
     "source": "extension"
+  },
+  {
+    "id": "1782697768892-db038",
+    "timestamp": 1782697768892,
+    "pipeline": "commit",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 1070,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782697790246-stg5a",
+    "timestamp": 1782697790246,
+    "pipeline": "analyze",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782697801053-cr47s",
+    "timestamp": 1782697801053,
+    "pipeline": "analyze",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 10807,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782697859393-blx5b",
+    "timestamp": 1782697859393,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
   }
 ]

@@ -12,6 +12,8 @@ export interface ActivityEntry {
   message?: string;
   durationMs?: number;
   counts?: { created?: number; updated?: number; skipped?: number; failed?: number };
+  /** Full log output captured during this run. */
+  logLines?: string[];
 }
 
 export interface CoverageItem { app: string; key: string; hasSpec: boolean; hasTest: boolean; specPath?: string; }
@@ -103,7 +105,8 @@ export type DashboardCommand =
   | { type: 'runSequence'; pipelines: string[] }
   | { type: 'runSequenceBatch'; pipelines: string[] }
   | { type: 'refresh' }
-  | { type: 'openFile'; path: string };
+  | { type: 'openFile'; path: string }
+  | { type: 'clearActivity'; scope: 'all' | 'completed' };
 
 /**
  * A node in the system-flow graph.
@@ -176,6 +179,18 @@ export const PIPELINE_NODES: PipelineNode[] = [
   {
     id: 'commit', label: 'commit', kind: 'pipeline', from: ['tests', 'user-docs', 'traceability'],
     description: 'Stage and commit all SpecGuard-generated files',
+  },
+  {
+    id: 'gap-analysis', label: 'gap-analysis', kind: 'pipeline', from: ['specs'],
+    description: 'Detect unimplemented specs and generate implementation plans',
+  },
+  {
+    id: 'analyze', label: 'analyze', kind: 'pipeline', from: ['specs', 'code'],
+    description: 'Run all diagnostic checks and get prioritised pipeline recommendations',
+  },
+  {
+    id: 'plan-fix', label: 'plan-fix', kind: 'pipeline', from: ['specs'],
+    description: 'Generate an agent-consumable fix plan from pipeline findings',
   },
 ];
 

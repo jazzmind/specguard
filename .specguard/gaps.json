@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T01:47:58.447Z",
+  "generatedAt": "2026-06-29T01:49:50.798Z",
   "gaps": [
     {
       "specKey": "specguard-core/cli",
@@ -7,8 +7,7 @@
       "appName": "specguard-core",
       "status": "unimplemented",
       "uncheckedCriteria": 8,
-      "totalCriteria": 8,
-      "planPath": "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/.specguard/plans/cli.md"
+      "totalCriteria": 8
     },
     {
       "specKey": "specguard-core/config",
@@ -24,8 +23,7 @@
       "appName": "specguard-core",
       "status": "unimplemented",
       "uncheckedCriteria": 14,
-      "totalCriteria": 14,
-      "planPath": "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/.specguard/plans/extension.md"
+      "totalCriteria": 14
     },
     {
       "specKey": "specguard-core/llm",
@@ -41,8 +39,7 @@
       "appName": "specguard-core",
       "status": "unimplemented",
       "uncheckedCriteria": 8,
-      "totalCriteria": 8,
-      "planPath": "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/.specguard/plans/mcp-server.md"
+      "totalCriteria": 8
     },
     {
       "specKey": "specguard-core/spec-parser",

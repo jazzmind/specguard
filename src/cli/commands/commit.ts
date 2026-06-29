@@ -8,6 +8,8 @@ export interface CommitCliOpts extends GlobalOpts {
   dryRun?: boolean;
   message?: string;
   app?: string;
+  /** Originating pipeline name for descriptive commit messages and changelog. */
+  pipeline?: string;
 }
 
 export async function commitCommand(opts: CommitCliOpts): Promise<void> {
@@ -16,6 +18,7 @@ export async function commitCommand(opts: CommitCliOpts): Promise<void> {
     dryRun: opts.dryRun,
     message: opts.message,
     app: opts.app,
+    context: opts.pipeline ? { pipeline: opts.pipeline, summary: opts.message } : undefined,
   });
 
   for (const line of result.messages) {
