@@ -275,5 +275,72 @@
     "pipeline": "commit",
     "status": "running",
     "source": "extension"
+  },
+  {
+    "id": "1782730946372-39vxe",
+    "timestamp": 1782730946372,
+    "pipeline": "commit",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 701,
+    "message": "exit code 0",
+    "logLines": [
+      "[git-ops] skipped 2 file(s) outside safe scope:",
+      "  skip: extension/package.json",
+      "  skip: .DS_Store",
+      "[git-ops] staging 3 file(s):",
+      "  + .specguard/activity-log.json",
+      "  + .specguard/dep-check.json",
+      "  + .specguard/plans/deps.md",
+      "[git-ops] committed: c6e074e — specguard(deps): 3 file(s) in .specguard",
+      "commit: 3 file(s) staged"
+    ]
+  },
+  {
+    "id": "1782731019016-zrc8v",
+    "timestamp": 1782731019016,
+    "pipeline": "quality",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782731029299-xtakb",
+    "timestamp": 1782731029299,
+    "pipeline": "quality",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 10283,
+    "message": "exit code 0",
+    "logLines": [
+      "[quality] specguard-core: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-core: 0 errors, 0 warnings",
+      "[knip] specguard-core: 12 finding(s)",
+      "[quality] specguard-pipelines: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-pipelines: 0 errors, 0 warnings",
+      "[knip] specguard-pipelines: 12 finding(s)",
+      "[quality] specguard-adapters: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-adapters: 0 errors, 0 warnings",
+      "[knip] specguard-adapters: 12 finding(s)",
+      "[quality] specguard-cli: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-cli: 0 errors, 0 warnings",
+      "[knip] specguard-cli: 12 finding(s)",
+      "[quality] specguard-mcp: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-mcp: 0 errors, 0 warnings",
+      "[knip] specguard-mcp: 12 finding(s)",
+      "[quality] specguard-extension: running ESLint + Knip in /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent",
+      "[eslint] specguard-extension: 0 errors, 0 warnings",
+      "[knip] specguard-extension: 12 finding(s)",
+      "[quality] wrote /Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/.specguard/code-quality.json",
+      "[quality] total: 0 error(s), 72 warning(s), 72 finding(s)",
+      "quality: 72 finding(s) — 0 error(s)"
+    ]
+  },
+  {
+    "id": "1782731526309-i5b2g",
+    "timestamp": 1782731526310,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
   }
 ]

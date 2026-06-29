@@ -148,6 +148,11 @@
         "command": "specguard.switchProject",
         "title": "SpecGuard: Switch Project",
         "icon": "$(folder-active)"
+      },
+      {
+        "command": "specguard.updateProject",
+        "title": "SpecGuard: Update Project Files",
+        "icon": "$(cloud-download)"
       }
     ],
     "menus": {
@@ -203,24 +208,32 @@
           "id": "specguard.dashboardView",
           "name": "Dashboard",
           "icon": "$(graph)",
+          "tooltip": "SpecGuard Dashboard",
+          "description": "View coverage trends, run pipelines, and manage your Living Specs.",
           "type": "tree"
         },
         {
           "id": "specguard.coverageView",
           "name": "Coverage",
-          "icon": "$(shield)"
+          "icon": "$(shield)",
+          "tooltip": "SpecGuard Coverage",
+          "description": "View per-app spec coverage and test counts.",
+          "type": "tree"
         },
         {
           "id": "specguard.pipelinesView",
           "name": "Pipelines",
-          "icon": "$(play-circle)"
+          "icon": "$(play-circle)",
+          "tooltip": "SpecGuard Pipelines",
+          "description": "View pipeline status and run pipelines.",
+          "type": "tree"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "specguard.dashboardView",
-        "contents": "$(graph) **SpecGuard Dashboard**\nView coverage trends, run pipelines, and manage your Living Specs.\n[Open Dashboard](command:specguard.openDashboard)\n[Switch Project](command:specguard.switchProject)"
+        "contents": "[Open Dashboard](command:specguard.openDashboard)\n[Switch Project](command:specguard.switchProject)\n[Update Project Files](command:specguard.updateProject)"
       },
       {
         "view": "specguard.coverageView",

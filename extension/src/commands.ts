@@ -2,13 +2,13 @@
  * VS Code command handlers for SpecGuard extension.
  */
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import type { CoverageProvider } from './sidebar.js';
 import { registerMcpForCursor } from './mcp-registration.js';
-import { openDashboardPanel } from './dashboard/panel.js';
+import { openDashboardPanel, openAndRun } from './dashboard/panel.js';
 import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot } from './workspace-state.js';
+import { forceUpdateProjectFiles } from './project-updater.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -70,9 +70,7 @@ export function registerCommands(
   // --- specguard.drift ------------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.drift', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'drift', 'SpecGuard Drift');
+      void openAndRun(context, 'drift');
     }),
   );
 
@@ -80,133 +78,92 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.generateTests', async (uri?: vscode.Uri) => {
       const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-
-      let specKey: string | undefined;
-      if (uri) {
-        specKey = deriveSpecKey(ws, uri.fsPath);
-      } else {
-        specKey = await vscode.window.showInputBox({
-          prompt: 'Enter spec key (e.g. core/parser) or leave blank for --all',
-          placeHolder: 'core/parser',
-        });
+      let specArgs: string[] | undefined;
+      if (uri && ws) {
+        const key = deriveSpecKey(ws, uri.fsPath);
+        if (key) specArgs = ['--spec', key];
       }
-
-      const args = specKey ? `generate --spec ${specKey}` : 'generate --all';
-      runInTerminal(ws, args, 'SpecGuard Generate');
+      void openAndRun(context, 'generate', specArgs);
     }),
   );
 
   // --- specguard.runTests ---------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.runTests', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'test --all', 'SpecGuard Run Tests');
+      void openAndRun(context, 'validate');
     }),
   );
 
   // --- specguard.qualityCheck -----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.qualityCheck', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'quality --all', 'SpecGuard Quality');
+      void openAndRun(context, 'quality');
     }),
   );
 
   // --- specguard.validateFunctional -----------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctional', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'validate --all', 'SpecGuard Validate');
+      void openAndRun(context, 'validate');
     }),
   );
 
   // --- specguard.validateFunctionalAll --------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctionalAll', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'validate --all', 'SpecGuard Validate (All)');
+      void openAndRun(context, 'validate');
     }),
   );
 
   // --- specguard.validateFunctionalIntegration ------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctionalIntegration', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'validate --type integration', 'SpecGuard Validate (Integration)');
+      void openAndRun(context, 'validate', ['--type', 'integration']);
     }),
   );
 
   // --- specguard.validateFunctionalE2E --------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctionalE2E', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'validate --type e2e', 'SpecGuard Validate (E2E)');
+      void openAndRun(context, 'validate', ['--type', 'e2e']);
     }),
   );
 
   // --- specguard.importSpec -------------------------------------------------
+  // import uses the host's file-picker path — just open the dashboard and
+  // trigger the import pipeline (host handles the file dialog).
   context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.importSpec', async () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-
-      const source = await vscode.window.showInputBox({
-        prompt: 'Import spec from URL, file path, or leave blank for interactive',
-        placeHolder: 'https://docs.example.com/api or ./docs/PRD.md',
-      });
-
-      const args = source ? `import --source "${source}"` : 'import';
-      runInTerminal(ws, args, 'SpecGuard Import');
+    vscode.commands.registerCommand('specguard.importSpec', () => {
+      void openAndRun(context, 'import');
     }),
   );
 
   // --- specguard.reverseGenerate --------------------------------------------
   context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.reverseGenerate', async () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-
-      const app = await vscode.window.showInputBox({
-        prompt: 'App name (matches .specguard/config.json) or leave blank for --all',
-        placeHolder: 'my-app',
-      });
-
-      const args = app ? `reverse --app ${app}` : 'reverse --all';
-      runInTerminal(ws, args, 'SpecGuard Reverse');
+    vscode.commands.registerCommand('specguard.reverseGenerate', () => {
+      void openAndRun(context, 'reverse');
     }),
   );
 
   // --- specguard.gapAnalysis ------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.gapAnalysis', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'gap-analysis', 'SpecGuard Gap Analysis');
+      void openAndRun(context, 'gap-analysis');
     }),
   );
 
   // --- specguard.depsAudit --------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.depsAudit', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'deps', 'SpecGuard Deps Audit');
+      void openAndRun(context, 'deps');
     }),
   );
 
   // --- specguard.runSast ----------------------------------------------------
+  // SAST is a sub-mode of the security pipeline — run security with sast flag.
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.runSast', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'security --with-sast --all', 'SpecGuard SAST');
+      void openAndRun(context, 'security', ['--with-sast', '--all']);
     }),
   );
 
@@ -214,42 +171,33 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.securityScan', async (uri?: vscode.Uri) => {
       const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-
-      let specKey: string | undefined;
-      if (uri) {
-        specKey = deriveSpecKey(ws, uri.fsPath);
+      let specArgs: string[] | undefined;
+      if (uri && ws) {
+        const key = deriveSpecKey(ws, uri.fsPath);
+        if (key) specArgs = ['--spec', key];
       }
-
-      const args = specKey ? `security --spec ${specKey}` : 'security --all';
-      runInTerminal(ws, args, 'SpecGuard Security');
+      void openAndRun(context, 'security', specArgs);
     }),
   );
 
   // --- specguard.generateSecurityTests --------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.generateSecurityTests', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'generate --type security --all', 'SpecGuard Security Tests');
+      void openAndRun(context, 'security');
     }),
   );
 
   // --- specguard.matrix -----------------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.matrix', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'matrix', 'SpecGuard Matrix');
+      void openAndRun(context, 'matrix');
     }),
   );
 
   // --- specguard.generateDocs -----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.generateDocs', () => {
-      const ws = getActiveWorkspaceRoot();
-      if (!ws) return;
-      runInTerminal(ws, 'docs --all', 'SpecGuard Docs');
+      void openAndRun(context, 'docs');
     }),
   );
 
@@ -271,6 +219,18 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.openDashboard', () => openDashboardPanel(context)),
   );
+
+  // --- specguard.updateProject ----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.updateProject', async () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) {
+        vscode.window.showErrorMessage('SpecGuard: no workspace folder open.');
+        return;
+      }
+      await forceUpdateProjectFiles(context, ws);
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -283,12 +243,6 @@ async function resolveCliPath(workspaceRoot: string): Promise<string> {
   if (custom) return custom;
   const local = path.join(workspaceRoot, 'node_modules', '.bin', 'specguard');
   return fs.existsSync(local) ? local : 'npx specguard';
-}
-
-function runInTerminal(ws: string, args: string, name: string): void {
-  const terminal = vscode.window.createTerminal({ name, cwd: ws });
-  terminal.sendText(`npx specguard ${args}`);
-  terminal.show();
 }
 
 function deriveSpecKey(workspaceRoot: string, filePath: string): string | undefined {

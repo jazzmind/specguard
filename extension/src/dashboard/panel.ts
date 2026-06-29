@@ -8,8 +8,11 @@ import { getActiveWorkspaceRoot } from '../workspace-state.js';
 
 let panel: vscode.WebviewPanel | undefined;
 let currentHost: DashboardHost | undefined;
+/** Stored context so openAndRun can open the panel if needed. */
+let _context: vscode.ExtensionContext | undefined;
 
 export function openDashboardPanel(context: vscode.ExtensionContext): void {
+  _context = context;
   const workspaceRoot = getActiveWorkspaceRoot();
   if (!workspaceRoot) { vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.'); return; }
 
@@ -39,6 +42,42 @@ export function openDashboardPanel(context: vscode.ExtensionContext): void {
   host.start();
 
   panel.onDidDispose(() => { host.dispose(); panel = undefined; currentHost = undefined; }, null, context.subscriptions);
+}
+
+/**
+ * Open the dashboard (creating it if needed), navigate to the Pipelines tab,
+ * scroll to the given pipeline card, and trigger a run.
+ *
+ * Called from sidebar pipeline commands so the run is visible in the dashboard
+ * rather than buried in a terminal.
+ */
+export async function openAndRun(
+  context: vscode.ExtensionContext,
+  pipeline: string,
+  args?: string[],
+): Promise<void> {
+  _context = context;
+  const workspaceRoot = getActiveWorkspaceRoot();
+  if (!workspaceRoot) {
+    vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.');
+    return;
+  }
+
+  // Open or reveal the panel.
+  if (!panel || currentHost?.workspaceRoot !== workspaceRoot) {
+    openDashboardPanel(context);
+  } else {
+    panel?.reveal();
+  }
+
+  // Small delay so the webview has time to mount before we post messages.
+  await new Promise<void>((r) => setTimeout(r, 200));
+
+  // Navigate to the Pipelines tab and scroll to the card.
+  panel?.webview.postMessage({ type: 'navigate', tab: 'flow', scrollTo: pipeline });
+
+  // Trigger the run via the host (same path as clicking Run in the UI).
+  await currentHost?.handle({ type: 'run', pipeline, args });
 }
 
 function renderHtml(webview: vscode.Webview, extPath: string): string {
