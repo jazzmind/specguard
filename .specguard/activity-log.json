@@ -634,5 +634,148 @@
     "status": "pass",
     "source": "extension",
     "message": "no drift detected"
+  },
+  {
+    "id": "1782694369701-ooh5j",
+    "timestamp": 1782694369701,
+    "pipeline": "reverse",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694719090-afijb",
+    "timestamp": 1782694719090,
+    "pipeline": "reverse",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 349389,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782694719092-78buv",
+    "timestamp": 1782694719092,
+    "pipeline": "gap-analysis",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694760732-zy62q",
+    "timestamp": 1782694760732,
+    "pipeline": "validate",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694761256-73deo",
+    "timestamp": 1782694761256,
+    "pipeline": "validate",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 524,
+    "message": "exit code 0"
+  },
+  {
+    "id": "1782694790872-sn7ei",
+    "timestamp": 1782694790872,
+    "pipeline": "drift",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694795016-6jn3a",
+    "timestamp": 1782694795016,
+    "pipeline": "drift",
+    "status": "fail",
+    "source": "extension",
+    "durationMs": 4144,
+    "message": "exit code 3"
+  },
+  {
+    "id": "1782694809755-qh2rv",
+    "timestamp": 1782694809755,
+    "pipeline": "gap-analysis",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 90663,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782694827822-beori",
+    "timestamp": 1782694827822,
+    "pipeline": "analyze",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694839129-6ri0k",
+    "timestamp": 1782694839129,
+    "pipeline": "analyze",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 11307,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782694863782-sphxj",
+    "timestamp": 1782694863782,
+    "pipeline": "gap-analysis",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782694951077-b3dzb",
+    "timestamp": 1782694951077,
+    "pipeline": "gap-analysis",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 87295,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782696036682-utqbx",
+    "timestamp": 1782696036682,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782696282735-k06h3",
+    "timestamp": 1782696282735,
+    "pipeline": "drift",
+    "status": "info",
+    "source": "extension",
+    "message": "[drift] 36 file(s) changed in HEAD~1..HEAD; [drift] specguard-core/cli: no drift; [drift] specguard-core/config: no drift; [drift] specguard-core/drift-registry: no drift; [drift] specguard-core/errors: no drift; [drift] specguard-core/exit-codes: no drift; [drift] specguard-core/extension: no drift; [drift] specguard-core/llm: no drift; [drift] specguard-core/mcp-server: no drift; [drift] specguard-core/reader: no drift; [drift] specguard-core/spec-parser: no drift; [drift] specguard-core/types: no drift; [drift] specguard-core/writer: no drift; [drift] specguard-pipelines/analyze: no drift; [drift] specguard-pipelines/code-quality: no drift; [drift] specguard-pipelines/dep-check: no drift; [drift] specguard-pipelines/doc-generate: no drift; [drift] specguard-pipelines/drift: hash changed in src/pipelines/drift.ts — checking semantics…; [drift] specguard-pipelines/drift — semantic drift detected: The diff replaces the mtime-based drift detection logic (described in the spec) with a hash-registry + LLM semantic comparison approach, adds new `force` and `mtime` opts, and introduces new dependencies — fundamentally changing the behaviour the spec describes across multiple acceptance criteria (mtime comparison, missing spec = drift, changed files mapping, etc.).; [drift] specguard-pipelines/forward-generate: no drift; [drift] specguard-pipelines/gap-analysis: hash changed in src/pipelines/gap-analysis.ts — checking semantics…; [drift] specguard-pipelines/gap-analysis — no semantic drift (The diff introduces a new implementation file that directly implements the behaviours described in the spec (gap statuses, LLM plan generation, file paths, exit codes, filtering logic) without adding, removing, or changing any of the specified acceptance criteria.); [drift] specguard-pipelines/gap-analysis: no drift; [drift] specguard-pipelines/git-ops: no drift; [drift] specguard-pipelines/heal: no drift; [drift] specguard-pipelines/import: no drift; [drift] specguard-pipelines/matrix: no drift; [drift] specguard-pipelines/plan-fix: no drift; [drift] specguard-pipelines/reverse-generate: no drift; [drift] specguard-pipelines/security: no drift; [drift] specguard-pipelines/status: no drift; [drift] specguard-pipelines/validate: no drift; [drift] specguard-adapters/auth-state-machine: no drift; [drift] specguard-adapters/depcheck: no drift; [drift] specguard-adapters/docker: no drift; [drift] specguard-adapters/eslint: no drift; [drift] specguard-adapters/guardrails: no drift; [drift] specguard-adapters/knip: no drift; [drift] specguard-adapters/npm-audit: no drift; [drift] specguard-adapters/playwright: no drift; [drift] fix plan written to .specguard/plans/"
+  },
+  {
+    "id": "1782696345684-l4lbn",
+    "timestamp": 1782696345684,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782697588495-s8lmf",
+    "timestamp": 1782697588495,
+    "pipeline": "gap-analysis",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782697678464-ra09w",
+    "timestamp": 1782697678464,
+    "pipeline": "gap-analysis",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 89969,
+    "message": "exit code 4"
+  },
+  {
+    "id": "1782697767822-mj824",
+    "timestamp": 1782697767822,
+    "pipeline": "commit",
+    "status": "running",
+    "source": "extension"
   }
 ]

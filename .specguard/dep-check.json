@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T00:31:28.919Z",
+  "generatedAt": "2026-06-29T01:00:39.114Z",
   "apps": [
     {
       "name": "specguard-core",
@@ -64,6 +64,20 @@
           "source": "npm-audit"
         },
         {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
           "name": "src",
           "severity": "info",
           "category": "missing-dep",
@@ -75,18 +89,6 @@
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-          ]
-        },
-        {
-          "name": "specguard-core",
-          "severity": "info",
-          "category": "missing-dep",
-          "message": "Missing dependency (not in package.json): specguard-core",
-          "rule": "missing-dep",
-          "source": "depcheck",
-          "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
         }
       ]
@@ -154,6 +156,20 @@
           "source": "npm-audit"
         },
         {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
           "name": "src",
           "severity": "info",
           "category": "missing-dep",
@@ -165,18 +181,6 @@
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-          ]
-        },
-        {
-          "name": "specguard-core",
-          "severity": "info",
-          "category": "missing-dep",
-          "message": "Missing dependency (not in package.json): specguard-core",
-          "rule": "missing-dep",
-          "source": "depcheck",
-          "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
         }
       ]
@@ -244,6 +248,20 @@
           "source": "npm-audit"
         },
         {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
           "name": "src",
           "severity": "info",
           "category": "missing-dep",
@@ -255,18 +273,6 @@
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
             "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-          ]
-        },
-        {
-          "name": "specguard-core",
-          "severity": "info",
-          "category": "missing-dep",
-          "message": "Missing dependency (not in package.json): specguard-core",
-          "rule": "missing-dep",
-          "source": "depcheck",
-          "usedIn": [
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
           ]
         }
       ]
@@ -330,6 +336,20 @@
       "source": "npm-audit"
     },
     {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
       "name": "src",
       "severity": "info",
       "category": "missing-dep",
@@ -341,18 +361,6 @@
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-      ]
-    },
-    {
-      "name": "specguard-core",
-      "severity": "info",
-      "category": "missing-dep",
-      "message": "Missing dependency (not in package.json): specguard-core",
-      "rule": "missing-dep",
-      "source": "depcheck",
-      "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
     },
     {
@@ -412,6 +420,20 @@
       "source": "npm-audit"
     },
     {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
       "name": "src",
       "severity": "info",
       "category": "missing-dep",
@@ -423,18 +445,6 @@
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-      ]
-    },
-    {
-      "name": "specguard-core",
-      "severity": "info",
-      "category": "missing-dep",
-      "message": "Missing dependency (not in package.json): specguard-core",
-      "rule": "missing-dep",
-      "source": "depcheck",
-      "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
     },
     {
@@ -494,6 +504,20 @@
       "source": "npm-audit"
     },
     {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
       "name": "src",
       "severity": "info",
       "category": "missing-dep",
@@ -505,18 +529,6 @@
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
-      ]
-    },
-    {
-      "name": "specguard-core",
-      "severity": "info",
-      "category": "missing-dep",
-      "message": "Missing dependency (not in package.json): specguard-core",
-      "rule": "missing-dep",
-      "source": "depcheck",
-      "usedIn": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
       ]
     }
   ],

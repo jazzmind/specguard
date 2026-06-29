@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-29T00:31:23.067Z",
+  "generatedAt": "2026-06-29T01:00:33.376Z",
   "apps": [
     {
       "name": "specguard-core",
       "errorCount": 0,
-      "warningCount": 13,
+      "warningCount": 15,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -51,6 +51,22 @@
           "severity": "warning",
           "category": "unlisted-dep",
           "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
           "rule": "unlisted-dep",
           "source": "knip"
         },
@@ -115,7 +131,7 @@
     {
       "name": "specguard-pipelines",
       "errorCount": 0,
-      "warningCount": 13,
+      "warningCount": 15,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -162,6 +178,22 @@
           "severity": "warning",
           "category": "unlisted-dep",
           "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
           "rule": "unlisted-dep",
           "source": "knip"
         },
@@ -226,7 +258,7 @@
     {
       "name": "specguard-adapters",
       "errorCount": 0,
-      "warningCount": 13,
+      "warningCount": 15,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -273,6 +305,22 @@
           "severity": "warning",
           "category": "unlisted-dep",
           "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
           "rule": "unlisted-dep",
           "source": "knip"
         },
@@ -385,6 +433,22 @@
       "source": "knip"
     },
     {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
       "file": "src/core/exit-codes.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -489,6 +553,22 @@
       "source": "knip"
     },
     {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
       "file": "src/core/exit-codes.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -589,6 +669,22 @@
       "severity": "warning",
       "category": "unlisted-dep",
       "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
       "rule": "unlisted-dep",
       "source": "knip"
     },
@@ -650,5 +746,5 @@
     }
   ],
   "totalErrors": 0,
-  "totalWarnings": 39
+  "totalWarnings": 45
 }
