@@ -7,8 +7,9 @@
  * handler in `./commands/` which in turn calls a pipeline.
  */
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 // Auto-load .specguard/.env before any pipeline runs so secrets are available
 // even when the user hasn't exported them in their shell.
@@ -43,7 +44,6 @@ import { initCommand } from './commands/init.js';
 import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
 import { importCommand } from './commands/import.js';
-import { makeStub } from './commands/stubs.js';
 import { qualityCommand } from './commands/quality.js';
 import { depsCommand } from './commands/deps.js';
 import { commitCommand } from './commands/commit.js';
@@ -286,7 +286,7 @@ program
     await statusCommand(withGlobals(cmd, {}));
   });
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   try {
     await program.parseAsync(process.argv);
   } catch (err) {
@@ -304,4 +304,17 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+/** True when this module is the process entrypoint (not imported as a library). */
+function isMainModule(): boolean {
+  const argv1 = process.argv[1];
+  if (!argv1) return false;
+  try {
+    return fileURLToPath(import.meta.url) === resolve(argv1);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
+  void main();
+}

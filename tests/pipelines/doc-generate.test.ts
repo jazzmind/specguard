@@ -17,6 +17,11 @@ vi.mock('../../src/core/llm.js', () => ({
   })),
 }));
 
+// Mock the root-doc-sync post-processing step so it doesn't make extra LLM calls.
+vi.mock('../../src/core/root-doc-sync.js', () => ({
+  syncRootDocs: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { llmGenerateObject } from '../../src/core/llm.js';
 import { runDocGenerate, stripForDocs } from '../../src/pipelines/doc-generate.js';
 import type { SpecGuardConfig } from '../../src/core/types.js';

@@ -143,22 +143,39 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
     const items: CoverageTreeItem[] = [];
 
-    // Spec count
+    // Spec count — click opens specs/ folder
     const totalSpecs = this._apps.reduce((s, a) => s + a.specCount, 0);
     const specItem = new CoverageTreeItem(`Specs: ${totalSpecs}`, vscode.TreeItemCollapsibleState.None, 'output-item');
     specItem.iconPath = new vscode.ThemeIcon('book');
     specItem.description = totalSpecs > 0 ? 'Living Specs' : 'run reverse or import';
+    specItem.tooltip = 'Click to open specs directory';
+    const specsDir = path.join(root, 'specs');
+    if (fs.existsSync(specsDir)) {
+      specItem.command = {
+        command: 'revealFileInOS',
+        title: 'Open specs folder',
+        arguments: [vscode.Uri.file(specsDir)],
+      };
+    }
     items.push(specItem);
 
-    // Test count
+    // Test count — click opens the generated tests directory
     const totalTests = this._apps.reduce((s, a) => s + a.testCount, 0);
     const testItem = new CoverageTreeItem(`Tests: ${totalTests}`, vscode.TreeItemCollapsibleState.None, 'output-item');
-    testItem.iconPath = new vscode.ThemeIcon(totalTests > 0 ? 'beaker' : 'beaker');
     testItem.description = totalTests > 0 ? 'generated tests' : 'run generate';
     testItem.iconPath = new vscode.ThemeIcon(totalTests > 0 ? 'pass-filled' : 'circle-outline');
+    testItem.tooltip = 'Click to open tests directory';
+    const testsDir = path.join(root, 'tests');
+    if (fs.existsSync(testsDir)) {
+      testItem.command = {
+        command: 'revealFileInOS',
+        title: 'Open tests folder',
+        arguments: [vscode.Uri.file(testsDir)],
+      };
+    }
     items.push(testItem);
 
-    // Docs — count files in docs/user/
+    // Docs — count files in docs/user/, click opens folder
     const docsDir = path.join(root, 'docs', 'user');
     let docCount = 0;
     try {
@@ -169,9 +186,17 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     const docItem = new CoverageTreeItem(`Docs: ${docCount}`, vscode.TreeItemCollapsibleState.None, 'output-item');
     docItem.iconPath = new vscode.ThemeIcon(docCount > 0 ? 'file-text' : 'circle-outline');
     docItem.description = docCount > 0 ? 'user-facing docs' : 'run docs';
+    docItem.tooltip = 'Click to open docs directory';
+    if (docCount > 0 && fs.existsSync(docsDir)) {
+      docItem.command = {
+        command: 'revealFileInOS',
+        title: 'Open docs folder',
+        arguments: [vscode.Uri.file(docsDir)],
+      };
+    }
     items.push(docItem);
 
-    // Traceability matrix
+    // Traceability matrix — click opens the JSON file
     const traceFile = path.join(root, '.specguard', 'traceability.json');
     const hasTrace = fs.existsSync(traceFile);
     const traceItem = new CoverageTreeItem(
@@ -180,7 +205,6 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       'output-item',
     );
     traceItem.iconPath = new vscode.ThemeIcon(hasTrace ? 'list-tree' : 'circle-outline');
-    traceItem.description = hasTrace ? 'run matrix to refresh' : 'run matrix';
     if (hasTrace) {
       try {
         const stat = fs.statSync(traceFile);
@@ -188,6 +212,15 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         const ageStr = ageMs < 3_600_000 ? `${Math.floor(ageMs / 60_000)}m ago` : `${Math.floor(ageMs / 3_600_000)}h ago`;
         traceItem.description = `updated ${ageStr}`;
       } catch { /* ignore */ }
+      traceItem.tooltip = 'Click to open traceability.json';
+      traceItem.command = {
+        command: 'vscode.open',
+        title: 'Open traceability.json',
+        arguments: [vscode.Uri.file(traceFile)],
+      };
+    } else {
+      traceItem.description = 'run matrix';
+      traceItem.tooltip = 'Run "SpecGuard: Traceability Matrix" to generate';
     }
     items.push(traceItem);
 

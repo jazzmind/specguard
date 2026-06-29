@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Gap Analysis pipeline scans every Living Specification found in each configured app's `specDir` and determines whether a corresponding source module exists in the app's repository. Specs with no matching source files are classified as `unimplemented`; specs whose acceptance criteria contain one or more unchecked `- [ ]` items are classified as `partial`; all others are `implemented`. For each `unimplemented` spec, the pipeline optionally invokes an LLM to generate a structured implementation plan written to `.specguard/plans/<feature>.md`. A machine-readable summary of all gaps is persisted to `.specguard/gaps.json` after every run. The pipeline exits with a non-success code whenever at least one gap (unimplemented or partial) is found.
+The Gap Analysis pipeline scans every Living Specification found in each configured app's `specDir` and determines whether a corresponding source module exists in the app's repository. Specs with no matching source files are classified as `unimplemented`; specs whose acceptance criteria contain one or more unchecked `- [ ]` items are classified as `partial`; all others are `implemented`. For each `unimplemented` spec, the pipeline optionally invokes an LLM to generate a structured implementation plan written to `.specguard/plans/<feature>.md`. A machine-readable summary of all gaps is persisted to `.specguard/gaps.json` after every run. When at least one gap exists, the pipeline also writes an agent-readable summary plan to `.specguard/plans/gap-analysis-<timestamp>.md` via `writePlan`, which lists all unimplemented and partial specs with fix steps for the coding agent. The pipeline exits with a non-success code whenever at least one gap (unimplemented or partial) is found.
 
 ## Acceptance Criteria
 
@@ -16,6 +16,7 @@ The Gap Analysis pipeline scans every Living Specification found in each configu
 - [ ] Each generated plan is written to `.specguard/plans/<feature>.md` using the kebab-cased spec key.
 - [ ] The plan Markdown contains: title, summary, suggested files (≤12), implementation steps (≤10), and testing approach.
 - [ ] `.specguard/gaps.json` is written after every run containing `generatedAt` and the `gaps` array.
+- [ ] When at least one gap exists (unimplemented or partial), a summary plan file is written to `.specguard/plans/gap-analysis-<timestamp>.md` via `writePlan`, listing all gaps and ordered fix steps for the coding agent.
 - [ ] When `--spec <key>` is provided, only the matching spec is evaluated.
 - [ ] When `plan: false` is set, no LLM calls are made and no plan files are written.
 - [ ] The pipeline exit code is non-success (`ExitCode.MissingSpecs`) when `result.failed > 0`.

@@ -27,6 +27,8 @@ import { writeFile } from '../core/writer.js';
 
 import { runReverseGenerate } from '../pipelines/reverse-generate.js';
 import { runForwardGenerate } from '../pipelines/forward-generate.js';
+import { runGapAnalysis } from '../pipelines/gap-analysis.js';
+import { runInit } from '../pipelines/init.js';
 import { runHeal } from '../pipelines/heal.js';
 import { runStatus } from '../pipelines/status.js';
 import { runDrift } from '../pipelines/drift.js';
@@ -419,6 +421,47 @@ export function buildServer(): McpServer {
             ].join('\n')
           : 'Failed to generate fix plan.';
         return toolResult({ ...result, messages: [planText] });
+      }).catch(errorResult),
+  );
+
+  // --- Gap Analysis ---------------------------------------------------------
+
+  server.registerTool(
+    'specguard_gap_analysis',
+    {
+      description:
+        'Detect unimplemented or partially-implemented specs and generate LLM implementation plans for each gap (CLI: specguard gap-analysis). Call this when you want to know what features still need to be built.',
+      inputSchema: {
+        spec: z.string().optional().describe('Restrict to a single spec key (e.g. app/feature).'),
+        all: z.boolean().optional().describe('Check all apps (default behaviour).'),
+        plan: z.boolean().optional().describe('Generate LLM implementation plans for unimplemented specs (default: true).'),
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ spec, all: _all, plan, cwd }): Promise<ToolResult> =>
+      withActivityLog('gap-analysis', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runGapAnalysis(config, { spec, plan });
+        return toolResult(result);
+      }).catch(errorResult),
+  );
+
+  // --- Init -----------------------------------------------------------------
+
+  server.registerTool(
+    'specguard_init',
+    {
+      description:
+        'Scaffold .specguard/config.json, specs/README.md, and supporting files in the target directory. Safe to call on an already-initialised project — existing files are never overwritten (CLI: specguard init).',
+      inputSchema: {
+        framework: z.enum(['vitest', 'jest', 'playwright']).optional().describe('Test framework to configure. Auto-detected from package.json when omitted.'),
+        cwd: z.string().optional().describe('Target directory to initialise (default: process.cwd()).'),
+      },
+    },
+    ({ framework, cwd }): Promise<ToolResult> =>
+      withActivityLog('init', resolveCwd(cwd), async () => {
+        const result = await runInit({ framework, cwd: resolveCwd(cwd) });
+        return toolResult(result);
       }).catch(errorResult),
   );
 

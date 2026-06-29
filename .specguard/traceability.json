@@ -1,12 +1,17 @@
 {
-  "generatedAt": "2026-06-28T18:24:50.615Z",
+  "generatedAt": "2026-06-29T04:00:59.469Z",
   "entries": [
     {
       "specKey": "cli",
       "title": "CLI Entrypoint",
       "appName": "specguard-core",
-      "tests": [],
-      "docs": [],
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/cli.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/cli.md"
+      ],
       "sourceModule": "src/cli/index.ts"
     },
     {
@@ -14,55 +19,189 @@
       "title": "Config Loader",
       "appName": "specguard-core",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/config.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/config.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/config.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/config.md"
+      ],
+      "sourceModule": "src/core/config.ts"
+    },
+    {
+      "specKey": "drift-registry",
+      "title": "Drift Registry — Load/Save/Update Helpers",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/drift-registry.test.ts"
       ],
       "docs": [],
-      "sourceModule": "src/core/config.ts"
+      "sourceModule": "specguard-core/drift-registry / type: core-utility / status: draft"
+    },
+    {
+      "specKey": "errors",
+      "title": "SpecGuard Core Error Classes",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/errors.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/errors.md"
+      ],
+      "sourceModule": "specguard-core/errors / type: library / status: draft"
+    },
+    {
+      "specKey": "exit-codes",
+      "title": "Exit Codes",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/exit-codes.md"
+      ],
+      "sourceModule": "specguard-core/exit-codes / type: utility / status: draft"
+    },
+    {
+      "specKey": "extension",
+      "title": "SpecGuard VS Code Extension",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/extension.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/extension.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/extension.md"
+      ],
+      "sourceModule": "extension/src/extension.ts, extension/src/dashboard/, extension/webview/src/"
     },
     {
       "specKey": "llm",
       "title": "LLM Adapter",
       "appName": "specguard-core",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/llm.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/llm.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/llm.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/llm.md"
+      ],
       "sourceModule": "src/core/llm.ts"
     },
     {
       "specKey": "mcp-server",
       "title": "MCP Server",
       "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/mcp-server.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/mcp-server.md"
+      ],
+      "sourceModule": "src/mcp/server.ts"
+    },
+    {
+      "specKey": "plan-writer",
+      "title": "Plan Writer",
+      "appName": "specguard-core",
       "tests": [],
       "docs": [],
-      "sourceModule": "src/mcp/server.ts"
+      "sourceModule": "src/core/plan-writer.ts"
+    },
+    {
+      "specKey": "reader",
+      "title": "SpecGuard Core – File Reader Abstraction",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/reader.md"
+      ],
+      "sourceModule": "specguard-core/reader / type: utility / status: draft"
+    },
+    {
+      "specKey": "root-doc-sync",
+      "title": "Root Document Sync",
+      "appName": "specguard-core",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-core/root-doc-sync / type: feature / status: draft"
     },
     {
       "specKey": "spec-parser",
       "title": "Spec Parser",
       "appName": "specguard-core",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/spec-parser.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/spec-parser.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/spec-parser.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/spec-parser.md"
+      ],
+      "sourceModule": "src/core/spec-parser.ts"
+    },
+    {
+      "specKey": "types",
+      "title": "Core Type Definitions",
+      "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/types.test.ts"
       ],
       "docs": [],
-      "sourceModule": "src/core/spec-parser.ts"
+      "sourceModule": "specguard-core/types / type: core / status: draft"
     },
     {
       "specKey": "writer",
       "title": "File Writer",
       "appName": "specguard-core",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/writer.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/writer.md"
+      ],
+      "sourceModule": "src/core/writer.ts"
+    },
+    {
+      "specKey": "analyze",
+      "title": "Analyze Pipeline",
+      "appName": "specguard-pipelines",
       "tests": [],
       "docs": [],
-      "sourceModule": "src/core/writer.ts"
+      "sourceModule": "specguard-pipelines/analyze / type: pipeline / status: draft"
+    },
+    {
+      "specKey": "code-quality",
+      "title": "Code Quality Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-pipelines/code-quality / type: pipeline / status: draft"
+    },
+    {
+      "specKey": "dep-check",
+      "title": "Dep-Check Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-pipelines/dep-check / type: pipeline / status: draft"
     },
     {
       "specKey": "doc-generate",
       "title": "Doc Generation Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/doc-generate.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/doc-generate.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/doc-generate.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/doc-generate.md"
+      ],
       "sourceModule": "src/pipelines/doc-generate.ts"
     },
     {
@@ -70,9 +209,12 @@
       "title": "Drift Detection Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/drift.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/drift.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/drift.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/drift.md"
+      ],
       "sourceModule": "src/pipelines/drift.ts"
     },
     {
@@ -80,19 +222,41 @@
       "title": "Forward Generation Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/forward-generate.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/forward-generate.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/forward-generate.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/forward-generate.md"
+      ],
       "sourceModule": "src/pipelines/forward-generate.ts"
+    },
+    {
+      "specKey": "gap-analysis",
+      "title": "Gap Analysis Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-pipelines/gap-analysis / type: pipeline / status: draft"
+    },
+    {
+      "specKey": "git-ops",
+      "title": "Git-Ops Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-pipelines/git-ops / type: pipeline / status: draft"
     },
     {
       "specKey": "heal",
       "title": "Self-Healing Test Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/heal.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/heal.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/heal.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/heal.md"
+      ],
       "sourceModule": "src/pipelines/heal.ts"
     },
     {
@@ -100,9 +264,12 @@
       "title": "Import Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/import.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/import.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/import.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/import.md"
+      ],
       "sourceModule": "src/pipelines/import.ts"
     },
     {
@@ -110,19 +277,33 @@
       "title": "Matrix Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/matrix.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/matrix.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/matrix.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/matrix.md"
+      ],
       "sourceModule": "src/pipelines/matrix.ts"
+    },
+    {
+      "specKey": "plan-fix",
+      "title": "Plan Fix Pipeline",
+      "appName": "specguard-pipelines",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-pipelines/plan-fix / type: pipeline / status: draft"
     },
     {
       "specKey": "reverse-generate",
       "title": "Reverse Generation Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/reverse-generate.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/reverse-generate.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reverse-generate.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/reverse-generate.md"
+      ],
       "sourceModule": "src/pipelines/reverse-generate.ts"
     },
     {
@@ -130,9 +311,12 @@
       "title": "Security Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/security.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/security.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/security.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/security.md"
+      ],
       "sourceModule": "src/pipelines/security.ts"
     },
     {
@@ -140,9 +324,12 @@
       "title": "Status Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/status.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/status.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/status.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/status.md"
+      ],
       "sourceModule": "src/pipelines/status.ts"
     },
     {
@@ -150,9 +337,12 @@
       "title": "Validate Pipeline",
       "appName": "specguard-pipelines",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/validate.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/pipelines/validate.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/validate.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/validate.md"
+      ],
       "sourceModule": "src/pipelines/validate.ts"
     },
     {
@@ -160,39 +350,75 @@
       "title": "Auth State Machine",
       "appName": "specguard-adapters",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/auth-state-machine.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/auth-state-machine.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/auth-state-machine.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/auth-state-machine.md"
+      ],
       "sourceModule": "src/adapters/auth-state-machine.ts"
+    },
+    {
+      "specKey": "depcheck",
+      "title": "Depcheck Adapter",
+      "appName": "specguard-adapters",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-adapters/depcheck / type: adapter / status: draft"
     },
     {
       "specKey": "docker",
       "title": "Docker Runner Adapter",
       "appName": "specguard-adapters",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/docker.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/docker.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/docker.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/docker.md"
+      ],
       "sourceModule": "src/adapters/docker.ts"
+    },
+    {
+      "specKey": "eslint",
+      "title": "ESLint Adapter",
+      "appName": "specguard-adapters",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-adapters/eslint / type: adapter / status: draft"
     },
     {
       "specKey": "guardrails",
       "title": "Guardrails",
       "appName": "specguard-adapters",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/guardrails.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/guardrails.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/guardrails.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/guardrails.md"
+      ],
       "sourceModule": "src/adapters/guardrails.ts"
+    },
+    {
+      "specKey": "knip",
+      "title": "Knip Adapter",
+      "appName": "specguard-adapters",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-adapters/knip / type: adapter / status: draft"
     },
     {
       "specKey": "npm-audit",
       "title": "npm-audit Adapter",
       "appName": "specguard-adapters",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/npm-audit.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/npm-audit.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/npm-audit.test.ts"
       ],
-      "docs": [],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/npm-audit.md"
+      ],
       "sourceModule": "src/adapters/npm-audit.ts"
     },
     {
@@ -200,10 +426,339 @@
       "title": "Playwright Adapter",
       "appName": "specguard-adapters",
       "tests": [
-        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/playwright.test.ts"
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/adapters/playwright.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/playwright.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/playwright.md"
+      ],
+      "sourceModule": "src/adapters/playwright.ts"
+    },
+    {
+      "specKey": "commands/analyze",
+      "title": "`specguard analyze` Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/analyze / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/commit",
+      "title": "specguard commit Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/commit / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/deps",
+      "title": "`specguard deps` — Dependency Health Check Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/deps / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/docs",
+      "title": "specguard docs Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/docs / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/drift",
+      "title": "specguard drift Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/drift.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/drift.md"
+      ],
+      "sourceModule": "specguard-cli/commands/drift / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/gap-analysis",
+      "title": "Gap Analysis Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/gap-analysis / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/generate",
+      "title": "specguard generate — Generate Tests from Specs",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/generate / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/heal",
+      "title": "specguard heal Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/heal.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/heal.md"
+      ],
+      "sourceModule": "specguard-cli/commands/heal / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/helpers",
+      "title": "CLI Command Helpers — Config Loading and Error Translation",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/helpers / type: utility / status: draft"
+    },
+    {
+      "specKey": "commands/import",
+      "title": "specguard import Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/import.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/import.md"
+      ],
+      "sourceModule": "specguard-cli/commands/import / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/init",
+      "title": "specguard init — Scaffold Config and Specs Directory",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "src/cli/commands/init.ts / type: cli / status: draft"
+    },
+    {
+      "specKey": "commands/matrix",
+      "title": "specguard matrix Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/matrix.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/matrix.md"
+      ],
+      "sourceModule": "specguard-cli/commands/matrix / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/plan-fix",
+      "title": "`specguard plan-fix` Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/plan-fix / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/quality",
+      "title": "specguard quality Command",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/quality / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/reverse",
+      "title": "Reverse Command — Generate Specs from Source",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/reverse / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/security",
+      "title": "`specguard security` Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/security.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/security.md"
+      ],
+      "sourceModule": "specguard-cli/commands/security / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/status",
+      "title": "`specguard status` — Spec Coverage Report",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/status.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/status.md"
+      ],
+      "sourceModule": "specguard-cli/commands/status / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "commands/stubs",
+      "title": "Stub Command Handlers",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/commands/stubs / type: utility / status: draft"
+    },
+    {
+      "specKey": "commands/validate",
+      "title": "specguard validate Command",
+      "appName": "specguard-cli",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/validate.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/validate.md"
+      ],
+      "sourceModule": "specguard-cli/commands/validate / type: cli-command / status: draft"
+    },
+    {
+      "specKey": "index",
+      "title": "SpecGuard CLI Entrypoint",
+      "appName": "specguard-cli",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-cli/index / type: cli / status: draft"
+    },
+    {
+      "specKey": "activity-hook",
+      "title": "Activity Hook – MCP Activity Log Writer",
+      "appName": "specguard-mcp",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-mcp/activity-hook / type: utility / status: draft"
+    },
+    {
+      "specKey": "format",
+      "title": "SpecGuard MCP – Result Formatting Helpers",
+      "appName": "specguard-mcp",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-mcp/format / type: utility / status: draft"
+    },
+    {
+      "specKey": "server",
+      "title": "SpecGuard MCP Server",
+      "appName": "specguard-mcp",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/mcp/server.test.ts"
       ],
       "docs": [],
-      "sourceModule": "src/adapters/playwright.ts"
+      "sourceModule": "specguard-mcp/server / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/commands",
+      "title": "SpecGuard VS Code Extension – Command Handlers",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/commands / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/activity-log",
+      "title": "Activity Log Service",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/activity-log / type: service / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/cli",
+      "title": "CLI Resolver and Process Spawner",
+      "appName": "specguard-extension",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/cli.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/cli.md"
+      ],
+      "sourceModule": "specguard-extension/src/dashboard/cli / type: utility / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/coverage-parse",
+      "title": "Coverage Parse Utility",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/coverage-parse / type: utility / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/flow-events",
+      "title": "Flow Events Utility",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/flow-events / type: utility / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/host",
+      "title": "Dashboard Host",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/host / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/matrix-model",
+      "title": "Matrix Model Transformer",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/matrix-model / type: utility / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/panel",
+      "title": "SpecGuard Dashboard Panel",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/panel / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/dashboard/protocol",
+      "title": "Dashboard Protocol – Flow Graph Metadata",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/dashboard/protocol / type: data-contract / status: draft"
+    },
+    {
+      "specKey": "src/extension",
+      "title": "SpecGuard Extension Entry Point",
+      "appName": "specguard-extension",
+      "tests": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/extension.test.ts"
+      ],
+      "docs": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/docs/user/extension.md"
+      ],
+      "sourceModule": "specguard-extension/src/extension / type: vscode-extension / status: draft"
+    },
+    {
+      "specKey": "src/mcp-registration",
+      "title": "MCP Registration Helper",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/mcp-registration / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/sidebar",
+      "title": "Coverage Sidebar Tree View",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/sidebar / type: feature / status: draft"
+    },
+    {
+      "specKey": "src/workspace-state",
+      "title": "Workspace State Management",
+      "appName": "specguard-extension",
+      "tests": [],
+      "docs": [],
+      "sourceModule": "specguard-extension/src/workspace-state / type: feature / status: draft"
     }
   ]
 }
