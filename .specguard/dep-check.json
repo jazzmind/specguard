@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T01:50:01.040Z",
+  "generatedAt": "2026-06-29T03:31:11.987Z",
   "apps": [
     {
       "name": "specguard-core",
@@ -187,6 +187,282 @@
     },
     {
       "name": "specguard-adapters",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 2,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        },
+        {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
+          "name": "src",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): src",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "specguard-cli",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 2,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        },
+        {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
+          "name": "src",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): src",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "specguard-mcp",
+      "vulnerabilityCount": 7,
+      "unusedCount": 0,
+      "missingCount": 2,
+      "findings": [
+        {
+          "name": "npm-audit/@ai-sdk/anthropic",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/anthropic",
+          "rule": "npm-audit/@ai-sdk/anthropic",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/openai",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/openai",
+          "rule": "npm-audit/@ai-sdk/openai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/provider-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+          "rule": "npm-audit/@ai-sdk/provider-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/react",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/react",
+          "rule": "npm-audit/@ai-sdk/react",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/@ai-sdk/ui-utils",
+          "severity": "low",
+          "category": "vulnerability",
+          "message": "@ai-sdk/ui-utils",
+          "rule": "npm-audit/@ai-sdk/ui-utils",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/ai",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "ai",
+          "rule": "npm-audit/ai",
+          "source": "npm-audit"
+        },
+        {
+          "name": "npm-audit/jsondiffpatch",
+          "severity": "medium",
+          "category": "vulnerability",
+          "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+          "rule": "npm-audit/jsondiffpatch",
+          "source": "npm-audit"
+        },
+        {
+          "name": "specguard-core",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): specguard-core",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+          ]
+        },
+        {
+          "name": "src",
+          "severity": "info",
+          "category": "missing-dep",
+          "message": "Missing dependency (not in package.json): src",
+          "rule": "missing-dep",
+          "source": "depcheck",
+          "usedIn": [
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+            "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "specguard-extension",
       "vulnerabilityCount": 7,
       "unusedCount": 0,
       "missingCount": 2,
@@ -530,9 +806,261 @@
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
         "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
       ]
+    },
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    },
+    {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
+      "name": "src",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): src",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+      ]
+    },
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    },
+    {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
+      "name": "src",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): src",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+      ]
+    },
+    {
+      "name": "npm-audit/@ai-sdk/anthropic",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/anthropic",
+      "rule": "npm-audit/@ai-sdk/anthropic",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/openai",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/openai",
+      "rule": "npm-audit/@ai-sdk/openai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/provider-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/provider-utils has an Uncontrolled Resource Consumption issue",
+      "rule": "npm-audit/@ai-sdk/provider-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/react",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/react",
+      "rule": "npm-audit/@ai-sdk/react",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/@ai-sdk/ui-utils",
+      "severity": "low",
+      "category": "vulnerability",
+      "message": "@ai-sdk/ui-utils",
+      "rule": "npm-audit/@ai-sdk/ui-utils",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/ai",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "ai",
+      "rule": "npm-audit/ai",
+      "source": "npm-audit"
+    },
+    {
+      "name": "npm-audit/jsondiffpatch",
+      "severity": "medium",
+      "category": "vulnerability",
+      "message": "jsondiffpatch is vulnerable to Cross-site Scripting (XSS) via HtmlFormatter::nodeBegin",
+      "rule": "npm-audit/jsondiffpatch",
+      "source": "npm-audit"
+    },
+    {
+      "name": "specguard-core",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): specguard-core",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/security/reader.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/errors.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/reader.test.ts"
+      ]
+    },
+    {
+      "name": "src",
+      "severity": "info",
+      "category": "missing-dep",
+      "message": "Missing dependency (not in package.json): src",
+      "rule": "missing-dep",
+      "source": "depcheck",
+      "usedIn": [
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/cli.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/exit-codes.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/mcp-server.test.ts",
+        "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/tests/core/writer.test.ts"
+      ]
     }
   ],
-  "totalVulnerabilities": 21,
+  "totalVulnerabilities": 42,
   "totalUnused": 0,
-  "totalMissing": 6
+  "totalMissing": 12
 }

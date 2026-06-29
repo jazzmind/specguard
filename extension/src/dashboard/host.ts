@@ -78,7 +78,20 @@ export class DashboardHost {
   async handle(cmd: DashboardCommand): Promise<void> {
     if (cmd.type === 'refresh') return this.refresh();
     if (cmd.type === 'openFile') {
-      await vscode.window.showTextDocument(vscode.Uri.file(path.resolve(this.workspaceRoot, cmd.path)));
+      const resolved = path.resolve(this.workspaceRoot, cmd.path);
+      const uri = vscode.Uri.file(resolved);
+      // If path is a directory, reveal it in Explorer; otherwise open as document.
+      const stat = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
+      if (stat && fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+        await vscode.commands.executeCommand('revealInExplorer', uri);
+      } else {
+        const doc = await vscode.window.showTextDocument(uri);
+        if (cmd.line !== undefined && cmd.line > 0) {
+          const pos = new vscode.Position(cmd.line - 1, 0);
+          doc.selection = new vscode.Selection(pos, pos);
+          doc.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+        }
+      }
       return;
     }
     if (cmd.type === 'run') {
@@ -100,6 +113,16 @@ export class DashboardHost {
       }
       this.lastActivityCount = -1; // force re-push
       this._pushActivityLog();
+      return;
+    }
+    if (cmd.type === 'markPlanStatus') {
+      try {
+        const resolved = path.resolve(this.workspaceRoot, cmd.filePath);
+        this._updatePlanStatus(resolved, cmd.status);
+        this._pushPlans();
+      } catch (err) {
+        this.post({ type: 'error', scope: 'markPlanStatus', message: (err as Error).message });
+      }
       return;
     }
   }
@@ -362,6 +385,8 @@ export class DashboardHost {
     this._pushFixPlan();
     // Findings from quality/dep JSON outputs (if present)
     this._pushFindings();
+    // Plans from .specguard/plans/
+    this._pushPlans();
     // Activity log entries (also syncs MCP-driven nodeStates)
     this._pushActivityLog();
     // Sync pipeline states from activity log (covers MCP-driven runs)
@@ -624,5 +649,86 @@ export class DashboardHost {
     if (findings.length > 0) {
       this.post({ type: 'findings', data: findings });
     }
+  }
+
+  /** Parse YAML frontmatter + title from a plan .md file without external deps. */
+  private _parsePlanMeta(filePath: string): import('./protocol.js').PlanItem | null {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      const titleMatch = content.match(/^#\s+(.+)$/m);
+      const title = titleMatch?.[1]?.trim() ?? path.basename(filePath, '.md');
+
+      // Fall back gracefully for plans without frontmatter (treat as pending)
+      if (!fmMatch) {
+        // Try to infer pipeline from filename (e.g. drift-2026-..., gap-analysis-2026-...)
+        const base = path.basename(filePath, '.md');
+        const pipeline = base.replace(/-\d{4}-.*$/, '') || 'unknown';
+        return {
+          filePath, title, pipeline,
+          generatedAt: '', status: 'pending',
+          specKey: undefined, completedAt: undefined,
+        };
+      }
+
+      const fm = fmMatch[1];
+      const get = (key: string) => fm.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))?.[1]?.trim() ?? '';
+      const status = get('status') || 'pending';
+      return {
+        filePath,
+        title,
+        pipeline: get('pipeline') || 'unknown',
+        generatedAt: get('generatedAt') || '',
+        status: status as import('./protocol.js').PlanItem['status'],
+        specKey: get('specKey') || undefined,
+        completedAt: get('completedAt') || undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Update status field in a plan file's YAML frontmatter in-place. */
+  private _updatePlanStatus(filePath: string, status: string): void {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const now = new Date().toISOString();
+    const fmRegex = /^(---\n)([\s\S]*?)\n(---)/;
+    const match = content.match(fmRegex);
+    if (!match) return;
+    let fm = match[2];
+    if (/^status:/m.test(fm)) {
+      fm = fm.replace(/^status:.+$/m, `status: ${status}`);
+    } else {
+      fm = `${fm}\nstatus: ${status}`;
+    }
+    if (status === 'done') {
+      if (/^completedAt:/m.test(fm)) {
+        fm = fm.replace(/^completedAt:.+$/m, `completedAt: ${now}`);
+      } else {
+        fm = `${fm}\ncompletedAt: ${now}`;
+      }
+    } else {
+      fm = fm.replace(/^completedAt:.+\n?/m, '');
+    }
+    fs.writeFileSync(filePath, content.replace(fmRegex, `${match[1]}${fm}\n${match[3]}`), 'utf8');
+  }
+
+  private _pushPlans(): void {
+    const plansDir = path.join(this.workspaceRoot, '.specguard', 'plans');
+    if (!fs.existsSync(plansDir)) return;
+    const items: import('./protocol.js').PlanItem[] = [];
+    try {
+      for (const file of fs.readdirSync(plansDir)) {
+        if (!file.endsWith('.md')) continue;
+        const meta = this._parsePlanMeta(path.join(plansDir, file));
+        if (meta) items.push(meta);
+      }
+    } catch { /* best-effort */ }
+    items.sort((a, b) => {
+      const rank: Record<string, number> = { pending: 0, 'in-progress': 1, done: 2 };
+      const r = (rank[a.status] ?? 3) - (rank[b.status] ?? 3);
+      return r !== 0 ? r : b.generatedAt.localeCompare(a.generatedAt);
+    });
+    this.post({ type: 'plans', items });
   }
 }

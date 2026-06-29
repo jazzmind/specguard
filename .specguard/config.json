@@ -45,6 +45,51 @@
         "enabled": false
       },
       "docs": false
+    },
+    {
+      "name": "specguard-cli",
+      "repo": ".",
+      "specDir": "specs/cli",
+      "sources": {
+        "api": ["src/cli/**/*.ts"],
+        "tests": ["tests/cli/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/cli/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
+    },
+    {
+      "name": "specguard-mcp",
+      "repo": ".",
+      "specDir": "specs/mcp",
+      "sources": {
+        "api": ["src/mcp/**/*.ts"],
+        "tests": ["tests/mcp/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/mcp/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
+    },
+    {
+      "name": "specguard-extension",
+      "repo": ".",
+      "specDir": "specs/extension",
+      "sources": {
+        "api": ["extension/src/**/*.ts"],
+        "tests": ["tests/extension/**/*.test.ts"]
+      },
+      "framework": "vitest",
+      "testOutput": "tests/extension/",
+      "security": {
+        "enabled": false
+      },
+      "docs": false
     }
   ],
   "runners": {

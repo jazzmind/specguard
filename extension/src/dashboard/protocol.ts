@@ -69,6 +69,17 @@ export interface FixPlan {
   sourcePipeline: string;
 }
 
+/** A plan file found in .specguard/plans/. */
+export interface PlanItem {
+  filePath: string;
+  title: string;
+  pipeline: string;
+  generatedAt: string;
+  status: 'pending' | 'in-progress' | 'done';
+  specKey?: string;
+  completedAt?: string;
+}
+
 export type DashboardEvent =
   | { type: 'pipeline:start'; pipeline: string }
   | { type: 'pipeline:log'; pipeline: string; line: string }
@@ -82,6 +93,7 @@ export type DashboardEvent =
   | { type: 'workspace'; info: WorkspaceInfo }
   | { type: 'analyze:result'; recommendations: AnalysisRecommendation[] }
   | { type: 'fix-plan'; plan: FixPlan }
+  | { type: 'plans'; items: PlanItem[] }
   | { type: 'clearArtifacts' }
   | { type: 'error'; scope: string; message: string };
 
@@ -105,8 +117,9 @@ export type DashboardCommand =
   | { type: 'runSequence'; pipelines: string[] }
   | { type: 'runSequenceBatch'; pipelines: string[] }
   | { type: 'refresh' }
-  | { type: 'openFile'; path: string }
-  | { type: 'clearActivity'; scope: 'all' | 'completed' };
+  | { type: 'openFile'; path: string; line?: number }
+  | { type: 'clearActivity'; scope: 'all' | 'completed' }
+  | { type: 'markPlanStatus'; filePath: string; status: 'pending' | 'in-progress' | 'done' };
 
 /**
  * A node in the system-flow graph.

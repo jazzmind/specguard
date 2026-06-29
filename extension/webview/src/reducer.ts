@@ -1,4 +1,4 @@
-import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, FixPlan } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, FixPlan, PlanItem } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
@@ -18,6 +18,8 @@ export interface ViewModel {
   analysisRecommendations: AnalysisRecommendation[];
   /** Fix plan awaiting human approval. */
   pendingFixPlan: FixPlan | null;
+  /** All plan files in .specguard/plans/ with their metadata. */
+  plans: PlanItem[];
 }
 
 export function initialViewModel(): ViewModel {
@@ -35,6 +37,7 @@ export function initialViewModel(): ViewModel {
     selectedLogPipeline: null,
     analysisRecommendations: [],
     pendingFixPlan: null,
+    plans: [],
   };
 }
 
@@ -72,6 +75,8 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, analysisRecommendations: e.recommendations };
     case 'fix-plan':
       return { ...vm, pendingFixPlan: e.plan };
+    case 'plans':
+      return { ...vm, plans: e.items };
     case 'error':
       return { ...vm, errors: [...vm.errors, `${e.scope}: ${e.message}`].slice(-50) };
     default:

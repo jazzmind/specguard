@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-29T01:49:55.646Z",
+  "generatedAt": "2026-06-29T03:31:14.012Z",
   "apps": [
     {
       "name": "specguard-core",
       "errorCount": 0,
-      "warningCount": 15,
+      "warningCount": 17,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -99,6 +99,22 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -131,7 +147,7 @@
     {
       "name": "specguard-pipelines",
       "errorCount": 0,
-      "warningCount": 15,
+      "warningCount": 17,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -226,6 +242,22 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -258,7 +290,7 @@
     {
       "name": "specguard-adapters",
       "errorCount": 0,
-      "warningCount": 15,
+      "warningCount": 17,
       "findings": [
         {
           "file": "tests/core/cli.test.ts",
@@ -353,6 +385,451 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    },
+    {
+      "name": "specguard-cli",
+      "errorCount": 0,
+      "warningCount": 17,
+      "findings": [
+        {
+          "file": "tests/core/cli.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/errors.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/mcp-server.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/writer.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/drift-registry.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    },
+    {
+      "name": "specguard-mcp",
+      "errorCount": 0,
+      "warningCount": 17,
+      "findings": [
+        {
+          "file": "tests/core/cli.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/errors.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/mcp-server.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/writer.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/drift-registry.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/eslint.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: eslintRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/knip.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: knipRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/adapters/depcheck.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: depcheckRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        }
+      ]
+    },
+    {
+      "name": "specguard-extension",
+      "errorCount": 0,
+      "warningCount": 17,
+      "findings": [
+        {
+          "file": "tests/core/cli.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/errors.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/mcp-server.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/core/writer.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): src",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/exit-codes.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "tests/security/reader.test.ts",
+          "severity": "warning",
+          "category": "unlisted-dep",
+          "message": "Unlisted dependency (used but not declared): specguard-core",
+          "rule": "unlisted-dep",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/exit-codes.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: exitCodeLabel",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/drift.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: getChangedFiles",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/pipelines/git-ops.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/drift-registry.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: registryPath",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: parsePlanMeta",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/plan-writer.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: updatePlanStatus",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -481,122 +958,18 @@
       "source": "knip"
     },
     {
-      "file": "src/adapters/eslint.ts",
+      "file": "src/core/plan-writer.ts",
       "severity": "warning",
       "category": "dead-code",
-      "message": "Unused export: eslintRunner",
+      "message": "Unused export: parsePlanMeta",
       "rule": "unused-export",
       "source": "knip"
     },
     {
-      "file": "src/adapters/knip.ts",
+      "file": "src/core/plan-writer.ts",
       "severity": "warning",
       "category": "dead-code",
-      "message": "Unused export: knipRunner",
-      "rule": "unused-export",
-      "source": "knip"
-    },
-    {
-      "file": "src/adapters/depcheck.ts",
-      "severity": "warning",
-      "category": "dead-code",
-      "message": "Unused export: depcheckRunner",
-      "rule": "unused-export",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/cli.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): src",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/errors.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): specguard-core",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/exit-codes.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): src",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/mcp-server.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): src",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/reader.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): specguard-core",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/core/writer.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): src",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/security/exit-codes.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): specguard-core",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "tests/security/reader.test.ts",
-      "severity": "warning",
-      "category": "unlisted-dep",
-      "message": "Unlisted dependency (used but not declared): specguard-core",
-      "rule": "unlisted-dep",
-      "source": "knip"
-    },
-    {
-      "file": "src/core/exit-codes.ts",
-      "severity": "warning",
-      "category": "dead-code",
-      "message": "Unused export: exitCodeLabel",
-      "rule": "unused-export",
-      "source": "knip"
-    },
-    {
-      "file": "src/pipelines/drift.ts",
-      "severity": "warning",
-      "category": "dead-code",
-      "message": "Unused export: getChangedFiles",
-      "rule": "unused-export",
-      "source": "knip"
-    },
-    {
-      "file": "src/pipelines/git-ops.ts",
-      "severity": "warning",
-      "category": "dead-code",
-      "message": "Unused export: gitRunner",
-      "rule": "unused-export",
-      "source": "knip"
-    },
-    {
-      "file": "src/core/drift-registry.ts",
-      "severity": "warning",
-      "category": "dead-code",
-      "message": "Unused export: registryPath",
+      "message": "Unused export: updatePlanStatus",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -717,6 +1090,566 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: registryPath",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: parsePlanMeta",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: updatePlanStatus",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/cli.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/errors.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/mcp-server.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/writer.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/drift-registry.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: registryPath",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: parsePlanMeta",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: updatePlanStatus",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/cli.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/errors.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/mcp-server.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/writer.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/drift-registry.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: registryPath",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: parsePlanMeta",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: updatePlanStatus",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/cli.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/errors.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/mcp-server.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/writer.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/drift-registry.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: registryPath",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: parsePlanMeta",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: updatePlanStatus",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/eslint.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: eslintRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/knip.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: knipRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/adapters/depcheck.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: depcheckRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/cli.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/errors.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/mcp-server.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/core/writer.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): src",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/exit-codes.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "tests/security/reader.test.ts",
+      "severity": "warning",
+      "category": "unlisted-dep",
+      "message": "Unlisted dependency (used but not declared): specguard-core",
+      "rule": "unlisted-dep",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/exit-codes.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: exitCodeLabel",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/drift.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: getChangedFiles",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/pipelines/git-ops.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/drift-registry.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: registryPath",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: parsePlanMeta",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/plan-writer.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: updatePlanStatus",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -746,5 +1679,5 @@
     }
   ],
   "totalErrors": 0,
-  "totalWarnings": 45
+  "totalWarnings": 102
 }
