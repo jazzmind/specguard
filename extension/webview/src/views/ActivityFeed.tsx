@@ -47,6 +47,17 @@ function EntryRow({ entry, currentLogs }: { entry: ActivityEntry; currentLogs: s
 
   const hasLogs = logLines.length > 0;
   const isRunning = entry.status === 'running';
+  const canExpand = hasLogs || isRunning;
+
+  const handleStop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    vscodeApi.postMessage({ type: 'cancel', pipeline: entry.pipeline });
+  };
+
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    vscodeApi.postMessage({ type: 'clearActivityEntry', entryId: entry.id });
+  };
 
   return (
     <div style={{ borderBottom: '1px solid #222' }}>
@@ -58,11 +69,11 @@ function EntryRow({ entry, currentLogs }: { entry: ActivityEntry; currentLogs: s
           gap: 8,
           padding: '4px 0',
           fontSize: 12,
-          cursor: hasLogs ? 'pointer' : 'default',
+          cursor: canExpand ? 'pointer' : 'default',
           userSelect: 'none',
         }}
-        onClick={() => hasLogs && setExpanded((v) => !v)}
-        title={hasLogs ? (expanded ? 'Click to collapse logs' : 'Click to expand logs') : undefined}
+        onClick={() => canExpand && setExpanded((v) => !v)}
+        title={canExpand ? (expanded ? 'Click to collapse logs' : 'Click to expand logs') : undefined}
       >
         <span style={{ color: '#555', minWidth: 70, flexShrink: 0 }}>{ts}</span>
         <span style={{ color, minWidth: 14, textAlign: 'center' }}>{icon}</span>
@@ -74,25 +85,50 @@ function EntryRow({ entry, currentLogs }: { entry: ActivityEntry; currentLogs: s
           </span>
         )}
         {entry.durationMs !== undefined && (
-          <span style={{ color: '#555', marginLeft: 'auto', flexShrink: 0 }}>{entry.durationMs}ms</span>
+          <span style={{ color: '#555', flexShrink: 0, marginLeft: 4 }}>{entry.durationMs}ms</span>
         )}
         {hasLogs && (
-          <span style={{ color: '#555', flexShrink: 0, fontSize: 10, marginLeft: entry.durationMs !== undefined ? 4 : 'auto' }}>
+          <span style={{ color: '#555', flexShrink: 0, fontSize: 10 }}>
             {expanded ? '▲' : `▼ ${logLines.length} lines`}
           </span>
         )}
         {isRunning && !hasLogs && (
-          <span style={{ color: '#4fc3f7', fontSize: 10, marginLeft: 'auto', flexShrink: 0 }}>live…</span>
+          <span style={{ color: '#4fc3f7', fontSize: 10, flexShrink: 0 }}>live…</span>
         )}
+
+        {/* Per-entry action buttons */}
+        <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', gap: 4 }}>
+          {isRunning && (
+            <button
+              className="sg-wf-btn sg-wf-btn-cancel"
+              style={{ fontSize: 9, padding: '1px 6px' }}
+              onClick={handleStop}
+            >
+              Stop
+            </button>
+          )}
+          {!isRunning && (
+            <button
+              style={{
+                background: 'none', border: 'none', color: '#555', cursor: 'pointer',
+                fontSize: 14, padding: '0 3px', lineHeight: 1,
+              }}
+              onClick={handleDismiss}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Expanded log panel */}
-      {expanded && hasLogs && (
+      {expanded && canExpand && (
         <pre style={{
           margin: '0 0 4px 90px',
           padding: '6px 8px',
           background: '#111',
-          color: '#ccc',
+          color: hasLogs ? '#ccc' : '#555',
           fontSize: 10,
           fontFamily: 'Menlo, Consolas, monospace',
           lineHeight: 1.5,
@@ -102,7 +138,7 @@ function EntryRow({ entry, currentLogs }: { entry: ActivityEntry; currentLogs: s
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-all',
         }}>
-          {logLines.join('\n')}
+          {hasLogs ? logLines.join('\n') : (isRunning ? '(waiting for output…)' : '')}
         </pre>
       )}
     </div>

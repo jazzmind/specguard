@@ -113,6 +113,12 @@ export class ActivityLogService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /** Remove a single entry by id from the buffer and file. */
+  removeEntry(id: string): void {
+    this.entries = this.entries.filter((e) => e.id !== id);
+    this._overwriteFile();
+  }
+
   /**
    * Remove all entries from the in-memory buffer and the log file.
    * Active runs (currently `running`) are preserved unless `includeRunning` is true.

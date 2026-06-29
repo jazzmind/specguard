@@ -584,10 +584,10 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: Dashbo
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #2a2a2a' }}>
           <div style={{ flex: 1 }}>
             <div className="sg-wf-section-title" style={{ marginBottom: 2 }}>
-              {hasSpecs ? 'Pipeline Loop' : 'Step 2 — Pipeline Loop'}
+              {hasSpecs ? 'Action Loop' : 'Step 2 — Action Loop'}
             </div>
             <div className="sg-wf-section-sub">
-              Run these pipelines on your specs. Use ⚡ Analyze to get smart recommendations.
+              Run these actions on your specs. Use ⚡ Analyze to get smart recommendations.
             </div>
           </div>
           <button
