@@ -6,6 +6,7 @@
  */
 import * as vscode from 'vscode';
 import { CoverageProvider } from './sidebar.js';
+import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
 import { initWorkspaceState, getActiveWorkspaceRoot } from './workspace-state.js';
@@ -18,6 +19,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   initWorkspaceState(context);
   setExtensionPath(context.extensionPath);
 
+  // Dashboard view — always-empty tree so the viewsWelcome callout always shows
+  const dashboardProvider = new vscode.TreeItem('');
+  const dashboardTreeView = vscode.window.createTreeView('specguard.dashboardView', {
+    treeDataProvider: {
+      getTreeItem: () => dashboardProvider,
+      getChildren: () => [],
+      onDidChangeTreeData: new vscode.EventEmitter<void>().event,
+    },
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(dashboardTreeView);
+
   // Coverage tree view
   coverageProvider = new CoverageProvider();
   const treeView = vscode.window.createTreeView('specguard.coverageView', {
@@ -25,6 +38,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     showCollapseAll: true,
   });
   context.subscriptions.push(treeView);
+
+  // Pipelines tree view
+  const pipelinesProvider = new PipelinesProvider();
+  const pipelinesView = vscode.window.createTreeView('specguard.pipelinesView', {
+    treeDataProvider: pipelinesProvider,
+    showCollapseAll: false,
+  });
+  context.subscriptions.push(pipelinesView);
 
   // Status bar: shows "SpecGuard: 82%" or similar
   const config = vscode.workspace.getConfiguration('specguard');

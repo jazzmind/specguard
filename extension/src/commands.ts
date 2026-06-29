@@ -97,6 +97,119 @@ export function registerCommands(
     }),
   );
 
+  // --- specguard.runTests ---------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.runTests', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'test --all', 'SpecGuard Run Tests');
+    }),
+  );
+
+  // --- specguard.qualityCheck -----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.qualityCheck', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'quality --all', 'SpecGuard Quality');
+    }),
+  );
+
+  // --- specguard.validateFunctional -----------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.validateFunctional', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'validate --all', 'SpecGuard Validate');
+    }),
+  );
+
+  // --- specguard.validateFunctionalAll --------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.validateFunctionalAll', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'validate --all', 'SpecGuard Validate (All)');
+    }),
+  );
+
+  // --- specguard.validateFunctionalIntegration ------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.validateFunctionalIntegration', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'validate --type integration', 'SpecGuard Validate (Integration)');
+    }),
+  );
+
+  // --- specguard.validateFunctionalE2E --------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.validateFunctionalE2E', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'validate --type e2e', 'SpecGuard Validate (E2E)');
+    }),
+  );
+
+  // --- specguard.importSpec -------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.importSpec', async () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+
+      const source = await vscode.window.showInputBox({
+        prompt: 'Import spec from URL, file path, or leave blank for interactive',
+        placeHolder: 'https://docs.example.com/api or ./docs/PRD.md',
+      });
+
+      const args = source ? `import --source "${source}"` : 'import';
+      runInTerminal(ws, args, 'SpecGuard Import');
+    }),
+  );
+
+  // --- specguard.reverseGenerate --------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.reverseGenerate', async () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+
+      const app = await vscode.window.showInputBox({
+        prompt: 'App name (matches .specguard/config.json) or leave blank for --all',
+        placeHolder: 'my-app',
+      });
+
+      const args = app ? `reverse --app ${app}` : 'reverse --all';
+      runInTerminal(ws, args, 'SpecGuard Reverse');
+    }),
+  );
+
+  // --- specguard.gapAnalysis ------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.gapAnalysis', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'gap-analysis', 'SpecGuard Gap Analysis');
+    }),
+  );
+
+  // --- specguard.depsAudit --------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.depsAudit', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'deps', 'SpecGuard Deps Audit');
+    }),
+  );
+
+  // --- specguard.runSast ----------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.runSast', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'security --with-sast --all', 'SpecGuard SAST');
+    }),
+  );
+
   // --- specguard.securityScan -----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.securityScan', async (uri?: vscode.Uri) => {
@@ -110,6 +223,33 @@ export function registerCommands(
 
       const args = specKey ? `security --spec ${specKey}` : 'security --all';
       runInTerminal(ws, args, 'SpecGuard Security');
+    }),
+  );
+
+  // --- specguard.generateSecurityTests --------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.generateSecurityTests', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'generate --type security --all', 'SpecGuard Security Tests');
+    }),
+  );
+
+  // --- specguard.matrix -----------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.matrix', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'matrix', 'SpecGuard Matrix');
+    }),
+  );
+
+  // --- specguard.generateDocs -----------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.generateDocs', () => {
+      const ws = getActiveWorkspaceRoot();
+      if (!ws) return;
+      runInTerminal(ws, 'docs --all', 'SpecGuard Docs');
     }),
   );
 

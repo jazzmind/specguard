@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "publisher": "specguard",
   "repository": {
     "type": "git",
@@ -46,7 +46,7 @@
       },
       {
         "command": "specguard.drift",
-        "title": "SpecGuard: Check Drift",
+        "title": "SpecGuard: Check Code Drift",
         "icon": "$(warning)"
       },
       {
@@ -55,9 +55,79 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "specguard.runTests",
+        "title": "SpecGuard: Run Tests",
+        "icon": "$(play)"
+      },
+      {
+        "command": "specguard.validateFunctional",
+        "title": "SpecGuard: Validate (Functional)",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "specguard.validateFunctionalAll",
+        "title": "SpecGuard: Validate — All tests",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "specguard.validateFunctionalIntegration",
+        "title": "SpecGuard: Validate — Integration tests",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "specguard.validateFunctionalE2E",
+        "title": "SpecGuard: Validate — E2E tests",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "specguard.qualityCheck",
+        "title": "SpecGuard: Quality Check",
+        "icon": "$(verified)"
+      },
+      {
+        "command": "specguard.importSpec",
+        "title": "SpecGuard: Import Spec",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "specguard.reverseGenerate",
+        "title": "SpecGuard: Reverse Generate Specs",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "specguard.gapAnalysis",
+        "title": "SpecGuard: Gap Analysis",
+        "icon": "$(search)"
+      },
+      {
+        "command": "specguard.depsAudit",
+        "title": "SpecGuard: Dependency Audit",
+        "icon": "$(package)"
+      },
+      {
+        "command": "specguard.runSast",
+        "title": "SpecGuard: SAST Scan",
+        "icon": "$(bug)"
+      },
+      {
         "command": "specguard.securityScan",
-        "title": "SpecGuard: Security Scan",
+        "title": "SpecGuard: Security Scan (OWASP)",
         "icon": "$(shield)"
+      },
+      {
+        "command": "specguard.generateSecurityTests",
+        "title": "SpecGuard: Generate Security Tests",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "specguard.matrix",
+        "title": "SpecGuard: Traceability Matrix",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "specguard.generateDocs",
+        "title": "SpecGuard: Generate Docs",
+        "icon": "$(file-text)"
       },
       {
         "command": "specguard.registerMcp",
@@ -109,6 +179,13 @@
           "when": "view == specguard.coverageView",
           "group": "navigation@2"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "specguard.importSpec",
+          "when": "view == specguard.pipelinesView && viewItem == pipeline-action",
+          "group": "inline"
+        }
       ]
     },
     "viewsContainers": {
@@ -123,13 +200,28 @@
     "views": {
       "specguard-sidebar": [
         {
+          "id": "specguard.dashboardView",
+          "name": "Dashboard",
+          "icon": "$(graph)",
+          "type": "tree"
+        },
+        {
           "id": "specguard.coverageView",
           "name": "Coverage",
           "icon": "$(shield)"
+        },
+        {
+          "id": "specguard.pipelinesView",
+          "name": "Pipelines",
+          "icon": "$(play-circle)"
         }
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "specguard.dashboardView",
+        "contents": "$(graph) **SpecGuard Dashboard**\nView coverage trends, run pipelines, and manage your Living Specs.\n[Open Dashboard](command:specguard.openDashboard)\n[Switch Project](command:specguard.switchProject)"
+      },
       {
         "view": "specguard.coverageView",
         "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs.\n[Open Dashboard](command:specguard.openDashboard)"

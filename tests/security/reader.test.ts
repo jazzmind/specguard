@@ -7,11 +7,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ---------------------------------------------------------------------------
 
 // Lazy import so individual tests can mock the module before resolution.
-let reader: typeof import("specguard-core/reader");
+let reader: typeof import("../../src/core/reader.js");
 
 beforeEach(async () => {
   vi.resetModules();
-  reader = await import("specguard-core/reader");
+  reader = await import("../../src/core/reader.js");
 });
 
 afterEach(() => {
