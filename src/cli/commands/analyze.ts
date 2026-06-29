@@ -20,9 +20,9 @@ export async function analyzeCommand(opts: AnalyzeCliOpts): Promise<void> {
   if (recs.length === 0) {
     process.stdout.write('analyze: workspace is healthy — nothing to do\n');
   } else {
-    process.stdout.write(`\nanalyze: ${recs.length} recommendation(s):\n`);
+    process.stdout.write(`\nanalyze: ${recs.length} recommendation(s) (next steps):\n`);
     for (const r of recs) {
-      process.stdout.write(`  [${r.priority}] run specguard ${r.pipeline} — ${r.reason}\n`);
+      process.stdout.write(`  [${r.priority}] specguard ${r.pipeline} — ${r.reason}\n`);
     }
   }
 

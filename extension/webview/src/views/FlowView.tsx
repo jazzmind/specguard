@@ -106,11 +106,13 @@ interface PipelineCardProps {
   canHeal?: boolean;
   /** Show inline Commit button after success */
   canCommit?: boolean;
+  /** Extra action buttons rendered after Plan/Heal/Commit (e.g. "Open Plans" for gap-analysis) */
+  extraActions?: React.ReactNode;
 }
 
 function PipelineCard({
   id, label, description, state, info, logs, disabled, disabledHint, destructive,
-  selectedLog, onSelectLog, highlighted, canHeal, canCommit,
+  selectedLog, onSelectLog, highlighted, canHeal, canCommit, extraActions,
 }: PipelineCardProps) {
   const isFailed = state === 'failed' || (state === 'idle' && info?.status === 'fail');
   const isRunning = state === 'running';
@@ -208,6 +210,7 @@ function PipelineCard({
                 Commit
               </button>
             )}
+            {extraActions}
           </div>
         )}
       </div>
@@ -565,25 +568,46 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
         )}
 
         <div className="sg-wf-pipeline-grid">
-          {/* Spec creation */}
-          {card('reverse', 'reverse', 'Generate specs from source code (re-run to pick up new files)', { destructive: true })}
-          {card('gap-analysis', 'gap-analysis', 'Detect unimplemented specs and generate implementation plans', { destructive: true })}
+          {/* Phase 1 — Spec Creation */}
+          {card('reverse', 'reverse', 'Generate Living Specs from source code (re-run to pick up new files)', { destructive: true })}
+          <PipelineCard
+            id="gap-analysis"
+            label="gap-analysis"
+            description="Detect unimplemented specs and generate implementation plans for your coding agent"
+            state={state('gap-analysis')}
+            info={info('gap-analysis')}
+            logs={logs('gap-analysis')}
+            selectedLog={selectedLog}
+            onSelectLog={setSelectedLog}
+            highlighted={triggeredPipelines.has('gap-analysis')}
+            canHeal={false}
+            canCommit={COMMITTABLE_PIPELINES.has('gap-analysis')}
+            destructive
+            extraActions={
+              <button
+                className="sg-wf-btn"
+                style={{ borderColor: '#3a5a5a', color: '#4fc3f7' }}
+                onClick={() => vscodeApi.postMessage({ type: 'openFile', path: '.specguard/plans' })}
+                title="Open the .specguard/plans/ directory to view generated implementation plans"
+              >
+                Open Plans
+              </button>
+            }
+          />
 
-          {/* Core loop */}
+          {/* Phase 2 — Generation (write artifacts from specs) */}
           {card('generate', 'generate', 'Generate test code from specs', { destructive: true })}
           {card('security', 'security', 'Generate security tests and run SAST analysis', { destructive: true })}
-          {card('validate', 'validate', 'Validate specs against your running app (browser automation)', { destructive: true })}
           {card('docs', 'docs', 'Generate user-facing documentation from specs', { destructive: true })}
 
-          {/* Analysis */}
-          {card('drift', 'drift', 'Detect specs out of sync with source code')}
-          {card('matrix', 'matrix', 'Build traceability matrix linking specs to tests and docs')}
+          {/* Phase 3 — Validation (check what exists) */}
+          {card('validate', 'validate', 'Validate specs against your running app via browser automation', { destructive: true })}
+          {card('drift', 'drift', 'Detect specs that have drifted out of sync with source code')}
+          {card('matrix', 'matrix', 'Build traceability matrix linking specs → tests → docs')}
+
+          {/* Phase 4 — Code Health (independent of specs) */}
           {card('quality', 'quality', 'Run ESLint and dead-code checks (Knip)')}
           {card('deps', 'deps', 'Audit dependencies for vulnerabilities and unused packages')}
-
-          {/* Heal & commit — inline next steps, no separate section */}
-          {card('heal', 'heal', 'Self-heal failing generated tests with LLM assistance', { destructive: true })}
-          {card('commit', 'commit', 'Stage and commit all SpecGuard-generated files to git', { destructive: true })}
         </div>
       </div>
 

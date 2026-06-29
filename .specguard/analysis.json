@@ -1,19 +1,34 @@
 {
-  "generatedAt": "2026-06-29T01:50:01.041Z",
+  "generatedAt": "2026-06-29T03:31:11.987Z",
   "recommendations": [
-    {
-      "pipeline": "reverse",
-      "reason": "34 source files lack Living Specs — run reverse to generate them",
-      "priority": "high"
-    },
     {
       "pipeline": "gap-analysis",
       "reason": "3 spec(s) have no matching source code — run gap-analysis to generate implementation plans",
       "priority": "high"
+    },
+    {
+      "pipeline": "generate",
+      "reason": "regenerate test code from latest specs",
+      "priority": "medium"
+    },
+    {
+      "pipeline": "security",
+      "reason": "run SAST analysis and generate security tests",
+      "priority": "medium"
+    },
+    {
+      "pipeline": "docs",
+      "reason": "regenerate user-facing documentation from latest specs",
+      "priority": "low"
+    },
+    {
+      "pipeline": "matrix",
+      "reason": "refresh the traceability matrix linking specs to tests and docs",
+      "priority": "low"
     }
   ],
   "summary": {
-    "missingSpecs": 34,
+    "missingSpecs": 0,
     "driftedSpecs": 0,
     "qualityFindings": 0,
     "depFindings": 0,

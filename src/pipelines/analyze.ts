@@ -70,15 +70,20 @@ export async function runAnalyze(
   log('[analyze] checking spec coverage...');
   try {
     const statusResult = await runStatus(config, {});
-    const missing = statusResult.items.filter((i) => i.status === 'skipped' || i.message?.includes('missing'));
-    summary.missingSpecs = missing.length;
-    if (statusResult.exitCode === ExitCode.MissingSpecs) {
-      const count = statusResult.items.filter((i) => !i.message?.includes('spec exists')).length;
-      summary.missingSpecs = count;
+    // `result.failed` is set to `totalMissingSpecs` by the status pipeline — use it directly.
+    const missingCount = statusResult.failed;
+    const totalFiles = statusResult.items.filter((i) => i.status === 'ok' || i.status === 'failed').length;
+    const coveragePct = totalFiles > 0 ? Math.round(((totalFiles - missingCount) / totalFiles) * 100) : 100;
+
+    summary.missingSpecs = missingCount;
+
+    if (statusResult.exitCode === ExitCode.MissingSpecs && missingCount > 0) {
+      // Priority is proportional to how much coverage is missing.
+      const priority = coveragePct < 80 ? 'high' : coveragePct < 95 ? 'medium' : 'low';
       recs.push({
         pipeline: 'reverse',
-        reason: `${count} source files lack Living Specs — run reverse to generate them`,
-        priority: 'high',
+        reason: `${missingCount} source file(s) lack Living Specs (${coveragePct}% coverage) — run reverse to generate them`,
+        priority,
       });
     }
   } catch (err) {

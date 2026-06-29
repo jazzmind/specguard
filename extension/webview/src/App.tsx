@@ -11,12 +11,14 @@ import { ActivityView } from './views/ActivityView.js';
 import { ActivityFeed } from './views/ActivityFeed.js';
 import { FindingsView } from './views/FindingsView.js';
 import { CoverageView } from './views/CoverageView.js';
+import { PlansView } from './views/PlansView.js';
 
-type Tab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs';
+type Tab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'flow', label: 'Pipelines' },
+  { id: 'plans', label: 'Plans' },
   { id: 'activity', label: 'Activity' },
   { id: 'findings', label: 'Findings' },
   { id: 'coverage', label: 'Coverage' },
@@ -92,6 +94,8 @@ export function App() {
           let badge: number | null = null;
           if (t.id === 'activity' && totalRunning > 0) badge = totalRunning;
           if (t.id === 'findings' && vm.findings.length > 0) badge = vm.findings.length;
+          const pendingPlans = vm.plans.filter((p) => p.status === 'pending').length;
+          if (t.id === 'plans' && pendingPlans > 0) badge = pendingPlans;
           return (
             <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
               {t.label}
@@ -116,6 +120,7 @@ export function App() {
           </div>
         )}
         {tab === 'findings' && <FindingsView vm={vm} />}
+        {tab === 'plans' && <PlansView vm={vm} />}
         {tab === 'coverage' && <CoverageView vm={vm} />}
         {tab === 'matrix' && <MatrixView vm={vm} />}
         {tab === 'docs' && <DocsView vm={vm} />}

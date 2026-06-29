@@ -42,6 +42,7 @@ import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
+import { syncRootDocs } from '../core/root-doc-sync.js';
 
 /** Category values from most general to most specific — the DocsView groups by this. */
 const DOC_CATEGORIES = ['overview', 'getting-started', 'core', 'pipelines', 'adapters', 'reference'] as const;
@@ -350,6 +351,28 @@ export async function runDocGenerate(
   // Non-zero exit only if every attempted spec failed.
   if (attempted > 0 && result.created === 0 && result.failed === attempted) {
     result.exitCode = ExitCode.InternalError;
+  }
+
+  // After per-spec docs, sync sentinel sections in README.md, CLAUDE.md, and AGENTS.md.
+  if (result.created > 0) {
+    try {
+      const parsedForSync: ParsedSpec[] = (
+        await Promise.all(
+          owned.map(async ({ absSpecPath, specDirAbs }) => {
+            try {
+              const content = await readFile(absSpecPath);
+              return parseSpecContent(content, absSpecPath, specDirAbs);
+            } catch {
+              return null;
+            }
+          })
+        )
+      ).filter((s): s is ParsedSpec => s !== null);
+
+      await syncRootDocs(config, parsedForSync, log);
+    } catch (err) {
+      log(`[doc] root-sync failed (non-fatal): ${(err as Error).message}`);
+    }
   }
 
   return result;

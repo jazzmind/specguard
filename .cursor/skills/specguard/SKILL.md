@@ -74,12 +74,14 @@ What this module does and why it exists.
 
 ## Spec Location Mapping
 
-| Source file | Spec file |
-|---|---|
-| `src/core/*.ts` | `specs/core/<name>.md` |
-| `src/pipelines/*.ts` | `specs/pipelines/<name>.md` |
-| `src/adapters/*.ts` | `specs/adapters/<name>.md` |
-| `src/cli/*.ts` | `specs/core/cli.md` |
+| Source file | App name | Spec file |
+|---|---|---|
+| `src/core/*.ts` | `specguard-core` | `specs/core/<name>.md` |
+| `src/pipelines/*.ts` | `specguard-pipelines` | `specs/pipelines/<name>.md` |
+| `src/adapters/*.ts` | `specguard-adapters` | `specs/adapters/<name>.md` |
+| `src/cli/**/*.ts` | `specguard-cli` | `specs/cli/<name>.md` |
+| `src/mcp/*.ts` | `specguard-mcp` | `specs/mcp/<name>.md` |
+| `extension/src/**/*.ts` | `specguard-extension` | `specs/extension/<name>.md` |
 
 ## Test Generation + Self-Healing (CLI)
 
@@ -170,6 +172,30 @@ specguard analyze
 # Should return zero recommendations if everything is healthy.
 ```
 
+## Self-Tracking Obligation
+
+SpecGuard must track its own development. After every coding session that adds or modifies modules:
+
+```bash
+# Check what's missing and what's drifted
+npx tsx src/cli/index.ts status
+npx tsx src/cli/index.ts drift
+
+# Generate missing specs (skips existing ones)
+npx tsx src/cli/index.ts reverse --app specguard-core
+npx tsx src/cli/index.ts reverse --app specguard-pipelines
+npx tsx src/cli/index.ts reverse --app specguard-cli
+npx tsx src/cli/index.ts reverse --app specguard-extension
+```
+
+Current coverage baseline (as of last session):
+- `specguard-core` 90% (1 missing: plan-writer → spec written manually)
+- `specguard-pipelines` 100%
+- `specguard-adapters` 100%
+- `specguard-cli` 0% (20 files untracked — needs `reverse`)
+- `specguard-mcp` 0% (3 files untracked — needs `reverse`)
+- `specguard-extension` 0% (17 files untracked — needs `reverse`)
+
 ## Upgrading This Skill
 
 All bootstrap phases are complete (v2.0):
@@ -180,3 +206,4 @@ All bootstrap phases are complete (v2.0):
 - ✅ Dashboard: Analyze button, AnalyzePanel, FixPlanPanel with human approval
 - ✅ Multi-root workspace support: `specguard.switchProject` command
 - ✅ `specguard init` creates `.specguard/.env` with API key placeholder
+- ✅ Config covers all 6 app areas: core, pipelines, adapters, cli, mcp, extension
