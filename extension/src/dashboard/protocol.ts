@@ -129,7 +129,9 @@ export type DashboardCommand =
   | { type: 'refresh' }
   | { type: 'openFile'; path: string; line?: number }
   | { type: 'clearActivity'; scope: 'all' | 'completed' }
-  | { type: 'markPlanStatus'; filePath: string; status: 'pending' | 'in-progress' | 'done' };
+  | { type: 'clearActivityEntry'; entryId: string }
+  | { type: 'markPlanStatus'; filePath: string; status: 'pending' | 'in-progress' | 'done' }
+  | { type: 'openSettings' };
 
 /**
  * A node in the system-flow graph.

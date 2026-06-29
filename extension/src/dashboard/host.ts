@@ -115,6 +115,16 @@ export class DashboardHost {
       this._pushActivityLog();
       return;
     }
+    if (cmd.type === 'clearActivityEntry') {
+      this.activityLog.removeEntry(cmd.entryId);
+      this.lastActivityCount = -1; // force re-push
+      this._pushActivityLog();
+      return;
+    }
+    if (cmd.type === 'openSettings') {
+      void vscode.commands.executeCommand('workbench.action.openSettings', 'specguard');
+      return;
+    }
     if (cmd.type === 'markPlanStatus') {
       try {
         const resolved = path.resolve(this.workspaceRoot, cmd.filePath);
