@@ -101,6 +101,7 @@ export type DashboardCommand =
   | { type: 'run'; pipeline: string; args?: string[] }
   | { type: 'cancel'; pipeline: string }
   | { type: 'runSequence'; pipelines: string[] }
+  | { type: 'runSequenceBatch'; pipelines: string[] }
   | { type: 'refresh' }
   | { type: 'openFile'; path: string };
 
@@ -186,6 +187,7 @@ export const RUNNABLE_PIPELINES: { id: string; destructive: boolean; label?: str
   { id: 'quality', destructive: false, label: 'quality (lint + dead code)' },
   { id: 'deps', destructive: false, label: 'deps (audit + unused)' },
   { id: 'analyze', destructive: false, label: 'analyze (smart diagnostics)' },
+  { id: 'gap-analysis', destructive: true, label: 'gap-analysis (unimplemented specs → plans)' },
   { id: 'reverse', destructive: true },
   { id: 'generate', destructive: true },
   { id: 'heal', destructive: true },

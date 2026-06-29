@@ -114,7 +114,7 @@ function PipelineCard({
   const logOpen = selectedLog === id;
 
   return (
-    <div className={`sg-wf-card ${isFailed ? 'sg-wf-card-failed' : state === 'done' || info?.status === 'pass' ? 'sg-wf-card-passed' : ''}`}>
+    <div id={`sg-card-${id}`} className={`sg-wf-card ${isFailed ? 'sg-wf-card-failed' : state === 'done' || info?.status === 'pass' ? 'sg-wf-card-passed' : ''}`}>
       <div className="sg-wf-card-left">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="sg-wf-card-label">{label}</span>
@@ -123,7 +123,16 @@ function PipelineCard({
             onClick={() => onSelectLog(logOpen ? null : id)}
             title={logOpen ? 'Hide logs' : 'Show logs'}
           >
-            {logOpen ? '▲ logs' : '▼ logs'}
+            {logOpen ? '▲ logs' : (
+              <>
+                ▼ logs
+                {(logs?.length ?? 0) > 0 && !logOpen && (
+                  <span style={{ marginLeft: 4, fontSize: 9, color: isRunning ? '#4fc3f7' : '#888' }}>
+                    ({logs!.length})
+                  </span>
+                )}
+              </>
+            )}
           </button>
         </div>
         <span className="sg-wf-card-desc">{description}</span>
@@ -197,9 +206,12 @@ function ArrowFlow({ steps }: { steps: string[] }) {
 // AnalyzePanel — shows recommendations after analyze runs
 // ---------------------------------------------------------------------------
 
-function AnalyzePanel({ recommendations, onRunSelected }: {
+function AnalyzePanel({ recommendations, nodeStates, lastRunInfo, onRunSelected, onScrollTo }: {
   recommendations: AnalysisRecommendation[];
+  nodeStates: Record<string, NodeState>;
+  lastRunInfo: Record<string, import('../reducer.js').ViewModel['lastRunInfo'][string]>;
   onRunSelected: (pipelines: string[]) => void;
+  onScrollTo: (pipeline: string) => void;
 }) {
   const [checked, setChecked] = useState<Set<string>>(() => new Set(recommendations.map((r) => r.pipeline)));
 
@@ -215,33 +227,66 @@ function AnalyzePanel({ recommendations, onRunSelected }: {
 
   const priorityColor: Record<string, string> = { high: '#f48771', medium: '#e2c08d', low: '#888' };
 
+  // Disable run if any checked pipeline is currently running.
+  const anyRunning = [...checked].some((p) => nodeStates[p] === 'running');
+
+  // Count how many have finished.
+  const doneCount = recommendations.filter((r) => {
+    const s = nodeStates[r.pipeline];
+    return s === 'done' || s === 'failed';
+  }).length;
+  const runningPipeline = recommendations.find((r) => nodeStates[r.pipeline] === 'running')?.pipeline;
+
   return (
     <div className="sg-analyze-panel">
       <div className="sg-analyze-header">
         <span className="sg-analyze-title">Analysis Results</span>
-        <span className="sg-analyze-sub">{recommendations.length} recommendations — select which to run</span>
+        <span className="sg-analyze-sub">
+          {anyRunning
+            ? `Running ${runningPipeline ?? '…'} (${doneCount}/${recommendations.length})`
+            : `${recommendations.length} recommendations — select which to run`}
+        </span>
       </div>
-      {recommendations.map((r) => (
-        <label key={r.pipeline} className="sg-analyze-row">
-          <input
-            type="checkbox"
-            checked={checked.has(r.pipeline)}
-            onChange={() => toggle(r.pipeline)}
-          />
-          <span className="sg-analyze-pipeline">{r.pipeline}</span>
-          <span className="sg-analyze-priority" style={{ color: priorityColor[r.priority] ?? '#888' }}>
-            {r.priority}
-          </span>
-          <span className="sg-analyze-reason">{r.reason}</span>
-        </label>
-      ))}
+      {recommendations.map((r) => {
+        const ns = nodeStates[r.pipeline] ?? 'idle';
+        const info = lastRunInfo[r.pipeline];
+        const chipColor = ns === 'running' ? '#4fc3f7' : ns === 'done' ? '#4ec9b0' : ns === 'failed' ? '#f48771' : 'transparent';
+        const chipLabel = ns === 'running' ? '● Running' : ns === 'done' ? '✓' : ns === 'failed' ? '✗' : '';
+        return (
+          <label key={r.pipeline} className="sg-analyze-row" style={{ cursor: ns === 'done' || ns === 'failed' ? 'default' : 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={checked.has(r.pipeline)}
+              onChange={() => toggle(r.pipeline)}
+              disabled={anyRunning}
+            />
+            <span className="sg-analyze-pipeline">{r.pipeline}</span>
+            <span className="sg-analyze-priority" style={{ color: priorityColor[r.priority] ?? '#888' }}>
+              {r.priority}
+            </span>
+            <span className="sg-analyze-reason">{r.reason}</span>
+            {chipLabel && (
+              <span
+                style={{ marginLeft: 'auto', fontSize: 10, color: chipColor, whiteSpace: 'nowrap', cursor: 'pointer', flexShrink: 0 }}
+                title={info ? `exit ${info.exitCode} · ${info.finishedAt}` : undefined}
+                onClick={(e) => { e.preventDefault(); onScrollTo(r.pipeline); }}
+              >
+                {chipLabel}
+              </span>
+            )}
+          </label>
+        );
+      })}
       <button
         className="sg-wf-btn sg-wf-btn-destructive"
         style={{ marginTop: 8 }}
-        disabled={checked.size === 0}
-        onClick={() => onRunSelected([...checked])}
+        disabled={checked.size === 0 || anyRunning}
+        onClick={() => onRunSelected([...checked].sort((a, b) => {
+          const order = recommendations.map((r) => r.pipeline);
+          return order.indexOf(a) - order.indexOf(b);
+        }))}
       >
-        Run selected ({checked.size})
+        {anyRunning ? `Running… (${doneCount}/${recommendations.filter(r => checked.has(r.pipeline)).length})` : `Run selected (${checked.size})`}
       </button>
     </div>
   );
@@ -293,6 +338,24 @@ function FixPlanPanel({ plan, onApprove, onReject }: {
 
 export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknown) => void }) {
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const prevNodeStates = useRef<Record<string, NodeState>>({});
+
+  // Auto-open the log panel whenever a pipeline transitions to 'running'.
+  // Keep it open if it fails; close it when it succeeds (user can reopen manually).
+  useEffect(() => {
+    const prev = prevNodeStates.current;
+    for (const [id, ns] of Object.entries(vm.nodeStates)) {
+      const was = prev[id] ?? 'idle';
+      if (ns === 'running' && was !== 'running') {
+        setSelectedLog(id);
+      } else if (ns === 'done' && was === 'running') {
+        // Pipeline finished cleanly — collapse the log panel
+        setSelectedLog((cur) => (cur === id ? null : cur));
+      }
+      // 'failed' — leave the log open so the user can see the error
+    }
+    prevNodeStates.current = { ...vm.nodeStates };
+  }, [vm.nodeStates]);
 
   const state = (id: string): NodeState => vm.nodeStates[id] ?? 'idle';
   const info = (id: string) => vm.lastRunInfo[id];
@@ -305,7 +368,14 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
   const hasRecommendations = vm.analysisRecommendations.length > 0;
 
   const handleRunSequence = (pipelines: string[]) => {
-    vscodeApi.postMessage({ type: 'runSequence', pipelines });
+    vscodeApi.postMessage({ type: 'runSequenceBatch', pipelines });
+  };
+
+  const handleScrollTo = (pipeline: string) => {
+    setSelectedLog(pipeline);
+    // Scroll the card into view by focusing it
+    const el = document.getElementById(`sg-card-${pipeline}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleApproveFix = () => {
@@ -402,7 +472,10 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
         {hasRecommendations && (
           <AnalyzePanel
             recommendations={vm.analysisRecommendations}
+            nodeStates={vm.nodeStates}
+            lastRunInfo={vm.lastRunInfo}
             onRunSelected={handleRunSequence}
+            onScrollTo={handleScrollTo}
           />
         )}
 

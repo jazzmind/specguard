@@ -24,11 +24,24 @@ export function parseCoverageText(raw: string): AppCoverage[] {
       else if (missingMatch) items.push({ app: name, key: missingMatch[1], hasSpec: false, hasTest: false });
     }
 
+    // Normal summary line: "N source files, N specs (N%), N tests"
     const summary = section.match(/(\d+) source files, (\d+) specs \((\d+)%\), (\d+) tests/);
-    const sourceCount = summary ? parseInt(summary[1], 10) : items.length;
-    const specCount = summary ? parseInt(summary[2], 10) : items.filter((i) => i.hasSpec).length;
-    const percentage = summary ? parseInt(summary[3], 10) : 0;
-    apps.push({ name, specCount, sourceCount, testCount: 0, percentage, items });
+    // Spec-first summary line: "0 source files (spec-first), N specs imported, N tests"
+    const specFirstSummary = !summary ? section.match(/0 source files \(spec-first\), (\d+) specs imported, (\d+) tests/) : null;
+
+    const sourceCount = summary ? parseInt(summary[1], 10) : 0;
+    const specCount = summary
+      ? parseInt(summary[2], 10)
+      : specFirstSummary
+        ? parseInt(specFirstSummary[1], 10)
+        : items.filter((i) => i.hasSpec).length;
+    const percentage = summary ? parseInt(summary[3], 10) : (specCount > 0 ? 100 : 0);
+    const testCount = summary
+      ? parseInt(summary[4], 10)
+      : specFirstSummary
+        ? parseInt(specFirstSummary[2], 10)
+        : items.filter((i) => i.hasTest).length;
+    apps.push({ name, specCount, sourceCount, testCount, percentage, items });
   }
   return apps;
 }
@@ -46,7 +59,7 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
     const configFile = path.join(workspaceRoot, '.specguard', 'config.json');
     if (!fs.existsSync(configFile)) return;
     const config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
-      apps?: Array<{ name: string; specDir: string }>;
+      apps?: Array<{ name: string; specDir: string; testOutput?: string }>;
     };
     if (!Array.isArray(config.apps)) return;
 
@@ -62,17 +75,41 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
       const mdFiles = fs.readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
       if (mdFiles.length === 0) continue;
 
+      // Resolve testOutput so we can check for generated tests.
+      const testOutputAbs = appCfg.testOutput
+        ? (path.isAbsolute(appCfg.testOutput) ? appCfg.testOutput : path.join(workspaceRoot, appCfg.testOutput))
+        : null;
+
+      let testCount = 0;
       entry.specCount = mdFiles.length;
       entry.percentage = entry.sourceCount > 0
         ? Math.round((mdFiles.length / entry.sourceCount) * 100)
         : 100; // no source files but has specs — treat as fully covered via import
-      entry.items = mdFiles.map((f) => ({
-        app: entry.name,
-        key: f.replace(/\.md$/, ''),
-        hasSpec: true,
-        hasTest: false,
-        specPath: path.join(specDirAbs, f),
-      }));
+      entry.items = mdFiles.map((f) => {
+        const feature = f.replace(/\.md$/, '');
+        let hasTest = false;
+        if (testOutputAbs) {
+          // Check the same candidate paths that status.ts uses.
+          const exts = ['ts', 'tsx', 'js', 'jsx'];
+          const kinds = ['test', 'spec'];
+          for (const kind of kinds) {
+            for (const ext of exts) {
+              const candidate = path.join(testOutputAbs, `${feature}.${kind}.${ext}`);
+              if (fs.existsSync(candidate)) { hasTest = true; break; }
+            }
+            if (hasTest) break;
+          }
+        }
+        if (hasTest) testCount += 1;
+        return {
+          app: entry.name,
+          key: feature,
+          hasSpec: true,
+          hasTest,
+          specPath: path.join(specDirAbs, f),
+        };
+      });
+      entry.testCount = testCount;
     }
   } catch { /* best-effort */ }
 }

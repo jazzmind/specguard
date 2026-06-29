@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-06-29T00:31:18.383Z",
+  "gaps": [
+    {
+      "specKey": "specguard-core/cli",
+      "title": "CLI Entrypoint",
+      "appName": "specguard-core",
+      "status": "unimplemented",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/config",
+      "title": "Config Loader",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/extension",
+      "title": "SpecGuard VS Code Extension",
+      "appName": "specguard-core",
+      "status": "unimplemented",
+      "uncheckedCriteria": 14,
+      "totalCriteria": 14
+    },
+    {
+      "specKey": "specguard-core/llm",
+      "title": "LLM Adapter",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/mcp-server",
+      "title": "MCP Server",
+      "appName": "specguard-core",
+      "status": "unimplemented",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/spec-parser",
+      "title": "Spec Parser",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/writer",
+      "title": "File Writer",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 3,
+      "totalCriteria": 3
+    },
+    {
+      "specKey": "specguard-pipelines/doc-generate",
+      "title": "Doc Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 12,
+      "totalCriteria": 12
+    },
+    {
+      "specKey": "specguard-pipelines/drift",
+      "title": "Drift Detection Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 11,
+      "totalCriteria": 11
+    },
+    {
+      "specKey": "specguard-pipelines/forward-generate",
+      "title": "Forward Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 12,
+      "totalCriteria": 12
+    },
+    {
+      "specKey": "specguard-pipelines/heal",
+      "title": "Self-Healing Test Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 12,
+      "totalCriteria": 12
+    },
+    {
+      "specKey": "specguard-pipelines/reverse-generate",
+      "title": "Reverse Generation Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 13,
+      "totalCriteria": 13
+    },
+    {
+      "specKey": "specguard-pipelines/security",
+      "title": "Security Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 15,
+      "totalCriteria": 15
+    },
+    {
+      "specKey": "specguard-pipelines/status",
+      "title": "Status Pipeline",
+      "appName": "specguard-pipelines",
+      "status": "partial",
+      "uncheckedCriteria": 12,
+      "totalCriteria": 12
+    }
+  ]
+}
