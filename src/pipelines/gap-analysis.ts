@@ -26,6 +26,7 @@ import { loadAllSpecs } from '../core/spec-parser.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { writeFile } from '../core/writer.js';
+import { writePlan } from '../core/plan-writer.js';
 
 export interface GapAnalysisOpts {
   /** Restrict to a single spec key (e.g. `app/team-sprint-board-mvp`). */
@@ -256,9 +257,42 @@ export async function runGapAnalysis(
   if (result.gaps.length === 0) {
     log('[gap-analysis] all specs appear to be implemented');
   } else {
-    const unimpl = result.gaps.filter((g) => g.status === 'unimplemented').length;
-    const partial = result.gaps.filter((g) => g.status === 'partial').length;
-    log(`[gap-analysis] ${unimpl} unimplemented, ${partial} partial`);
+    const unimpl = result.gaps.filter((g) => g.status === 'unimplemented');
+    const partial = result.gaps.filter((g) => g.status === 'partial');
+    log(`[gap-analysis] ${unimpl.length} unimplemented, ${partial.length} partial`);
+
+    // Write a summary plan for the coding agent.
+    try {
+      writePlan({
+        pipeline: 'gap-analysis',
+        title: `Implement Missing Features — ${unimpl.length} unimplemented, ${partial.length} partial`,
+        summary: `Gap analysis found ${unimpl.length} spec(s) with no source implementation and ` +
+          `${partial.length} spec(s) that are only partially implemented. ` +
+          `Per-spec implementation plans are available under \`.specguard/plans/\`.`,
+        sections: [
+          {
+            heading: 'Unimplemented Specs',
+            items: unimpl.map((g) => `\`${g.specKey}\` — "${g.title}"${g.planPath ? ` → see plan` : ''}`),
+          },
+          {
+            heading: 'Partially Implemented Specs',
+            items: partial.map((g) => `\`${g.specKey}\` — "${g.title}" (${g.uncheckedCriteria}/${g.totalCriteria} criteria pending)`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Review the per-spec plans under `.specguard/plans/` — each has suggested file structure and implementation steps.',
+              'Implement each unimplemented spec following its plan.',
+              'For partially implemented specs, check off each acceptance criterion as you implement it.',
+              'Run `specguard gap-analysis` to verify implementation progress.',
+              'Run `specguard generate --all` to generate tests once source code exists.',
+            ],
+          },
+        ],
+        rootDir: config.rootDir ?? process.cwd(),
+      });
+    } catch { /* best-effort */ }
   }
 
   result.exitCode = result.failed > 0 ? ExitCode.MissingSpecs : ExitCode.Success;

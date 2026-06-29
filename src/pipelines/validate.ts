@@ -491,5 +491,37 @@ export async function runValidate(
   }
 
   result.exitCode = anyFailed ? ExitCode.ValidationFailed : ExitCode.Success;
+
+  if (anyFailed) {
+    try {
+      const { writePlan } = await import('../core/plan-writer.js');
+      const failedItems = result.items.filter((i) => i.status === 'failed');
+      writePlan({
+        pipeline: 'validate',
+        title: `Fix Validation Failures — ${failedItems.length} spec(s) failed`,
+        summary: `The validate pipeline ran browser automation against your app and found ${failedItems.length} spec(s) ` +
+          `where the running application does not match the expected behaviour described in the spec.`,
+        sections: [
+          {
+            heading: 'Failed Specs',
+            items: failedItems.map((i) => `\`${i.key}\` — ${i.message ?? 'validation failed'}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Review the evidence files under `.specguard/evidence/` for each failing spec.',
+              'Check whether the app behaviour is wrong (fix source code) or the spec is wrong (update spec).',
+              'If fixing source code, run the full test suite to avoid regressions.',
+              'If updating the spec, run `specguard drift` afterward to ensure consistency.',
+              'Run `specguard validate` to confirm all scenarios pass.',
+            ],
+          },
+        ],
+        rootDir: config.rootDir ?? process.cwd(),
+      });
+    } catch { /* best-effort */ }
+  }
+
   return result;
 }

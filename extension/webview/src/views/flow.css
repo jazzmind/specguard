@@ -115,6 +115,17 @@
 .sg-wf-card-passed { border-color: #4ec9b044; }
 .sg-wf-card:hover { border-color: #444; }
 
+/* Analyze-triggered highlight — brief pulse then settles to teal border */
+@keyframes sg-triggered-pulse {
+  0%   { border-color: #4fc3f7; box-shadow: 0 0 0 2px #4fc3f733; }
+  50%  { border-color: #4fc3f7cc; box-shadow: 0 0 0 4px #4fc3f722; }
+  100% { border-color: #4fc3f755; box-shadow: none; }
+}
+.sg-wf-card-highlighted {
+  border-color: #4fc3f755;
+  animation: sg-triggered-pulse 1.2s ease-out;
+}
+
 .sg-wf-card-left {
   display: flex;
   flex-direction: column;
@@ -187,12 +198,34 @@
 }
 .sg-wf-btn-cancel:hover { background: #2a1a1a; border-color: #f48771; }
 
-/* ── Fix button ─────────────────────────────────────────────────────────── */
+/* ── Fix / Heal button ──────────────────────────────────────────────────── */
 .sg-wf-btn-fix {
   border-color: #3a5a3a;
   color: #4ec9b0;
 }
 .sg-wf-btn-fix:hover { background: #1a2a1a; border-color: #4ec9b0; }
+
+/* ── Plan button ─────────────────────────────────────────────────────────── */
+.sg-wf-btn-plan {
+  border-color: #3a3a6a;
+  color: #9d9dff;
+}
+.sg-wf-btn-plan:hover { background: #1a1a2a; border-color: #9d9dff; }
+
+/* ── Commit button ───────────────────────────────────────────────────────── */
+.sg-wf-btn-commit {
+  border-color: #4a3a6a;
+  color: #c792ea;
+}
+.sg-wf-btn-commit:hover { background: #1e1a2a; border-color: #c792ea; }
+
+/* ── Card action group ───────────────────────────────────────────────────── */
+.sg-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
 
 /* ── Log toggle ─────────────────────────────────────────────────────────── */
 .sg-log-toggle {

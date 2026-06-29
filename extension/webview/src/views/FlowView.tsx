@@ -16,8 +16,8 @@ function timeAgo(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-function runPipeline(id: string) {
-  vscodeApi.postMessage({ type: 'run', pipeline: id });
+function runPipeline(id: string, args?: string[]) {
+  vscodeApi.postMessage({ type: 'run', pipeline: id, args });
 }
 
 function cancelPipeline(id: string) {
@@ -100,21 +100,39 @@ interface PipelineCardProps {
   destructive?: boolean;
   selectedLog: string | null;
   onSelectLog: (id: string | null) => void;
-  /** Show a "Fix" quick-action button after failure for heal-able pipelines */
-  healable?: boolean;
+  /** Glow/pulse when triggered from an Analyze batch run */
+  highlighted?: boolean;
+  /** Show inline Heal button after failure (pipelines that produce tests) */
+  canHeal?: boolean;
+  /** Show inline Commit button after success */
+  canCommit?: boolean;
 }
 
 function PipelineCard({
   id, label, description, state, info, logs, disabled, disabledHint, destructive,
-  selectedLog, onSelectLog, healable,
+  selectedLog, onSelectLog, highlighted, canHeal, canCommit,
 }: PipelineCardProps) {
-  const isFailed = state === 'failed' || info?.status === 'fail';
+  const isFailed = state === 'failed' || (state === 'idle' && info?.status === 'fail');
   const isRunning = state === 'running';
+  const isDone = state === 'done' || (state === 'idle' && info?.status === 'pass');
+  const hasRun = state !== 'idle' || info !== undefined;
   const tail = isFailed ? (logs?.filter((l) => l.trim()).slice(-5) ?? info?.tail ?? []) : [];
   const logOpen = selectedLog === id;
 
+  const handlePlan = () => {
+    const issuesSummary = tail.filter(Boolean).join('; ') || `${id} pipeline failed — see logs for details`;
+    runPipeline('plan-fix', ['--pipeline', id, '--issues', issuesSummary]);
+  };
+
   return (
-    <div id={`sg-card-${id}`} className={`sg-wf-card ${isFailed ? 'sg-wf-card-failed' : state === 'done' || info?.status === 'pass' ? 'sg-wf-card-passed' : ''}`}>
+    <div
+      id={`sg-card-${id}`}
+      className={[
+        'sg-wf-card',
+        isFailed ? 'sg-wf-card-failed' : isDone ? 'sg-wf-card-passed' : '',
+        highlighted ? 'sg-wf-card-highlighted' : '',
+      ].filter(Boolean).join(' ')}
+    >
       <div className="sg-wf-card-left">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="sg-wf-card-label">{label}</span>
@@ -126,7 +144,7 @@ function PipelineCard({
             {logOpen ? '▲ logs' : (
               <>
                 ▼ logs
-                {(logs?.length ?? 0) > 0 && !logOpen && (
+                {(logs?.length ?? 0) > 0 && (
                   <span style={{ marginLeft: 4, fontSize: 9, color: isRunning ? '#4fc3f7' : '#888' }}>
                     ({logs!.length})
                   </span>
@@ -143,6 +161,7 @@ function PipelineCard({
       </div>
       <div className="sg-wf-card-right">
         <StatusChip state={state} info={info} />
+
         {disabled ? (
           <button className="sg-wf-btn sg-wf-btn-disabled" disabled title={disabledHint}>
             {label}
@@ -152,20 +171,44 @@ function PipelineCard({
             Cancel
           </button>
         ) : (
-          <>
+          <div className="sg-card-actions">
             <button
               className={`sg-wf-btn ${destructive ? 'sg-wf-btn-destructive' : ''}`}
               onClick={() => runPipeline(id)}
               title={destructive ? 'This pipeline calls the LLM and writes files' : undefined}
             >
-              Run
+              {hasRun ? 'Re-run' : 'Run'}
             </button>
-            {healable && isFailed && (
-              <button className="sg-wf-btn sg-wf-btn-fix" onClick={() => runPipeline('heal')} title="Auto-fix with heal">
-                Fix
+
+            {/* Post-run actions */}
+            {isFailed && (
+              <button
+                className="sg-wf-btn sg-wf-btn-plan"
+                onClick={handlePlan}
+                title="Generate an agent-consumable fix plan for these failures"
+              >
+                Plan
               </button>
             )}
-          </>
+            {isFailed && canHeal && (
+              <button
+                className="sg-wf-btn sg-wf-btn-fix"
+                onClick={() => runPipeline('heal')}
+                title="Auto-heal failing tests with LLM assistance"
+              >
+                Heal
+              </button>
+            )}
+            {isDone && canCommit && (
+              <button
+                className="sg-wf-btn sg-wf-btn-commit"
+                onClick={() => runPipeline('commit', ['--pipeline', id])}
+                title={`Commit output from ${id} — specguard(${id}): ...`}
+              >
+                Commit
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -227,10 +270,8 @@ function AnalyzePanel({ recommendations, nodeStates, lastRunInfo, onRunSelected,
 
   const priorityColor: Record<string, string> = { high: '#f48771', medium: '#e2c08d', low: '#888' };
 
-  // Disable run if any checked pipeline is currently running.
   const anyRunning = [...checked].some((p) => nodeStates[p] === 'running');
 
-  // Count how many have finished.
   const doneCount = recommendations.filter((r) => {
     const s = nodeStates[r.pipeline];
     return s === 'done' || s === 'failed';
@@ -286,7 +327,9 @@ function AnalyzePanel({ recommendations, nodeStates, lastRunInfo, onRunSelected,
           return order.indexOf(a) - order.indexOf(b);
         }))}
       >
-        {anyRunning ? `Running… (${doneCount}/${recommendations.filter(r => checked.has(r.pipeline)).length})` : `Run selected (${checked.size})`}
+        {anyRunning
+          ? `Running… (${doneCount}/${recommendations.filter(r => checked.has(r.pipeline)).length})`
+          : `Run selected (${checked.size})`}
       </button>
     </div>
   );
@@ -336,24 +379,49 @@ function FixPlanPanel({ plan, onApprove, onReject }: {
 // Main FlowView
 // ---------------------------------------------------------------------------
 
+// Pipelines that generate test output and can be healed automatically.
+const HEALABLE_PIPELINES = new Set(['generate', 'security', 'validate', 'heal']);
+// Pipelines whose output is worth committing immediately after success.
+const COMMITTABLE_PIPELINES = new Set([
+  'generate', 'security', 'docs', 'drift', 'matrix', 'reverse', 'gap-analysis',
+  'heal', 'validate', 'quality', 'deps',
+]);
+
 export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknown) => void }) {
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const [triggeredPipelines, setTriggeredPipelines] = useState<Set<string>>(new Set());
   const prevNodeStates = useRef<Record<string, NodeState>>({});
 
-  // Auto-open the log panel whenever a pipeline transitions to 'running'.
-  // Keep it open if it fails; close it when it succeeds (user can reopen manually).
+  // Auto-open the log panel when a pipeline transitions to 'running'.
+  // Auto-clear highlight when a triggered pipeline finishes.
   useEffect(() => {
     const prev = prevNodeStates.current;
+    const nowFinished: string[] = [];
+
     for (const [id, ns] of Object.entries(vm.nodeStates)) {
       const was = prev[id] ?? 'idle';
       if (ns === 'running' && was !== 'running') {
         setSelectedLog(id);
       } else if (ns === 'done' && was === 'running') {
-        // Pipeline finished cleanly — collapse the log panel
         setSelectedLog((cur) => (cur === id ? null : cur));
+        nowFinished.push(id);
+      } else if (ns === 'failed' && was === 'running') {
+        nowFinished.push(id);
       }
-      // 'failed' — leave the log open so the user can see the error
     }
+
+    if (nowFinished.length > 0) {
+      setTriggeredPipelines((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set(prev);
+        let changed = false;
+        for (const id of nowFinished) {
+          if (next.has(id)) { next.delete(id); changed = true; }
+        }
+        return changed ? next : prev;
+      });
+    }
+
     prevNodeStates.current = { ...vm.nodeStates };
   }, [vm.nodeStates]);
 
@@ -368,12 +436,20 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
   const hasRecommendations = vm.analysisRecommendations.length > 0;
 
   const handleRunSequence = (pipelines: string[]) => {
+    // Mark these pipelines as triggered so their cards highlight.
+    setTriggeredPipelines(new Set(pipelines));
     vscodeApi.postMessage({ type: 'runSequenceBatch', pipelines });
+    // Auto-scroll to the first pipeline in the batch.
+    if (pipelines[0]) {
+      setTimeout(() => {
+        const el = document.getElementById(`sg-card-${pipelines[0]}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+    }
   };
 
   const handleScrollTo = (pipeline: string) => {
     setSelectedLog(pipeline);
-    // Scroll the card into view by focusing it
     const el = document.getElementById(`sg-card-${pipeline}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
@@ -384,13 +460,34 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
       .filter((s) => s.action === 'run-pipeline' && s.pipeline)
       .map((s) => s.pipeline as string);
     vscodeApi.postMessage({ type: 'runSequence', pipelines: pipelineSteps });
-    // Clear the fix plan from the UI
     dispatch({ type: 'fix-plan', plan: null });
   };
 
   const handleRejectFix = () => {
     dispatch({ type: 'fix-plan', plan: null });
   };
+
+  // Convenience wrapper: render a standard pipeline card with common props wired.
+  const card = (id: string, label: string, description: string, opts: {
+    destructive?: boolean;
+    disabled?: boolean;
+    disabledHint?: string;
+  } = {}) => (
+    <PipelineCard
+      id={id}
+      label={label}
+      description={description}
+      state={state(id)}
+      info={info(id)}
+      logs={logs(id)}
+      selectedLog={selectedLog}
+      onSelectLog={setSelectedLog}
+      highlighted={triggeredPipelines.has(id)}
+      canHeal={HEALABLE_PIPELINES.has(id)}
+      canCommit={COMMITTABLE_PIPELINES.has(id)}
+      {...opts}
+    />
+  );
 
   return (
     <div className="sg-wf">
@@ -402,22 +499,11 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
             title="Step 1 — Create Specs"
             sub="Run one of these to generate your first Living Specs. Once specs exist this section is hidden."
           />
-
           <div className="sg-wf-bootstrap">
             <div className="sg-wf-bootstrap-option">
               <ArrowFlow steps={['Source code', 'reverse', 'Specs']} />
               <div style={{ marginTop: 8 }}>
-                <PipelineCard
-                  id="reverse"
-                  label="reverse"
-                  description="Reads your source code and generates Living Specs. Best for brownfield projects."
-                  state={state('reverse')}
-                  info={info('reverse')}
-                  logs={logs('reverse')}
-                  destructive
-                  selectedLog={selectedLog}
-                  onSelectLog={setSelectedLog}
-                />
+                {card('reverse', 'reverse', 'Reads your source code and generates Living Specs. Best for brownfield projects.', { destructive: true })}
               </div>
             </div>
             <div className="sg-wf-bootstrap-sep">or</div>
@@ -446,7 +532,7 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
         </div>
       )}
 
-      {/* ── Main Loop ───────────────────────────────────────────────────── */}
+      {/* ── Pipeline Loop ────────────────────────────────────────────────── */}
       <div className="sg-wf-section">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #2a2a2a' }}>
           <div style={{ flex: 1 }}>
@@ -454,7 +540,7 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
               {hasSpecs ? 'Pipeline Loop' : 'Step 2 — Pipeline Loop'}
             </div>
             <div className="sg-wf-section-sub">
-              Run these pipelines on your specs. Each one is independent — run in any order.
+              Run these pipelines on your specs. Use ⚡ Analyze to get smart recommendations.
             </div>
           </div>
           <button
@@ -468,7 +554,6 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
           </button>
         </div>
 
-        {/* Analyze results panel */}
         {hasRecommendations && (
           <AnalyzePanel
             recommendations={vm.analysisRecommendations}
@@ -480,26 +565,25 @@ export function FlowView({ vm, dispatch }: { vm: ViewModel; dispatch: (e: unknow
         )}
 
         <div className="sg-wf-pipeline-grid">
-          <PipelineCard id="generate" label="generate" description="Generate test code from specs" state={state('generate')} info={info('generate')} logs={logs('generate')} destructive selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="security" label="security" description="Generate security tests and run SAST analysis" state={state('security')} info={info('security')} logs={logs('security')} destructive selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="validate" label="validate" description="Validate specs against your running app (browser automation)" state={state('validate')} info={info('validate')} logs={logs('validate')} destructive healable selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="docs" label="docs" description="Generate user-facing documentation from specs" state={state('docs')} info={info('docs')} logs={logs('docs')} destructive selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="drift" label="drift" description="Detect specs that are out of sync with the current source code" state={state('drift')} info={info('drift')} logs={logs('drift')} selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="matrix" label="matrix" description="Build traceability matrix linking specs to tests and docs" state={state('matrix')} info={info('matrix')} logs={logs('matrix')} selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="quality" label="quality" description="Run ESLint and dead-code checks (Knip)" state={state('quality')} info={info('quality')} logs={logs('quality')} selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="deps" label="deps" description="Audit dependencies for vulnerabilities and unused packages" state={state('deps')} info={info('deps')} logs={logs('deps')} selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-        </div>
-      </div>
+          {/* Spec creation */}
+          {card('reverse', 'reverse', 'Generate specs from source code (re-run to pick up new files)', { destructive: true })}
+          {card('gap-analysis', 'gap-analysis', 'Detect unimplemented specs and generate implementation plans', { destructive: true })}
 
-      {/* ── Finalise ────────────────────────────────────────────────────── */}
-      <div className="sg-wf-section">
-        <SectionHeading
-          title="Finalise"
-          sub="Heal failing tests, then commit all SpecGuard-generated files."
-        />
-        <div className="sg-wf-pipeline-grid">
-          <PipelineCard id="heal" label="heal" description="Self-heal failing generated tests with LLM assistance" state={state('heal')} info={info('heal')} logs={logs('heal')} destructive selectedLog={selectedLog} onSelectLog={setSelectedLog} />
-          <PipelineCard id="commit" label="commit" description="Stage and commit all SpecGuard-generated files" state={state('commit')} info={info('commit')} logs={logs('commit')} destructive selectedLog={selectedLog} onSelectLog={setSelectedLog} />
+          {/* Core loop */}
+          {card('generate', 'generate', 'Generate test code from specs', { destructive: true })}
+          {card('security', 'security', 'Generate security tests and run SAST analysis', { destructive: true })}
+          {card('validate', 'validate', 'Validate specs against your running app (browser automation)', { destructive: true })}
+          {card('docs', 'docs', 'Generate user-facing documentation from specs', { destructive: true })}
+
+          {/* Analysis */}
+          {card('drift', 'drift', 'Detect specs out of sync with source code')}
+          {card('matrix', 'matrix', 'Build traceability matrix linking specs to tests and docs')}
+          {card('quality', 'quality', 'Run ESLint and dead-code checks (Knip)')}
+          {card('deps', 'deps', 'Audit dependencies for vulnerabilities and unused packages')}
+
+          {/* Heal & commit — inline next steps, no separate section */}
+          {card('heal', 'heal', 'Self-heal failing generated tests with LLM assistance', { destructive: true })}
+          {card('commit', 'commit', 'Stage and commit all SpecGuard-generated files to git', { destructive: true })}
         </div>
       </div>
 

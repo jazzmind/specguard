@@ -194,5 +194,41 @@ export async function runMatrix(
 
   result.created = entries.length;
   result.exitCode = ExitCode.Success;
+
+  // Write a plan if any specs are missing tests or docs.
+  const noTest = entries.filter((e) => e.tests.length === 0);
+  const noDoc = entries.filter((e) => e.docs.length === 0);
+  if (noTest.length > 0 || noDoc.length > 0) {
+    try {
+      const { writePlan } = await import('../core/plan-writer.js');
+      writePlan({
+        pipeline: 'matrix',
+        title: `Fill Traceability Gaps — ${noTest.length} spec(s) lack tests, ${noDoc.length} lack docs`,
+        summary: `The matrix pipeline found ${noTest.length} spec(s) with no generated tests and ` +
+          `${noDoc.length} spec(s) with no documentation. Run \`generate\` and \`docs\` to close the gaps.`,
+        sections: [
+          {
+            heading: 'Specs Without Tests',
+            items: noTest.slice(0, 20).map((e) => `\`${e.appName}/${e.specKey}\` — ${e.title}`),
+          },
+          {
+            heading: 'Specs Without Docs',
+            items: noDoc.slice(0, 20).map((e) => `\`${e.appName}/${e.specKey}\` — ${e.title}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Run `specguard generate --all` to generate tests for untested specs.',
+              'Run `specguard docs --all` to generate documentation for undocumented specs.',
+              'Run `specguard matrix` again to verify full coverage.',
+            ],
+          },
+        ],
+        rootDir: config.rootDir ?? process.cwd(),
+      });
+    } catch { /* best-effort */ }
+  }
+
   return result;
 }

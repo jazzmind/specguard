@@ -466,8 +466,46 @@ export async function runSecurity(
   if (opts.withSast && sawRealFindings) {
     result.exitCode = ExitCode.SecurityIssues;
   } else if (attempted > 0 && result.created === 0 && result.failed === attempted) {
-    // Every attempted spec failed to generate — surface as an internal error.
     result.exitCode = ExitCode.InternalError;
+  }
+
+  // Write a fix plan when there are SAST findings or generation failures.
+  const planWorthy = (opts.withSast && sawRealFindings) || result.failed > 0;
+  if (planWorthy) {
+    try {
+      const { writePlan } = await import('../core/plan-writer.js');
+      const failedItems = result.items.filter((i) => i.status === 'failed');
+      const cwd = config.rootDir ?? process.cwd();
+      const sastLines = result.messages.filter((m) => m.includes('[sast]') || m.includes('[finding]'));
+      writePlan({
+        pipeline: 'security',
+        title: `Fix Security Issues — ${failedItems.length} failure(s)${sawRealFindings ? ', SAST findings present' : ''}`,
+        summary: `The security pipeline detected ${result.failed} issue(s). ` +
+          (sawRealFindings ? 'SAST analysis found real security vulnerabilities that require immediate attention. ' : '') +
+          'Review the findings and apply the fixes below.',
+        sections: [
+          {
+            heading: 'SAST Findings',
+            items: sastLines.slice(0, 20).map((l) => l.replace(/^\[.*?\]\s*/, '')),
+          },
+          {
+            heading: 'Failed Test Generation',
+            items: failedItems.map((i) => `\`${i.key}\` — ${i.message ?? 'generation failed'}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Review each SAST finding and determine if it is a true positive.',
+              'Apply security patches: input validation, output encoding, auth checks as appropriate.',
+              'For failed test generation, check that the spec file exists and has valid scenarios.',
+              'Run `specguard security --with-sast` to verify all findings are resolved.',
+            ],
+          },
+        ],
+        rootDir: cwd,
+      });
+    } catch { /* best-effort */ }
   }
 
   return result;

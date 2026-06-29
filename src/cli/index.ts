@@ -243,7 +243,8 @@ program
   .option('--dry-run', 'preview what would be staged without committing')
   .option('--message <msg>', 'custom commit message suffix')
   .option('--app <name>', 'restrict to a single app')
-  .action(async (opts: { dryRun?: boolean; message?: string; app?: string }, cmd: Command) => {
+  .option('--pipeline <name>', 'originating pipeline (used for conventional commit message and changelog)')
+  .action(async (opts: { dryRun?: boolean; message?: string; app?: string; pipeline?: string }, cmd: Command) => {
     await commitCommand(withGlobals(cmd, opts));
   });
 

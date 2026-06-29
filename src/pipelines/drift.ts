@@ -39,6 +39,7 @@ import {
   loadRegistry, saveRegistry, hashFile, hashString,
   getOrCreateSpecEntry, updateFileEntry,
 } from '../core/drift-registry.js';
+import { writePlan } from '../core/plan-writer.js';
 
 export interface DriftOpts {
   /** Git ref to diff against; the range becomes `<since>..HEAD`. Default `HEAD~1`. */
@@ -211,6 +212,33 @@ async function runMtimeDrift(
     }
   }
 
+  if (result.failed > 0) {
+    try {
+      const driftedSpecs = result.items.filter((i) => i.status === 'failed');
+      writePlan({
+        pipeline: 'drift',
+        title: `Fix Spec Drift — ${driftedSpecs.length} spec(s) out of sync`,
+        summary: `The drift pipeline found ${driftedSpecs.length} Living Spec(s) that no longer match their source code.`,
+        sections: [
+          {
+            heading: 'Drifted Specs',
+            items: driftedSpecs.map((i) => `\`${i.key}\` — ${i.message ?? 'source modified after spec'}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Review each drifted spec against the current source code.',
+              'Update the acceptance criteria and scenarios to reflect reality.',
+              'Run `specguard drift` to confirm.',
+            ],
+          },
+        ],
+        rootDir: cwd,
+      });
+    } catch { /* best-effort */ }
+  }
+
   result.exitCode = result.failed > 0 ? ExitCode.DriftDetected : ExitCode.Success;
   return result;
 }
@@ -360,6 +388,39 @@ export async function runDrift(
   }
 
   saveRegistry(cwd, registry);
+
+  saveRegistry(cwd, registry);
+
+  if (result.failed > 0) {
+    try {
+      const driftedSpecs = result.items.filter((i) => i.status === 'failed');
+      writePlan({
+        pipeline: 'drift',
+        title: `Fix Spec Drift — ${driftedSpecs.length} spec(s) out of sync`,
+        summary: `The drift pipeline found ${driftedSpecs.length} Living Spec(s) that no longer match their source code. ` +
+          `Update each spec to reflect the current implementation, then re-run drift to verify.`,
+        sections: [
+          {
+            heading: 'Drifted Specs',
+            items: driftedSpecs.map((i) => `\`${i.key}\` — ${i.message ?? 'semantic drift detected'}`),
+          },
+          {
+            heading: 'Fix Steps',
+            ordered: true,
+            items: [
+              'Open each drifted spec file listed above.',
+              'Review the acceptance criteria and scenarios against the current source code.',
+              'Update the spec to reflect the actual implementation.',
+              'If the spec describes intended behaviour that is now missing from the source, restore the source code instead.',
+              'Run `specguard drift` again to confirm no remaining drift.',
+            ],
+          },
+        ],
+        rootDir: cwd,
+      });
+      log(`[drift] fix plan written to .specguard/plans/`);
+    } catch { /* best-effort */ }
+  }
 
   result.exitCode = result.failed > 0 ? ExitCode.DriftDetected : ExitCode.Success;
   return result;
