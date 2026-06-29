@@ -2,6 +2,12 @@
 
 All notable changes are documented here.
 
+## [0.1.8] — 2026-06-29
+
+_No notable changes collected from git log._
+## [0.1.7] — 2026-06-29
+
+_No notable changes collected from git log._
 ## [0.1.6] — 2026-06-28
 
 _No notable changes collected from git log._

@@ -66,6 +66,8 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, findings: e.data };
     case 'workspace':
       return { ...vm, workspace: e.info };
+    case 'clearArtifacts':
+      return { ...vm, artifacts: [] };
     case 'analyze:result':
       return { ...vm, analysisRecommendations: e.recommendations };
     case 'fix-plan':
