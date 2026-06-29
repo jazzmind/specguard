@@ -42,24 +42,51 @@ export function App() {
     return () => window.removeEventListener('message', onMsg);
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    vscodeApi.postMessage({ type: 'refresh' });
+    setTimeout(() => setRefreshing(false), 1500);
+  };
+
   const ws = vm.workspace;
   return (
     <div className="sg-app">
-      {ws && (
-        <div className="sg-workspace-bar">
-          <span className="sg-workspace-name">{ws.name}</span>
-          <span className="sg-workspace-sep">/</span>
-          <span className={`sg-workspace-badge ${ws.configFound ? 'sg-workspace-ok' : 'sg-workspace-missing'}`}>
-            {ws.configFound ? `${ws.appCount} app${ws.appCount !== 1 ? 's' : ''}` : 'no config'}
-          </span>
-          {ws.configFound && ws.configApps.length > 0 && (
-            <span className="sg-workspace-apps" title={ws.configApps.join(', ')}>
-              {ws.configApps.join(', ')}
+      <div className="sg-workspace-bar">
+        {ws && (
+          <>
+            <span className="sg-workspace-name">{ws.name}</span>
+            <span className="sg-workspace-sep">/</span>
+            <span className={`sg-workspace-badge ${ws.configFound ? 'sg-workspace-ok' : 'sg-workspace-missing'}`}>
+              {ws.configFound ? `${ws.appCount} app${ws.appCount !== 1 ? 's' : ''}` : 'no config'}
             </span>
-          )}
-          <span className="sg-workspace-path" title={ws.path}>{ws.path}</span>
-        </div>
-      )}
+            {ws.configFound && ws.configApps.length > 0 && (
+              <span className="sg-workspace-apps" title={ws.configApps.join(', ')}>
+                {ws.configApps.join(', ')}
+              </span>
+            )}
+            <span className="sg-workspace-path" title={ws.path}>{ws.path}</span>
+          </>
+        )}
+        <button
+          onClick={handleRefresh}
+          title="Refresh dashboard"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: refreshing ? '#4fc3f7' : '#888',
+            cursor: 'pointer',
+            fontSize: 14,
+            padding: '2px 6px',
+            borderRadius: 4,
+            transition: 'color 0.2s',
+            flexShrink: 0,
+          }}
+        >
+          {refreshing ? '↻' : '↺'}
+        </button>
+      </div>
       <header className="sg-tabs">
         {TABS.map((t) => {
           let badge: number | null = null;

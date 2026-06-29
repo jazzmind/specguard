@@ -80,6 +80,7 @@ export type DashboardEvent =
   | { type: 'workspace'; info: WorkspaceInfo }
   | { type: 'analyze:result'; recommendations: AnalysisRecommendation[] }
   | { type: 'fix-plan'; plan: FixPlan }
+  | { type: 'clearArtifacts' }
   | { type: 'error'; scope: string; message: string };
 
 export type FindingSeverity = 'critical' | 'error' | 'warning' | 'info';

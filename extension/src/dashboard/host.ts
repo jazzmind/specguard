@@ -4,7 +4,7 @@ import * as path from 'path';
 import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation } from './protocol.js';
 import { RUNNABLE_PIPELINES } from './protocol.js';
 import { resolveCliPath, spawnCli, SpawnHandle } from './cli.js';
-import { parseCoverageText } from './coverage-parse.js';
+import { parseCoverageText, augmentCoverageFromDisk } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';
 import { ActivityLogService } from './activity-log.js';
@@ -14,6 +14,7 @@ export class DashboardHost {
   private sourceWatcher?: vscode.FileSystemWatcher;
   private activityWatcher?: fs.FSWatcher;
   private driftTimer?: ReturnType<typeof setTimeout>;
+  private refreshTimer?: ReturnType<typeof setTimeout>;
   private autoDocsTimer?: Map<string, ReturnType<typeof setTimeout>>;
   private activityLog: ActivityLogService;
   private lastActivityCount = 0;
@@ -40,6 +41,11 @@ export class DashboardHost {
         } else {
           this.post(ev);
         }
+      }
+
+      // When a spec changes, schedule a coverage refresh so counts stay current.
+      if (rel.includes('specs') && rel.endsWith('.md')) {
+        this._scheduleRefresh();
       }
 
       // Auto-docs: if spec changed and autoDocs is enabled, trigger doc-generate
@@ -210,50 +216,6 @@ export class DashboardHost {
     }
   }
 
-  /**
-   * When a project has no source files (e.g. spec was created via `import` from
-   * a PRD), `runStatus` correctly reports 0 source files and 0 specs because
-   * coverage is source-file-driven. This helper reads spec directories from
-   * config.json on disk and bumps the spec count so the dashboard reflects real
-   * spec files that exist.
-   */
-  private _augmentCoverageFromDisk(coverage: import('./protocol.js').AppCoverage[]): void {
-    try {
-      const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
-      if (!fs.existsSync(configFile)) return;
-      const config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
-        apps?: Array<{ name: string; specDir: string }>;
-      };
-      if (!Array.isArray(config.apps)) return;
-
-      for (const appCfg of config.apps) {
-        const entry = coverage.find((c) => c.name === appCfg.name);
-        if (!entry || entry.specCount > 0) continue; // already has counted specs
-
-        const specDirAbs = path.isAbsolute(appCfg.specDir)
-          ? appCfg.specDir
-          : path.join(this.workspaceRoot, appCfg.specDir);
-        if (!fs.existsSync(specDirAbs)) continue;
-
-        const mdFiles = fs.readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
-        if (mdFiles.length === 0) continue;
-
-        // Inject spec items so the sidebar and overview show the real specs.
-        entry.specCount = mdFiles.length;
-        entry.percentage = entry.sourceCount > 0
-          ? Math.round((mdFiles.length / entry.sourceCount) * 100)
-          : 100; // no source files but has specs — treat as 100% from import
-        entry.items = mdFiles.map((f) => ({
-          app: entry.name,
-          key: f.replace(/\.md$/, ''),
-          hasSpec: true,
-          hasTest: false,
-          specPath: path.join(specDirAbs, f),
-        }));
-      }
-    } catch { /* best-effort */ }
-  }
-
   private _pushAnalysisResult(): void {
     try {
       const analysisFile = path.join(this.workspaceRoot, '.specguard', 'analysis.json');
@@ -293,6 +255,9 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   async refresh(): Promise<void> {
+    // Clear accumulated artifacts from any previous project before re-populating.
+    this.post({ type: 'clearArtifacts' });
+
     // Coverage (best-effort, lenient text parse)
     try {
       const cli = await resolveCliPath(this.workspaceRoot);
@@ -302,7 +267,7 @@ export class DashboardHost {
       const coverage = parseCoverageText(out);
       // Augment: for apps where `status` reports 0 source files (e.g. imported-from-PRD
       // projects), count spec .md files on disk so the dashboard reflects reality.
-      this._augmentCoverageFromDisk(coverage);
+      augmentCoverageFromDisk(coverage, this.workspaceRoot);
       this.post({ type: 'coverage', data: coverage });
     } catch (err) {
       this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
@@ -336,6 +301,7 @@ export class DashboardHost {
     this.activityWatcher?.close();
     this.activityLog.dispose();
     if (this.driftTimer) clearTimeout(this.driftTimer);
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
     this.autoDocsTimer?.forEach((t) => clearTimeout(t));
     // Kill any in-flight processes
     this.activeRuns.forEach((h) => h.kill());
@@ -431,6 +397,18 @@ export class DashboardHost {
     } catch {
       // Background task — ignore errors
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Debounced refresh (triggered by spec file changes)
+  // ---------------------------------------------------------------------------
+
+  private _scheduleRefresh(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = undefined;
+      void this.refresh();
+    }, 1_500);
   }
 
   // ---------------------------------------------------------------------------

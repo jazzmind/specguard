@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import type { AppCoverage, CoverageItem } from './protocol.js';
 
 /** Lenient parser for the text output of `specguard status` (no --json yet). */
@@ -29,4 +31,48 @@ export function parseCoverageText(raw: string): AppCoverage[] {
     apps.push({ name, specCount, sourceCount, testCount: 0, percentage, items });
   }
   return apps;
+}
+
+/**
+ * For apps where `status` reports 0 source files (e.g. specs created via
+ * `import` from a PRD, with no matching source code), augment the coverage
+ * data by directly counting `.md` files in each app's specDir so the
+ * dashboard and sidebar reflect reality rather than showing 0 specs.
+ *
+ * Reads `.specguard/config.json` from `workspaceRoot` to discover specDirs.
+ */
+export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: string): void {
+  try {
+    const configFile = path.join(workspaceRoot, '.specguard', 'config.json');
+    if (!fs.existsSync(configFile)) return;
+    const config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
+      apps?: Array<{ name: string; specDir: string }>;
+    };
+    if (!Array.isArray(config.apps)) return;
+
+    for (const appCfg of config.apps) {
+      const entry = coverage.find((c) => c.name === appCfg.name);
+      if (!entry || entry.specCount > 0) continue; // already has counted specs
+
+      const specDirAbs = path.isAbsolute(appCfg.specDir)
+        ? appCfg.specDir
+        : path.join(workspaceRoot, appCfg.specDir);
+      if (!fs.existsSync(specDirAbs)) continue;
+
+      const mdFiles = fs.readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
+      if (mdFiles.length === 0) continue;
+
+      entry.specCount = mdFiles.length;
+      entry.percentage = entry.sourceCount > 0
+        ? Math.round((mdFiles.length / entry.sourceCount) * 100)
+        : 100; // no source files but has specs — treat as fully covered via import
+      entry.items = mdFiles.map((f) => ({
+        app: entry.name,
+        key: f.replace(/\.md$/, ''),
+        hasSpec: true,
+        hasTest: false,
+        specPath: path.join(specDirAbs, f),
+      }));
+    }
+  } catch { /* best-effort */ }
 }

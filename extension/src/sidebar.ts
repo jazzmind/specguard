@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AppCoverage } from './dashboard/protocol.js';
-import { parseCoverageText } from './dashboard/coverage-parse.js';
+import { parseCoverageText, augmentCoverageFromDisk } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
 import { getActiveWorkspaceRoot } from './workspace-state.js';
 
@@ -209,6 +209,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       const cli = await resolveCliPath(workspaceRoot);
       const raw = await runCli(cli, ['status'], workspaceRoot);
       this._apps = parseCoverageText(raw);
+      augmentCoverageFromDisk(this._apps, workspaceRoot);
     } catch (err) {
       this._error = (err as Error).message ?? String(err);
       this._apps = [];
