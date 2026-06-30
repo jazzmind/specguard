@@ -13,7 +13,7 @@
 import path from 'node:path';
 
 import type { AppSources } from './types.js';
-import { fileExists, expandGlobs } from './reader.js';
+import { fileExists, expandGlobs, readFile } from './reader.js';
 
 export type LanguageId = 'typescript' | 'python' | 'go' | 'rust' | 'java';
 
@@ -480,6 +480,26 @@ export async function detectLanguage(cwd: string): Promise<LanguageId> {
       }
     }
     return best;
+  }
+
+  // No markers or source files found — scan generated plan files for language hints.
+  // Handles spec-only projects (e.g. honeypenny) that have plans but no source yet.
+  const planDir = path.join(cwd, '.specguard', 'plans');
+  if (await fileExists(planDir)) {
+    try {
+      const planFiles = await expandGlobs(['**/*.md'], planDir);
+      const extVotes: Record<string, number> = {};
+      for (const f of planFiles) {
+        const text = await readFile(f);
+        for (const m of text.matchAll(/`[^`]*\.(py|go|rs|java)\b/g)) {
+          const ext = m[1];
+          extVotes[ext] = (extVotes[ext] ?? 0) + 1;
+        }
+      }
+      const extMap: Record<string, LanguageId> = { py: 'python', go: 'go', rs: 'rust', java: 'java' };
+      const winner = Object.entries(extVotes).sort((a, b) => b[1] - a[1])[0];
+      if (winner && winner[1] >= 3) return extMap[winner[0]] ?? 'typescript';
+    } catch { /* best-effort; fall through */ }
   }
 
   return 'typescript';

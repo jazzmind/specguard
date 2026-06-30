@@ -40,7 +40,8 @@ export function registerCommands(
 
       const terminal = vscode.window.createTerminal('SpecGuard Init');
       const cli = await resolveCliPath(ws);
-      terminal.sendText(`${cli} init`);
+      const lang = detectWorkspaceLanguage(ws);
+      terminal.sendText(`${cli} init --language ${lang} --harness both`);
       terminal.show();
 
       // Watch for config to appear, then refresh
@@ -118,14 +119,14 @@ export function registerCommands(
   // --- specguard.validateFunctionalIntegration ------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctionalIntegration', () => {
-      void openAndRun(context, 'validate', ['--type', 'integration']);
+      void openAndRun(context, 'validate');
     }),
   );
 
   // --- specguard.validateFunctionalE2E --------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctionalE2E', () => {
-      void openAndRun(context, 'validate', ['--type', 'e2e']);
+      void openAndRun(context, 'validate');
     }),
   );
 
@@ -236,6 +237,33 @@ export function registerCommands(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Lightweight language detection for the init command.
+ * Checks the existing SpecGuard config first (preserves user's choice), then
+ * falls back to marker-file detection. Returns 'typescript' as the default so
+ * the CLI's own detectLanguage (which also checks plan-file heuristics) can
+ * refine further if needed.
+ */
+function detectWorkspaceLanguage(workspaceRoot: string): string {
+  // 1. Respect an existing config's language declaration
+  const configPath = path.join(workspaceRoot, '.specguard', 'config.json');
+  if (fs.existsSync(configPath)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
+        apps?: Array<{ language?: string }>;
+      };
+      const lang = cfg.apps?.[0]?.language;
+      if (lang) return lang;
+    } catch { /* fall through */ }
+  }
+  // 2. Marker files — mirrors the CLI's DETECTION_PRIORITY order
+  if (['pyproject.toml', 'setup.py', 'requirements.txt'].some((f) => fs.existsSync(path.join(workspaceRoot, f)))) return 'python';
+  if (fs.existsSync(path.join(workspaceRoot, 'go.mod'))) return 'go';
+  if (fs.existsSync(path.join(workspaceRoot, 'Cargo.toml'))) return 'rust';
+  if (['pom.xml', 'build.gradle', 'build.gradle.kts'].some((f) => fs.existsSync(path.join(workspaceRoot, f)))) return 'java';
+  return 'typescript';
+}
 
 async function resolveCliPath(workspaceRoot: string): Promise<string> {
   const config = vscode.workspace.getConfiguration('specguard');

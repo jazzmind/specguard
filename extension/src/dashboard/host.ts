@@ -160,7 +160,7 @@ export class DashboardHost {
       const cli = await resolveCliPath(this.workspaceRoot);
       if (!cli) throw new Error('SpecGuard CLI not found — set specguard.cliPath in VS Code settings');
 
-      const handle = spawnCli(cli, ['init'], this.workspaceRoot, (line) => {
+      const handle = spawnCli(cli, ['init', '--harness', 'both'], this.workspaceRoot, (line) => {
         this.post({ type: 'pipeline:log', pipeline: 'init', line });
         lines.push(line);
       });
