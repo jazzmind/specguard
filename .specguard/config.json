@@ -82,10 +82,10 @@
       "specDir": "specs/extension",
       "sources": {
         "api": ["extension/src/**/*.ts"],
-        "tests": ["tests/extension/**/*.test.ts"]
+        "tests": ["extension/src/**/*.test.ts"]
       },
       "framework": "vitest",
-      "testOutput": "tests/extension/",
+      "testOutput": "extension/src/",
       "security": {
         "enabled": false
       },
