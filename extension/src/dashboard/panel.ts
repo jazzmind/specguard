@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { DashboardHost } from './host.js';
 import type { DashboardEvent, DashboardCommand } from './protocol.js';
 import { getActiveWorkspaceRoot } from '../workspace-state.js';
+import { checkAndOfferUpdate } from '../project-updater.js';
 
 let panel: vscode.WebviewPanel | undefined;
 let currentHost: DashboardHost | undefined;
@@ -40,6 +41,10 @@ export function openDashboardPanel(context: vscode.ExtensionContext): void {
     panel.webview.onDidReceiveMessage((msg: DashboardCommand) => void host.handle(msg)),
   );
   host.start();
+
+  // Run project file check (AGENTS.md, Cursor skill) whenever a new workspace is loaded.
+  // Non-blocking; checkAndOfferUpdate is idempotent — it skips if already up-to-date.
+  setTimeout(() => void checkAndOfferUpdate(context, workspaceRoot), 1_500);
 
   panel.onDidDispose(() => { host.dispose(); panel = undefined; currentHost = undefined; }, null, context.subscriptions);
 }

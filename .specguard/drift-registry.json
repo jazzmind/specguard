@@ -12,6 +12,11 @@
         "hash": "f1006b276d489be49f117c2d56a21700a280baee5428e832a79ca8216d3c6984",
         "lastChecked": "2026-06-29T00:29:47.401Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/config.ts": {
+        "hash": "f1006b276d489be49f117c2d56a21700a280baee5428e832a79ca8216d3c6984",
+        "lastChecked": "2026-06-29T20:22:51.942Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -23,6 +28,11 @@
         "hash": "4653151c84cfe6e975daee5ff45172d07b306d8bfc176424e77c8033354514a4",
         "lastChecked": "2026-06-29T00:29:47.402Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/errors.ts": {
+        "hash": "4653151c84cfe6e975daee5ff45172d07b306d8bfc176424e77c8033354514a4",
+        "lastChecked": "2026-06-29T20:22:51.944Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -34,6 +44,11 @@
         "hash": "54531d9ed53c201c3bdb482bc102fedcefe553b6a873738acf6870e59bc02c98",
         "lastChecked": "2026-06-29T00:29:47.402Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/exit-codes.ts": {
+        "hash": "54531d9ed53c201c3bdb482bc102fedcefe553b6a873738acf6870e59bc02c98",
+        "lastChecked": "2026-06-29T20:22:51.944Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -50,6 +65,11 @@
         "hash": "020409e91eb7b7d44965be83254c9f4a121826edcbbb296bcb68cbadb68d1d58",
         "lastChecked": "2026-06-29T00:29:47.402Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/llm.ts": {
+        "hash": "020409e91eb7b7d44965be83254c9f4a121826edcbbb296bcb68cbadb68d1d58",
+        "lastChecked": "2026-06-29T20:22:51.944Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -66,6 +86,11 @@
         "hash": "1bf07da7c624462db34bd263bb0a9dcd166109caa20a29aade944b452c3f7547",
         "lastChecked": "2026-06-29T00:29:47.402Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/reader.ts": {
+        "hash": "da6b00887597589ab05c022b3aa373e50ce7a9cdebf74ead067e4c3c9df03913",
+        "lastChecked": "2026-06-29T20:22:51.945Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -77,6 +102,11 @@
         "hash": "b21ba9a8f532bc03140008ba5dab2825e96309808712b2a7d9cd20f607479274",
         "lastChecked": "2026-06-29T00:29:47.402Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/spec-parser.ts": {
+        "hash": "b21ba9a8f532bc03140008ba5dab2825e96309808712b2a7d9cd20f607479274",
+        "lastChecked": "2026-06-29T20:22:51.945Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -88,6 +118,11 @@
         "hash": "b74ff5a942f8baf27e8f71d2da9245d792e24162addcf2020dc6979e0397f34a",
         "lastChecked": "2026-06-29T00:29:47.403Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/writer.ts": {
+        "hash": "b74ff5a942f8baf27e8f71d2da9245d792e24162addcf2020dc6979e0397f34a",
+        "lastChecked": "2026-06-29T20:22:51.945Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -99,6 +134,11 @@
         "hash": "0dbb56f985ce9baed61dc03e839feda6ba4652f2e75ddac335632d10b9897dfd",
         "lastChecked": "2026-06-29T04:09:21.614Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/doc-generate.ts": {
+        "hash": "0dbb56f985ce9baed61dc03e839feda6ba4652f2e75ddac335632d10b9897dfd",
+        "lastChecked": "2026-06-29T20:22:51.951Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -110,6 +150,11 @@
         "hash": "ca4e5463a56d256750fb47af8164102f082a1cd09094951c2be513d572e271a5",
         "lastChecked": "2026-06-29T01:24:39.731Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/drift.ts": {
+        "hash": "ca4e5463a56d256750fb47af8164102f082a1cd09094951c2be513d572e271a5",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -121,6 +166,11 @@
         "hash": "190421c50f3053985b420662daae3ad9410bbd999c2e4d811b510d050df67107",
         "lastChecked": "2026-06-29T00:29:47.405Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/forward-generate.ts": {
+        "hash": "190421c50f3053985b420662daae3ad9410bbd999c2e4d811b510d050df67107",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -132,6 +182,11 @@
         "hash": "01911f83d406788a2bad329fd3b261489340489e3bc3741cefcafa953b3112c2",
         "lastChecked": "2026-06-29T00:29:47.405Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/heal.ts": {
+        "hash": "01911f83d406788a2bad329fd3b261489340489e3bc3741cefcafa953b3112c2",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -143,6 +198,11 @@
         "hash": "de2e6f4d52eec5ee5bb00de7a525bba6f7333c3c75aa0659832ed4bd12dd2882",
         "lastChecked": "2026-06-29T00:29:47.405Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/import.ts": {
+        "hash": "de2e6f4d52eec5ee5bb00de7a525bba6f7333c3c75aa0659832ed4bd12dd2882",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -154,6 +214,11 @@
         "hash": "79213f4f0a23ee2c0cd624818162a95ae6b256306727eaf4cc4bb082b5f5ae82",
         "lastChecked": "2026-06-29T01:53:42.686Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/matrix.ts": {
+        "hash": "79213f4f0a23ee2c0cd624818162a95ae6b256306727eaf4cc4bb082b5f5ae82",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -165,6 +230,11 @@
         "hash": "07eba6fd7dc40ec643fc7de18e664111805d5a1bd673700ed49d9292718a8bfe",
         "lastChecked": "2026-06-29T00:29:47.406Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/reverse-generate.ts": {
+        "hash": "07eba6fd7dc40ec643fc7de18e664111805d5a1bd673700ed49d9292718a8bfe",
+        "lastChecked": "2026-06-29T20:22:51.953Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -176,6 +246,11 @@
         "hash": "64e5162612a3eac682b74ffd7ada8bac2c33bc912de5b90101d05fa6268457e8",
         "lastChecked": "2026-06-29T01:53:44.998Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/security.ts": {
+        "hash": "64e5162612a3eac682b74ffd7ada8bac2c33bc912de5b90101d05fa6268457e8",
+        "lastChecked": "2026-06-29T20:22:51.953Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -187,6 +262,11 @@
         "hash": "58096be8b955808c2f2138c11a9f6d116443a4c3bd71516fcc249578eafc5957",
         "lastChecked": "2026-06-29T00:29:47.406Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/status.ts": {
+        "hash": "58096be8b955808c2f2138c11a9f6d116443a4c3bd71516fcc249578eafc5957",
+        "lastChecked": "2026-06-29T20:22:51.953Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -198,6 +278,11 @@
         "hash": "f82f318d6bb05311bd01b665aff1896f5474fb1b6157aa515d037277272edd4b",
         "lastChecked": "2026-06-29T01:53:48.377Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/validate.ts": {
+        "hash": "f82f318d6bb05311bd01b665aff1896f5474fb1b6157aa515d037277272edd4b",
+        "lastChecked": "2026-06-29T20:22:51.953Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -209,6 +294,11 @@
         "hash": "dd88082eafe917e6295b6a7339b15db221ea49083e9e5bd8a9efa87a14d76497",
         "lastChecked": "2026-06-29T00:29:47.407Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/auth-state-machine.ts": {
+        "hash": "dd88082eafe917e6295b6a7339b15db221ea49083e9e5bd8a9efa87a14d76497",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -220,6 +310,11 @@
         "hash": "b4dcbabde9f8fcc1264639193fae9e60408014d04a3b09761cfa9dfa446f17fe",
         "lastChecked": "2026-06-29T00:29:47.407Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/docker.ts": {
+        "hash": "b4dcbabde9f8fcc1264639193fae9e60408014d04a3b09761cfa9dfa446f17fe",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -231,6 +326,11 @@
         "hash": "14fb856432919faab3cd48487781e81de30923b85e082b298416766b742ec54f",
         "lastChecked": "2026-06-29T00:29:47.407Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/guardrails.ts": {
+        "hash": "14fb856432919faab3cd48487781e81de30923b85e082b298416766b742ec54f",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -242,6 +342,11 @@
         "hash": "7ed09e46fea11d932cb85bc921ee9d55217868ca91388f932a7afde6f67e7274",
         "lastChecked": "2026-06-29T00:29:47.407Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/npm-audit.ts": {
+        "hash": "7ed09e46fea11d932cb85bc921ee9d55217868ca91388f932a7afde6f67e7274",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -253,6 +358,11 @@
         "hash": "7a56aee98bc03f92015a7a6d0fffb8d58a17bfd79f365ec3bfa47499b9177111",
         "lastChecked": "2026-06-29T00:29:47.407Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/playwright.ts": {
+        "hash": "7a56aee98bc03f92015a7a6d0fffb8d58a17bfd79f365ec3bfa47499b9177111",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -263,6 +373,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/core/drift-registry.ts": {
         "hash": "4193ae9c5da0409797dc1b425a81eb94227a2a1b28329be222a5145cc0c271c0",
         "lastChecked": "2026-06-29T00:39:22.410Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/drift-registry.ts": {
+        "hash": "4193ae9c5da0409797dc1b425a81eb94227a2a1b28329be222a5145cc0c271c0",
+        "lastChecked": "2026-06-29T20:22:51.944Z",
         "lastVerdict": "new-file"
       }
     }
@@ -275,6 +390,11 @@
         "hash": "c69a2da10d3db24d2f8810d748d363a2bc5855a96a969ff59e7fd016dadffd0a",
         "lastChecked": "2026-06-29T00:39:22.411Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/types.ts": {
+        "hash": "c69a2da10d3db24d2f8810d748d363a2bc5855a96a969ff59e7fd016dadffd0a",
+        "lastChecked": "2026-06-29T20:22:51.945Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -286,6 +406,11 @@
         "hash": "84ee107a7dd6963e03c1dfb8202cdec735d085f517c8e02081db023908280346",
         "lastChecked": "2026-06-29T04:09:19.167Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/analyze.ts": {
+        "hash": "84ee107a7dd6963e03c1dfb8202cdec735d085f517c8e02081db023908280346",
+        "lastChecked": "2026-06-29T20:22:51.951Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -297,6 +422,11 @@
         "hash": "a8505d8c265049fee70858d483b457d9aac85839916785aa56d76560e4254d42",
         "lastChecked": "2026-06-29T01:53:31.815Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/code-quality.ts": {
+        "hash": "a8505d8c265049fee70858d483b457d9aac85839916785aa56d76560e4254d42",
+        "lastChecked": "2026-06-29T20:22:51.951Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -308,6 +438,11 @@
         "hash": "11ce6e4425d8ff3ec98a67784c855aa00021f0e99be528f30dd43fd2bd141f78",
         "lastChecked": "2026-06-29T01:53:35.511Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/dep-check.ts": {
+        "hash": "11ce6e4425d8ff3ec98a67784c855aa00021f0e99be528f30dd43fd2bd141f78",
+        "lastChecked": "2026-06-29T20:22:51.951Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -319,6 +454,11 @@
         "hash": "fb1e3c9b562c47318e98b807acb8219a726395506d34898f10841e076d418901",
         "lastChecked": "2026-06-29T02:38:31.068Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/gap-analysis.ts": {
+        "hash": "fb1e3c9b562c47318e98b807acb8219a726395506d34898f10841e076d418901",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -330,6 +470,11 @@
         "hash": "e159bdd9aed34c241534ee1a51297958b38c236539624e7ba32ce4791be10d5a",
         "lastChecked": "2026-06-29T01:53:38.647Z",
         "lastVerdict": "drifted"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/git-ops.ts": {
+        "hash": "e159bdd9aed34c241534ee1a51297958b38c236539624e7ba32ce4791be10d5a",
+        "lastChecked": "2026-06-29T20:22:51.952Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -340,6 +485,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/pipelines/plan-fix.ts": {
         "hash": "0292f824f11166d3d7cb8fb39c37473729cb5191e5bde78c3e81e525a0042f64",
         "lastChecked": "2026-06-29T00:59:54.977Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/pipelines/plan-fix.ts": {
+        "hash": "0292f824f11166d3d7cb8fb39c37473729cb5191e5bde78c3e81e525a0042f64",
+        "lastChecked": "2026-06-29T20:22:51.953Z",
         "lastVerdict": "new-file"
       }
     }
@@ -352,6 +502,11 @@
         "hash": "9c366988ac0a6d9a2996668bbd13b9860eee2bed2d188454ca90107b76f669af",
         "lastChecked": "2026-06-29T00:59:54.982Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/depcheck.ts": {
+        "hash": "9c366988ac0a6d9a2996668bbd13b9860eee2bed2d188454ca90107b76f669af",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -362,6 +517,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/adapters/eslint.ts": {
         "hash": "bf5c6bc875c914783b69b70bf56206396cf4e887acc9c46092308fa57a8b3c6e",
         "lastChecked": "2026-06-29T00:59:54.982Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/eslint.ts": {
+        "hash": "bf5c6bc875c914783b69b70bf56206396cf4e887acc9c46092308fa57a8b3c6e",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
         "lastVerdict": "new-file"
       }
     }
@@ -374,6 +534,11 @@
         "hash": "ba20e774ef61ee94fbf156ff88f27a389efadbd433d6f33985b8104fc5abab31",
         "lastChecked": "2026-06-29T00:59:54.982Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/adapters/knip.ts": {
+        "hash": "ba20e774ef61ee94fbf156ff88f27a389efadbd433d6f33985b8104fc5abab31",
+        "lastChecked": "2026-06-29T20:22:51.956Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -385,6 +550,11 @@
         "hash": "050163c5ac80294581544c033da757434f79ad5ad282da4accec5f16ed621432",
         "lastChecked": "2026-06-29T03:34:38.908Z",
         "lastVerdict": "no-drift"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/plan-writer.ts": {
+        "hash": "050163c5ac80294581544c033da757434f79ad5ad282da4accec5f16ed621432",
+        "lastChecked": "2026-06-29T20:22:51.944Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -395,6 +565,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/core/root-doc-sync.ts": {
         "hash": "572aa99bf951af2e5be5b1175c18db289d72128363cae317a342ff1f1fdd9d69",
         "lastChecked": "2026-06-29T02:38:27.394Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/core/root-doc-sync.ts": {
+        "hash": "572aa99bf951af2e5be5b1175c18db289d72128363cae317a342ff1f1fdd9d69",
+        "lastChecked": "2026-06-29T20:22:51.945Z",
         "lastVerdict": "new-file"
       }
     }
@@ -407,6 +582,11 @@
         "hash": "dacfc99d70751556623bfb44a4f929a02503ec6f8a0d16779481a3db48c88d97",
         "lastChecked": "2026-06-29T02:38:31.076Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/analyze.ts": {
+        "hash": "dacfc99d70751556623bfb44a4f929a02503ec6f8a0d16779481a3db48c88d97",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -417,6 +597,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/commit.ts": {
         "hash": "ac65a793f55268bd687f6bd3cadfb437d0c1b2f6629847a1acae6a5118592381",
         "lastChecked": "2026-06-29T02:38:31.077Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/commit.ts": {
+        "hash": "ac65a793f55268bd687f6bd3cadfb437d0c1b2f6629847a1acae6a5118592381",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
         "lastVerdict": "new-file"
       }
     }
@@ -429,6 +614,11 @@
         "hash": "b8ee789627500333b4bab319914941ffbe827224b4441c8d44a97c1036a996c6",
         "lastChecked": "2026-06-29T02:38:31.077Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/deps.ts": {
+        "hash": "b8ee789627500333b4bab319914941ffbe827224b4441c8d44a97c1036a996c6",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -439,6 +629,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/docs.ts": {
         "hash": "18784ac675d8a57dcb16ecae3a92cae3dced628b6d7de6bdaaa041defe494ced",
         "lastChecked": "2026-06-29T02:38:31.077Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/docs.ts": {
+        "hash": "18784ac675d8a57dcb16ecae3a92cae3dced628b6d7de6bdaaa041defe494ced",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
         "lastVerdict": "new-file"
       }
     }
@@ -451,6 +646,11 @@
         "hash": "dab3c0f85320f0bad5e8d05c1011b2856c0a64bf2ed4321483d749b8776a7884",
         "lastChecked": "2026-06-29T02:38:31.077Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/drift.ts": {
+        "hash": "dab3c0f85320f0bad5e8d05c1011b2856c0a64bf2ed4321483d749b8776a7884",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -461,6 +661,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/gap-analysis.ts": {
         "hash": "238fe55398cd3da338bb5bca1c7152bb4110d87a911584a075502c6b41566e58",
         "lastChecked": "2026-06-29T02:38:31.077Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/gap-analysis.ts": {
+        "hash": "238fe55398cd3da338bb5bca1c7152bb4110d87a911584a075502c6b41566e58",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
         "lastVerdict": "new-file"
       }
     }
@@ -473,6 +678,11 @@
         "hash": "18714d8dde73e28773f79f122451fd7862680ec969d7ceee6ba67a60ea139338",
         "lastChecked": "2026-06-29T02:38:31.077Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/generate.ts": {
+        "hash": "18714d8dde73e28773f79f122451fd7862680ec969d7ceee6ba67a60ea139338",
+        "lastChecked": "2026-06-29T20:22:51.962Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -483,6 +693,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/heal.ts": {
         "hash": "5cee5a9a25767c2b619b892a8771a8e6054d550a2c66b2a5dad1f3b92f6244ac",
         "lastChecked": "2026-06-29T02:38:31.077Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/heal.ts": {
+        "hash": "5cee5a9a25767c2b619b892a8771a8e6054d550a2c66b2a5dad1f3b92f6244ac",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
         "lastVerdict": "new-file"
       }
     }
@@ -495,6 +710,11 @@
         "hash": "b9e867a7fd160a4ad9753c93eb8ad6881d88d6f8846de91e8c32d6d29c56ed6e",
         "lastChecked": "2026-06-29T02:38:31.077Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/helpers.ts": {
+        "hash": "b9e867a7fd160a4ad9753c93eb8ad6881d88d6f8846de91e8c32d6d29c56ed6e",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -505,6 +725,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/import.ts": {
         "hash": "b6dbaeec2a3eb866b061881c4ba4b2bb28e545c3f812d82d403658e58970db57",
         "lastChecked": "2026-06-29T02:38:31.077Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/import.ts": {
+        "hash": "b6dbaeec2a3eb866b061881c4ba4b2bb28e545c3f812d82d403658e58970db57",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
         "lastVerdict": "new-file"
       }
     }
@@ -517,6 +742,11 @@
         "hash": "29929b45ae04c91d3db4db160140b10fedfa83bcbce10f822672a313c8f4b0b2",
         "lastChecked": "2026-06-29T02:38:31.077Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/init.ts": {
+        "hash": "29929b45ae04c91d3db4db160140b10fedfa83bcbce10f822672a313c8f4b0b2",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -527,6 +757,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/matrix.ts": {
         "hash": "4c5a56c1a98745faa575ee29311aaadbf548cbeb3cbc6c74610aa5f31c0b4830",
         "lastChecked": "2026-06-29T02:38:31.078Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/matrix.ts": {
+        "hash": "4c5a56c1a98745faa575ee29311aaadbf548cbeb3cbc6c74610aa5f31c0b4830",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
         "lastVerdict": "new-file"
       }
     }
@@ -539,6 +774,11 @@
         "hash": "9d896f17b83cf67465c03d17d88fb85014820f8587c317552ff13f1841698c26",
         "lastChecked": "2026-06-29T02:38:31.078Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/plan-fix.ts": {
+        "hash": "9d896f17b83cf67465c03d17d88fb85014820f8587c317552ff13f1841698c26",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -549,6 +789,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/quality.ts": {
         "hash": "2f5f3790cc34617babebefd2785246ee581dc7e0034f5fe7c96a2528d4e5445e",
         "lastChecked": "2026-06-29T02:38:31.078Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/quality.ts": {
+        "hash": "2f5f3790cc34617babebefd2785246ee581dc7e0034f5fe7c96a2528d4e5445e",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
         "lastVerdict": "new-file"
       }
     }
@@ -561,6 +806,11 @@
         "hash": "6e05a392679135b438c1f17db8a988fa8c98d5a117dbf43c15eb7d4df3b8cc87",
         "lastChecked": "2026-06-29T02:38:31.078Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/reverse.ts": {
+        "hash": "6e05a392679135b438c1f17db8a988fa8c98d5a117dbf43c15eb7d4df3b8cc87",
+        "lastChecked": "2026-06-29T20:22:51.963Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -571,6 +821,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/security.ts": {
         "hash": "49dddc7f044abf5de850bd196c2fb520bd3a6b31e9d21a4780713ee070ae47df",
         "lastChecked": "2026-06-29T02:38:31.078Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/security.ts": {
+        "hash": "49dddc7f044abf5de850bd196c2fb520bd3a6b31e9d21a4780713ee070ae47df",
+        "lastChecked": "2026-06-29T20:22:51.964Z",
         "lastVerdict": "new-file"
       }
     }
@@ -583,6 +838,11 @@
         "hash": "bce2a09648df1f90dc979cae76dc7c3ee81ea09d8fbeef83b01f5755ae68c079",
         "lastChecked": "2026-06-29T02:38:31.078Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/status.ts": {
+        "hash": "bce2a09648df1f90dc979cae76dc7c3ee81ea09d8fbeef83b01f5755ae68c079",
+        "lastChecked": "2026-06-29T20:22:51.964Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -593,6 +853,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/commands/stubs.ts": {
         "hash": "a660b579fc83bf46bba1ebcce13afcbedf92b94c41c05aa5910028f95e098ff7",
         "lastChecked": "2026-06-29T02:38:31.078Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/stubs.ts": {
+        "hash": "a660b579fc83bf46bba1ebcce13afcbedf92b94c41c05aa5910028f95e098ff7",
+        "lastChecked": "2026-06-29T20:22:51.964Z",
         "lastVerdict": "new-file"
       }
     }
@@ -605,6 +870,11 @@
         "hash": "cd1898b3b030bbc605d4e45b2bc1106a9745bfe6a2d0fd657b717466381665c5",
         "lastChecked": "2026-06-29T02:38:31.078Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/commands/validate.ts": {
+        "hash": "cd1898b3b030bbc605d4e45b2bc1106a9745bfe6a2d0fd657b717466381665c5",
+        "lastChecked": "2026-06-29T20:22:51.964Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -615,6 +885,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/cli/index.ts": {
         "hash": "1ba376e228ef38948b92e3e35bb7f2fd5fa3e05331b2d9928653179ef367aad9",
         "lastChecked": "2026-06-29T02:38:31.078Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/cli/index.ts": {
+        "hash": "27d1bab9a52ae813816c9929a6346d04376493ab756f883806c930b699858cb6",
+        "lastChecked": "2026-06-29T20:22:51.964Z",
         "lastVerdict": "new-file"
       }
     }
@@ -627,6 +902,11 @@
         "hash": "fbd4bfa28f6e8b7d1514141c4c30dd6b138f3a7aed6e12441a545ac77cf6c053",
         "lastChecked": "2026-06-29T02:38:31.079Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/mcp/activity-hook.ts": {
+        "hash": "fbd4bfa28f6e8b7d1514141c4c30dd6b138f3a7aed6e12441a545ac77cf6c053",
+        "lastChecked": "2026-06-29T20:22:51.966Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -637,6 +917,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/src/mcp/format.ts": {
         "hash": "5efdc032a35d8cd7be386cf60da4289c9425d58aac529641294fd57ee031fec9",
         "lastChecked": "2026-06-29T02:38:31.079Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/mcp/format.ts": {
+        "hash": "5efdc032a35d8cd7be386cf60da4289c9425d58aac529641294fd57ee031fec9",
+        "lastChecked": "2026-06-29T20:22:51.966Z",
         "lastVerdict": "new-file"
       }
     }
@@ -649,6 +934,11 @@
         "hash": "892c2c8cbd17a570bc6610be1e0b9ee0b1690e2c85553be84988b4c1c9fdda9b",
         "lastChecked": "2026-06-29T03:30:50.801Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/src/mcp/server.ts": {
+        "hash": "649832afd9757bb79059fd187674f22aefa871be325be9a367d3cd7e98f47094",
+        "lastChecked": "2026-06-29T20:22:51.966Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -659,6 +949,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/commands.ts": {
         "hash": "4f85838f5284427f66fb3a0719a171732045d2fa4ab24e7cf9a6334725ec8ae1",
         "lastChecked": "2026-06-29T03:30:50.805Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/commands.ts": {
+        "hash": "9f928e4923ba8d4c8316d7a249871c97d3016b43734679046a3bd01ed8ff933a",
+        "lastChecked": "2026-06-29T20:22:51.970Z",
         "lastVerdict": "new-file"
       }
     }
@@ -671,6 +966,11 @@
         "hash": "849088feba7f44342a64a3ccffa4818c3df8926d63f95845d24ee6bfdb0f1517",
         "lastChecked": "2026-06-29T03:30:50.805Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/activity-log.ts": {
+        "hash": "71a48eb3875425609aeec9eac0e0a84d84e0ed5dc41bd6e5cf67830069ad3454",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -681,6 +981,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/dashboard/cli.ts": {
         "hash": "47960b845a5610cddaa644c38b72f6282ef96424822408bcb0c25cef452b05c7",
         "lastChecked": "2026-06-29T03:30:50.805Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/cli.ts": {
+        "hash": "47960b845a5610cddaa644c38b72f6282ef96424822408bcb0c25cef452b05c7",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
         "lastVerdict": "new-file"
       }
     }
@@ -698,6 +1003,16 @@
         "hash": "749ee3f611f7ecaf49501eb856573d7d04819a7666b3970a0646f813e9d2bcea",
         "lastChecked": "2026-06-29T03:30:50.806Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/coverage-parse.test.ts": {
+        "hash": "ead172a633d28adcaa814570bbc7311638b8f57cc6c4257b1206ab12fdd65759",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/coverage-parse.ts": {
+        "hash": "749ee3f611f7ecaf49501eb856573d7d04819a7666b3970a0646f813e9d2bcea",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -714,6 +1029,16 @@
         "hash": "fbe3d68af9cad36c777007c8300c5f6bc12ca486ee5161b6d1df35c022dfbb29",
         "lastChecked": "2026-06-29T03:30:50.806Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/flow-events.test.ts": {
+        "hash": "8d9a32e035e92395a3a7327d9244b15a03719aaf07634073f7b5ce90eecdf6fb",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/flow-events.ts": {
+        "hash": "fbe3d68af9cad36c777007c8300c5f6bc12ca486ee5161b6d1df35c022dfbb29",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -724,6 +1049,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/dashboard/host.ts": {
         "hash": "879988123f2f0d55760a50addbbb81dd921bc43ddd94c1c148bc95616627f249",
         "lastChecked": "2026-06-29T03:30:50.806Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/host.ts": {
+        "hash": "8eb1ccec209c6255293b0f55ee52ef668207dd94932669c3ab85ad7ce41b751c",
+        "lastChecked": "2026-06-29T20:22:51.971Z",
         "lastVerdict": "new-file"
       }
     }
@@ -741,6 +1071,16 @@
         "hash": "a226f7f0935a754fac77efece036ea15f4969805a8f2c5f23595548bbea7592a",
         "lastChecked": "2026-06-29T03:30:50.806Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/matrix-model.test.ts": {
+        "hash": "a4981a36ca14b376ea07e1d3d3f7f7d8118e2c52bbe56f7d63003b142e2775e7",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/matrix-model.ts": {
+        "hash": "a226f7f0935a754fac77efece036ea15f4969805a8f2c5f23595548bbea7592a",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -751,6 +1091,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/dashboard/panel.ts": {
         "hash": "0bd743a501b0d8a4707a59b76cdab21a745fe6ecdbfa98d1bf5100ef3816ddc8",
         "lastChecked": "2026-06-29T03:30:50.807Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/panel.ts": {
+        "hash": "dc50838faf9f4dfe5959491ddf1738011573fa41b4985492a46393726c28edc4",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
         "lastVerdict": "new-file"
       }
     }
@@ -768,6 +1113,16 @@
         "hash": "98b7a5bf7c0edb26021cf4be258a14061153f0f6141672d86f076b43fdd64feb",
         "lastChecked": "2026-06-29T03:30:50.807Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/protocol.test.ts": {
+        "hash": "a3f46288b9daaf3204df454f6f2da68a8d2d406017bbc0f257b47202d560cea9",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/dashboard/protocol.ts": {
+        "hash": "39b96fef2811bdc6b5f50df9f29b359999561848b69fd8a5bade868da72b6acb",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -778,6 +1133,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/extension.ts": {
         "hash": "4fbd52d8743769f1da5bb1b6a4e430a5cebfd8c50a18e08544d94c8e058fa81a",
         "lastChecked": "2026-06-29T03:30:50.807Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/extension.ts": {
+        "hash": "1c17b9b9fc3f80a95063fea4e80fac3aa001734f3b42788e140d7ee0fc575eef",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
         "lastVerdict": "new-file"
       }
     }
@@ -790,6 +1150,11 @@
         "hash": "c9f5cf831c6854218970e360e48b2d99234fa18df198176d3a8569623060235d",
         "lastChecked": "2026-06-29T03:30:50.807Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/mcp-registration.ts": {
+        "hash": "c9f5cf831c6854218970e360e48b2d99234fa18df198176d3a8569623060235d",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -801,6 +1166,11 @@
         "hash": "b557b6e2b9ff545f87b0c9e44419d84b8aba0c05d4cb7f66ade3874030f7cbbb",
         "lastChecked": "2026-06-29T03:30:50.807Z",
         "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/sidebar.ts": {
+        "hash": "627a1e1eb9b0aa4d4874201e87abb6e4f1d029377ef07ebcda0575d7441bc82e",
+        "lastChecked": "2026-06-29T20:22:51.972Z",
+        "lastVerdict": "new-file"
       }
     }
   },
@@ -811,6 +1181,11 @@
       "/Users/wsonnenreich/Code/wes/personal/Sundai-Hack-QA-Agent/extension/src/workspace-state.ts": {
         "hash": "4c7cc5b44ff64978d9c83423323ded7ced2b881b020a9dc22338b0fd6fdfd8b2",
         "lastChecked": "2026-06-29T03:30:50.807Z",
+        "lastVerdict": "new-file"
+      },
+      "/Users/wsonnenreich/Code/Sundai-Hack-QA-Agent/extension/src/workspace-state.ts": {
+        "hash": "4c7cc5b44ff64978d9c83423323ded7ced2b881b020a9dc22338b0fd6fdfd8b2",
+        "lastChecked": "2026-06-29T20:22:51.973Z",
         "lastVerdict": "new-file"
       }
     }

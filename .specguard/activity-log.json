@@ -234,8 +234,9 @@
     "id": "1782730363407-iwpcu",
     "timestamp": 1782730363407,
     "pipeline": "deps",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782730374493-w45e7",
@@ -273,8 +274,9 @@
     "id": "1782730945671-krtqx",
     "timestamp": 1782730945671,
     "pipeline": "commit",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782730946372-39vxe",
@@ -300,8 +302,9 @@
     "id": "1782731019016-zrc8v",
     "timestamp": 1782731019016,
     "pipeline": "quality",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782731029299-xtakb",
@@ -338,6 +341,14 @@
   {
     "id": "1782731526309-i5b2g",
     "timestamp": 1782731526310,
+    "pipeline": "drift",
+    "status": "pass",
+    "source": "extension",
+    "message": "no drift detected"
+  },
+  {
+    "id": "1782764571982-9aord",
+    "timestamp": 1782764571982,
     "pipeline": "drift",
     "status": "pass",
     "source": "extension",

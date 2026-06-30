@@ -86,6 +86,20 @@ export interface PlanItem {
   completedAt?: string;
 }
 
+export interface ProjectConfig {
+  llm: {
+    provider: 'anthropic' | 'openai' | 'litellm';
+    model: string;
+    apiKeyEnv: string;
+    baseUrl?: string;
+  };
+  /** Keys from .specguard/.env — values masked as '***' if non-empty */
+  envVars: Record<string, string>;
+  /** True if the configured apiKeyEnv is set in .env or process.env */
+  hasApiKey: boolean;
+  configFound: boolean;
+}
+
 export type DashboardTab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans';
 
 export type DashboardEvent =
@@ -104,6 +118,7 @@ export type DashboardEvent =
   | { type: 'plans'; items: PlanItem[] }
   | { type: 'clearArtifacts' }
   | { type: 'error'; scope: string; message: string }
+  | { type: 'projectConfig'; config: ProjectConfig }
   /** Navigate to a tab and optionally scroll to a pipeline card. */
   | { type: 'navigate'; tab: DashboardTab; scrollTo?: string };
 
@@ -131,7 +146,9 @@ export type DashboardCommand =
   | { type: 'clearActivity'; scope: 'all' | 'completed' }
   | { type: 'clearActivityEntry'; entryId: string }
   | { type: 'markPlanStatus'; filePath: string; status: 'pending' | 'in-progress' | 'done' }
-  | { type: 'openSettings' };
+  | { type: 'openSettings' }
+  | { type: 'readProjectConfig' }
+  | { type: 'saveProjectConfig'; config: ProjectConfig };
 
 /**
  * A node in the system-flow graph.

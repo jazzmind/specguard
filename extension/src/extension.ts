@@ -9,9 +9,8 @@ import { CoverageProvider } from './sidebar.js';
 import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
-import { initWorkspaceState, getActiveWorkspaceRoot } from './workspace-state.js';
+import { initWorkspaceState } from './workspace-state.js';
 import { setExtensionPath } from './dashboard/cli.js';
-import { checkAndOfferUpdate, forceUpdateProjectFiles } from './project-updater.js';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let coverageProvider: CoverageProvider | undefined;
@@ -61,15 +60,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Commands (includes specguard.updateProject)
   registerCommands(context, coverageProvider, statusBarItem);
-
-  // Version check: offer to update AGENTS.md / SKILL.md if behind current extension.
-  // Runs non-blocking after a short delay so it doesn't block the activation path.
-  const workspaceRoot = getActiveWorkspaceRoot();
-  if (workspaceRoot) {
-    setTimeout(() => {
-      void checkAndOfferUpdate(context, workspaceRoot);
-    }, 2000);
-  }
 
   // Auto-refresh on spec file changes
   if (config.get<boolean>('autoRefresh', true)) {
