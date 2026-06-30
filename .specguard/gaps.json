@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T03:30:50.818Z",
+  "generatedAt": "2026-06-30T11:12:23.739Z",
   "gaps": [
     {
       "specKey": "specguard-core/cli",
@@ -26,6 +26,14 @@
       "totalCriteria": 14
     },
     {
+      "specKey": "specguard-core/language-profiles",
+      "title": "Language Profiles",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 8,
+      "totalCriteria": 8
+    },
+    {
       "specKey": "specguard-core/llm",
       "title": "LLM Adapter",
       "appName": "specguard-core",
@@ -40,6 +48,14 @@
       "status": "unimplemented",
       "uncheckedCriteria": 8,
       "totalCriteria": 8
+    },
+    {
+      "specKey": "specguard-core/scaffold",
+      "title": "Harness Scaffold",
+      "appName": "specguard-core",
+      "status": "partial",
+      "uncheckedCriteria": 11,
+      "totalCriteria": 11
     },
     {
       "specKey": "specguard-core/spec-parser",
@@ -86,8 +102,8 @@
       "title": "Gap Analysis Pipeline",
       "appName": "specguard-pipelines",
       "status": "partial",
-      "uncheckedCriteria": 13,
-      "totalCriteria": 13
+      "uncheckedCriteria": 14,
+      "totalCriteria": 14
     },
     {
       "specKey": "specguard-pipelines/heal",

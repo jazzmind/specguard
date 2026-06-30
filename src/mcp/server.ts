@@ -24,6 +24,9 @@ import { loadConfig } from '../core/config.js';
 import { parseSpecContent } from '../core/spec-parser.js';
 import { readFile } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import { emptyResult } from '../core/types.js';
+import { resolveProfile } from '../core/language-profiles.js';
+import { scaffoldHarnessFiles } from '../core/scaffold.js';
 
 import { runReverseGenerate } from '../pipelines/reverse-generate.js';
 import { runForwardGenerate } from '../pipelines/forward-generate.js';
@@ -452,15 +455,42 @@ export function buildServer(): McpServer {
     'specguard_init',
     {
       description:
-        'Scaffold .specguard/config.json, specs/README.md, and supporting files in the target directory. Safe to call on an already-initialised project — existing files are never overwritten (CLI: specguard init).',
+        'Scaffold .specguard/config.json, specs/README.md, and agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command) in the target directory. Language is auto-detected. Existing files are never clobbered (CLI: specguard init).',
       inputSchema: {
-        framework: z.enum(['vitest', 'jest', 'playwright']).optional().describe('Test framework to configure. Auto-detected from package.json when omitted.'),
+        language: z.enum(['typescript', 'python', 'go', 'rust', 'java']).optional().describe('Target language. Auto-detected from the project when omitted.'),
+        harness: z.enum(['claude', 'cursor', 'both']).optional().describe('Which agent harness files to generate (default: both).'),
+        framework: z.string().optional().describe('Test framework override. Defaults to the language profile (e.g. vitest, pytest).'),
         cwd: z.string().optional().describe('Target directory to initialise (default: process.cwd()).'),
       },
     },
-    ({ framework, cwd }): Promise<ToolResult> =>
+    ({ language, harness, framework, cwd }): Promise<ToolResult> =>
       withActivityLog('init', resolveCwd(cwd), async () => {
-        const result = await runInit({ framework, cwd: resolveCwd(cwd) });
+        const result = await runInit({ language, harness, framework, cwd: resolveCwd(cwd) });
+        return toolResult(result);
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_scaffold',
+    {
+      description:
+        'Regenerate or add agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command) for an already-initialised project, language-aware from its config. Idempotent and non-clobbering (managed files + sentinels + JSON merge).',
+      inputSchema: {
+        harness: z.enum(['claude', 'cursor', 'both']).optional().describe('Which agent harness files to generate (default: both).'),
+        cwd: z.string().optional().describe('Project directory containing .specguard/config.json (default: process.cwd()).'),
+      },
+    },
+    ({ harness, cwd }): Promise<ToolResult> =>
+      withActivityLog('scaffold', resolveCwd(cwd), async () => {
+        const root = resolveCwd(cwd);
+        const config = await loadConfig(root);
+        const profile = resolveProfile(config.apps[0] ?? {});
+        const scaffold = await scaffoldHarnessFiles({ cwd: root, profile, harness });
+        const result = emptyResult('scaffold');
+        result.created = scaffold.created.length;
+        result.updated = scaffold.updated.length;
+        result.skipped = scaffold.skipped.length;
+        result.messages = scaffold.messages;
         return toolResult(result);
       }).catch(errorResult),
   );

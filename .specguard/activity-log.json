@@ -353,5 +353,39 @@
     "status": "pass",
     "source": "extension",
     "message": "no drift detected"
+  },
+  {
+    "id": "1782817939546-cy6qv",
+    "timestamp": 1782817939546,
+    "pipeline": "analyze",
+    "status": "running",
+    "source": "extension"
+  },
+  {
+    "id": "1782817971707-voop0",
+    "timestamp": 1782817971707,
+    "pipeline": "analyze",
+    "status": "pass",
+    "source": "extension",
+    "durationMs": 32161,
+    "message": "exit code 4",
+    "logLines": [
+      "[analyze] checking spec coverage...",
+      "[analyze] checking spec drift...",
+      "[analyze] checking for unimplemented specs...",
+      "[analyze] checking code quality...",
+      "[analyze] checking dependencies...",
+      "[analyze] 4 recommendation(s):",
+      "  [high] drift: 1 spec(s) are stale — source changed after last spec update",
+      "  [high] gap-analysis: 3 spec(s) have no matching source code — run gap-analysis to generate implementation plans",
+      "  [medium] reverse: 6 source file(s) lack Living Specs (93% coverage) — run reverse to generate them",
+      "  [medium] heal: spec drift may have broken generated tests — heal can auto-fix them",
+      "",
+      "analyze: 4 recommendation(s) (next steps):",
+      "  [high] specguard drift — 1 spec(s) are stale — source changed after last spec update",
+      "  [high] specguard gap-analysis — 3 spec(s) have no matching source code — run gap-analysis to generate implementation plans",
+      "  [medium] specguard reverse — 6 source file(s) lack Living Specs (93% coverage) — run reverse to generate them",
+      "  [medium] specguard heal — spec drift may have broken generated tests — heal can auto-fix them"
+    ]
   }
 ]

@@ -28,6 +28,11 @@ import type { SpecGuardConfig, AppConfig, PipelineResult, PipelineItem } from '.
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
+import {
+  resolveProfile,
+  featureFromPath,
+  type LanguageProfile,
+} from '../core/language-profiles.js';
 
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
@@ -38,38 +43,16 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   return path.resolve(config.rootDir ?? process.cwd(), p);
 }
 
-/**
- * Derive the feature path (no extension) for a source file relative to repo.
- * Identical to `deriveFeature` in reverse-generate.ts.
- */
-function deriveFeature(absFile: string, repoDir: string): string {
-  let rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-  const segments = rel.split('/');
-
-  if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) {
-    segments.shift();
-  }
-  if (segments.length > 1) {
-    segments.shift();
-  }
-
-  rel = segments.join('/');
-  rel = rel.replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '');
-  rel = rel.replace(/\.[cm]?[jt]sx?$/i, '');
-  return rel;
-}
+// Source-path → feature-key derivation lives in core/language-profiles.ts
+// (`featureFromPath`) so it stays consistent with reverse/gap-analysis.
 
 /** Candidate generated-test paths for a feature under `testOutput`. */
-function testCandidates(testOutputAbs: string, feature: string): string[] {
-  const exts = ['ts', 'tsx', 'js', 'jsx'];
-  const kinds = ['test', 'spec'];
-  const out: string[] = [];
-  for (const kind of kinds) {
-    for (const ext of exts) {
-      out.push(path.join(testOutputAbs, `${feature}.${kind}.${ext}`));
-    }
-  }
-  return out;
+function testCandidates(
+  testOutputAbs: string,
+  feature: string,
+  profile: LanguageProfile,
+): string[] {
+  return profile.testFileCandidates(feature).map((name) => path.join(testOutputAbs, name));
 }
 
 function pct(part: number, total: number): number {
@@ -99,6 +82,7 @@ export async function runStatus(
     const repoDir = resolveFromRoot(config, app.repo);
     const specDirAbs = resolveFromRoot(config, app.specDir);
     const testOutputAbs = resolveFromRoot(config, app.testOutput);
+    const profile = resolveProfile(app);
 
     // Collect source files from every group EXCEPT `tests` — test files are
     // not features that need their own spec.
@@ -116,13 +100,13 @@ export async function runStatus(
     log(`# ${app.name} (${app.specDir})`);
 
     for (const absFile of files) {
-      const feature = deriveFeature(absFile, repoDir);
+      const feature = featureFromPath(absFile, repoDir, profile);
       const key = `${app.name}/${feature}`;
 
       const specPath = path.join(specDirAbs, `${feature}.md`);
       const hasSpec = await fileExists(specPath);
 
-      const candidates = testCandidates(testOutputAbs, feature);
+      const candidates = testCandidates(testOutputAbs, feature, profile);
       let hasTest = false;
       for (const c of candidates) {
         if (await fileExists(c)) {
@@ -168,7 +152,7 @@ export async function runStatus(
           const key = `${app.name}/${feature}`;
           specFileCount += 1;
 
-          const candidates = testCandidates(testOutputAbs, feature);
+          const candidates = testCandidates(testOutputAbs, feature, profile);
           let hasTest = false;
           for (const c of candidates) {
             if (await fileExists(c)) { hasTest = true; break; }

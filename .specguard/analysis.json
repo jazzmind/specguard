@@ -1,35 +1,30 @@
 {
-  "generatedAt": "2026-06-29T03:31:11.987Z",
+  "generatedAt": "2026-06-30T11:12:51.695Z",
   "recommendations": [
+    {
+      "pipeline": "drift",
+      "reason": "1 spec(s) are stale — source changed after last spec update",
+      "priority": "high"
+    },
     {
       "pipeline": "gap-analysis",
       "reason": "3 spec(s) have no matching source code — run gap-analysis to generate implementation plans",
       "priority": "high"
     },
     {
-      "pipeline": "generate",
-      "reason": "regenerate test code from latest specs",
+      "pipeline": "reverse",
+      "reason": "6 source file(s) lack Living Specs (93% coverage) — run reverse to generate them",
       "priority": "medium"
     },
     {
-      "pipeline": "security",
-      "reason": "run SAST analysis and generate security tests",
+      "pipeline": "heal",
+      "reason": "spec drift may have broken generated tests — heal can auto-fix them",
       "priority": "medium"
-    },
-    {
-      "pipeline": "docs",
-      "reason": "regenerate user-facing documentation from latest specs",
-      "priority": "low"
-    },
-    {
-      "pipeline": "matrix",
-      "reason": "refresh the traceability matrix linking specs to tests and docs",
-      "priority": "low"
     }
   ],
   "summary": {
-    "missingSpecs": 0,
-    "driftedSpecs": 0,
+    "missingSpecs": 6,
+    "driftedSpecs": 1,
     "qualityFindings": 0,
     "depFindings": 0,
     "unimplementedSpecs": 3

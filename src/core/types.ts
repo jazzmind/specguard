@@ -91,6 +91,11 @@ export interface AppConfig {
   name: string;
   /** Repo root for this app, relative to the config location. */
   repo: string;
+  /**
+   * Target programming language for this app. Drives language-specific
+   * behavior via `src/core/language-profiles.ts`. Absent ⇒ `'typescript'`.
+   */
+  language?: 'typescript' | 'python' | 'go' | 'rust' | 'java' | string;
   /** Directory where specs for this app live. */
   specDir: string;
   /** Source glob groups. */

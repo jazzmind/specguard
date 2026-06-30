@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "publisher": "specguard",
   "repository": {
     "type": "git",

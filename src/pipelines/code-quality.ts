@@ -17,7 +17,9 @@ import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { runEslint, type EslintFinding } from '../adapters/eslint.js';
+import { runRuff } from '../adapters/ruff.js';
 import { runKnip, type KnipFinding } from '../adapters/knip.js';
+import { resolveProfile } from '../core/language-profiles.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,12 +121,34 @@ export async function runCodeQuality(
   for (const app of apps) {
     const repoAbs = resolveFromRoot(config, app.repo);
     const log = (line: string) => result.messages.push(line);
+    const profile = resolveProfile(app);
 
-    log(`[quality] ${app.name}: running ESLint + Knip in ${repoAbs}`);
+    // Language-aware quality tooling. For languages with no wired runner, skip
+    // gracefully (advisory pipeline — never throw or fail the run).
+    const lintRunner = profile.lintRunner; // 'eslint' | 'ruff' | 'unsupported'
+    const canLint = lintRunner === 'eslint' || lintRunner === 'ruff';
+    const canKnip = profile.deadCodeRunner === 'knip';
+    if (!canLint && !canKnip) {
+      log(`[quality] ${app.name}: skipped — no quality runner for ${profile.id}`);
+      result.items.push({
+        key: app.name,
+        status: 'skipped',
+        message: `code-quality unsupported for ${profile.id}`,
+      });
+      result.skipped += 1;
+      appReports.push({ name: app.name, errorCount: 0, warningCount: 0, findings: [] });
+      continue;
+    }
+
+    log(`[quality] ${app.name}: running ${canLint ? lintRunner : ''}${canLint && canKnip ? ' + ' : ''}${canKnip ? 'knip' : ''} in ${repoAbs}`);
 
     const [eslintResult, knipResult] = await Promise.all([
-      runEslint(repoAbs),
-      runKnip(repoAbs),
+      lintRunner === 'eslint'
+        ? runEslint(repoAbs)
+        : lintRunner === 'ruff'
+          ? runRuff(repoAbs)
+          : Promise.resolve({ ok: false, errorCount: 0, warningCount: 0, findings: [] as EslintFinding[] }),
+      canKnip ? runKnip(repoAbs) : Promise.resolve({ ok: false, findings: [] as KnipFinding[] }),
     ]);
 
     const eslintFindings = normalizeEslint(eslintResult.findings);
@@ -132,9 +156,9 @@ export async function runCodeQuality(
     const appFindings = [...eslintFindings, ...knipFindings];
 
     if (eslintResult.ok) {
-      log(`[eslint] ${app.name}: ${eslintResult.errorCount} errors, ${eslintResult.warningCount} warnings`);
+      log(`[${lintRunner}] ${app.name}: ${eslintResult.errorCount} errors, ${eslintResult.warningCount} warnings`);
     } else {
-      log(`[warn] ${app.name}: ESLint not available or failed`);
+      log(`[warn] ${app.name}: ${lintRunner} not available or failed`);
     }
 
     if (knipResult.ok) {

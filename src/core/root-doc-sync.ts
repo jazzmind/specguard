@@ -16,60 +16,23 @@ import path from 'node:path';
 import { z } from 'zod';
 import type { SpecGuardConfig, ParsedSpec } from './types.js';
 import { llmGenerateObject } from './llm.js';
+import {
+  applyTargetSections,
+  SENTINEL_START,
+  SENTINEL_END,
+  type SentinelSection,
+} from './sentinels.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface RootSyncSection {
-  sentinel: string;
-  content: string;
-}
+/** @deprecated Use `SentinelSection` from `./sentinels.js`. */
+export type RootSyncSection = SentinelSection;
 
 export interface RootSyncTarget {
   filePath: string;
   sections: RootSyncSection[];
-}
-
-// ---------------------------------------------------------------------------
-// Sentinel logic
-// ---------------------------------------------------------------------------
-
-const SENTINEL_START = (key: string) => `<!-- specguard:${key}:start -->`;
-const SENTINEL_END = (key: string) => `<!-- specguard:${key}:end -->`;
-
-/**
- * Replace or insert a sentinel-delimited section in `fileContent`.
- * If the sentinels are found, replaces content between them.
- * If not found, appends a new section at the end.
- */
-function replaceSentinel(fileContent: string, sentinel: string, newContent: string): string {
-  const start = SENTINEL_START(sentinel);
-  const end = SENTINEL_END(sentinel);
-  const startIdx = fileContent.indexOf(start);
-  const endIdx = fileContent.indexOf(end);
-
-  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const before = fileContent.slice(0, startIdx + start.length);
-    const after = fileContent.slice(endIdx);
-    return `${before}\n${newContent}\n${after}`;
-  }
-
-  // Append new sentinel section
-  const sep = fileContent.endsWith('\n') ? '' : '\n';
-  return `${fileContent}${sep}\n${start}\n${newContent}\n${end}\n`;
-}
-
-/**
- * Apply multiple sentinel sections to a single file.
- */
-function applyTargetSections(filePath: string, sections: RootSyncSection[]): void {
-  let content = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
-  for (const { sentinel, content: sectionContent } of sections) {
-    content = replaceSentinel(content, sentinel, sectionContent);
-  }
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, 'utf8');
 }
 
 // ---------------------------------------------------------------------------
@@ -283,17 +246,16 @@ export async function syncRootDocs(
   applyTargetSections(readmePath, readmeSections);
   log('[root-sync] README.md updated');
 
-  // --- CLAUDE.md sections ---
+  // --- CLAUDE.md sections (create if missing, update sentinels if present) ---
   const claudePath = path.join(rootDir, 'CLAUDE.md');
-  if (fs.existsSync(claudePath)) {
-    const claudeSections: RootSyncSection[] = [
-      { sentinel: 'architecture', content: arch.architecture },
-      { sentinel: 'pipeline-reference', content: arch.pipelineReference },
-      { sentinel: 'spec-location', content: arch.specLocationMapping },
-    ];
-    applyTargetSections(claudePath, claudeSections);
-    log('[root-sync] CLAUDE.md updated');
-  }
+  const claudeExisted = fs.existsSync(claudePath);
+  const claudeSections: RootSyncSection[] = [
+    { sentinel: 'architecture', content: arch.architecture },
+    { sentinel: 'pipeline-reference', content: arch.pipelineReference },
+    { sentinel: 'spec-location', content: arch.specLocationMapping },
+  ];
+  applyTargetSections(claudePath, claudeSections);
+  log(`[root-sync] CLAUDE.md ${claudeExisted ? 'updated' : 'created'}`);
 
   // --- AGENTS.md (create if missing, update sentinel sections if present) ---
   const agentsPath = path.join(rootDir, 'AGENTS.md');

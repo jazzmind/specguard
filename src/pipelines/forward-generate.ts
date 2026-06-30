@@ -42,6 +42,7 @@ import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
+import { resolveProfile, type LanguageProfile } from '../core/language-profiles.js';
 
 export type TestType = 'unit' | 'integration' | 'e2e';
 
@@ -78,41 +79,16 @@ const BASE_RULES = [
   '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
 ];
 
-const TYPE_RULES: Record<TestType, string[]> = {
-  unit: [
-    '- TEST TYPE: unit. Mock all external dependencies (db, http, fs) with vitest.fn() / vi.mock().',
-    '- Focus on a single function or class in isolation.',
-    '- Use vitest idioms: import { describe, it, expect, vi } from "vitest".',
-  ],
-  integration: [
-    '- TEST TYPE: integration. Use real dependencies (no mocking); assume test containers / env vars supply backing services.',
-    '- Use vitest idioms with setup/teardown hooks for connection lifecycle.',
-    '- Mark long-running tests with test.timeout(30_000).',
-  ],
-  e2e: [
-    '- TEST TYPE: e2e. Use Playwright Browser automation targeting the live app URL from spec metadata.',
-    '- Use import { test, expect } from "@playwright/test".',
-    '- Navigate the app through user-facing flows described in the spec scenarios.',
-    '- Assert on visible UI state, not implementation details.',
-  ],
-};
-
-/** Build a system prompt adjusted for the requested test type. */
-function buildSystemPrompt(type?: TestType): string {
+/** Build a system prompt adjusted for the requested test type and language. */
+function buildSystemPrompt(type: TestType | undefined, profile: LanguageProfile): string {
   const rules = [...BASE_RULES];
-  if (type && TYPE_RULES[type]) {
-    rules.push(...TYPE_RULES[type]);
+  if (type && profile.testPromptRules[type]) {
+    rules.push(...profile.testPromptRules[type]);
   } else {
-    rules.push(
-      '- Use the requested framework\'s idioms (vitest: import from "vitest"; jest: global describe/it;',
-      '  playwright: import { test, expect } from "@playwright/test").',
-    );
+    rules.push(...profile.testPromptDefault);
   }
   return rules.join('\n');
 }
-
-/** @deprecated Use buildSystemPrompt() with an explicit type instead. */
-const SYSTEM_PROMPT = buildSystemPrompt();
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
@@ -269,6 +245,7 @@ export async function runForwardGenerate(
   let attempted = 0;
 
   for (const { absSpecPath, app, specDirAbs } of owned) {
+    const profile = resolveProfile(app);
     const feature = deriveFeature(absSpecPath, specDirAbs);
     const key = `${app.name}/${feature}`;
 
@@ -278,7 +255,7 @@ export async function runForwardGenerate(
     }
 
     const testOutputAbs = resolveFromRoot(config, app.testOutput);
-    const targetTest = path.join(testOutputAbs, `${feature}.test.ts`);
+    const targetTest = path.join(testOutputAbs, `${feature}${profile.testExt}`);
 
     // Skip if the test file already exists and --force is not set.
     if (!opts.force && (await fileExists(targetTest))) {
@@ -303,7 +280,12 @@ export async function runForwardGenerate(
       continue;
     }
 
-    const framework = opts.type === 'e2e' ? 'playwright' : (opts.framework ?? app.framework);
+    // For TS, e2e implies Playwright (preserves prior behavior). Other languages
+    // keep their own framework; the e2e prompt rules carry language-specific idioms.
+    const framework =
+      opts.type === 'e2e' && profile.id === 'typescript'
+        ? 'playwright'
+        : (opts.framework ?? app.framework ?? profile.testFramework);
     const moduleUnderTest = spec.meta.module ?? '(unknown — infer from spec)';
     const testTypeLabel = opts.type ? ` [${opts.type}]` : '';
 
@@ -329,7 +311,7 @@ export async function runForwardGenerate(
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
-        system: buildSystemPrompt(opts.type),
+        system: buildSystemPrompt(opts.type, profile),
         prompt,
       });
       const testCode = stripFences(raw);
