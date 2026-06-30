@@ -32,7 +32,16 @@ import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
+import {
+  resolveProfile,
+  parseVitestJson,
+  type FailingTest,
+} from '../core/language-profiles.js';
 import { z } from 'zod';
+
+// Re-export so existing importers (and tests) keep working unchanged.
+export { parseVitestJson };
+export type { FailingTest };
 
 export interface HealOpts {
   /** Reserved: target a single spec's tests (best-effort; not required). */
@@ -68,12 +77,6 @@ export const healRunner = {
   },
 };
 
-/** A single failing test extracted from the runner JSON. */
-interface FailingTest {
-  file: string;
-  name: string;
-  message: string;
-}
 
 /** Stable key for a failing test across runs. */
 function testKey(f: { file: string; name: string }): string {
@@ -103,76 +106,9 @@ const CLASSIFY_SYSTEM = [
   'When you return fixedTestCode, return the ENTIRE file, not a diff or a fragment.',
 ].join('\n');
 
-/**
- * Extract the first balanced top-level `{...}` JSON object from arbitrary
- * stdout (which may carry non-JSON noise before/after the document).
- */
-function extractJsonObject(text: string): string | null {
-  const start = text.indexOf('{');
-  if (start === -1) return null;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === '{') depth++;
-    else if (ch === '}') {
-      depth--;
-      if (depth === 0) return text.slice(start, i + 1);
-    }
-  }
-  return null;
-}
-
-/**
- * Parse vitest's Jest-compatible JSON reporter output into the list of failing
- * tests. Returns `null` when no JSON object can be located/parsed (malformed or
- * empty output) so the caller can report gracefully instead of crashing.
- */
-export function parseVitestJson(stdout: string): FailingTest[] | null {
-  const json = extractJsonObject(stdout);
-  if (!json) return null;
-
-  let doc: unknown;
-  try {
-    doc = JSON.parse(json);
-  } catch {
-    return null;
-  }
-  if (!doc || typeof doc !== 'object') return null;
-
-  const testResults = (doc as { testResults?: unknown }).testResults;
-  if (!Array.isArray(testResults)) {
-    // A valid JSON document with no testResults array: treat as zero failures.
-    return [];
-  }
-
-  const failures: FailingTest[] = [];
-  for (const tr of testResults) {
-    if (!tr || typeof tr !== 'object') continue;
-    const file = String((tr as { name?: unknown }).name ?? '');
-    const assertions = (tr as { assertionResults?: unknown }).assertionResults;
-    if (!Array.isArray(assertions)) continue;
-    for (const a of assertions) {
-      if (!a || typeof a !== 'object') continue;
-      if ((a as { status?: unknown }).status !== 'failed') continue;
-      const ar = a as { title?: unknown; fullName?: unknown; failureMessages?: unknown };
-      const name = String(ar.title ?? ar.fullName ?? '(unnamed test)');
-      const msgs = Array.isArray(ar.failureMessages)
-        ? ar.failureMessages.map((m) => String(m)).join('\n')
-        : '';
-      failures.push({ file, name, message: msgs });
-    }
-  }
-  return failures;
-}
+// JSON-reporter parsing lives in core/language-profiles.ts as the profile's
+// `parseTestOutput` (vitest for TypeScript, pytest for Python). `parseVitestJson`
+// is re-exported above for backward compatibility.
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
@@ -220,11 +156,15 @@ export async function runHeal(
     result.messages.push(line);
   };
 
+  // Heal runs one test command for the project; use the primary app's language
+  // profile for the default command, reporter flag, and output parser.
+  const profile = resolveProfile(config.apps[0] ?? {});
   const maxRetries = opts.maxRetries ?? config.heal?.maxRetries ?? 2;
-  const testCommand = config.heal?.testCommand ?? 'npm test';
+  const testCommand = config.heal?.testCommand ?? profile.testCommand;
   const cwd = config.rootDir ?? process.cwd();
-  // Append vitest's JSON reporter so output is machine-readable.
-  const fullCmd = `${testCommand} -- --reporter=json`;
+  // Append the language's JSON reporter so output is machine-readable.
+  const fullCmd = `${testCommand}${profile.testReporterArgs}`;
+  const parseFailures = profile.parseTestOutput;
 
   const specs = loadSpecsBestEffort(config);
 
@@ -235,7 +175,7 @@ export async function runHeal(
 
   let attempt = 0;
   let run = healRunner.runTests(fullCmd, cwd);
-  let failures = parseVitestJson(run.stdout);
+  let failures = parseFailures(run.stdout);
 
   // --- run -> classify -> rewrite loop ------------------------------------
   while (true) {
@@ -322,7 +262,7 @@ export async function runHeal(
 
     attempt += 1;
     run = healRunner.runTests(fullCmd, cwd);
-    failures = parseVitestJson(run.stdout);
+    failures = parseFailures(run.stdout);
   }
 
   // --- build heal report ---------------------------------------------------

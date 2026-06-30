@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-29T11:03:49.288Z",
+  "generatedAt": "2026-06-30T11:12:35.600Z",
   "apps": [
     {
       "name": "specguard-core",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -39,6 +39,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -51,6 +91,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -107,7 +155,7 @@
     {
       "name": "specguard-pipelines",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -142,6 +190,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -154,6 +242,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -210,7 +306,7 @@
     {
       "name": "specguard-adapters",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -245,6 +341,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -257,6 +393,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -313,7 +457,7 @@
     {
       "name": "specguard-cli",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -348,6 +492,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -360,6 +544,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -416,7 +608,7 @@
     {
       "name": "specguard-mcp",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -451,6 +643,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -463,6 +695,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -519,7 +759,7 @@
     {
       "name": "specguard-extension",
       "errorCount": 0,
-      "warningCount": 12,
+      "warningCount": 18,
       "findings": [
         {
           "file": "tests/core/errors.test.ts",
@@ -554,6 +794,46 @@
           "source": "knip"
         },
         {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildAgentsMd",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildSkill",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: buildGoalCommand",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeClaudeSettings",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/scaffold.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: mergeCursorMcpJson",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
           "file": "src/pipelines/drift.ts",
           "severity": "warning",
           "category": "dead-code",
@@ -566,6 +846,14 @@
           "severity": "warning",
           "category": "dead-code",
           "message": "Unused export: gitRunner",
+          "rule": "unused-export",
+          "source": "knip"
+        },
+        {
+          "file": "src/core/sentinels.ts",
+          "severity": "warning",
+          "category": "dead-code",
+          "message": "Unused export: replaceSentinel",
           "rule": "unused-export",
           "source": "knip"
         },
@@ -654,6 +942,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -666,6 +994,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -750,6 +1086,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -762,6 +1138,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -846,6 +1230,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -858,6 +1282,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -942,6 +1374,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -954,6 +1426,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -1038,6 +1518,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -1050,6 +1570,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -1134,6 +1662,46 @@
       "source": "knip"
     },
     {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildAgentsMd",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildSkill",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: buildGoalCommand",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeClaudeSettings",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/scaffold.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: mergeCursorMcpJson",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
       "file": "src/pipelines/drift.ts",
       "severity": "warning",
       "category": "dead-code",
@@ -1146,6 +1714,14 @@
       "severity": "warning",
       "category": "dead-code",
       "message": "Unused export: gitRunner",
+      "rule": "unused-export",
+      "source": "knip"
+    },
+    {
+      "file": "src/core/sentinels.ts",
+      "severity": "warning",
+      "category": "dead-code",
+      "message": "Unused export: replaceSentinel",
       "rule": "unused-export",
       "source": "knip"
     },
@@ -1199,5 +1775,5 @@
     }
   ],
   "totalErrors": 0,
-  "totalWarnings": 72
+  "totalWarnings": 108
 }

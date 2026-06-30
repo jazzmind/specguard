@@ -46,6 +46,7 @@ import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs, extractSection } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
+import { resolveProfile, type LanguageProfile } from '../core/language-profiles.js';
 import { runContainer } from '../adapters/docker.js';
 import { runNpmAudit } from '../adapters/npm-audit.js';
 
@@ -89,19 +90,20 @@ interface OwnedSpec {
   specDirAbs: string;
 }
 
-/** System prompt instructing the model how to write security test stubs. */
-const SYSTEM_PROMPT = [
-  'You are SpecGuard, generating OWASP-annotated security test stubs from a Living Specification.',
-  '',
-  'Rules:',
-  '- Emit ONE complete vitest test file containing security test stubs.',
-  '- Annotate EACH test with the relevant OWASP Top 10 category as a leading comment,',
-  '  e.g. `// OWASP A01: Broken Access Control` above the it()/test() block.',
-  '- Derive tests from the spec\'s Security Notes and the source module\'s surface area.',
-  '- If SAST findings are provided, add a concrete regression test targeting each one.',
-  '- Use vitest idioms: import { describe, it, expect } from "vitest".',
-  '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
-].join('\n');
+/** Build the system prompt for security test stubs in the app's language. */
+function buildSecuritySystemPrompt(profile: LanguageProfile): string {
+  return [
+    'You are SpecGuard, generating OWASP-annotated security test stubs from a Living Specification.',
+    '',
+    'Rules:',
+    ...profile.securityPromptRules,
+    '- Annotate EACH test with the relevant OWASP Top 10 category as a leading comment,',
+    '  e.g. `// OWASP A01: Broken Access Control` above the test block.',
+    '- Derive tests from the spec\'s Security Notes and the source module\'s surface area.',
+    '- If SAST findings are provided, add a concrete regression test targeting each one.',
+    '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
+  ].join('\n');
+}
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
@@ -360,6 +362,7 @@ export async function runSecurity(
   let attempted = 0;
 
   for (const { absSpecPath, app, specDirAbs } of owned) {
+    const profile = resolveProfile(app);
     const feature = deriveFeature(absSpecPath, specDirAbs);
     const key = `${app.name}/${feature}`;
 
@@ -371,7 +374,7 @@ export async function runSecurity(
     // Security tests are collected under a single tests/security/ tree.
     const targetTest = resolveFromRoot(
       config,
-      path.join('tests', 'security', `${feature}.test.ts`),
+      path.join('tests', 'security', `${feature}${profile.testExt}`),
     );
 
     if (!opts.force && (await fileExists(targetTest))) {
@@ -424,7 +427,7 @@ export async function runSecurity(
     }
 
     const prompt = [
-      `Generate OWASP-annotated security test stubs (vitest) for this Living Specification.`,
+      `Generate OWASP-annotated security test stubs (${profile.testFramework}) for this Living Specification.`,
       `Spec key: ${key}`,
       `Spec title: ${spec.title}`,
       `Module under test: ${spec.meta.module ?? '(unknown)'}`,
@@ -445,7 +448,7 @@ export async function runSecurity(
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
-        system: SYSTEM_PROMPT,
+        system: buildSecuritySystemPrompt(profile),
         prompt,
       });
       const testCode = stripFences(raw);

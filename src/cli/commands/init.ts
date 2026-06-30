@@ -1,198 +1,60 @@
 /**
- * `specguard init` — scaffold a new SpecGuard config and specs directory.
+ * `specguard init` — scaffold a SpecGuard config, specs directory, and the
+ * agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
  *
- * Creates `.specguard/config.json` and `specs/README.md` if absent. Never
- * overwrites existing files. Auto-detects the test framework from the nearest
- * `package.json` dependencies (playwright > jest > vitest default).
+ * Thin wrapper over `runInit` in `src/pipelines/init.ts` — all logic (language
+ * detection, config template, scaffolding) lives there so the CLI and MCP share
+ * one implementation.
  */
-import path from 'node:path';
-import { fileExists, readFile } from '../../core/reader.js';
-import { writeFile } from '../../core/writer.js';
+import { runInit } from '../../pipelines/init.js';
+import { loadConfig } from '../../core/config.js';
+import { resolveProfile, type LanguageId } from '../../core/language-profiles.js';
+import { scaffoldHarnessFiles, type Harness } from '../../core/scaffold.js';
 
 export interface InitOpts {
+  /** Force Playwright as the test framework (TypeScript convenience flag). */
   withPlaywright?: boolean;
+  /** Target language; auto-detected when omitted. */
+  language?: string;
+  /** Which harness files to generate (claude|cursor|both). */
+  harness?: string;
 }
-
-type Framework = 'vitest' | 'jest' | 'playwright';
-
-/** Inspect `package.json` deps to pick a sensible default framework. */
-async function detectFramework(cwd: string): Promise<Framework> {
-  const pkgPath = path.join(cwd, 'package.json');
-  if (!(await fileExists(pkgPath))) return 'vitest';
-  try {
-    const pkg = JSON.parse(await readFile(pkgPath)) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-    const has = (name: string): boolean =>
-      Object.keys(deps).some((d) => d === name || d.startsWith(`${name}/`) || d.startsWith(`@${name}`));
-    if (has('@playwright/test') || has('playwright')) return 'playwright';
-    if (has('jest')) return 'jest';
-    if (has('vitest')) return 'vitest';
-  } catch {
-    // Malformed package.json — fall through to the default.
-  }
-  return 'vitest';
-}
-
-function defaultConfig(framework: Framework): string {
-  const config = {
-    apps: [
-      {
-        name: 'app',
-        repo: '.',
-        specDir: 'specs',
-        sources: {
-          routes: ['src/**/*.{ts,tsx,js,jsx}'],
-          api: ['src/api/**/*.{ts,js}'],
-          tests: ['tests/**/*.test.{ts,js}'],
-        },
-        framework,
-        testOutput: 'tests/',
-        security: { enabled: false },
-        docs: false,
-      },
-    ],
-    runners: {
-      playwright: 'local',
-      semgrep: 'auto',
-      bandit: 'auto',
-      testRunner: 'local',
-    },
-    llm: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
-      apiKeyEnv: 'ANTHROPIC_API_KEY',
-    },
-    heal: {
-      maxRetries: 2,
-      testCommand: framework === 'playwright' ? 'npx playwright test' : 'npm test',
-    },
-    matrix: {
-      format: 'json',
-      output: '.specguard/traceability.json',
-    },
-  };
-  return `${JSON.stringify(config, null, 2)}\n`;
-}
-
-const SPECS_README = `# Living Specifications
-
-This directory holds SpecGuard's Living Specifications — the source of truth
-for each module's behavior. One spec file per module, mirroring your source
-layout.
-
-## Format
-
-Each spec is Markdown with a metadata comment block and these sections:
-
-\`\`\`markdown
-# <Module Title>
-
-<!--
-  module: src/path/to/module.ts
-  type: core | pipeline | adapter | cli
-  status: draft | stable
--->
-
-## Overview
-## Acceptance Criteria
-## Scenarios
-## Security Notes
-## Dependencies
-\`\`\`
-
-## Workflow
-
-- \`specguard reverse --app <name>\` — generate specs from existing source
-- \`specguard generate --all\` — generate tests from specs
-- \`specguard validate --all\` — run specs against the running app
-- \`specguard status\` — report spec coverage
-`;
-
-const DOT_ENV_TEMPLATE = `# SpecGuard environment variables — git-ignored.
-# Uncomment and fill in the key for your chosen LLM provider.
-
-# Anthropic (default)
-ANTHROPIC_API_KEY=your-key-here
-
-# OpenAI
-# OPENAI_API_KEY=your-key-here
-
-# LiteLLM (local — default base URL: http://localhost:4000)
-# LITELLM_BASE_URL=http://localhost:4000
-`;
-
-const DOT_GITIGNORE_SPECGUARD = `.specguard/.env
-`;
 
 export async function initCommand(opts: InitOpts): Promise<void> {
-  const cwd = process.cwd();
-  const configPath = path.join(cwd, '.specguard', 'config.json');
-  const specsReadmePath = path.join(cwd, 'specs', 'README.md');
-  const dotEnvPath = path.join(cwd, '.specguard', '.env');
-  const gitignorePath = path.join(cwd, '.gitignore');
+  const result = await runInit({
+    framework: opts.withPlaywright ? 'playwright' : undefined,
+    language: opts.language as LanguageId | undefined,
+    harness: opts.harness as Harness | undefined,
+  });
 
-  let framework = await detectFramework(cwd);
-  if (opts.withPlaywright) framework = 'playwright';
-
-  const created: string[] = [];
-  const skipped: string[] = [];
-
-  if (await fileExists(configPath)) {
-    skipped.push('.specguard/config.json');
-  } else {
-    await writeFile(configPath, defaultConfig(framework));
-    created.push('.specguard/config.json');
+  for (const line of result.messages) {
+    process.stdout.write(`${line}\n`);
   }
 
-  if (await fileExists(specsReadmePath)) {
-    skipped.push('specs/README.md');
-  } else {
-    await writeFile(specsReadmePath, SPECS_README);
-    created.push('specs/README.md');
-  }
-
-  // Create .specguard/.env with placeholder if missing
-  if (await fileExists(dotEnvPath)) {
-    skipped.push('.specguard/.env');
-  } else {
-    await writeFile(dotEnvPath, DOT_ENV_TEMPLATE);
-    created.push('.specguard/.env');
-  }
-
-  // Create empty drift-registry.json if missing
-  const driftRegistryPath = path.join(cwd, '.specguard', 'drift-registry.json');
-  if (await fileExists(driftRegistryPath)) {
-    skipped.push('.specguard/drift-registry.json');
-  } else {
-    await writeFile(driftRegistryPath, '{}\n');
-    created.push('.specguard/drift-registry.json');
-  }
-
-  // Ensure .gitignore lists .specguard/.env (best-effort)
-  try {
-    let gitignoreContent = (await fileExists(gitignorePath)) ? await readFile(gitignorePath) : '';
-    if (!gitignoreContent.includes('.specguard/.env')) {
-      gitignoreContent += (gitignoreContent.endsWith('\n') ? '' : '\n') + DOT_GITIGNORE_SPECGUARD;
-      await writeFile(gitignorePath, gitignoreContent);
-      created.push('.gitignore (updated)');
-    }
-  } catch { /* best-effort */ }
-
-  process.stdout.write(`specguard init (framework: ${framework})\n`);
-  for (const f of created) process.stdout.write(`  created  ${f}\n`);
-  for (const f of skipped) process.stdout.write(`  skipped  ${f} (already exists)\n`);
-  process.stdout.write('  note     .cursor skill / mcp.json wiring not automated yet (Phase 1)\n');
   process.stdout.write('\nNext steps:\n');
   process.stdout.write('  1. Review .specguard/config.json and adjust app sources/globs\n');
   process.stdout.write('  2. Add your Anthropic API key to .specguard/.env (it is git-ignored)\n');
-  process.stdout.write('  3. Open the SpecGuard dashboard in the VS Code extension to run pipelines\n');
-  process.stdout.write('     (recommended — the dashboard uses the bundled CLI automatically)\n');
-  process.stdout.write('  4. Or run pipelines from the terminal using the extension\'s bundled CLI:\n');
-  process.stdout.write('     node ~/.cursor/extensions/specguard.specguard-*/dist/cli.js reverse --app app\n');
-  process.stdout.write('     NOTE: `npx specguard` resolves a different unrelated npm package — avoid it.\n');
+  process.stdout.write('  3. Run `specguard gap-analysis` to plan the build, then `/goal` to start it\n');
 
+  process.exit(result.exitCode);
+}
+
+export interface ScaffoldCmdOpts {
+  harness?: string;
+}
+
+/** Regenerate agent-harness files for an already-initialised project. */
+export async function scaffoldCommand(opts: ScaffoldCmdOpts): Promise<void> {
+  const cwd = process.cwd();
+  const config = await loadConfig(cwd);
+  const profile = resolveProfile(config.apps[0] ?? {});
+  const result = await scaffoldHarnessFiles({
+    cwd,
+    profile,
+    harness: opts.harness as Harness | undefined,
+  });
+
+  process.stdout.write(`specguard scaffold (language: ${profile.id}, harness: ${opts.harness ?? 'both'})\n`);
+  for (const line of result.messages) process.stdout.write(`${line}\n`);
   process.exit(0);
 }

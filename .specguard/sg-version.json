@@ -1,8 +1,12 @@
 {
-  "version": "0.1.17",
-  "updatedAt": "2026-06-29T20:24:50.622Z",
+  "version": "0.1.23",
+  "updatedAt": "2026-06-30T11:12:00.962Z",
   "managedFiles": [
     "AGENTS.md",
-    ".cursor/skills/specguard/SKILL.md"
+    "CLAUDE.md",
+    ".claude/skills/specguard/SKILL.md",
+    ".claude/commands/goal.md",
+    ".cursor/skills/specguard/SKILL.md",
+    ".cursor/commands/goal.md"
   ]
 }

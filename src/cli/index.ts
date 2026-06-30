@@ -40,7 +40,7 @@ import { generateCommand } from './commands/generate.js';
 import { healCommand } from './commands/heal.js';
 import { securityCommand } from './commands/security.js';
 import { docsCommand } from './commands/docs.js';
-import { initCommand } from './commands/init.js';
+import { initCommand, scaffoldCommand } from './commands/init.js';
 import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
 import { importCommand } from './commands/import.js';
@@ -81,10 +81,25 @@ program
 // --- init -----------------------------------------------------------------
 program
   .command('init')
-  .description('scaffold .specguard/config.json and specs/README.md')
+  .description('scaffold .specguard/config.json, specs, and agent-harness files')
   .option('--with-playwright', 'configure Playwright as the test framework')
-  .action(async (opts: { withPlaywright?: boolean }) => {
-    await initCommand({ withPlaywright: opts.withPlaywright });
+  .option('--language <id>', 'target language (typescript|python|go|rust|java); auto-detected when omitted')
+  .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string }) => {
+    await initCommand({
+      withPlaywright: opts.withPlaywright,
+      language: opts.language,
+      harness: opts.harness,
+    });
+  });
+
+// --- scaffold --------------------------------------------------------------
+program
+  .command('scaffold')
+  .description('regenerate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal) for an existing project')
+  .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
+  .action(async (opts: { harness?: string }) => {
+    await scaffoldCommand({ harness: opts.harness });
   });
 
 // --- import <file> --------------------------------------------------------

@@ -26,6 +26,7 @@ import { loadAllSpecs } from '../core/spec-parser.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { writeFile } from '../core/writer.js';
+import { resolveProfile, featureFromPath, type LanguageProfile } from '../core/language-profiles.js';
 import { writePlan } from '../core/plan-writer.js';
 
 export interface GapAnalysisOpts {
@@ -56,16 +57,19 @@ export interface GapAnalysisResult extends PipelineResult {
 // LLM schema for implementation plan
 // ---------------------------------------------------------------------------
 
-const ImplementationPlanSchema = z.object({
-  title: z.string().describe('Short plan title, e.g. "Implement Team Sprint Board API"'),
-  summary: z.string().describe('2-4 sentence overview of what needs to be built'),
-  suggestedFiles: z.array(z.object({
-    path: z.string().describe('Relative file path, e.g. src/api/board.ts'),
-    purpose: z.string().describe('What this file does'),
-  })).max(12).describe('Key files to create or edit'),
-  implementationSteps: z.array(z.string()).max(10).describe('Ordered steps to implement the spec'),
-  testingApproach: z.string().describe('How to verify the implementation against the acceptance criteria'),
-});
+/** Build the plan schema with a language-appropriate file-path example. */
+function buildPlanSchema(profile: LanguageProfile) {
+  return z.object({
+    title: z.string().describe('Short plan title, e.g. "Implement Team Sprint Board API"'),
+    summary: z.string().describe('2-4 sentence overview of what needs to be built'),
+    suggestedFiles: z.array(z.object({
+      path: z.string().describe(`Relative file path, e.g. ${profile.planFileHint}`),
+      purpose: z.string().describe('What this file does'),
+    })).max(12).describe('Key files to create or edit'),
+    implementationSteps: z.array(z.string()).max(10).describe('Ordered steps to implement the spec'),
+    testingApproach: z.string().describe('How to verify the implementation against the acceptance criteria'),
+  });
+}
 
 const SYSTEM_PROMPT = [
   'You are SpecGuard, an automated QA system. A Living Specification exists but',
@@ -122,14 +126,10 @@ export async function runGapAnalysis(
     }
     const sourceFiles = await expandGlobs(patterns, repoDir);
     // Build a set of feature keys that actually have source files.
+    const profile = resolveProfile(app);
     const implementedFeatures = new Set<string>();
     for (const absFile of sourceFiles) {
-      const rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-      const segments = rel.split('/');
-      if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) segments.shift();
-      if (segments.length > 1) segments.shift();
-      const feature = segments.join('/').replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '').replace(/\.[cm]?[jt]sx?$/i, '');
-      implementedFeatures.add(feature);
+      implementedFeatures.add(featureFromPath(absFile, repoDir, profile));
     }
 
     // Load all specs for this app.
@@ -210,7 +210,7 @@ export async function runGapAnalysis(
             apiKeyEnv: config.llm.apiKeyEnv,
             system: SYSTEM_PROMPT,
             prompt,
-            schema: ImplementationPlanSchema,
+            schema: buildPlanSchema(profile),
           });
 
           // Write plan to .specguard/plans/<feature>.md

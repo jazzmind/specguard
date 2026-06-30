@@ -17,8 +17,10 @@ import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { runNpmAudit } from '../adapters/npm-audit.js';
+import { runPipAudit } from '../adapters/pip-audit.js';
 import { runDepcheck, type DepcheckFinding } from '../adapters/depcheck.js';
 import type { SastFinding } from './security.js';
+import { resolveProfile } from '../core/language-profiles.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -128,12 +130,30 @@ export async function runDepCheck(
   for (const app of apps) {
     const repoAbs = resolveFromRoot(config, app.repo);
     const log = (line: string) => result.messages.push(line);
+    const profile = resolveProfile(app);
 
-    log(`[deps] ${app.name}: running npm-audit + depcheck in ${repoAbs}`);
+    // Dependency auditing is language-specific. Skip gracefully for languages
+    // without a wired audit runner (advisory pipeline — never throw).
+    const auditRunner = profile.auditRunner; // 'npm-audit' | 'pip-audit' | 'unsupported'
+    if (auditRunner === 'unsupported') {
+      log(`[deps] ${app.name}: skipped — no dependency-audit runner for ${profile.id}`);
+      result.items.push({
+        key: app.name,
+        status: 'skipped',
+        message: `dep-check unsupported for ${profile.id}`,
+      });
+      result.skipped += 1;
+      appReports.push({ name: app.name, vulnerabilityCount: 0, unusedCount: 0, missingCount: 0, findings: [] });
+      continue;
+    }
+
+    // depcheck (unused/missing deps) is npm-only; pip-audit covers vulns only.
+    const runsDepcheck = auditRunner === 'npm-audit';
+    log(`[deps] ${app.name}: running ${auditRunner}${runsDepcheck ? ' + depcheck' : ''} in ${repoAbs}`);
 
     const [auditResult, depcheckResult] = await Promise.all([
-      runNpmAudit(repoAbs),
-      runDepcheck(repoAbs),
+      auditRunner === 'npm-audit' ? runNpmAudit(repoAbs) : runPipAudit(repoAbs),
+      runsDepcheck ? runDepcheck(repoAbs) : Promise.resolve({ ok: false, findings: [] as DepcheckFinding[] }),
     ]);
 
     const vulnFindings = normalizeAudit(auditResult.findings);

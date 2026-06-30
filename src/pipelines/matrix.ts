@@ -15,6 +15,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import { resolveProfile } from '../core/language-profiles.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,19 +67,16 @@ async function findMatchingTests(
   specKey: string,
 ): Promise<string[]> {
   const slug = slugFromKey(specKey);
+  const profile = resolveProfile(app);
   const testBase = resolveFromRoot(config, app.testOutput);
-  const patterns = [
-    `${testBase}/**/${slug}.test.ts`,
-    `${testBase}/**/${slug}.spec.ts`,
-    `${testBase}/**/${slug}.test.js`,
-  ];
+  const patterns = profile.testFileCandidates(slug).map((name) => `${testBase}/**/${name}`);
   const found: string[] = [];
   for (const pat of patterns) {
     const matches = await expandGlobs([pat], path.dirname(pat)).catch(() => []);
     found.push(...matches);
   }
   // Also check security tests.
-  const securityPat = resolveFromRoot(config, `tests/security/${slug}.test.ts`);
+  const securityPat = resolveFromRoot(config, `tests/security/${slug}${profile.testExt}`);
   if (await fileExists(securityPat)) found.push(securityPat);
   return [...new Set(found)];
 }

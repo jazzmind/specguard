@@ -37,6 +37,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists, expandGlobs } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { llmGenerateText } from '../core/llm.js';
+import { resolveProfile, featureFromPath } from '../core/language-profiles.js';
 
 export interface ReverseOpts {
   /** App name from config to target. */
@@ -77,30 +78,9 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   return path.resolve(config.rootDir ?? process.cwd(), p);
 }
 
-/** Derive the feature path (no extension) for a source file relative to repo. */
-function deriveFeature(absFile: string, repoDir: string): string {
-  let rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-  const segments = rel.split('/');
-
-  // 1. Drop a leading src/ or tests/ segment.
-  if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) {
-    segments.shift();
-  }
-
-  // 2. Drop the next segment — the source group / area directory (e.g. `pages`,
-  //    `core`, `routes`). The spec area is already encoded by `specDir`, so this
-  //    avoids a redundant subpath. Nested subpaths beyond it are preserved.
-  if (segments.length > 1) {
-    segments.shift();
-  }
-
-  rel = segments.join('/');
-
-  // 3. Strip extension and a .test/.spec qualifier.
-  rel = rel.replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '');
-  rel = rel.replace(/\.[cm]?[jt]sx?$/i, '');
-  return rel;
-}
+// Source-path → feature-key derivation lives in core/language-profiles.ts
+// (`featureFromPath`), so it stays consistent with status/gap-analysis and is
+// language-aware via the app's profile.
 
 /** Read a source file, capped at MAX_SOURCE_CHARS. */
 async function readCapped(absFile: string): Promise<string> {
@@ -131,6 +111,7 @@ export async function runReverseGenerate(
 
   const repoDir = resolveFromRoot(config, app.repo);
   const specDirAbs = resolveFromRoot(config, app.specDir);
+  const profile = resolveProfile(app);
 
   // Collect the absolute source files to process.
   let files: string[];
@@ -154,7 +135,7 @@ export async function runReverseGenerate(
   let attempted = 0;
 
   for (const absFile of files) {
-    const feature = deriveFeature(absFile, repoDir);
+    const feature = featureFromPath(absFile, repoDir, profile);
     const key = `${app.name}/${feature}`;
 
     // Missing source on disk -> warn and continue (no throw).

@@ -16,10 +16,21 @@ import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import {
+  detectLanguage,
+  getProfile,
+  type LanguageId,
+  type LanguageProfile,
+} from '../core/language-profiles.js';
+import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
 
 export interface InitOpts {
-  /** Auto-detect framework from package.json when not set (default: auto). */
-  framework?: 'vitest' | 'jest' | 'playwright';
+  /** Test framework override; defaults to the language profile's framework. */
+  framework?: string;
+  /** Target language; auto-detected from the project when not set. */
+  language?: LanguageId;
+  /** Which agent harness files to generate (default: both). */
+  harness?: Harness;
   /** Override the target directory (default: process.cwd()). */
   cwd?: string;
 }
@@ -33,40 +44,22 @@ export interface InitResult extends PipelineResult {
   skippedFiles: string[];
 }
 
-type Framework = 'vitest' | 'jest' | 'playwright';
-
-async function detectFramework(cwd: string): Promise<Framework> {
-  const pkgPath = path.join(cwd, 'package.json');
-  if (!(await fileExists(pkgPath))) return 'vitest';
-  try {
-    const pkg = JSON.parse(await readFile(pkgPath)) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-    const has = (name: string) =>
-      Object.keys(deps).some((d) => d === name || d.startsWith(`${name}/`) || d.startsWith(`@${name}`));
-    if (has('@playwright/test') || has('playwright')) return 'playwright';
-    if (has('jest')) return 'jest';
-    if (has('vitest')) return 'vitest';
-  } catch { /* malformed package.json */ }
-  return 'vitest';
-}
-
-function defaultConfig(framework: Framework): string {
+/** Build a config template from the resolved language profile. */
+function defaultConfig(profile: LanguageProfile, framework: string): string {
   const config = {
     apps: [
       {
         name: 'app',
         repo: '.',
+        language: profile.id,
         specDir: 'specs',
         sources: {
-          routes: ['src/**/*.{ts,tsx,js,jsx}'],
-          api: ['src/api/**/*.{ts,js}'],
-          tests: ['tests/**/*.test.{ts,js}'],
+          routes: profile.sourceGlobs.routes,
+          api: profile.sourceGlobs.api,
+          tests: profile.sourceGlobs.tests,
         },
         framework,
-        testOutput: 'tests/',
+        testOutput: profile.testOutput,
         security: { enabled: false },
         docs: false,
       },
@@ -84,7 +77,7 @@ function defaultConfig(framework: Framework): string {
     },
     heal: {
       maxRetries: 2,
-      testCommand: framework === 'playwright' ? 'npx playwright test' : 'npm test',
+      testCommand: profile.testCommand,
     },
     matrix: {
       format: 'json',
@@ -151,7 +144,9 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   result.skippedFiles = [];
 
   const cwd = opts.cwd ?? process.cwd();
-  const framework = opts.framework ?? (await detectFramework(cwd));
+  const language = opts.language ?? (await detectLanguage(cwd));
+  const profile = getProfile(language);
+  const framework = opts.framework ?? profile.testFramework;
 
   const configPath = path.join(cwd, '.specguard', 'config.json');
   const specsReadmePath = path.join(cwd, 'specs', 'README.md');
@@ -173,7 +168,7 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   };
 
-  await tryCreate(configPath, defaultConfig(framework));
+  await tryCreate(configPath, defaultConfig(profile, framework));
   await tryCreate(specsReadmePath, SPECS_README);
   await tryCreate(dotEnvPath, DOT_ENV_TEMPLATE);
   await tryCreate(driftRegistryPath, '{}\n');
@@ -190,7 +185,18 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   } catch { /* best-effort */ }
 
-  result.messages.unshift(`specguard init (framework: ${framework})`);
+  // Generate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
+  const scaffold = await scaffoldHarnessFiles({ cwd, profile, harness: opts.harness });
+  result.createdFiles.push(...scaffold.created);
+  result.skippedFiles.push(...scaffold.skipped);
+  result.created += scaffold.created.length;
+  result.updated += scaffold.updated.length;
+  result.skipped += scaffold.skipped.length;
+  result.messages.push(...scaffold.messages);
+
+  result.messages.unshift(
+    `specguard init (language: ${profile.id}, framework: ${framework}, harness: ${opts.harness ?? 'both'})`,
+  );
   result.exitCode = ExitCode.Success;
   return result;
 }

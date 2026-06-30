@@ -3,13 +3,11 @@
  *
  * On workspace activation, compares the version stamp in
  * `.specguard/sg-version.json` against the current extension version.
- * If the project is behind, offers to update the managed files:
- *
- *   - AGENTS.md
- *   - .cursor/skills/specguard/SKILL.md
- *
- * Files that do not contain the `<!-- specguard-managed: true -->` marker
- * are assumed to be user-authored and are never overwritten.
+ * If the project is behind, offers to regenerate the managed harness files
+ * (CLAUDE.md, skills, /goal command, AGENTS.md, MCP wiring) by invoking the
+ * bundled CLI's `scaffold` command — the single, language-aware source of
+ * truth for these files. Files lacking the `<!-- specguard-managed: true -->`
+ * marker are treated as user-authored and never overwritten.
  *
  * The `specguard.updateProject` command bypasses the version check and
  * always runs a full sync.
@@ -17,7 +15,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { AGENTS_MD, SKILL_MD } from './templates.js';
+import { resolveCliPath, spawnCli } from './dashboard/cli.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,27 +30,17 @@ interface SgVersionFile {
   managedFiles: string[];
 }
 
-interface ManagedFile {
-  /** Path relative to workspace root. */
-  relPath: string;
-  /** Canonical content to write. */
-  content: string;
-}
-
-// ---------------------------------------------------------------------------
-// Managed file definitions
-// ---------------------------------------------------------------------------
-
-/** Files the updater owns. Order determines display in notifications. */
-function getManagedFiles(): ManagedFile[] {
-  return [
-    { relPath: 'AGENTS.md', content: AGENTS_MD },
-    { relPath: path.join('.cursor', 'skills', 'specguard', 'SKILL.md'), content: SKILL_MD },
-  ];
-}
-
-const MANAGED_MARKER = '<!-- specguard-managed: true -->';
 const VERSION_FILE = path.join('.specguard', 'sg-version.json');
+
+/** Harness files the scaffold manages, for the version stamp + notifications. */
+const MANAGED_FILES = [
+  'AGENTS.md',
+  'CLAUDE.md',
+  path.join('.claude', 'skills', 'specguard', 'SKILL.md'),
+  path.join('.claude', 'commands', 'goal.md'),
+  path.join('.cursor', 'skills', 'specguard', 'SKILL.md'),
+  path.join('.cursor', 'commands', 'goal.md'),
+];
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -83,7 +71,7 @@ export async function checkAndOfferUpdate(
 
   const fromLabel = storedVersion ? `v${storedVersion}` : 'not set up';
   const action = await vscode.window.showInformationMessage(
-    `SpecGuard project files are outdated (${fromLabel} → v${currentVersion}). Update AGENTS.md and Cursor skill?`,
+    `SpecGuard project files are outdated (${fromLabel} → v${currentVersion}). Regenerate CLAUDE.md, skills, and /goal command?`,
     'Update',
     'Skip',
     `Don't ask for v${currentVersion}`,
@@ -154,36 +142,29 @@ interface SyncResult {
   skipped: string[];
 }
 
+/**
+ * Regenerate the managed harness files by invoking the bundled CLI's
+ * `scaffold` command. The CLI is the single source of truth — it generates
+ * language-aware files (from `.specguard/config.json`'s `language`) for both
+ * the Claude Code and Cursor harnesses, and never clobbers user content.
+ */
 async function syncProjectFiles(workspaceRoot: string, version: string): Promise<SyncResult> {
-  const managedFiles = getManagedFiles();
+  const cliPath = await resolveCliPath(workspaceRoot);
+  const lines: string[] = [];
+  const handle = spawnCli(cliPath, ['scaffold', '--harness', 'both'], workspaceRoot, (l) => lines.push(l));
+  await handle.promise;
+
+  // Parse the CLI's `created`/`updated`/`skipped` log lines for the summary.
   const updated: string[] = [];
   const skipped: string[] = [];
-
-  for (const mf of managedFiles) {
-    const absPath = path.join(workspaceRoot, mf.relPath);
-    const dir = path.dirname(absPath);
-
-    // If the file already exists but is NOT managed by us, skip it.
-    if (fs.existsSync(absPath)) {
-      const existing = fs.readFileSync(absPath, 'utf-8');
-      if (!existing.includes(MANAGED_MARKER)) {
-        skipped.push(mf.relPath);
-        continue;
-      }
-    }
-
-    // Ensure the parent directory exists.
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    fs.writeFileSync(absPath, mf.content, 'utf-8');
-    updated.push(mf.relPath);
+  for (const line of lines) {
+    const m = line.match(/^\s*(created|updated|skipped)\s+(\S+)/);
+    if (!m) continue;
+    if (m[1] === 'skipped') skipped.push(m[2]);
+    else updated.push(m[2]);
   }
 
-  // Write/update the version stamp.
-  writeVersionFile(workspaceRoot, version, managedFiles.map((f) => f.relPath));
-
+  writeVersionFile(workspaceRoot, version, MANAGED_FILES);
   return { updated, skipped };
 }
 

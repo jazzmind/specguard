@@ -37,6 +37,7 @@ const appConfigSchema = z
   .object({
     name: z.string(),
     repo: z.string(),
+    language: z.string().optional(),
     specDir: z.string(),
     sources: appSourcesSchema,
     framework: z.string(),
