@@ -67,7 +67,7 @@ function mainTabForSubTab(subTab: SubTabId): MainTabId {
 /** Resolve the default subtab for a main tab. */
 function defaultSubTab(mainTab: MainTabId): SubTabId {
   const group = TAB_GROUPS.find((g) => g.id === mainTab);
-  return group?.subtabs[0]?.id ?? 'flow';
+  return group?.subtabs[0]?.id ?? (mainTab as SubTabId);
 }
 
 export function App() {
@@ -216,7 +216,7 @@ export function App() {
       )}
 
       <main>
-        {subTab === 'overview' && <OverviewView vm={vm} />}
+        {subTab === 'overview' && <OverviewView vm={vm} onNavigate={(tab) => { setMainTab('settings'); setSubTab(tab as 'settings'); }} />}
         {subTab === 'coverage' && <CoverageView vm={vm} />}
         {subTab === 'flow' && <FlowView vm={vm} dispatch={dispatch} />}
         {subTab === 'plans' && <PlansView vm={vm} />}
@@ -225,7 +225,7 @@ export function App() {
         {subTab === 'docs' && <DocsView vm={vm} />}
         {subTab === 'specs' && <SpecsView vm={vm} />}
         {subTab === 'traceability' && <MatrixView vm={vm} />}
-        {subTab === 'settings' && <SettingsView />}
+        {subTab === 'settings' && <SettingsView vm={vm} />}
       </main>
       {vm.errors.length > 0 && <footer className="sg-errors">{vm.errors.at(-1)}</footer>}
     </div>

@@ -23,7 +23,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
-export function OverviewView({ vm }: { vm: ViewModel }) {
+export function OverviewView({ vm, onNavigate }: { vm: ViewModel; onNavigate?: (tab: string) => void }) {
   const ws = vm.workspace;
   const hasSpecs = vm.coverage.some((a) => a.specCount > 0);
   const totalSpecs = vm.coverage.reduce((s, a) => s + a.specCount, 0);
@@ -45,6 +45,21 @@ export function OverviewView({ vm }: { vm: ViewModel }) {
         <h2 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#eee' }}>
           {ws ? ws.name : 'SpecGuard'}
         </h2>
+        {ws?.configFound && vm.projectConfig && !vm.projectConfig.hasApiKey && (
+          <div style={{
+            background: '#3a2e10', border: '1px solid #e2c08d55', borderRadius: 6,
+            padding: '10px 14px', marginTop: 8, fontSize: 12, color: '#e2c08d',
+          }}>
+            No API key set for <code>{vm.projectConfig.llm.apiKeyEnv}</code>.
+            LLM-based pipelines (reverse, generate, heal…) will fail.{' '}
+            <button
+              onClick={() => onNavigate?.('settings')}
+              style={{ background: 'none', border: 'none', color: '#4fc3f7', cursor: 'pointer', padding: 0, fontSize: 12, textDecoration: 'underline' }}
+            >
+              Add key in Settings →
+            </button>
+          </div>
+        )}
         {ws && !ws.configFound && (
           <div style={{
             background: '#3a1e1e', border: '1px solid #f4877155', borderRadius: 6,

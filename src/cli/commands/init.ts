@@ -111,9 +111,17 @@ Each spec is Markdown with a metadata comment block and these sections:
 - \`specguard status\` — report spec coverage
 `;
 
-const DOT_ENV_TEMPLATE = `# SpecGuard environment variables
-# This file is git-ignored — add your real API key below.
-ANTHROPIC_API_KEY=your-api-key-here
+const DOT_ENV_TEMPLATE = `# SpecGuard environment variables — git-ignored.
+# Uncomment and fill in the key for your chosen LLM provider.
+
+# Anthropic (default)
+ANTHROPIC_API_KEY=your-key-here
+
+# OpenAI
+# OPENAI_API_KEY=your-key-here
+
+# LiteLLM (local — default base URL: http://localhost:4000)
+# LITELLM_BASE_URL=http://localhost:4000
 `;
 
 const DOT_GITIGNORE_SPECGUARD = `.specguard/.env

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation } from './protocol.js';
+import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, ProjectConfig } from './protocol.js';
 import { RUNNABLE_PIPELINES } from './protocol.js';
-import { resolveCliPath, spawnCli, SpawnHandle } from './cli.js';
+import { resolveCliPath, spawnCli, SpawnHandle, loadDotEnv } from './cli.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';
@@ -72,6 +72,7 @@ export class DashboardHost {
     this._watchActivityLog(logFile);
 
     this._pushWorkspaceInfo();
+    this._pushProjectConfig();
     void this.refresh();
   }
 
@@ -100,6 +101,11 @@ export class DashboardHost {
         await this._runImportWithPicker();
         return;
       }
+      // `init` is interactive (prompts for config) — run in a terminal, not headless.
+      if (cmd.pipeline === 'init') {
+        await this._runInitInTerminal();
+        return;
+      }
       return this.run(cmd.pipeline, cmd.args ?? []);
     }
     if (cmd.type === 'cancel') return this._cancelPipeline(cmd.pipeline);
@@ -125,6 +131,8 @@ export class DashboardHost {
       void vscode.commands.executeCommand('workbench.action.openSettings', 'specguard');
       return;
     }
+    if (cmd.type === 'readProjectConfig') { this._pushProjectConfig(); return; }
+    if (cmd.type === 'saveProjectConfig') { await this._saveProjectConfig(cmd.config); return; }
     if (cmd.type === 'markPlanStatus') {
       try {
         const resolved = path.resolve(this.workspaceRoot, cmd.filePath);
@@ -134,6 +142,52 @@ export class DashboardHost {
         this.post({ type: 'error', scope: 'markPlanStatus', message: (err as Error).message });
       }
       return;
+    }
+  }
+
+  private async _runInitInTerminal(): Promise<void> {
+    if (this.activeRuns.has('init')) {
+      this.post({ type: 'pipeline:log', pipeline: 'init', line: '[warn] init is already running' });
+      return;
+    }
+
+    this.post({ type: 'pipeline:start', pipeline: 'init' });
+    this.activityLog.append({ pipeline: 'init', status: 'running', source: 'extension' });
+    this._pushActivityLog();
+
+    const lines: string[] = [];
+    try {
+      const cli = await resolveCliPath(this.workspaceRoot);
+      if (!cli) throw new Error('SpecGuard CLI not found — set specguard.cliPath in VS Code settings');
+
+      const handle = spawnCli(cli, ['init'], this.workspaceRoot, (line) => {
+        this.post({ type: 'pipeline:log', pipeline: 'init', line });
+        lines.push(line);
+      });
+      this.activeRuns.set('init', handle);
+      const code = await handle.promise;
+      this.activeRuns.delete('init');
+
+      const ok = code === 0;
+      this.post({ type: 'pipeline:done', pipeline: 'init', exitCode: code });
+      this.activityLog.append({
+        pipeline: 'init',
+        status: ok ? 'pass' : 'fail',
+        source: 'extension',
+        message: ok ? 'initialized' : `exit code ${code}`,
+        logLines: lines,
+      });
+      this._pushActivityLog();
+      if (ok) {
+        vscode.window.showInformationMessage('SpecGuard initialized! Dashboard refreshed.');
+      }
+      await this.refresh();
+    } catch (err) {
+      this.activeRuns.delete('init');
+      const msg = err instanceof Error ? err.message : String(err);
+      this.post({ type: 'error', scope: 'init', message: msg });
+      this.activityLog.append({ pipeline: 'init', status: 'error', source: 'extension', message: msg });
+      this._pushActivityLog();
     }
   }
 
@@ -369,6 +423,8 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   async refresh(): Promise<void> {
+    this._pushWorkspaceInfo();
+    this._pushProjectConfig();
     // Clear accumulated artifacts from any previous project before re-populating.
     this.post({ type: 'clearArtifacts' });
 
@@ -555,6 +611,100 @@ export class DashboardHost {
     } catch {
       // Auto-docs is best-effort
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Project config (LLM settings + .env)
+  // ---------------------------------------------------------------------------
+
+  private _pushProjectConfig(): void {
+    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+    const dotEnvFile = path.join(this.workspaceRoot, '.specguard', '.env');
+    const configFound = fs.existsSync(configFile);
+
+    const defaultLlm: ProjectConfig['llm'] = { provider: 'anthropic', model: 'claude-sonnet-4-6', apiKeyEnv: 'ANTHROPIC_API_KEY' };
+
+    if (!configFound) {
+      this.post({ type: 'projectConfig', config: { llm: defaultLlm, envVars: {}, hasApiKey: false, configFound: false } });
+      return;
+    }
+
+    let llm: ProjectConfig['llm'] = { ...defaultLlm };
+    try {
+      const raw = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as { llm?: Partial<ProjectConfig['llm']> };
+      if (raw.llm) llm = { ...defaultLlm, ...raw.llm } as ProjectConfig['llm'];
+    } catch { /* best-effort */ }
+
+    const dotEnv = loadDotEnv(dotEnvFile);
+    const maskedEnv: Record<string, string> = {};
+    for (const [k, v] of Object.entries(dotEnv)) {
+      maskedEnv[k] = v ? '***' : '';
+    }
+
+    const apiKeyValue = dotEnv[llm.apiKeyEnv] ?? process.env[llm.apiKeyEnv];
+    const hasApiKey = llm.provider === 'litellm' ? true : !!apiKeyValue;
+
+    this.post({ type: 'projectConfig', config: { llm, envVars: maskedEnv, hasApiKey, configFound: true } });
+  }
+
+  private async _saveProjectConfig(config: ProjectConfig): Promise<void> {
+    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+    const dotEnvFile = path.join(this.workspaceRoot, '.specguard', '.env');
+
+    try {
+      let existing: Record<string, unknown> = {};
+      if (fs.existsSync(configFile)) {
+        existing = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Record<string, unknown>;
+      }
+      existing['llm'] = config.llm;
+      fs.writeFileSync(configFile, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
+    } catch (err) {
+      this.post({ type: 'error', scope: 'saveProjectConfig', message: `Failed to update config.json: ${(err as Error).message}` });
+      return;
+    }
+
+    const keyEnv = config.llm.apiKeyEnv;
+    const keyValue = config.envVars[keyEnv];
+    if (keyValue && keyValue !== '***') {
+      try {
+        const dir = path.dirname(dotEnvFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        let content = fs.existsSync(dotEnvFile) ? fs.readFileSync(dotEnvFile, 'utf-8') : '';
+        const lineRe = new RegExp(`^${keyEnv}=.*$`, 'm');
+        if (lineRe.test(content)) {
+          content = content.replace(lineRe, `${keyEnv}=${keyValue}`);
+        } else {
+          content += (content.endsWith('\n') ? '' : '\n') + `${keyEnv}=${keyValue}\n`;
+        }
+        fs.writeFileSync(dotEnvFile, content, 'utf-8');
+      } catch (err) {
+        this.post({ type: 'error', scope: 'saveProjectConfig', message: `Failed to update .env: ${(err as Error).message}` });
+        return;
+      }
+    }
+
+    // Save base URL env var for providers that support custom endpoints
+    const baseUrlEnvVar = config.llm.provider === 'litellm' ? 'LITELLM_BASE_URL'
+      : config.llm.provider === 'openai' ? 'OPENAI_BASE_URL'
+      : null;
+    if (baseUrlEnvVar && config.llm.baseUrl) {
+      try {
+        const dir = path.dirname(dotEnvFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        let content = fs.existsSync(dotEnvFile) ? fs.readFileSync(dotEnvFile, 'utf-8') : '';
+        const lineRe = new RegExp(`^${baseUrlEnvVar}=.*$`, 'm');
+        if (lineRe.test(content)) {
+          content = content.replace(lineRe, `${baseUrlEnvVar}=${config.llm.baseUrl}`);
+        } else {
+          content += (content.endsWith('\n') ? '' : '\n') + `${baseUrlEnvVar}=${config.llm.baseUrl}\n`;
+        }
+        fs.writeFileSync(dotEnvFile, content, 'utf-8');
+      } catch { /* best-effort */ }
+    }
+
+    this._pushProjectConfig();
+    await this.refresh();
+    vscode.window.showInformationMessage('SpecGuard settings saved.');
   }
 
   // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, FixPlan, PlanItem } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, FixPlan, PlanItem, ProjectConfig } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
@@ -20,6 +20,8 @@ export interface ViewModel {
   pendingFixPlan: FixPlan | null;
   /** All plan files in .specguard/plans/ with their metadata. */
   plans: PlanItem[];
+  /** LLM config and env vars from .specguard/ (null until first push). */
+  projectConfig: ProjectConfig | null;
 }
 
 export function initialViewModel(): ViewModel {
@@ -38,6 +40,7 @@ export function initialViewModel(): ViewModel {
     analysisRecommendations: [],
     pendingFixPlan: null,
     plans: [],
+    projectConfig: null,
   };
 }
 
@@ -77,6 +80,8 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, pendingFixPlan: e.plan };
     case 'plans':
       return { ...vm, plans: e.items };
+    case 'projectConfig':
+      return { ...vm, projectConfig: e.config };
     case 'error':
       return { ...vm, errors: [...vm.errors, `${e.scope}: ${e.message}`].slice(-50) };
     default:

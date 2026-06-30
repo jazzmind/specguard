@@ -304,15 +304,28 @@ export async function main(): Promise<void> {
   }
 }
 
-/** True when this module is the process entrypoint (not imported as a library). */
+/**
+ * True when this module is the process entrypoint.
+ *
+ * Handles two execution contexts:
+ *  - ESM (tsx dev, direct node --experimental-vm-modules): import.meta.url is set
+ *  - CJS bundle (esbuild --format=cjs): import_meta = {}, so import.meta.url is
+ *    undefined; fall back to __filename which Node.js always sets in CJS modules.
+ */
 function isMainModule(): boolean {
   const argv1 = process.argv[1];
   if (!argv1) return false;
+  const abs = resolve(argv1);
+  // ESM path: import.meta.url is set (tsx, native ESM)
   try {
-    return fileURLToPath(import.meta.url) === resolve(argv1);
-  } catch {
-    return false;
-  }
+    if (import.meta.url) return fileURLToPath(import.meta.url) === abs;
+  } catch { /* ignore — not in ESM context */ }
+  // CJS bundle path: __filename is a Node.js CJS local variable
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cjsFilename = (globalThis as any).__filename as string | undefined;
+  if (cjsFilename) return resolve(cjsFilename) === abs;
+  // Last resort: basename match for the known entry-point filename
+  return abs.replace(/\.js$/, '').split('/').pop() === 'cli';
 }
 
 if (isMainModule()) {

@@ -50,7 +50,7 @@ export async function resolveCliPath(workspaceRoot: string): Promise<string> {
  * Load variables from a `.env`-style file (KEY=VALUE lines, # comments ignored).
  * Returns an object suitable for spreading into `process.env`.
  */
-function loadDotEnv(filePath: string): Record<string, string> {
+export function loadDotEnv(filePath: string): Record<string, string> {
   try {
     if (!fs.existsSync(filePath)) return {};
     const lines = fs.readFileSync(filePath, 'utf-8').split('\n');

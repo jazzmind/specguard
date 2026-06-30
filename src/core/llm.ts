@@ -44,7 +44,9 @@ export interface LlmObjectOpts<T> extends LlmTextOpts {
  */
 export function resolveModel(provider: string, model: string, apiKeyEnv: string): LanguageModel {
   const apiKey = process.env[apiKeyEnv];
-  if (!apiKey) {
+
+  // LiteLLM is a local server — API key may not be required.
+  if (provider !== 'litellm' && !apiKey) {
     throw new SpecGuardError(
       `Missing API key: environment variable \`${apiKeyEnv}\` is not set or empty. ` +
         `Set it to your ${provider} API key.`,
@@ -58,12 +60,18 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
       return anthropic(model);
     }
     case 'openai': {
-      const openai = createOpenAI({ apiKey });
+      const baseURL = process.env['OPENAI_BASE_URL'] || undefined;
+      const openai = createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
+      return openai(model);
+    }
+    case 'litellm': {
+      const baseURL = process.env['LITELLM_BASE_URL'] || 'http://localhost:4000';
+      const openai = createOpenAI({ apiKey: apiKey || 'nokey', baseURL });
       return openai(model);
     }
     default:
       throw new SpecGuardError(
-        `Unknown LLM provider: \`${provider}\`. Supported providers: anthropic, openai.`,
+        `Unknown LLM provider: \`${provider}\`. Supported: anthropic, openai, litellm.`,
         ExitCode.InternalError,
       );
   }
