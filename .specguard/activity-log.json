@@ -358,8 +358,9 @@
     "id": "1782817939546-cy6qv",
     "timestamp": 1782817939546,
     "pipeline": "analyze",
-    "status": "running",
-    "source": "extension"
+    "status": "error",
+    "source": "extension",
+    "message": "stale — started >2h ago (likely from a previous session)"
   },
   {
     "id": "1782817971707-voop0",
