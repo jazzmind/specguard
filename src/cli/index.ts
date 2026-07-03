@@ -50,6 +50,7 @@ import { commitCommand } from './commands/commit.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { planFixCommand } from './commands/plan-fix.js';
 import { gapAnalysisCommand } from './commands/gap-analysis.js';
+import { alignCommand } from './commands/align.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -294,6 +295,20 @@ program
   .action(async (opts: { spec?: string; all?: boolean; plan?: boolean }, cmd: Command) => {
     await gapAnalysisCommand(withGlobals(cmd, { spec: opts.spec, all: opts.all, noPlan: opts.plan === false }));
   });
+
+// --- align ----------------------------------------------------------------
+program
+  .command('align')
+  .description('semantically compare spec scenarios to test assertions via LLM')
+  .option('--app <name>', 'limit to a single app')
+  .option('--spec <key>', 'target a single spec key (e.g. auth/login)')
+  .option('--all', 'process all apps')
+  .option('--extra-tests <globs...>', 'additional test file glob patterns (resolved from workspace root)')
+  .action(
+    async (opts: { app?: string; spec?: string; all?: boolean; extraTests?: string[] }, cmd: Command) => {
+      await alignCommand(withGlobals(cmd, opts));
+    },
+  );
 
 // --- status ---------------------------------------------------------------
 program

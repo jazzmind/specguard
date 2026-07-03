@@ -126,6 +126,14 @@ export interface AppConfig {
   security?: AppSecurityConfig;
   /** Whether docs generation is enabled (or an output dir). */
   docs?: boolean | string;
+  /**
+   * Additional glob patterns for test files outside this app's `testOutput`
+   * directory — e.g. cross-repo regression suites. Resolved relative to the
+   * directory containing `.specguard/config.json`. Used by `align` and `matrix`.
+   *
+   * Example: `["../practera-test-suite/suites/regression/specs/auth/*.spec.ts"]`
+   */
+  extraTestSources?: string[];
 }
 
 /** Runner placement: where each external tool executes. */
