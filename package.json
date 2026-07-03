@@ -1,6 +1,6 @@
 {
   "name": "specguard-ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "SpecGuard — Living Specification QA agent CLI + MCP server",
   "license": "MIT",
   "type": "module",

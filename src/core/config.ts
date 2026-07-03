@@ -44,6 +44,7 @@ const appConfigSchema = z
     testOutput: z.string(),
     security: appSecuritySchema.optional(),
     docs: z.union([z.boolean(), z.string()]).optional(),
+    extraTestSources: z.array(z.string()).optional(),
   })
   .passthrough();
 
