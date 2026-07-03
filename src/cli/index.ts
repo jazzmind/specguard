@@ -8,7 +8,7 @@
  */
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Auto-load .specguard/.env before any pipeline runs so secrets are available
@@ -335,7 +335,16 @@ function isMainModule(): boolean {
   const abs = resolve(argv1);
   // ESM path: import.meta.url is set (tsx, native ESM)
   try {
-    if (import.meta.url) return fileURLToPath(import.meta.url) === abs;
+    if (import.meta.url) {
+      const self = fileURLToPath(import.meta.url);
+      if (self === abs) return true;
+      // pnpm/npm bin wrappers: argv[1] traverses a symlink that resolves to
+      // a different absolute path than import.meta.url. Compare real paths.
+      try {
+        if (realpathSync(abs) === self) return true;
+        if (realpathSync(abs) === realpathSync(self)) return true;
+      } catch { /* not a symlink or path doesn't exist */ }
+    }
   } catch { /* ignore — not in ESM context */ }
   // CJS bundle path: __filename is a Node.js CJS local variable
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
