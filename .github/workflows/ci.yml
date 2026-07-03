@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  cli:
+    name: CLI — lint + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+  extension:
+    name: Extension — lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - run: npm ci
+
+      - name: Install webview deps
+        run: npm --prefix webview install
+
+      - name: Typecheck host
+        run: npm run lint
+
+      - name: Build (verifies everything compiles)
+        run: npm run build
