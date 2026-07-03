@@ -454,6 +454,8 @@ export class DashboardHost {
     }
     // Emit existing doc artifacts with metadata
     this._pushExistingDocs();
+    // Emit existing spec artifacts so Docs → Specs tab is populated on open
+    this._pushExistingSpecs();
     // Push last analysis result and fix plan if present
     this._pushAnalysisResult();
     this._pushFixPlan();
@@ -777,6 +779,76 @@ export class DashboardHost {
       }
     };
     walk(docsDir);
+  }
+
+  /**
+   * Recursively scan each app's specDir (from .specguard/config.json) and emit
+   * artifact events so the Docs → Specs tab is populated on dashboard open,
+   * without waiting for file-watcher create/change events.
+   */
+  private _pushExistingSpecs(): void {
+    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+    if (!fs.existsSync(configFile)) return;
+
+    let appCfgs: Array<{ specDir: string }>;
+    try {
+      const raw = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
+        apps?: Array<{ specDir: string }>;
+      };
+      appCfgs = Array.isArray(raw.apps) ? raw.apps : [];
+    } catch {
+      return;
+    }
+
+    const walk = (dir: string): void => {
+      let entries: fs.Dirent[];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md') {
+          const rel = path.relative(this.workspaceRoot, full).replace(/\\/g, '/');
+          const meta = this._readSpecMeta(full);
+          this.post({ type: 'artifact', kind: 'spec', path: rel, change: 'update', ...meta });
+        }
+      }
+    };
+
+    const seen = new Set<string>();
+    for (const appCfg of appCfgs) {
+      const specDirAbs = path.isAbsolute(appCfg.specDir)
+        ? appCfg.specDir
+        : path.join(this.workspaceRoot, appCfg.specDir);
+      if (!fs.existsSync(specDirAbs) || seen.has(specDirAbs)) continue;
+      seen.add(specDirAbs);
+      walk(specDirAbs);
+    }
+  }
+
+  /** Extract title and overview from a Living Spec markdown file. */
+  private _readSpecMeta(absPath: string): { title?: string; description?: string } {
+    try {
+      const content = fs.readFileSync(absPath, 'utf-8');
+      // H1 title
+      const titleMatch = content.match(/^#\s+(.+)$/m);
+      const title = titleMatch ? titleMatch[1].trim() : undefined;
+      // First non-empty paragraph after the H1 (or after the metadata comment)
+      const lines = content.split(/\r?\n/);
+      let inMeta = false;
+      let descLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith('<!--')) { inMeta = true; continue; }
+        if (inMeta) { if (line.includes('-->')) inMeta = false; continue; }
+        if (/^#{1,6}\s/.test(line)) { if (descLines.length > 0) break; continue; }
+        if (line.trim()) descLines.push(line.trim());
+        else if (descLines.length > 0) break;
+      }
+      const description = descLines.length > 0 ? descLines.join(' ').slice(0, 200) : undefined;
+      return { title, description };
+    } catch {
+      return {};
+    }
   }
 
   // ---------------------------------------------------------------------------

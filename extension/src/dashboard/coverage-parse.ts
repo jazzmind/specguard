@@ -47,12 +47,33 @@ export function parseCoverageText(raw: string): AppCoverage[] {
 }
 
 /**
+ * Recursively collect all `.md` files under `dir`, excluding `README.md`.
+ * Returns absolute paths.
+ */
+function walkMdFiles(dir: string): string[] {
+  const results: string[] = [];
+  let entries: fs.Dirent[];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return results; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      results.push(...walkMdFiles(full));
+    } else if (e.isFile() && e.name.endsWith('.md') && e.name !== 'README.md') {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+/**
  * For apps where `status` reports 0 source files (e.g. specs created via
  * `import` from a PRD, with no matching source code), augment the coverage
  * data by directly counting `.md` files in each app's specDir so the
  * dashboard and sidebar reflect reality rather than showing 0 specs.
  *
  * Reads `.specguard/config.json` from `workspaceRoot` to discover specDirs.
+ * Traverses subdirectories recursively so nested specs (e.g. specs/auth/login.md)
+ * are counted correctly.
  */
 export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: string): void {
   try {
@@ -72,8 +93,9 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
         : path.join(workspaceRoot, appCfg.specDir);
       if (!fs.existsSync(specDirAbs)) continue;
 
-      const mdFiles = fs.readdirSync(specDirAbs).filter((f) => f.endsWith('.md') && f !== 'README.md');
-      if (mdFiles.length === 0) continue;
+      // Recursive walk — picks up specs in subdirectories (e.g. specs/auth/login.md)
+      const mdAbsPaths = walkMdFiles(specDirAbs);
+      if (mdAbsPaths.length === 0) continue;
 
       // Resolve testOutput so we can check for generated tests.
       const testOutputAbs = appCfg.testOutput
@@ -81,12 +103,14 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
         : null;
 
       let testCount = 0;
-      entry.specCount = mdFiles.length;
+      entry.specCount = mdAbsPaths.length;
       entry.percentage = entry.sourceCount > 0
-        ? Math.round((mdFiles.length / entry.sourceCount) * 100)
+        ? Math.round((mdAbsPaths.length / entry.sourceCount) * 100)
         : 100; // no source files but has specs — treat as fully covered via import
-      entry.items = mdFiles.map((f) => {
-        const feature = f.replace(/\.md$/, '');
+      entry.items = mdAbsPaths.map((absPath) => {
+        // Derive a feature key relative to the specDir (preserving subdirectory structure)
+        const rel = path.relative(specDirAbs, absPath);
+        const feature = rel.replace(/\.md$/, '').replace(/\\/g, '/');
         let hasTest = false;
         if (testOutputAbs) {
           // Check the same candidate paths that status.ts uses.
@@ -106,7 +130,7 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
           key: feature,
           hasSpec: true,
           hasTest,
-          specPath: path.join(specDirAbs, f),
+          specPath: absPath,
         };
       });
       entry.testCount = testCount;
