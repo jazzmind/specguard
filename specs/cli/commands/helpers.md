@@ -15,6 +15,9 @@ This module provides shared helper utilities consumed by every SpecGuard CLI sub
 5. When `loadConfig` throws `ConfigNotFoundError`, the message `No config found. Run \`specguard init\` to create one.` is written to `stderr` and the process exits with `ExitCode.InternalError`.
 6. When `loadConfig` throws any error other than `ConfigNotFoundError`, the error is re-thrown and not swallowed.
 7. Backslash path separators in `--config` values are normalised to forward slashes before resolution.
+8. `outputResult(result, { json: true })` writes `JSON.stringify(result)` to stdout and exits with `result.exitCode`. Human-readable messages are suppressed.
+9. `outputResult(result, { json: false })` writes each message line and a one-line summary (`{pipeline}: N passed, N skipped, N failed`) to stdout, then exits.
+10. The global `--json` flag is available on all subcommands via `withGlobals`, propagated through `GlobalOpts`.
 
 ## Scenarios
 

@@ -10,6 +10,7 @@ import {
   navigateTo,
   takeScreenshot,
   getAccessibilitySnapshot,
+  getPageHtml,
   PlaywrightUnavailableError,
 } from '../../src/adapters/playwright.js';
 
@@ -32,6 +33,10 @@ function makePage(overrides: Record<string, unknown> = {}) {
     url: vi.fn(() => 'http://localhost:3000/'),
     screenshot: vi.fn(async () => Buffer.from('PNG')),
     accessibility: { snapshot: vi.fn(async () => ({ role: 'WebArea', name: 'Test' })) },
+    locator: vi.fn(() => ({
+      ariaSnapshot: vi.fn(async () => '- heading "Test Page" [level=1]\n- button "Submit"'),
+    })),
+    content: vi.fn(async () => '<html><body><h1>Test Page</h1></body></html>'),
     on: vi.fn((ev: string, cb: (msg: unknown) => void) => {
       if (ev === 'console') consoleListeners.push(cb);
     }),
@@ -164,15 +169,65 @@ describe('takeScreenshot', () => {
 // ---------------------------------------------------------------------------
 
 describe('getAccessibilitySnapshot', () => {
-  it('returns JSON string of accessibility tree', async () => {
+  it('uses ariaSnapshot() when available (modern Playwright)', async () => {
     const handle = makeHandle();
+    const result = await getAccessibilitySnapshot(handle);
+    // ariaSnapshot returns a YAML-like string; legacy JSON contains "WebArea"
+    expect(result).toContain('heading');
+  });
+
+  it('falls back to legacy page.accessibility.snapshot() when locator is missing', async () => {
+    const handle = makeHandle({ locator: undefined });
     const result = await getAccessibilitySnapshot(handle);
     expect(result).toContain('WebArea');
   });
 
-  it('returns empty string when accessibility API missing', async () => {
-    const handle = makeHandle({ accessibility: undefined });
+  it('returns empty string when both APIs are missing', async () => {
+    const handle = makeHandle({ locator: undefined, accessibility: undefined });
     const result = await getAccessibilitySnapshot(handle);
     expect(result).toBe('');
+  });
+
+  it('falls back to legacy when ariaSnapshot() throws', async () => {
+    const failingLocator = vi.fn(() => ({
+      ariaSnapshot: vi.fn(async () => { throw new Error('not supported'); }),
+    }));
+    const handle = makeHandle({ locator: failingLocator });
+    const result = await getAccessibilitySnapshot(handle);
+    // Should fall through to legacy accessibility.snapshot()
+    expect(result).toContain('WebArea');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPageHtml
+// ---------------------------------------------------------------------------
+
+describe('getPageHtml', () => {
+  it('returns page HTML content', async () => {
+    const handle = makeHandle();
+    const html = await getPageHtml(handle);
+    expect(html).toContain('<html>');
+    expect(html).toContain('Test Page');
+  });
+
+  it('truncates HTML exceeding maxChars', async () => {
+    const longHtml = '<html>' + 'x'.repeat(50_000) + '</html>';
+    const handle = makeHandle({ content: vi.fn(async () => longHtml) });
+    const html = await getPageHtml(handle, 10_000);
+    expect(html.length).toBeLessThanOrEqual(10_030); // 10_000 + truncation marker
+    expect(html).toContain('truncated');
+  });
+
+  it('returns empty string when content() is missing', async () => {
+    const handle = makeHandle({ content: undefined });
+    const html = await getPageHtml(handle);
+    expect(html).toBe('');
+  });
+
+  it('returns empty string when content() throws', async () => {
+    const handle = makeHandle({ content: vi.fn(async () => { throw new Error('fail'); }) });
+    const html = await getPageHtml(handle);
+    expect(html).toBe('');
   });
 });

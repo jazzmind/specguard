@@ -2,7 +2,7 @@
  * `specguard docs` — generate user-facing documentation from specs (Phase 5).
  */
 import { runDocGenerate } from '../../pipelines/doc-generate.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface DocsCliOpts extends GlobalOpts {
   spec?: string;
@@ -20,11 +20,5 @@ export async function docsCommand(opts: DocsCliOpts): Promise<void> {
     app: opts.app,
   });
 
-  for (const line of result.messages) {
-    process.stdout.write(`${line}\n`);
-  }
-  process.stdout.write(
-    `docs: ${result.created} created, ${result.skipped} skipped, ${result.failed} failed\n`,
-  );
-  process.exit(result.exitCode);
+  outputResult(result, opts);
 }

@@ -2,7 +2,7 @@
  * `specguard security` — generate security tests / run SAST (Phase 5).
  */
 import { runSecurity } from '../../pipelines/security.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface SecurityCliOpts extends GlobalOpts {
   spec?: string;
@@ -22,11 +22,5 @@ export async function securityCommand(opts: SecurityCliOpts): Promise<void> {
     force: opts.force,
   });
 
-  for (const line of result.messages) {
-    process.stdout.write(`${line}\n`);
-  }
-  process.stdout.write(
-    `security: ${result.created} created, ${result.skipped} skipped, ${result.failed} failed\n`,
-  );
-  process.exit(result.exitCode);
+  outputResult(result, opts);
 }

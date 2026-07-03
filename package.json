@@ -1,21 +1,38 @@
 {
-  "name": "specguard",
+  "name": "specguard-ai",
   "version": "0.1.0",
   "description": "SpecGuard — Living Specification QA agent CLI + MCP server",
+  "license": "MIT",
   "type": "module",
   "bin": {
-    "specguard": "./dist/cli/index.js",
-    "specguard-mcp": "./dist/mcp/server.js"
+    "specguard": "dist/cli/index.js",
+    "specguard-mcp": "dist/mcp/server.js"
   },
   "files": [
     "dist"
   ],
+  "keywords": [
+    "specguard",
+    "living-specification",
+    "qa",
+    "testing",
+    "playwright",
+    "ai",
+    "mcp",
+    "accessibility",
+    "validation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jazzmind/specguard.git"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "tsx src/cli/index.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "ai": "^4",

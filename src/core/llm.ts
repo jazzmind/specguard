@@ -27,6 +27,15 @@ export interface LlmTextOpts {
   apiKeyEnv: string;
   maxTokens?: number;
   temperature?: number;
+  /**
+   * Optional image buffers (PNG/JPEG) sent as multimodal content alongside the
+   * text prompt. When present the call switches from `prompt:` to `messages:`
+   * so the images precede the text in the user turn, matching vision model
+   * expectations (Anthropic, OpenAI gpt-4o).
+   *
+   * LiteLLM passthrough: multimodal support depends on the proxied model.
+   */
+  images?: Buffer[];
 }
 
 /** Options for schema-validated structured generation. */
@@ -80,6 +89,26 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
 /** Generate free-form text from the configured provider/model. */
 export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
   const model = resolveModel(opts.provider, opts.model, opts.apiKeyEnv);
+
+  if (opts.images && opts.images.length > 0) {
+    const { text } = await generateText({
+      model,
+      system: opts.system,
+      messages: [
+        {
+          role: 'user' as const,
+          content: [
+            ...opts.images.map((image) => ({ type: 'image' as const, image })),
+            { type: 'text' as const, text: opts.prompt },
+          ],
+        },
+      ],
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+    });
+    return text;
+  }
+
   const { text } = await generateText({
     model,
     system: opts.system,
@@ -93,6 +122,27 @@ export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
 /** Generate a structured object validated against a Zod schema. */
 export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
   const model = resolveModel(opts.provider, opts.model, opts.apiKeyEnv);
+
+  if (opts.images && opts.images.length > 0) {
+    const { object } = await generateObject({
+      model,
+      schema: opts.schema,
+      system: opts.system,
+      messages: [
+        {
+          role: 'user' as const,
+          content: [
+            ...opts.images.map((image) => ({ type: 'image' as const, image })),
+            { type: 'text' as const, text: opts.prompt },
+          ],
+        },
+      ],
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+    });
+    return object;
+  }
+
   const { object } = await generateObject({
     model,
     schema: opts.schema,

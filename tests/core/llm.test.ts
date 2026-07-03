@@ -56,6 +56,37 @@ describe('llm adapter', () => {
         }),
       ).rejects.toBeInstanceOf(SpecGuardError);
     });
+
+    it('uses messages array when images are provided', async () => {
+      const screenshot = Buffer.from('PNG_DATA');
+      await llmGenerateText({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-5',
+        prompt: 'describe this page',
+        apiKeyEnv: API_KEY_ENV,
+        images: [screenshot],
+      });
+      expect(generateText).toHaveBeenCalledOnce();
+      const callArg = (generateText as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      // Must use messages (not prompt) for multimodal calls
+      expect(callArg.messages).toBeDefined();
+      expect(callArg.prompt).toBeUndefined();
+      const content = callArg.messages[0].content as Array<{ type: string }>;
+      expect(content[0].type).toBe('image');
+      expect(content[1].type).toBe('text');
+    });
+
+    it('uses prompt (not messages) when no images are provided', async () => {
+      await llmGenerateText({
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet',
+        prompt: 'text only',
+        apiKeyEnv: API_KEY_ENV,
+      });
+      const callArg = (generateText as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(callArg.prompt).toBe('text only');
+      expect(callArg.messages).toBeUndefined();
+    });
   });
 
   describe('llmGenerateObject', () => {
@@ -72,6 +103,22 @@ describe('llm adapter', () => {
       expect(generateObject).toHaveBeenCalledOnce();
       const callArg = (generateObject as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(callArg.schema).toBe(schema);
+    });
+
+    it('uses messages array when images are provided', async () => {
+      const schema = z.object({ name: z.string() });
+      const screenshot = Buffer.from('PNG_DATA');
+      await llmGenerateObject({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-5',
+        prompt: 'analyse this screenshot',
+        apiKeyEnv: API_KEY_ENV,
+        schema,
+        images: [screenshot],
+      });
+      const callArg = (generateObject as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(callArg.messages).toBeDefined();
+      expect(callArg.prompt).toBeUndefined();
     });
   });
 

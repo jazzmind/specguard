@@ -27,6 +27,38 @@ This is the overview text for the example module.
 - [ ] Does the thing
 `;
 
+const UI_SPEC = `# Login Page
+
+<!--
+  module: src/pages/login.tsx
+  type: ui
+  url: /login
+-->
+
+## Overview
+
+The login page.
+
+## Acceptance Criteria
+
+- [ ] User can log in with email and password
+
+## Visual Expectations
+
+The page should use the primary brand colour for the submit button.
+Logo is centred at the top.
+
+## Accessibility Requirements
+
+The form must meet WCAG 2.2 AA:
+- Colour contrast ratio ≥ 4.5:1 for body text
+- All inputs have visible labels
+
+## UX Guidelines
+
+Show inline validation errors on blur, not on submit.
+`;
+
 const MULTI_SCENARIO_SPEC = `# Multi Scenario
 
 <!--
@@ -118,6 +150,28 @@ describe('parseSpecContent (Scenario 1: minimal spec)', () => {
       'This is the overview text for the example module.',
     );
     expect(result.scenarios).toEqual([]);
+    // UI sections are empty for a non-UI spec
+    expect(result.visualExpectations).toBe('');
+    expect(result.accessibilityRequirements).toBe('');
+    expect(result.uxGuidelines).toBe('');
+  });
+});
+
+describe('parseSpecContent — typed UI sections', () => {
+  it('extracts visualExpectations, accessibilityRequirements, uxGuidelines', () => {
+    const result = parseSpecContent(UI_SPEC, 'specs/auth/login.md', 'specs');
+    expect(result.visualExpectations).toContain('primary brand colour');
+    expect(result.visualExpectations).toContain('Logo is centred');
+    expect(result.accessibilityRequirements).toContain('WCAG 2.2 AA');
+    expect(result.accessibilityRequirements).toContain('4.5:1');
+    expect(result.uxGuidelines).toContain('inline validation errors');
+  });
+
+  it('returns empty strings when UI sections are absent', () => {
+    const result = parseSpecContent(MINIMAL_SPEC, 'specs/core/example.md', 'specs');
+    expect(result.visualExpectations).toBe('');
+    expect(result.accessibilityRequirements).toBe('');
+    expect(result.uxGuidelines).toBe('');
   });
 });
 

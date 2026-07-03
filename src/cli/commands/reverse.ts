@@ -2,8 +2,9 @@
  * `specguard reverse` — generate specs from source via the reverse pipeline.
  */
 import { runReverseGenerate } from '../../pipelines/reverse-generate.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 import { ExitCode } from '../../core/exit-codes.js';
+import { emptyResult } from '../../core/types.js';
 
 export interface ReverseCliOpts extends GlobalOpts {
   app?: string;
@@ -22,34 +23,24 @@ export async function reverseCommand(opts: ReverseCliOpts): Promise<void> {
 
   const apps = opts.all ? config.apps.map((a) => a.name) : [opts.app as string];
 
-  let totalCreated = 0;
-  let totalUpdated = 0;
-  let totalSkipped = 0;
-  let totalFailed = 0;
-  let lastExitCode = 0;
+  const aggregate = emptyResult('reverse');
 
   for (const appName of apps) {
-    process.stdout.write(`reverse: analyzing app "${appName}"...\n`);
+    aggregate.messages.push(`reverse: analyzing app "${appName}"...`);
     const result = await runReverseGenerate(config, {
       app: appName,
       file: opts.file,
       force: opts.force,
     });
 
-    for (const line of result.messages) {
-      process.stdout.write(`${line}\n`);
-    }
-    totalCreated += result.created;
-    totalUpdated += result.updated ?? 0;
-    totalSkipped += result.skipped;
-    totalFailed += result.failed;
-    if (result.exitCode !== 0) lastExitCode = result.exitCode;
+    aggregate.messages.push(...result.messages);
+    aggregate.created += result.created;
+    aggregate.updated += result.updated ?? 0;
+    aggregate.skipped += result.skipped;
+    aggregate.failed += result.failed;
+    aggregate.items.push(...result.items);
+    if (result.exitCode !== 0) aggregate.exitCode = result.exitCode;
   }
 
-  process.stdout.write(
-    `reverse: ${totalCreated} created, ${totalUpdated} updated, ` +
-      `${totalSkipped} skipped, ${totalFailed} failed\n`,
-  );
-
-  process.exit(lastExitCode);
+  outputResult(aggregate, opts);
 }
