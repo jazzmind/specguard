@@ -218,6 +218,9 @@ export function parseSpecContent(
     scenarios: parseScenarios(content),
     securityNotes: extractSection(content, 'Security Notes'),
     dependencies: extractSection(content, 'Dependencies'),
+    visualExpectations: extractSection(content, 'Visual Expectations'),
+    accessibilityRequirements: extractSection(content, 'Accessibility Requirements'),
+    uxGuidelines: extractSection(content, 'UX Guidelines'),
     sections: parseAllSections(content),
   };
 }

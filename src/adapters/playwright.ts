@@ -204,20 +204,54 @@ export async function takeScreenshot(
 
 /**
  * Extract the accessibility tree as a compact string for LLM consumption.
- * Returns an empty string when the tree cannot be extracted.
+ *
+ * Primary: `page.locator('body').ariaSnapshot()` — returns a YAML-like string
+ * (introduced in Playwright ~1.39, replaces the removed `page.accessibility` API).
+ * Fallback: legacy `page.accessibility.snapshot()` for older Playwright versions.
+ *
+ * Returns an empty string when neither API is available or both fail.
  */
 export async function getAccessibilitySnapshot(handle: BrowserHandle): Promise<string> {
   const page = handle._page as {
-    accessibility?: {
-      snapshot: () => Promise<unknown>;
-    };
+    locator?: (selector: string) => { ariaSnapshot: () => Promise<string> };
+    accessibility?: { snapshot: () => Promise<unknown> };
   };
 
+  // Primary: modern ariaSnapshot() API.
+  if (page.locator) {
+    try {
+      const snapshot = await page.locator('body').ariaSnapshot();
+      if (snapshot) return snapshot;
+    } catch {
+      // ariaSnapshot not available — fall through to legacy path.
+    }
+  }
+
+  // Legacy fallback: page.accessibility.snapshot() (removed in modern Playwright).
   try {
     if (!page.accessibility) return '';
     const snapshot = await page.accessibility.snapshot();
     if (!snapshot) return '';
     return JSON.stringify(snapshot, null, 2);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Retrieve the full outer HTML of the current page, truncated to `maxChars`.
+ * Useful for DOM-level analysis by the LLM (missing labels, wrong semantics,
+ * incorrect ARIA attributes).
+ * Returns an empty string when the page cannot be serialised.
+ */
+export async function getPageHtml(handle: BrowserHandle, maxChars = 40_000): Promise<string> {
+  const page = handle._page as {
+    content?: () => Promise<string>;
+  };
+  try {
+    if (!page.content) return '';
+    const html = await page.content();
+    return html.length > maxChars ? html.slice(0, maxChars) + '\n<!-- truncated -->' : html;
   } catch {
     return '';
   }

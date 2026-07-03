@@ -2,7 +2,7 @@
  * `specguard heal` — self-heal failing generated tests (Phase 4 heal pipeline).
  */
 import { runHeal } from '../../pipelines/heal.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface HealCliOpts extends GlobalOpts {
   spec?: string;
@@ -20,8 +20,5 @@ export async function healCommand(opts: HealCliOpts): Promise<void> {
     maxRetries: Number.isNaN(maxRetries as number) ? undefined : maxRetries,
   });
 
-  for (const line of result.messages) {
-    process.stdout.write(`${line}\n`);
-  }
-  process.exit(result.exitCode);
+  outputResult(result, opts);
 }

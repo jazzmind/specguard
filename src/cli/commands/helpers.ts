@@ -4,7 +4,7 @@
  * Keeps the per-command handlers thin: the CLI is pure wiring, business logic
  * lives in the pipelines.
  */
-import type { SpecGuardConfig } from '../../core/types.js';
+import type { SpecGuardConfig, PipelineResult } from '../../core/types.js';
 import { loadConfig } from '../../core/config.js';
 import { ConfigNotFoundError } from '../../core/errors.js';
 import { ExitCode } from '../../core/exit-codes.js';
@@ -13,6 +13,34 @@ import { ExitCode } from '../../core/exit-codes.js';
 export interface GlobalOpts {
   /** Explicit path to a `.specguard/config.json` (or its containing dir). */
   config?: string;
+  /**
+   * Emit a single JSON line to stdout (the full `PipelineResult` object) instead
+   * of human-readable output. Useful for machine consumers (dashboard, CI parsers).
+   */
+  json?: boolean;
+}
+
+/**
+ * Emit a `PipelineResult` and exit the process.
+ *
+ * `json=true`: prints `JSON.stringify(result)` to stdout, suppressing all other
+ * output. The exit code from the result is still honoured.
+ *
+ * `json=false` (default): prints each message line then a one-line summary, and
+ * exits with the result's exit code.
+ */
+export function outputResult(result: PipelineResult, opts: Pick<GlobalOpts, 'json'>): never {
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(result) + '\n');
+    process.exit(result.exitCode);
+  }
+  for (const line of result.messages) {
+    process.stdout.write(`${line}\n`);
+  }
+  process.stdout.write(
+    `${result.pipeline}: ${result.created} passed, ${result.skipped} skipped, ${result.failed} failed\n`,
+  );
+  process.exit(result.exitCode);
 }
 
 /**

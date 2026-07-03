@@ -61,10 +61,10 @@ try {
   _cliVersion = pkg.version;
 } catch { /* bundled deployment — version unavailable */ }
 
-/** Merge a subcommand's own options with the global `--config` option. */
+/** Merge a subcommand's own options with the global options (`--config`, `--json`). */
 function withGlobals<T extends object>(cmd: Command, local: T): T & GlobalOpts {
   const globals = cmd.optsWithGlobals() as GlobalOpts;
-  return { ...local, config: globals.config };
+  return { ...local, config: globals.config, json: globals.json };
 }
 
 const program = new Command();
@@ -74,6 +74,7 @@ program
   .description('SpecGuard — Living Specification QA agent')
   .version(_cliVersion, '-v, --version', 'print the SpecGuard version')
   .option('--config <path>', 'path to .specguard/config.json')
+  .option('--json', 'emit machine-readable JSON result to stdout (suppresses human-readable output)')
   .showHelpAfterError('(add --help for usage)')
   // Throw instead of calling process.exit directly so we control exit codes.
   .exitOverride();
@@ -166,9 +167,10 @@ program
   .option('--all', 'process all specs with url: metadata')
   .option('--url <url>', 'base URL of the running app')
   .option('--app <name>', 'limit to a single app')
+  .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
   .action(
     async (
-      opts: { spec?: string; all?: boolean; url?: string; app?: string },
+      opts: { spec?: string; all?: boolean; url?: string; app?: string; noReview?: boolean },
       cmd: Command,
     ) => {
       await validateCommand(withGlobals(cmd, opts));

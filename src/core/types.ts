@@ -62,6 +62,24 @@ export interface ParsedSpec {
   securityNotes: string;
   /** Text under `## Dependencies`. */
   dependencies: string;
+  /**
+   * Text under `## Visual Expectations`.
+   * Describes layout, colour, typography, and visual design requirements for UI specs.
+   * Empty string for non-UI / module specs.
+   */
+  visualExpectations: string;
+  /**
+   * Text under `## Accessibility Requirements`.
+   * WCAG criteria, keyboard navigation, ARIA requirements, and colour contrast rules.
+   * Empty string when the section is absent.
+   */
+  accessibilityRequirements: string;
+  /**
+   * Text under `## UX Guidelines`.
+   * Interaction patterns, micro-copy, loading states, and error handling UX expectations.
+   * Empty string when the section is absent.
+   */
+  uxGuidelines: string;
   /** All H2 sections by name (raw text), for sections not otherwise typed. */
   sections: Record<string, string>;
 }

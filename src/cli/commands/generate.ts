@@ -2,7 +2,7 @@
  * `specguard generate` — generate tests from specs (Phase 4 forward pipeline).
  */
 import { runForwardGenerate, type TestType } from '../../pipelines/forward-generate.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface GenerateCliOpts extends GlobalOpts {
   spec?: string;
@@ -24,11 +24,5 @@ export async function generateCommand(opts: GenerateCliOpts): Promise<void> {
     type: opts.type,
   });
 
-  for (const line of result.messages) {
-    process.stdout.write(`${line}\n`);
-  }
-  process.stdout.write(
-    `generate: ${result.created} created, ${result.skipped} skipped, ${result.failed} failed\n`,
-  );
-  process.exit(result.exitCode);
+  outputResult(result, opts);
 }

@@ -35,6 +35,7 @@ import {
   navigateTo,
   takeScreenshot,
   getAccessibilitySnapshot,
+  getPageHtml,
   PlaywrightUnavailableError,
 } from '../adapters/playwright.js';
 import type { BrowserHandle } from '../adapters/playwright.js';
@@ -56,6 +57,11 @@ export interface ValidateOpts {
   baseUrl?: string;
   /** Skip re-authenticating (reuse in-memory session cache). */
   reuseSession?: boolean;
+  /**
+   * Skip the REVIEW step (typed issue report) even if the spec has UI sections.
+   * Useful for fast iteration when you only need criterion verdicts.
+   */
+  noReview?: boolean;
 }
 
 /** A single criterion verdict. */
@@ -101,6 +107,29 @@ const VerifyResponseSchema = z.object({
   ),
 });
 
+/**
+ * Typed issue report produced by the REVIEW step.
+ * Written to `.specguard/reports/validate-<spec-key>.json`.
+ */
+const IssueReportSchema = z.object({
+  issues: z.array(
+    z.object({
+      type: z.enum(['functional', 'ux', 'accessibility', 'visual']),
+      severity: z.enum(['critical', 'major', 'minor']),
+      description: z.string(),
+      /** CSS selector, aria role/name, or element description. */
+      element: z.string().optional(),
+      recommendation: z.string(),
+      /** WCAG criterion, e.g. "1.4.3 Contrast Minimum". */
+      wcag_criterion: z.string().optional(),
+    }),
+  ),
+  summary: z.string(),
+  passed: z.boolean(),
+});
+
+export type IssueReport = z.infer<typeof IssueReportSchema>;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -121,6 +150,24 @@ function overallVerdict(verdicts: CriterionVerdict[]): Verdict {
   if (verdicts.every((v) => v.verdict === 'PASS')) return 'PASS';
   if (verdicts.some((v) => v.verdict === 'BLOCKED')) return 'BLOCKED';
   return 'INCONCLUSIVE';
+}
+
+/** True when any of the three UI-specific spec sections have content. */
+function hasUiSections(spec: ParsedSpec): boolean {
+  return !!(spec.visualExpectations || spec.accessibilityRequirements || spec.uxGuidelines);
+}
+
+/** Write the typed issue report to `.specguard/reports/validate-<spec-key>.json`. */
+async function writeIssueReport(
+  config: SpecGuardConfig,
+  spec: ParsedSpec,
+  report: IssueReport,
+): Promise<string> {
+  const safeKey = spec.specKey.replace(/\//g, '-');
+  const reportPath = resolveFromRoot(config, `.specguard/reports/validate-${safeKey}.json`);
+  await ensureDir(path.dirname(reportPath));
+  await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
+  return reportPath;
 }
 
 async function appendHistory(config: SpecGuardConfig, entry: ValidationEntry): Promise<void> {
@@ -179,9 +226,10 @@ async function validateSpec(
   spec: ParsedSpec,
   opts: ValidateOpts,
   log: (line: string) => void,
-): Promise<{ verdicts: CriterionVerdict[]; evidence: string[] }> {
+): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport }> {
   const verdicts: CriterionVerdict[] = [];
   const evidenceFiles: string[] = [];
+  let issueReportResult: IssueReport | undefined;
 
   const url = resolveUrl(opts.baseUrl, spec.meta.url!);
   const evidenceDir = resolveFromRoot(config, `.specguard/evidence/${spec.specKey}`);
@@ -203,6 +251,7 @@ async function validateSpec(
           },
         ],
         evidence: [],
+        issueReport: undefined,
       };
     }
     throw err;
@@ -224,6 +273,7 @@ async function validateSpec(
             },
           ],
           evidence: [],
+          issueReport: undefined,
         };
       }
       log(`[auth] ${spec.specKey} — authenticated as ${spec.meta.auth}`);
@@ -256,7 +306,7 @@ async function validateSpec(
         verdicts,
         overallVerdict: 'FAIL',
       });
-      return { verdicts, evidence: evidenceFiles };
+      return { verdicts, evidence: evidenceFiles, issueReport: undefined };
     }
 
     // --- PLAN ---
@@ -323,7 +373,7 @@ async function validateSpec(
       }
     }
 
-    // Take post-action screenshot.
+    // Take post-action screenshot and capture HTML for REVIEW step.
     const postScreenshot = await takeScreenshot(
       handle,
       `${path.basename(spec.specKey)}-post-action`,
@@ -331,6 +381,7 @@ async function validateSpec(
     );
     evidenceFiles.push(postScreenshot);
     const postA11y = await getAccessibilitySnapshot(handle);
+    const postHtml = await getPageHtml(handle);
     const postSnapshot = await navigateTo(handle, handle._page !== null ? (handle._page as { url?: () => string }).url?.() ?? url : url);
 
     // --- VERIFY ---
@@ -410,6 +461,81 @@ async function validateSpec(
         });
       }
     }
+
+    // --- REVIEW ---
+    // Multimodal issue analysis. Runs when the spec has UI sections and
+    // `--no-review` was not passed. Sends screenshot, HTML, and a11y tree to
+    // the LLM to produce a typed issue report (functional/ux/accessibility/visual).
+    if (!opts.noReview && hasUiSections(spec)) {
+      log(`[review] ${spec.specKey} — running multimodal issue analysis`);
+      try {
+        let screenshotBuffer: Buffer | undefined;
+        try {
+          const { readFile: fsReadFileReview } = await import('node:fs/promises');
+          screenshotBuffer = await fsReadFileReview(postScreenshot);
+        } catch {
+          // Screenshot not readable — proceed without image.
+        }
+
+        const uiSectionsText = [
+          spec.visualExpectations ? `## Visual Expectations\n${spec.visualExpectations}` : '',
+          spec.accessibilityRequirements
+            ? `## Accessibility Requirements\n${spec.accessibilityRequirements}`
+            : '',
+          spec.uxGuidelines ? `## UX Guidelines\n${spec.uxGuidelines}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+
+        const reviewPrompt = [
+          `You are a UX, accessibility, and functional QA reviewer. Analyse the provided web page`,
+          `against the following specification requirements and identify concrete issues.`,
+          ``,
+          `Spec: ${spec.title}`,
+          `URL: ${url}`,
+          ``,
+          uiSectionsText,
+          ``,
+          `Acceptance Criteria (for functional issues):`,
+          spec.acceptanceCriteria,
+          ``,
+          `Accessibility tree:`,
+          postA11y.slice(0, 4000),
+          ``,
+          `Page HTML (truncated):`,
+          postHtml.slice(0, 6000),
+          ``,
+          `For each issue found, provide:`,
+          `- type: functional | ux | accessibility | visual`,
+          `- severity: critical | major | minor`,
+          `- description: what is wrong`,
+          `- element: CSS selector, aria role/name, or element description (if applicable)`,
+          `- recommendation: how to fix it`,
+          `- wcag_criterion: WCAG success criterion (if accessibility, e.g. "1.4.3 Contrast Minimum")`,
+          ``,
+          `If no issues are found, return an empty issues array and passed: true.`,
+          `Critical or major issues should set passed: false.`,
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+        issueReportResult = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          system:
+            'You are a senior QA engineer specialising in UX, accessibility, and functional correctness. ' +
+            'Output ONLY valid JSON matching the schema.',
+          prompt: reviewPrompt,
+          schema: IssueReportSchema,
+          images: screenshotBuffer ? [screenshotBuffer] : undefined,
+        });
+
+        log(`[review] ${spec.specKey} — ${issueReportResult.issues.length} issue(s): ${issueReportResult.summary}`);
+      } catch (err) {
+        log(`[review-warn] ${spec.specKey} — REVIEW step failed: ${(err as Error).message}`);
+      }
+    }
   } finally {
     await closeBrowser(handle);
   }
@@ -422,7 +548,7 @@ async function validateSpec(
     overallVerdict: overallVerdict(verdicts),
   });
 
-  return { verdicts, evidence: evidenceFiles };
+  return { verdicts, evidence: evidenceFiles, issueReport: issueReportResult };
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +589,7 @@ export async function runValidate(
     log(`[validate] ${spec.specKey}`);
 
     try {
-      const { verdicts } = await validateSpec(config, spec, opts, log);
+      const { verdicts, issueReport } = await validateSpec(config, spec, opts, log);
       const ov = overallVerdict(verdicts);
 
       for (const v of verdicts) {
@@ -471,7 +597,24 @@ export async function runValidate(
         log(`  ${emoji} [${v.verdict}] ${v.criterion}${v.evidence ? ` — evidence: ${v.evidence}` : ''}`);
       }
 
-      if (ov === 'FAIL') {
+      // Persist and summarise issue report when present.
+      if (issueReport) {
+        try {
+          const reportPath = await writeIssueReport(config, spec, issueReport);
+          log(`[report] ${spec.specKey} → ${reportPath}`);
+        } catch {
+          // best-effort
+        }
+        for (const issue of issueReport.issues) {
+          const sev = issue.severity.toUpperCase();
+          log(`  ! [${sev}][${issue.type}] ${issue.description}${issue.wcag_criterion ? ` (WCAG ${issue.wcag_criterion})` : ''}`);
+        }
+        if (!issueReport.passed) {
+          anyFailed = true;
+        }
+      }
+
+      if (ov === 'FAIL' || (issueReport && !issueReport.passed)) {
         anyFailed = true;
         result.failed += 1;
         result.items.push({ key: spec.specKey, status: 'failed', message: `verdict: ${ov}` });

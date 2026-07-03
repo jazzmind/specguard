@@ -23,7 +23,8 @@ Screenshots and evidence files are always saved to `.specguard/evidence/<spec-ke
 - `closeBrowser(handle)` closes the browser gracefully.
 - `navigateTo(handle, url)` navigates to the URL, waits for network idle, and returns a `PageSnapshot`.
 - `takeScreenshot(handle, label, evidenceDir)` takes a screenshot and saves it to `evidenceDir/<label>.png`, returning the file path.
-- `getAccessibilitySnapshot(handle)` returns the page's accessibility tree as a compact string for LLM consumption.
+- `getAccessibilitySnapshot(handle)` uses `page.locator('body').ariaSnapshot()` (modern Playwright ≥1.39) and falls back to the legacy `page.accessibility.snapshot()` for older versions. Returns an empty string when neither is available.
+- `getPageHtml(handle, maxChars?)` returns the full outer HTML of the current page, truncated to `maxChars` (default 40 000). Returns an empty string on failure.
 - All functions that require `@playwright/test` return a `PlaywrightUnavailableError` when the package is not installed.
 - The adapter is testable via `playwrightRunner` seam for unit tests without a real browser.
 
@@ -53,6 +54,33 @@ Screenshots and evidence files are always saved to `.specguard/evidence/<spec-ke
 **Expected Results:**
 - File written to `/tmp/evidence/homepage.png`
 - Returns absolute path to file
+
+### Scenario 4: Accessibility snapshot — modern Playwright
+**Steps:**
+1. `getAccessibilitySnapshot(handle)` is called on a page with a `locator` API
+2. `page.locator('body').ariaSnapshot()` returns a YAML-like string
+
+**Expected Results:**
+- Returns the YAML aria snapshot string (not JSON)
+- Does not call `page.accessibility.snapshot()`
+
+### Scenario 5: Accessibility snapshot — legacy fallback
+**Steps:**
+1. Page does not expose `locator` (old Playwright) or `ariaSnapshot` throws
+2. `getAccessibilitySnapshot(handle)` is called
+
+**Expected Results:**
+- Falls back to `page.accessibility.snapshot()` and returns the JSON stringified tree
+- Returns empty string if both paths fail
+
+### Scenario 6: Page HTML capture
+**Steps:**
+1. `getPageHtml(handle)` is called
+2. `page.content()` returns the full HTML
+
+**Expected Results:**
+- Returns HTML string
+- If HTML exceeds `maxChars`, appends `<!-- truncated -->` and does not exceed the limit
 
 ## Security Notes
 

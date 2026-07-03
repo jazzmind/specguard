@@ -2,13 +2,14 @@
  * `specguard validate` — PERCEIVE-PLAN-ACT-VERIFY browser validation.
  */
 import { runValidate } from '../../pipelines/validate.js';
-import { loadCliConfig, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface ValidateCliOpts extends GlobalOpts {
   spec?: string;
   all?: boolean;
   url?: string;
   app?: string;
+  noReview?: boolean;
 }
 
 export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
@@ -18,13 +19,8 @@ export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
     all: opts.all,
     baseUrl: opts.url,
     app: opts.app,
+    noReview: opts.noReview,
   });
 
-  for (const line of result.messages) {
-    process.stdout.write(`${line}\n`);
-  }
-  process.stdout.write(
-    `validate: ${result.created} passed, ${result.skipped} skipped, ${result.failed} failed\n`,
-  );
-  process.exit(result.exitCode);
+  outputResult(result, opts);
 }

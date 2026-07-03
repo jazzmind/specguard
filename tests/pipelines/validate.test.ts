@@ -33,6 +33,7 @@ vi.mock('../../src/adapters/playwright.js', () => {
       path.join(dir, `${label}.png`),
     ),
     getAccessibilitySnapshot: vi.fn(async () => '{"role":"WebArea"}'),
+    getPageHtml: vi.fn(async () => '<html><body><h1>My App</h1></body></html>'),
     PlaywrightUnavailableError: class PlaywrightUnavailableError extends Error {
       constructor() { super('@playwright/test not available'); }
     },
