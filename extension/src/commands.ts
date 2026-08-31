@@ -7,8 +7,9 @@ import * as fs from 'fs';
 import type { CoverageProvider } from './sidebar.js';
 import { registerMcpForCursor } from './mcp-registration.js';
 import { openDashboardPanel, openAndRun } from './dashboard/panel.js';
-import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot } from './workspace-state.js';
+import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot, getWorkspaceManifestRoot } from './workspace-state.js';
 import { forceUpdateProjectFiles } from './project-updater.js';
+import { openWorkspacePanel } from './workspace-panel.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -221,6 +222,37 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.openDashboard', () => openDashboardPanel(context)),
   );
 
+  // --- specguard.switchToRepo -----------------------------------------------
+  // Called when clicking a repo row in the Workspace section.
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'specguard.switchToRepo',
+      async (absPath: string, repoKey: string) => {
+        const folders = vscode.workspace.workspaceFolders ?? [];
+        const alreadyOpen = folders.some((f) => f.uri.fsPath === absPath);
+
+        if (!alreadyOpen) {
+          const action = await vscode.window.showInformationMessage(
+            `"${repoKey}" is not an open workspace folder. Add it?`,
+            'Add Folder',
+            'Cancel',
+          );
+          if (action !== 'Add Folder') return;
+          vscode.workspace.updateWorkspaceFolders(folders.length, 0, {
+            uri: vscode.Uri.file(absPath),
+            name: repoKey,
+          });
+          // The folder will be available after the workspace reloads
+          await new Promise<void>((r) => setTimeout(r, 500));
+        }
+
+        await setActiveWorkspaceRoot(absPath);
+        void coverageProvider.refresh();
+        vscode.window.showInformationMessage(`SpecGuard: switched to "${repoKey}"`);
+      },
+    ),
+  );
+
   // --- specguard.updateProject ----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.updateProject', async () => {
@@ -230,6 +262,80 @@ export function registerCommands(
         return;
       }
       await forceUpdateProjectFiles(context, ws);
+    }),
+  );
+
+  // --- specguard.contracts --------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.contracts', async () => {
+      const manifestRoot = getWorkspaceManifestRoot();
+      if (!manifestRoot) {
+        vscode.window.showErrorMessage(
+          'SpecGuard: no workspace.json found. Run "specguard workspace init" first.',
+        );
+        return;
+      }
+      const cli = await resolveCliPath(manifestRoot);
+      const terminal = vscode.window.createTerminal({
+        name: 'SpecGuard: Build Contracts',
+        cwd: manifestRoot,
+      });
+      terminal.sendText(`${cli} contracts`);
+      terminal.show();
+      // Refresh sidebar after a short delay so the new contracts.json is reflected
+      setTimeout(() => void coverageProvider.refresh(), 5_000);
+    }),
+  );
+
+  // --- specguard.workspaceStatus --------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.workspaceStatus', () => {
+      openWorkspacePanel(context, 'status');
+    }),
+  );
+
+  // --- specguard.workspaceDrift ---------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.workspaceDrift', () => {
+      openWorkspacePanel(context, 'drift');
+    }),
+  );
+
+  // --- specguard.impact -----------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.impact', async (uri?: vscode.Uri) => {
+      const manifestRoot = getWorkspaceManifestRoot();
+      const ws = getActiveWorkspaceRoot() ?? manifestRoot;
+      if (!ws) {
+        vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.');
+        return;
+      }
+
+      // Resolve the target: URI from context menu, or active editor, or ask
+      let targetPath: string | undefined;
+      if (uri) {
+        targetPath = uri.fsPath;
+      } else if (vscode.window.activeTextEditor) {
+        targetPath = vscode.window.activeTextEditor.document.uri.fsPath;
+      }
+
+      if (!targetPath) {
+        const input = await vscode.window.showInputBox({
+          prompt: 'Enter spec key or file path to analyse impact',
+          placeHolder: 'e.g. setup/designer or /abs/path/to/spec.md',
+        });
+        if (!input) return;
+        targetPath = input;
+      }
+
+      const cwd = manifestRoot ?? ws;
+      const cli = await resolveCliPath(cwd);
+      const terminal = vscode.window.createTerminal({
+        name: 'SpecGuard: Impact Analysis',
+        cwd,
+      });
+      terminal.sendText(`${cli} impact "${targetPath}" --upstream`);
+      terminal.show();
     }),
   );
 }

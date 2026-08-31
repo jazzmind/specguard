@@ -134,6 +134,27 @@ export interface AppConfig {
    * Example: `["../practera-test-suite/suites/regression/specs/auth/*.spec.ts"]`
    */
   extraTestSources?: string[];
+  /**
+   * Glob patterns for source files to exclude from spec generation.
+   * Files matching any pattern are filtered out before `reverse` processes them.
+   * Useful for skipping index/barrel files that contain no meaningful logic.
+   *
+   * Example: `["**\/index.ts", "**\/index.tsx"]`
+   */
+  exclude?: string[];
+  /**
+   * Glob patterns identifying source files whose parent directory should be
+   * treated as a single feature. All matching files in the same directory are
+   * concatenated and sent to the LLM as one prompt, producing one spec per
+   * directory rather than one per file.
+   *
+   * Useful for GraphQL field-resolver directories, Angular component directories,
+   * and React feature directories where multiple files implement one feature.
+   *
+   * Example (GraphQL): `["src/resolvers/!(mutations|queries)/**\/*.ts"]`
+   * Example (Angular): `["src/app/pages/**\/*.ts"]`
+   */
+  collapse?: string[];
 }
 
 /** Runner placement: where each external tool executes. */

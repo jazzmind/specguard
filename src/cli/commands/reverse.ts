@@ -25,15 +25,22 @@ export async function reverseCommand(opts: ReverseCliOpts): Promise<void> {
 
   const aggregate = emptyResult('reverse');
 
+  // Write a line immediately so the dashboard / terminal shows activity.
+  const emit = (line: string): void => {
+    process.stdout.write(`${line}\n`);
+  };
+
   for (const appName of apps) {
-    aggregate.messages.push(`reverse: analyzing app "${appName}"...`);
+    emit(`reverse: analyzing app "${appName}"…`);
     const result = await runReverseGenerate(config, {
       app: appName,
       file: opts.file,
       force: opts.force,
+      // Stream each file result immediately to stdout.
+      onLog: emit,
     });
 
-    aggregate.messages.push(...result.messages);
+    // Messages were already emitted via onLog; don't double-print them.
     aggregate.created += result.created;
     aggregate.updated += result.updated ?? 0;
     aggregate.skipped += result.skipped;
@@ -42,5 +49,12 @@ export async function reverseCommand(opts: ReverseCliOpts): Promise<void> {
     if (result.exitCode !== 0) aggregate.exitCode = result.exitCode;
   }
 
-  outputResult(aggregate, opts);
+  // Print just the summary line (counts), not messages (already emitted).
+  const summary = `reverse: ${aggregate.created} created, ${aggregate.skipped} skipped, ${aggregate.failed} failed`;
+  if (opts.json) {
+    process.stdout.write(JSON.stringify({ ...aggregate, messages: [] }) + '\n');
+  } else {
+    process.stdout.write(`${summary}\n`);
+  }
+  process.exit(aggregate.exitCode);
 }

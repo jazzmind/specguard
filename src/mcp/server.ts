@@ -45,6 +45,11 @@ import { runDepCheck } from '../pipelines/dep-check.js';
 import { runGitOps } from '../pipelines/git-ops.js';
 import { runAnalyze } from '../pipelines/analyze.js';
 import { runPlanFix } from '../pipelines/plan-fix.js';
+import { runContracts } from '../pipelines/contracts.js';
+import { runImpact } from '../pipelines/impact.js';
+import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
+import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { loadContractGraph } from '../core/contracts.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
@@ -570,6 +575,143 @@ export function buildServer(): McpServer {
         return errorResult(err);
       }
     },
+  );
+
+  // --- Workspace + contracts tools -----------------------------------------
+
+  server.registerTool(
+    'specguard_contracts',
+    {
+      description:
+        'Build or refresh the workspace contract graph (contracts.json) from cross-repo spec dependencies. ' +
+        'Run from the workspace root directory. (CLI: specguard contracts)',
+      inputSchema: {
+        force: z.boolean().optional().describe('Force re-parse all specs, ignoring existing contracts.json.'),
+        withLlm: z.boolean().optional().describe('Use LLM to extract contracts from free-text Dependencies sections.'),
+        repo: z.string().optional().describe('Restrict to a single repo key from workspace.json.'),
+        cwd: z.string().optional().describe('Workspace root directory (containing .specguard/workspace.json).'),
+      },
+    },
+    ({ force, withLlm, repo, cwd }): Promise<ToolResult> =>
+      withActivityLog('contracts', resolveCwd(cwd), async () => {
+        try {
+          const { manifest, repos } = await loadWorkspaceWithConfigs(resolveCwd(cwd));
+          const llmConfig = repos.find((r) => r.specGuardConfig != null)?.specGuardConfig ?? undefined;
+          const result = await runContracts(manifest, repos, { force, withLlm, repo }, llmConfig);
+          return toolResult(result);
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_impact',
+    {
+      description:
+        'Show blast radius of a changed spec or file: which other repos/specs are affected, ' +
+        'and which drift/sync actions are needed. (CLI: specguard impact <target>)',
+      inputSchema: {
+        target: z
+          .string()
+          .describe(
+            'Spec to analyze. Can be a node ID (e.g. graphql-api::specs/mutations/designer.md), ' +
+            'a path relative to workspace root (e.g. practera-graphql-api/specs/mutations/designer.md), ' +
+            'or an absolute path.',
+          ),
+        maxDepth: z.number().optional().describe('Maximum traversal depth (default: 6).'),
+        upstream: z.boolean().optional().describe('Also show upstream dependencies (what this node depends on).'),
+        cwd: z.string().optional().describe('Workspace root directory (containing .specguard/workspace.json).'),
+      },
+    },
+    ({ target, maxDepth, upstream, cwd }): Promise<ToolResult> =>
+      withActivityLog('impact', resolveCwd(cwd), async () => {
+        try {
+          const { manifest } = await loadWorkspaceWithConfigs(resolveCwd(cwd));
+          const { result } = await runImpact(manifest, {
+            target,
+            maxDepth,
+            showUpstream: upstream,
+          });
+          return toolResult(result);
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_workspace_status',
+    {
+      description:
+        'Show a cross-repo health dashboard: spec counts, contract edge counts, and traceability status per repo. ' +
+        '(CLI: specguard workspace status)',
+      inputSchema: {
+        cwd: z.string().optional().describe('Workspace root directory (containing .specguard/workspace.json).'),
+      },
+    },
+    ({ cwd }): Promise<ToolResult> =>
+      withActivityLog('workspace-status', resolveCwd(cwd), async () => {
+        try {
+          const { manifest, repos } = await loadWorkspaceWithConfigs(resolveCwd(cwd));
+          const graph = await loadContractGraph(manifest.rootDir);
+
+          const lines: string[] = [];
+          lines.push(`Workspace: ${manifest.name}`);
+          lines.push(`  ${repos.length} repos  ·  ${graph?.nodes.length ?? 0} nodes  ·  ${graph?.edges.length ?? 0} contract edges`);
+          lines.push('');
+
+          for (const repo of repos) {
+            const hasConfig = repo.specGuardConfig != null;
+            const outEdges = graph?.edges.filter((e) => e.consumer.startsWith(repo.key + '::')).length ?? 0;
+            const inEdges = graph?.edges.filter((e) => e.provider.startsWith(repo.key + '::')).length ?? 0;
+            const status = !hasConfig ? '✗ no specguard config' : '✓ configured';
+            lines.push(`  ${repo.key.padEnd(24)}${repo.role.padEnd(12)}out:${outEdges}  in:${inEdges}  ${status}`);
+          }
+
+          if (!graph) {
+            lines.push('');
+            lines.push('  ✗ No contracts.json — run `specguard contracts` to build the graph');
+          } else {
+            const stale = graph.edges.filter((e) => {
+              if (!e.lastVerified) return true;
+              return Date.now() - new Date(e.lastVerified).getTime() > 30 * 24 * 60 * 60 * 1000;
+            });
+            lines.push('');
+            lines.push(`  Contract health: ${graph.edges.length - stale.length}/${graph.edges.length} verified (last 30 days)`);
+            if (stale.length > 0) lines.push(`  ${stale.length} stale edge(s)`);
+          }
+
+          return textResult(lines.join('\n'));
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_workspace_drift',
+    {
+      description:
+        'Run cross-repo drift detection: identifies repos with recent changes, finds affected contract edges, ' +
+        'and runs `specguard drift` in each consumer repo. (CLI: specguard workspace drift)',
+      inputSchema: {
+        since: z.string().optional().describe('Git ref to diff against (default: HEAD~1).'),
+        force: z.boolean().optional().describe('Force re-check all contracts regardless of git changes.'),
+        repo: z.string().optional().describe('Restrict to a single repo key.'),
+        cwd: z.string().optional().describe('Workspace root directory (containing .specguard/workspace.json).'),
+      },
+    },
+    ({ since, force, repo, cwd }): Promise<ToolResult> =>
+      withActivityLog('workspace-drift', resolveCwd(cwd), async () => {
+        try {
+          const { manifest, repos } = await loadWorkspaceWithConfigs(resolveCwd(cwd));
+          const result = await runWorkspaceDrift(manifest, repos, { since, force, repo });
+          return toolResult(result);
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
   );
 
   return server;
