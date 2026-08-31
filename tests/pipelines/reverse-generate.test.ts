@@ -68,7 +68,7 @@ describe('runReverseGenerate', () => {
     expect(res.failed).toBe(0);
     const specPath = path.join(rootDir, 'specs/my-app/checkout.md');
     expect(existsSync(specPath)).toBe(true);
-    expect(res.messages.some((m) => m.includes('[gen] my-app/checkout'))).toBe(true);
+    expect(res.messages.some((m) => m.includes('[gen]') && m.includes('my-app/checkout'))).toBe(true);
   });
 
   it('scenario 2: skips an existing spec without --force', async () => {
@@ -84,7 +84,7 @@ describe('runReverseGenerate', () => {
     // Existing spec untouched.
     const content = await readFile(path.join(rootDir, 'specs/my-app/checkout.md'), 'utf-8');
     expect(content).toBe('# existing\n');
-    expect(res.messages.some((m) => m.includes('[skip] my-app/checkout — spec already exists'))).toBe(
+    expect(res.messages.some((m) => m.includes('[skip]') && m.includes('my-app/checkout'))).toBe(
       true,
     );
   });

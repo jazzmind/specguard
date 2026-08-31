@@ -2,6 +2,59 @@
 
 All notable changes are documented here.
 
+## [0.1.28] — 2026-08-29
+
+### ✨ New
+
+- feat: release version 0.1.27 with enhancements and new features (`28d4067`)
+- feat: bump version to 0.1.2 and add align command to CLI (`5828add`)
+- feat: rename project to specguard-ai and update package metadata (`ddd26d6`)
+- feat: update version to 0.1.24 and modify activity log status to error (`0601036`)
+- feat: enhance CLI initialization with language detection and update test configurations (`fd293e3`)
+- feat: add scaffold functionality for SpecGuard harness files (`f982764`)
+- feat: update version to 0.1.22 and enhance import pipeline with new features (`5fe80f0`)
+- feat: update version to 0.1.20 and enhance project configuration management (`1c241a4`)
+- feat: enhance SpecGuard extension with new commands and quality improvements (`83da61e`)
+- feat: release version 0.1.14 with new commands and enhancements (`4ac183b`)
+- feat(dashboard): release version 0.1.11 with activity log enhancements and new pipeline commands (`7c253d2`)
+- feat(dashboard): release version 0.1.10 with batch pipeline execution and coverage enhancements (`ba325d1`)
+- feat(dashboard): release version 0.1.8 with coverage augmentation improvements (`385a9cf`)
+- feat(dashboard): release version 0.1.6 with import functionality enhancements (`8c9c7bf`)
+- feat(specguard): enhance CLI commands and documentation (`c82a4e2`)
+- feat(dashboard): update version to 0.1.2 and enhance sidebar functionality (`07c7ced`)
+- feat(dashboard): enhance activity logging and auto-docs functionality (`19d74cf`)
+- feat(dashboard): chain webview build, packaging, README + verification (`534eaab`)
+- feat(dashboard): matrix, docs, and activity tabs (`2d7c91d`)
+- feat(dashboard): animated system-flow view (`2197c18`)
+- feat(dashboard): webview scaffold, tested event reducer, vite→media build (`8f30a4a`)
+- feat(dashboard): webview panel + openDashboard command/menu (`51cd217`)
+- feat(dashboard): CLI runner + host (watchers, run, coverage, matrix) (`93bbf44`)
+- feat(dashboard): pure flow-event + cli-arg mappers (`6f3f3c6`)
+- feat(dashboard): traceability.json → matrix model transform (`3350a01`)
+- feat(dashboard): extract+test coverage parser, reuse in sidebar (`4ac9357`)
+- feat(dashboard): extension test harness + flow protocol and node metadata (`d2b78ec`)
+
+### 🐛 Fixed
+
+- fix(dashboard): host-side modal confirm for destructive runs + review cleanups (`acea725`)
+- fix(dashboard): derive Activity default pipeline from RUNNABLE_PIPELINES (`320e835`)
+- fix(dashboard): strong CSP nonce + track webview message disposable (`2379c9d`)
+
+### 🔧 Internal
+
+- ci: add check-gitignore workflow to prevent tracked build artifacts (`d2f45fd`)
+- chore: bump version to 0.1.1 and enhance CLI path resolution (`1524cc2`)
+- chore: update version to 0.1.15 and add settings and specs views (`e063c37`)
+- specguard(deps): 3 file(s) in .specguard (`91237c8`)
+- chore: remove outdated documentation files and enhance SpecGuard skill coverage (`6c29dac`)
+- specguard(gap-analysis): 17 file(s) in .specguard, docs, specs (`7c23f6a`)
+- chore(release): bump version to 0.1.3 and update activity log (`f4a1b1e`)
+- chore(dashboard): commit rebuilt webview bundle + untrack SDD scratch (`7ea3b27`)
+- docs(dashboard): 10-task TDD plan for the extension-webview dashboard (`6ada998`)
+- docs(dashboard): pivot to live extension-webview visualization spec (`1558796`)
+- docs(dashboard): implementation plan + align drift view to real pipeline (`0ca521f`)
+- docs(dashboard): correct streaming approach to post-hoc SSE (`da41a91`)
+- docs(dashboard): SpecGuard developer control-panel design spec (`dc49ced`)
 ## [0.1.27] — 2026-07-03
 
 ### ✨ New

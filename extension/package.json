@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "publisher": "WesSonnenreich",
   "repository": {
     "type": "git",
@@ -25,9 +25,7 @@
   ],
   "activationEvents": [
     "workspaceContains:.specguard/config.json",
-    "onCommand:specguard.init",
-    "onView:specguard.coverageView",
-    "onCommand:specguard.openDashboard",
+    "workspaceContains:.specguard/workspace.json",
     "onView:specguard-sidebar"
   ],
   "main": "./dist/extension.js",
@@ -153,6 +151,31 @@
         "command": "specguard.updateProject",
         "title": "SpecGuard: Update Project Files",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "specguard.switchToRepo",
+        "title": "SpecGuard: Switch to Repo",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "specguard.contracts",
+        "title": "SpecGuard: Build Contract Graph",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "specguard.workspaceStatus",
+        "title": "SpecGuard: Workspace Status",
+        "icon": "$(server-process)"
+      },
+      {
+        "command": "specguard.workspaceDrift",
+        "title": "SpecGuard: Workspace Drift",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "specguard.impact",
+        "title": "SpecGuard: Show Impact",
+        "icon": "$(type-hierarchy)"
       }
     ],
     "menus": {
@@ -166,6 +189,18 @@
           "command": "specguard.securityScan",
           "when": "resourceExtname == .md && resourcePath =~ /specs/",
           "group": "specguard@2"
+        },
+        {
+          "command": "specguard.impact",
+          "when": "resourceExtname == .md && resourcePath =~ /specs/",
+          "group": "specguard@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "specguard.impact",
+          "when": "resourceExtname == .md && resourcePath =~ /specs/",
+          "group": "specguard@1"
         }
       ],
       "view/title": [
@@ -205,14 +240,6 @@
     "views": {
       "specguard-sidebar": [
         {
-          "id": "specguard.dashboardView",
-          "name": "Dashboard",
-          "icon": "$(graph)",
-          "tooltip": "SpecGuard Dashboard",
-          "description": "View coverage trends, run pipelines, and manage your Living Specs.",
-          "type": "tree"
-        },
-        {
           "id": "specguard.coverageView",
           "name": "Coverage",
           "icon": "$(shield)",
@@ -232,12 +259,8 @@
     },
     "viewsWelcome": [
       {
-        "view": "specguard.dashboardView",
-        "contents": "[Open Dashboard](command:specguard.openDashboard)\n[Switch Project](command:specguard.switchProject)\n[Update Project Files](command:specguard.updateProject)"
-      },
-      {
         "view": "specguard.coverageView",
-        "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs.\n[Open Dashboard](command:specguard.openDashboard)"
+        "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs."
       }
     ],
     "configuration": {

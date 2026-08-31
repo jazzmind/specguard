@@ -12,7 +12,13 @@ import * as path from 'path';
 import type { AppCoverage } from './dashboard/protocol.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
-import { getActiveWorkspaceRoot } from './workspace-state.js';
+import {
+  getActiveWorkspaceRoot,
+  getWorkspaceManifestRoot,
+  loadContractsSummary,
+  loadWorkspaceManifest,
+  type WorkspaceRepo,
+} from './workspace-state.js';
 
 // ---------------------------------------------------------------------------
 // Tree item types
@@ -25,11 +31,17 @@ type ItemType =
   | 'section'
   | 'app'
   | 'spec-item'
-  | 'output-item';
+  | 'output-item'
+  | 'workspace-repo'
+  | 'workspace-repo-ignored'
+  | 'workspace-repos-group'
+  | 'workspace-ignored-group';
 
 class CoverageTreeItem extends vscode.TreeItem {
   appData?: AppCoverage;
   isSectionNode?: boolean;
+  repoData?: WorkspaceRepo;
+  repoList?: WorkspaceRepo[];
 
   constructor(
     label: string,
@@ -54,8 +66,17 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   private _error: string | undefined;
 
   /** Section sentinel nodes at the root level. */
-  private readonly _coverageSection = this._makeSection('Coverage', '$(shield)');
   private readonly _outputsSection = this._makeSection('Outputs', '$(package)');
+  private _workspaceSection = this._makeSection('Workspace', '$(globe)');
+
+  private _getCoverageSection(): CoverageTreeItem {
+    const root = getActiveWorkspaceRoot();
+    const label = root ? `Coverage — ${path.basename(root)}` : 'Coverage';
+    const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
+    item.iconPath = new vscode.ThemeIcon('shield');
+    item.isSectionNode = true;
+    return item;
+  }
 
   private _makeSection(label: string, iconId: string): CoverageTreeItem {
     const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
@@ -73,8 +94,10 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     return element;
   }
 
+  private _coverageSection: CoverageTreeItem | undefined;
+
   getChildren(element?: CoverageTreeItem): CoverageTreeItem[] {
-    // Root level: two sections
+    // Root level: sections
     if (!element) {
       if (this._loading) {
         return [new CoverageTreeItem('Loading…', vscode.TreeItemCollapsibleState.None, 'loading')];
@@ -82,7 +105,14 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       if (this._error) {
         return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error')];
       }
-      return [this._coverageSection, this._outputsSection];
+      this._coverageSection = this._getCoverageSection();
+      const manifest = loadWorkspaceManifest();
+      const wsLabel = manifest ? `Workspace — ${manifest.name}` : 'Workspace';
+      const wsSection = this._makeSection(wsLabel, '$(globe)');
+      wsSection.isSectionNode = true;
+      // Store for identity check in getChildren
+      this._workspaceSection = wsSection;
+      return [this._coverageSection, this._outputsSection, ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];
     }
 
     // Coverage section
@@ -107,8 +137,33 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       return this._buildOutputItems();
     }
 
+    // Workspace section
+    if (element === this._workspaceSection) {
+      return this._buildWorkspaceItems();
+    }
 
-    // App children: spec items
+    // Workspace repos group (collapsible, default expanded)
+    if (element.type === 'workspace-repos-group' && element.repoList) {
+      return this._buildRepoRows(element.repoList);
+    }
+
+    // Workspace ignored group (collapsible, default collapsed)
+    if (element.type === 'workspace-ignored-group' && element.repoList) {
+      return element.repoList.map((repo) => {
+        const item = new CoverageTreeItem(
+          repo.key,
+          vscode.TreeItemCollapsibleState.None,
+          'workspace-repo-ignored',
+        );
+        item.repoData = repo;
+        item.description = repo.role;
+        item.iconPath = new vscode.ThemeIcon('eye-closed');
+        item.tooltip = `${repo.absPath}\nIgnored — set "ignore": false in workspace.json to include`;
+        return item;
+      });
+    }
+
+
     if (element.appData) {
       return element.appData.items.map((item) => {
         const status = !item.hasSpec ? '⚠ missing spec' : !item.hasTest ? '∅ no test' : '✓';
@@ -135,6 +190,185 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     }
 
     return [];
+  }
+
+  private _buildWorkspaceItems(): CoverageTreeItem[] {
+    const manifest = loadWorkspaceManifest();
+    if (!manifest) return [];
+
+    const { repos, manifestRoot } = manifest;
+
+    const activeRepos = repos.filter((r) => !r.ignore);
+    const ignoredRepos = repos.filter((r) => r.ignore);
+    const speccedCount = activeRepos.filter((r) => r.specCount > 0).length;
+    const contractSummary = loadContractsSummary();
+
+    const items: CoverageTreeItem[] = [];
+
+    // ── 1. Action rows ──────────────────────────────────────────────────────
+
+    const statusItem = new CoverageTreeItem(
+      'Workspace Status',
+      vscode.TreeItemCollapsibleState.None,
+      'output-item',
+    );
+    statusItem.iconPath = new vscode.ThemeIcon('server-process');
+    statusItem.description = 'health dashboard';
+    statusItem.tooltip = 'Show workspace health dashboard';
+    statusItem.command = { command: 'specguard.workspaceStatus', title: 'Workspace Status' };
+    items.push(statusItem);
+
+    const driftItem = new CoverageTreeItem(
+      'Workspace Drift',
+      vscode.TreeItemCollapsibleState.None,
+      'output-item',
+    );
+    driftItem.iconPath = new vscode.ThemeIcon('git-compare');
+    driftItem.description = 'cross-repo drift check';
+    driftItem.tooltip = 'Run cross-repo drift detection across all repos';
+    driftItem.command = { command: 'specguard.workspaceDrift', title: 'Workspace Drift' };
+    items.push(driftItem);
+
+    if (contractSummary) {
+      const contractsItem = new CoverageTreeItem(
+        `Contracts: ${contractSummary.edgeCount} edges`,
+        vscode.TreeItemCollapsibleState.None,
+        'output-item',
+      );
+      contractsItem.iconPath = new vscode.ThemeIcon(
+        contractSummary.staleCount > 0 ? 'warning' : 'pass-filled',
+        contractSummary.staleCount > 0
+          ? new vscode.ThemeColor('testing.iconFailed')
+          : new vscode.ThemeColor('testing.iconPassed'),
+      );
+      contractsItem.description = contractSummary.staleCount > 0
+        ? `${contractSummary.staleCount} stale`
+        : `${contractSummary.nodeCount} nodes`;
+      const ageStr = contractSummary.generatedAt
+        ? (() => {
+            const ageMs = Date.now() - new Date(contractSummary.generatedAt!).getTime();
+            return ageMs < 3_600_000
+              ? `${Math.floor(ageMs / 60_000)}m ago`
+              : `${Math.floor(ageMs / 3_600_000)}h ago`;
+          })()
+        : 'not generated';
+      contractsItem.tooltip = `Last built: ${ageStr}. Click to open contracts.json`;
+      const contractsPath = path.join(manifestRoot, '.specguard', 'contracts.json');
+      if (fs.existsSync(contractsPath)) {
+        contractsItem.command = {
+          command: 'vscode.open',
+          title: 'Open contracts.json',
+          arguments: [vscode.Uri.file(contractsPath)],
+        };
+      }
+      items.push(contractsItem);
+    } else {
+      const noContracts = new CoverageTreeItem(
+        'Build Contract Graph',
+        vscode.TreeItemCollapsibleState.None,
+        'output-item',
+      );
+      noContracts.iconPath = new vscode.ThemeIcon('git-merge');
+      noContracts.description = 'not built';
+      noContracts.tooltip = 'Run "SpecGuard: Build Contract Graph" to generate contracts.json';
+      noContracts.command = { command: 'specguard.contracts', title: 'Build contracts' };
+      items.push(noContracts);
+    }
+
+    // ── 2. Repos group (collapsible, default expanded) ──────────────────────
+
+    const sorted = [...activeRepos].sort((a, b) => {
+      const activeRoot = getActiveWorkspaceRoot();
+      const aIsActive = a.absPath === activeRoot;
+      const bIsActive = b.absPath === activeRoot;
+      if (aIsActive && !bIsActive) return -1;
+      if (bIsActive && !aIsActive) return 1;
+      return b.specCount - a.specCount;
+    });
+
+    const reposGroup = new CoverageTreeItem(
+      `${speccedCount}/${activeRepos.length} repos specced`,
+      vscode.TreeItemCollapsibleState.Expanded,
+      'workspace-repos-group',
+    );
+    reposGroup.iconPath = new vscode.ThemeIcon(
+      speccedCount === activeRepos.length ? 'pass-filled' : 'warning',
+      speccedCount === activeRepos.length
+        ? new vscode.ThemeColor('testing.iconPassed')
+        : new vscode.ThemeColor('testing.iconFailed'),
+    );
+    const manifestPath = path.join(manifestRoot, '.specguard', 'workspace.json');
+    reposGroup.tooltip = 'Click to open workspace.json';
+    reposGroup.repoList = sorted;
+    items.push(reposGroup);
+
+    // ── 3. Ignored group (collapsible, default collapsed) ───────────────────
+
+    if (ignoredRepos.length > 0) {
+      const ignoredGroup = new CoverageTreeItem(
+        'Ignored',
+        vscode.TreeItemCollapsibleState.Collapsed,
+        'workspace-ignored-group',
+      );
+      ignoredGroup.iconPath = new vscode.ThemeIcon('eye-closed');
+      ignoredGroup.description = `${ignoredRepos.length} repos`;
+      ignoredGroup.tooltip = 'Repos excluded from coverage. Set "ignore": false in workspace.json to include.';
+      ignoredGroup.repoList = ignoredRepos;
+      // clicking the header opens workspace.json
+      ignoredGroup.command = {
+        command: 'vscode.open',
+        title: 'Open workspace.json',
+        arguments: [vscode.Uri.file(manifestPath)],
+      };
+      items.push(ignoredGroup);
+    }
+
+    return items;
+  }
+
+  private _buildRepoRows(repos: WorkspaceRepo[]): CoverageTreeItem[] {
+    const activeRoot = getActiveWorkspaceRoot();
+    return repos.map((repo) => {
+      const isActive = repo.absPath === activeRoot;
+      const item = new CoverageTreeItem(
+        repo.key,
+        vscode.TreeItemCollapsibleState.None,
+        'workspace-repo',
+      );
+      item.repoData = repo;
+
+      if (!repo.hasConfig) {
+        item.description = isActive ? 'no config  (active)' : 'no config';
+        item.iconPath = new vscode.ThemeIcon('circle-slash');
+        item.tooltip = `${repo.absPath}\nNo .specguard/config.json — run specguard init`;
+      } else if (repo.specCount === 0) {
+        item.description = isActive ? 'no specs  (active)' : 'no specs';
+        item.iconPath = new vscode.ThemeIcon(
+          'warning',
+          new vscode.ThemeColor('testing.iconFailed'),
+        );
+        item.tooltip = `${repo.absPath}\n0 specs — run specguard reverse or gap-analysis`;
+      } else {
+        item.description = isActive
+          ? `${repo.specCount} specs  (active)`
+          : `${repo.specCount} specs`;
+        item.iconPath = new vscode.ThemeIcon(
+          'pass-filled',
+          new vscode.ThemeColor('testing.iconPassed'),
+        );
+        item.tooltip = `${repo.absPath}\n${repo.specCount} spec files`;
+      }
+
+      if (!isActive) {
+        item.command = {
+          command: 'specguard.switchToRepo',
+          title: 'Switch to repo',
+          arguments: [repo.absPath, repo.key],
+        };
+      }
+
+      return item;
+    });
   }
 
   private _buildOutputItems(): CoverageTreeItem[] {

@@ -9,24 +9,48 @@
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync, realpathSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, parse } from 'node:path';
 
 // Auto-load .specguard/.env before any pipeline runs so secrets are available
 // even when the user hasn't exported them in their shell.
+// Loading order (later wins, because we only set vars not already in process.env):
+//   1. workspace-level  …/.specguard/.env  (lowest precedence)
+//   2. per-repo         {cwd}/.specguard/.env  (highest precedence — loaded last)
 (function loadSpecGuardEnv() {
-  const envFile = join(process.cwd(), '.specguard', '.env');
-  if (!existsSync(envFile)) return;
+  function parseDotEnv(filePath: string): void {
+    try {
+      for (const raw of readFileSync(filePath, 'utf-8').split('\n')) {
+        const line = raw.trim();
+        if (!line || line.startsWith('#')) continue;
+        const eq = line.indexOf('=');
+        if (eq < 1) continue;
+        const key = line.slice(0, eq).trim();
+        const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+        if (key && !(key in process.env)) process.env[key] = val;
+      }
+    } catch { /* best-effort */ }
+  }
+
+  // 1. Walk up from cwd looking for a workspace-level .specguard/workspace.json,
+  //    then load its sibling .env (gives shared keys to all repos in the workspace).
   try {
-    for (const raw of readFileSync(envFile, 'utf-8').split('\n')) {
-      const line = raw.trim();
-      if (!line || line.startsWith('#')) continue;
-      const eq = line.indexOf('=');
-      if (eq < 1) continue;
-      const key = line.slice(0, eq).trim();
-      const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
-      if (key && !(key in process.env)) process.env[key] = val;
+    let dir = resolve(process.cwd());
+    const fsRoot = parse(dir).root;
+    while (true) {
+      if (existsSync(join(dir, '.specguard', 'workspace.json'))) {
+        const wsEnv = join(dir, '.specguard', '.env');
+        if (existsSync(wsEnv)) parseDotEnv(wsEnv);
+        break;
+      }
+      const parent = join(dir, '..');
+      if (parent === dir || dir === fsRoot) break;
+      dir = parent;
     }
   } catch { /* best-effort */ }
+
+  // 2. Per-repo .env — overrides workspace values for this specific repo.
+  const repoEnv = join(process.cwd(), '.specguard', '.env');
+  if (existsSync(repoEnv)) parseDotEnv(repoEnv);
 })();
 
 import { Command, CommanderError } from 'commander';
@@ -51,6 +75,11 @@ import { analyzeCommand } from './commands/analyze.js';
 import { planFixCommand } from './commands/plan-fix.js';
 import { gapAnalysisCommand } from './commands/gap-analysis.js';
 import { alignCommand } from './commands/align.js';
+import { contractsCommand } from './commands/contracts.js';
+import { impactCommand } from './commands/impact.js';
+import { workspaceInitCommand, workspaceStatusCommand } from './commands/workspace.js';
+import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
+import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -316,6 +345,86 @@ program
   .description('report spec coverage')
   .action(async (_opts: Record<string, never>, cmd: Command) => {
     await statusCommand(withGlobals(cmd, {}));
+  });
+
+// --- contracts ------------------------------------------------------------
+program
+  .command('contracts')
+  .description('build or refresh the workspace contract graph (contracts.json)')
+  .option('--force', 'force re-parse all specs, ignoring existing contracts.json')
+  .option('--with-llm', 'use LLM to extract contracts from free-text Dependencies sections')
+  .option('--repo <key>', 'restrict to a single repo key from workspace.json')
+  .action(
+    async (
+      opts: { force?: boolean; withLlm?: boolean; repo?: string },
+      cmd: Command,
+    ) => {
+      await contractsCommand(withGlobals(cmd, opts));
+    },
+  );
+
+// --- impact ---------------------------------------------------------------
+program
+  .command('impact')
+  .description('show blast radius of a changed spec or file')
+  .argument('<target>', 'spec node ID, relative path, or absolute path to analyze')
+  .option('--max-depth <n>', 'maximum traversal depth (default: 6)')
+  .option('--upstream', 'also show upstream dependencies (what this node depends on)')
+  .action(
+    async (
+      target: string,
+      opts: { maxDepth?: string; upstream?: boolean },
+      cmd: Command,
+    ) => {
+      await impactCommand(target, withGlobals(cmd, opts));
+    },
+  );
+
+// --- workspace ------------------------------------------------------------
+const workspaceCmd = program
+  .command('workspace')
+  .description('workspace-level commands for multi-repo projects');
+
+workspaceCmd
+  .command('init')
+  .description('create .specguard/workspace.json by scanning sibling repo directories')
+  .option('--name <name>', 'workspace name (defaults to directory name)')
+  .action(async (opts: { name?: string }) => {
+    await workspaceInitCommand({ name: opts.name });
+  });
+
+workspaceCmd
+  .command('status')
+  .description('cross-repo health dashboard showing spec counts, contract edges, and health')
+  .action(async () => {
+    await workspaceStatusCommand();
+  });
+
+workspaceCmd
+  .command('drift')
+  .description('run cross-repo drift detection via contract graph edges')
+  .option('--since <ref>', 'git ref to diff against (default: HEAD~1)')
+  .option('--force', 'force re-check all contracts regardless of git changes')
+  .option('--repo <key>', 'restrict to a single repo key')
+  .action(async (opts: { since?: string; force?: boolean; repo?: string }) => {
+    const cwd = process.cwd();
+    let manifest: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['manifest'];
+    let repos: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['repos'];
+    try {
+      ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd));
+    } catch {
+      process.stderr.write(
+        '[workspace drift] No workspace.json found. Run `specguard workspace init` first.\n',
+      );
+      process.exit(1);
+    }
+    const result = await runWorkspaceDrift(manifest, repos, {
+      since: opts.since,
+      force: opts.force,
+      repo: opts.repo,
+    });
+    for (const line of result.messages) process.stdout.write(`${line}\n`);
+    process.exit(result.exitCode);
   });
 
 export async function main(): Promise<void> {
