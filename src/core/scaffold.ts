@@ -47,6 +47,7 @@ const COMMAND_TABLE = (p: LanguageProfile): string =>
     '| `specguard status` | Spec + test coverage report |',
     '| `specguard reverse --all` | Generate Living Specs from source |',
     '| `specguard generate --all` | Generate test files from specs |',
+    '| `specguard align --all` | Map existing tests to spec scenarios |',
     '| `specguard heal --all` | Run tests and auto-fix test bugs |',
     '| `specguard drift` | Detect specs out of sync with code |',
     '| `specguard security --all` | OWASP security test stubs |',
@@ -68,9 +69,13 @@ source of truth. As an AI agent you **must** keep specs and code in sync.
 
 1. **Read the spec** for a module before implementing it.
 2. **Edit** — make your code changes (target language: ${profile.id}).
-3. **Check coverage** — \`specguard gap-analysis\` then \`specguard status\`.
-4. **Validate** — run tests: \`${profile.testCommand}\`; \`specguard heal --all\` to auto-fix test bugs.
+3. **Update the spec** — if implementation reveals gaps or changes, edit the spec file in \`specs/\` to match.
+4. **Validate** — run \`specguard drift\` when done. Run tests: \`${profile.testCommand}\`.
 5. **Report** — include the pipeline summary in your response.
+
+> **Tip**: For new modules with no test coverage yet, run \`specguard generate --spec <key>\`
+> then \`specguard heal --all\` to bootstrap tests. Run \`specguard align --all\` to map
+> existing tests to spec scenarios.
 
 ### Pipelines
 
@@ -117,7 +122,8 @@ ${COMMAND_TABLE(profile)}
 2. Implement one module against its spec + plan.
 3. \`specguard status\` → confirm the spec flips to covered.
 4. \`specguard generate --spec <key>\` then \`specguard heal --all\`.
-5. Repeat until \`status\` reports full coverage.
+5. If the repo has many existing tests, run \`specguard align --all\` to map them to spec scenarios.
+6. Repeat until \`status\` reports full coverage.
 
 Tests for this project run with \`${profile.testCommand}\`.
 `;
@@ -227,6 +233,43 @@ export function mergeClaudeSettings(existing: JsonObject): JsonObject {
   next.hooks = hooks;
 
   return next;
+}
+
+/** The specguard-sync always-applied Cursor rule content. */
+export function buildSyncRule(): string {
+  return `# SpecGuard Spec Sync
+
+## After modifying source files
+
+When you edit, create, or delete any source file in a module that has a spec
+in \`specs/\`, you **must** keep the spec in sync:
+
+1. **Check for a matching spec** — after editing \`src/foo/bar.ts\`, look for
+   \`specs/foo/bar.md\`. If it exists, review it and update any scenarios or
+   descriptions that no longer match the implementation.
+
+2. **Create a spec if one is missing** — if no spec exists for the module you
+   just created or substantially changed, write one now. Use the format in
+   \`specs/README.md\`. Do not defer — an unspecced module is a gap.
+
+3. **Run drift when done** — at the end of a task (not after every file), run:
+   \`\`\`
+   specguard drift
+   \`\`\`
+   If drift is reported, fix it before declaring the task complete.
+
+## Keep it light
+
+- You do NOT need to run \`gap-analysis\`, \`generate\`, or \`heal\` on every edit.
+- Only the three steps above are expected during normal feature work.
+- Run full pipelines (\`heal\`, \`generate\`) when explicitly building out a
+  module from scratch or when the spec says "no tests yet".
+
+## Monorepo / collapse tip
+
+If a directory has many small files that form one logical unit (e.g.,
+\`src/resolvers/teams/\`), one directory-level spec is enough.
+`;
 }
 
 /** Merge the specguard-mcp server into a Cursor mcp.json. */
@@ -372,6 +415,12 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
     await mergeJsonFile(
       path.join(cwd, '.cursor', 'mcp.json'),
       mergeCursorMcpJson,
+      result,
+      cwd,
+    );
+    await writeManaged(
+      path.join(cwd, '.cursor', 'rules', 'specguard-sync.mdc'),
+      buildSyncRule(),
       result,
       cwd,
     );

@@ -30,7 +30,10 @@ export function SettingsView({ vm }: { vm: ViewModel }) {
   // Sync form from incoming config
   useEffect(() => {
     if (!cfg?.configFound) return;
-    const p = cfg.llm.provider as Provider;
+    const raw = cfg.llm.provider;
+    // Guard: if provider isn't a known key, default to 'anthropic' to avoid
+    // PROVIDER_DEFAULTS[p] === undefined which crashes the render.
+    const p: Provider = (raw in PROVIDER_DEFAULTS) ? (raw as Provider) : 'anthropic';
     setProvider(p);
     setModel(cfg.llm.model);
     setApiKeyValue(cfg.envVars[cfg.llm.apiKeyEnv] ?? '');

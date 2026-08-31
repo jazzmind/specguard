@@ -241,6 +241,7 @@ export const RUNNABLE_PIPELINES: { id: string; destructive: boolean; label?: str
   { id: 'status', destructive: false },
   { id: 'drift', destructive: false },
   { id: 'matrix', destructive: false },
+  { id: 'align', destructive: false, label: 'align (map existing tests to spec scenarios)' },
   { id: 'quality', destructive: false, label: 'quality (lint + dead code)' },
   { id: 'deps', destructive: false, label: 'deps (audit + unused)' },
   { id: 'analyze', destructive: false, label: 'analyze (smart diagnostics)' },

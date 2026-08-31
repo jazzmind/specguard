@@ -11,6 +11,12 @@ export interface ReverseCliOpts extends GlobalOpts {
   all?: boolean;
   file?: string;
   force?: boolean;
+  /**
+   * One or more glob patterns to add as collapse rules for this run (without
+   * editing config.json).  Merged with any collapse patterns already in config.
+   * Passed as a comma-separated string from the CLI flag.
+   */
+  collapse?: string;
 }
 
 export async function reverseCommand(opts: ReverseCliOpts): Promise<void> {
@@ -32,10 +38,18 @@ export async function reverseCommand(opts: ReverseCliOpts): Promise<void> {
 
   for (const appName of apps) {
     emit(`reverse: analyzing app "${appName}"…`);
+
+    // Merge --collapse flag patterns into the app config for this run.
+    // This lets users try collapse without editing config.json first.
+    const extraCollapse = opts.collapse
+      ? opts.collapse.split(',').map((p) => p.trim()).filter(Boolean)
+      : [];
+
     const result = await runReverseGenerate(config, {
       app: appName,
       file: opts.file,
       force: opts.force,
+      extraCollapse: extraCollapse.length > 0 ? extraCollapse : undefined,
       // Stream each file result immediately to stdout.
       onLog: emit,
     });

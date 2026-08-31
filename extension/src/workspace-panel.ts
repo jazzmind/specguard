@@ -81,7 +81,8 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
   }
 
   if (msg.type === 'runContracts') {
-    await streamCommand('contracts', ['contracts'], 'contracts');
+    // --force so the button actually rebuilds rather than merging into stale data
+    await streamCommand('contracts', ['contracts', '--force'], 'contracts');
     return;
   }
 
@@ -240,10 +241,12 @@ function buildHtml(webview: vscode.Webview): string {
   .btn:disabled { opacity: .5; cursor: default; }
   .ml-auto { margin-left: auto; }
 
-  /* ── Stream / Drift view ── */
-  .drift-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .drift-header h2 { font-size: 14px; font-weight: 600; }
-  #drift-log {
+  /* ── Stream / Drift / Contracts log ── */
+  .stream-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .stream-header h2 { font-size: 14px; font-weight: 600; }
+  #contracts-log-wrap { display: none; margin-top: 16px; }
+  #contracts-log-wrap.visible { display: block; }
+  #drift-log, .stream-log {
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: var(--vscode-editor-font-size, 12px);
     background: var(--vscode-terminal-background, var(--vscode-editor-background));
@@ -277,16 +280,24 @@ function buildHtml(webview: vscode.Webview): string {
 <!-- ── Status Tab ── -->
 <div id="tab-status" class="tab-panel active">
   <div id="status-content"><em style="opacity:.5">Loading…</em></div>
+  <!-- contracts log appears inline when rebuild is running -->
+  <div id="contracts-log-wrap">
+    <div class="stream-header">
+      <h2>Rebuilding Contracts</h2>
+      <div id="contracts-spinner"><div class="spinner"></div></div>
+    </div>
+    <div id="contracts-log" class="stream-log"><span class="stream-placeholder">Starting…</span></div>
+  </div>
 </div>
 
 <!-- ── Drift Tab ── -->
 <div id="tab-drift" class="tab-panel">
-  <div class="drift-header">
+  <div class="stream-header">
     <h2>Cross-Repo Drift Detection</h2>
     <button id="btn-drift" class="btn" onclick="runDrift()">Run Workspace Drift</button>
     <div id="drift-spinner" style="display:none"><div class="spinner"></div></div>
   </div>
-  <div id="drift-log"><span class="stream-placeholder">Click "Run Workspace Drift" to check all repos for spec drift…</span></div>
+  <div id="drift-log" class="stream-log"><span class="stream-placeholder">Click "Run Workspace Drift" to check all repos for spec drift…</span></div>
 </div>
 
 <script nonce="${nonce}">
@@ -368,9 +379,20 @@ function buildHtml(webview: vscode.Webview): string {
         <div class="c-stat"><strong>\${edgeCount}</strong> contract edges</div>
         <div class="c-stat"><strong>\${nodeCount}</strong> nodes</div>
         \${staleCount > 0 ? \`<span class="stale">⚠ \${staleCount} stale edges</span>\` : ''}
-        <button class="btn secondary ml-auto" onclick="runContracts()">Rebuild Contracts</button>
+        <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
+          <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
+          <button id="btn-contracts" class="btn secondary" onclick="runContracts()">Rebuild Contracts</button>
+        </div>
       </div>
-    \` : '';
+    \` : \`
+      <div class="contracts-bar">
+        <div class="c-stat" style="opacity:.6">No contracts graph yet.</div>
+        <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
+          <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
+          <button id="btn-contracts" class="btn" onclick="runContracts()">Build Contracts</button>
+        </div>
+      </div>
+    \`;
 
     document.getElementById('status-content').innerHTML =
       statsHtml +
@@ -426,6 +448,18 @@ function buildHtml(webview: vscode.Webview): string {
         document.getElementById('btn-drift').disabled = true;
         document.getElementById('drift-spinner').style.display = 'inline-block';
       }
+      if (msg.target === 'contracts') {
+        const wrap = document.getElementById('contracts-log-wrap');
+        const log = document.getElementById('contracts-log');
+        const btn = document.getElementById('btn-contracts');
+        const spinner = document.getElementById('contracts-bar-spinner');
+        log.textContent = '';
+        if (wrap) wrap.classList.add('visible');
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.style.display = 'inline-block';
+        if (document.getElementById('contracts-spinner'))
+          document.getElementById('contracts-spinner').style.display = 'inline-block';
+      }
     }
 
     if (msg.type === 'streamLine') {
@@ -433,6 +467,10 @@ function buildHtml(webview: vscode.Webview): string {
         const el = document.getElementById('drift-log');
         el.textContent += msg.line + '\\n';
         el.scrollTop = el.scrollHeight;
+      }
+      if (msg.target === 'contracts') {
+        const el = document.getElementById('contracts-log');
+        if (el) { el.textContent += msg.line + '\\n'; el.scrollTop = el.scrollHeight; }
       }
     }
 
@@ -448,7 +486,20 @@ function buildHtml(webview: vscode.Webview): string {
         el.scrollTop = el.scrollHeight;
       }
       if (msg.target === 'contracts') {
-        // contracts rebuild done — status was already refreshed by host
+        const btn = document.getElementById('btn-contracts');
+        const spinner = document.getElementById('contracts-bar-spinner');
+        const hdrSpinner = document.getElementById('contracts-spinner');
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+        if (hdrSpinner) hdrSpinner.style.display = 'none';
+        const el = document.getElementById('contracts-log');
+        if (el) {
+          const tag = document.createElement('span');
+          tag.className = msg.exitCode === 0 ? 'exit-ok' : 'exit-err';
+          tag.textContent = msg.exitCode === 0 ? '\\n✓ Contracts rebuilt' : '\\n✗ Build failed (exit ' + msg.exitCode + ')';
+          el.appendChild(tag);
+          el.scrollTop = el.scrollHeight;
+        }
       }
     }
   });
