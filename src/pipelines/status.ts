@@ -24,7 +24,7 @@
  */
 import path from 'node:path';
 
-import type { SpecGuardConfig, AppConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import type { SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
@@ -33,7 +33,6 @@ import {
   featureFromPath,
   type LanguageProfile,
 } from '../core/language-profiles.js';
-
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
 
@@ -91,7 +90,46 @@ export async function runStatus(
       if (group === 'tests') continue;
       if (Array.isArray(globs)) patterns.push(...globs);
     }
-    const files = await expandGlobs(patterns, repoDir);
+    const allFiles = await expandGlobs(patterns, repoDir);
+
+    // Apply `exclude` patterns — same filtering as reverse-generate.
+    const excludePatterns = app.exclude ?? [];
+    let files = allFiles;
+    if (excludePatterns.length > 0) {
+      const excluded = new Set(await expandGlobs(excludePatterns, repoDir));
+      files = allFiles.filter((f) => !excluded.has(f));
+    }
+
+    // Apply `collapse` patterns — files that collapse to a single directory-level
+    // spec are grouped so we count one "unit" per directory, not one per file.
+    const collapsePatterns = app.collapse ?? [];
+    const collapseSet = new Set(
+      collapsePatterns.length > 0 ? await expandGlobs(collapsePatterns, repoDir) : [],
+    );
+
+    // individualFiles: each maps to its own spec
+    // collapsedGroups: many files → one spec per parent directory
+    const individualFiles: string[] = [];
+    const collapsedGroups = new Map<string, string[]>();
+
+    for (const absFile of files) {
+      if (collapseSet.has(absFile)) {
+        const fileFeature = featureFromPath(absFile, repoDir, profile);
+        const dirFeature = path.posix.dirname(fileFeature);
+        if (dirFeature === '.') {
+          individualFiles.push(absFile);
+        } else {
+          const group = collapsedGroups.get(dirFeature) ?? [];
+          group.push(absFile);
+          collapsedGroups.set(dirFeature, group);
+        }
+      } else {
+        individualFiles.push(absFile);
+      }
+    }
+
+    // Number of "spec units" expected: individual files + one per collapsed group.
+    const appTotal = individualFiles.length + collapsedGroups.size;
 
     let appSpecs = 0;
     let appTests = 0;
@@ -99,7 +137,8 @@ export async function runStatus(
 
     log(`# ${app.name} (${app.specDir})`);
 
-    for (const absFile of files) {
+    // --- Individual files (1 file → 1 spec) ---
+    for (const absFile of individualFiles) {
       const feature = featureFromPath(absFile, repoDir, profile);
       const key = `${app.name}/${feature}`;
 
@@ -109,20 +148,13 @@ export async function runStatus(
       const candidates = testCandidates(testOutputAbs, feature, profile);
       let hasTest = false;
       for (const c of candidates) {
-        if (await fileExists(c)) {
-          hasTest = true;
-          break;
-        }
+        if (await fileExists(c)) { hasTest = true; break; }
       }
 
       if (hasSpec) appSpecs += 1;
       if (hasTest) appTests += 1;
 
-      const item: PipelineItem = {
-        key,
-        status: hasSpec ? 'ok' : 'failed',
-        path: specPath,
-      };
+      const item: PipelineItem = { key, status: hasSpec ? 'ok' : 'failed', path: specPath };
       if (!hasSpec) {
         item.message = hasTest ? 'missing spec' : 'missing spec; missing test';
         missing.push(feature);
@@ -136,7 +168,35 @@ export async function runStatus(
       result.items.push(item);
     }
 
-    const appTotal = files.length;
+    // --- Collapsed groups (N files → 1 directory-level spec) ---
+    for (const [dirFeature, groupFiles] of collapsedGroups.entries()) {
+      const key = `${app.name}/${dirFeature}`;
+      const specPath = path.join(specDirAbs, `${dirFeature}.md`);
+      const hasSpec = await fileExists(specPath);
+
+      // Test: check using the directory-level feature key
+      const candidates = testCandidates(testOutputAbs, dirFeature, profile);
+      let hasTest = false;
+      for (const c of candidates) {
+        if (await fileExists(c)) { hasTest = true; break; }
+      }
+
+      if (hasSpec) appSpecs += 1;
+      if (hasTest) appTests += 1;
+
+      const item: PipelineItem = { key, status: hasSpec ? 'ok' : 'failed', path: specPath };
+      if (!hasSpec) {
+        item.message = `missing spec (collapsed ${groupFiles.length} files)`;
+        missing.push(dirFeature);
+        log(`  [missing-spec] ${key} (collapsed ${groupFiles.length} files)`);
+      } else if (!hasTest) {
+        item.message = `missing test (collapsed ${groupFiles.length} files)`;
+        log(`  [ok] ${key} (collapsed ${groupFiles.length} files, no test)`);
+      } else {
+        log(`  [ok] ${key} (collapsed ${groupFiles.length} files)`);
+      }
+      result.items.push(item);
+    }
 
     // Spec-driven pass: for spec-first / import-first projects that have specs
     // but no matching source files yet, count specs and tests from the specDir

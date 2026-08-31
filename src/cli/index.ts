@@ -153,7 +153,13 @@ program
   .option('--all', 'process all apps defined in config')
   .option('--file <path>', 'process a single source file (only with --app)')
   .option('--force', 'overwrite existing specs')
-  .action(async (opts: { app?: string; all?: boolean; file?: string; force?: boolean }, cmd: Command) => {
+  .option(
+    '--collapse <globs>',
+    'comma-separated glob patterns to collapse into per-directory specs ' +
+    '(merged with collapse patterns already in config.json). ' +
+    'Example: --collapse "src/resolvers/!(mutations|queries)/**/*.ts,src/lib/**/*.ts"',
+  )
+  .action(async (opts: { app?: string; all?: boolean; file?: string; force?: boolean; collapse?: string }, cmd: Command) => {
     await reverseCommand(withGlobals(cmd, opts));
   });
 

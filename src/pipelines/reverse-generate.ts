@@ -57,6 +57,11 @@ export interface ReverseOpts {
    * Defaults to 5.  Set to 1 to force sequential processing.
    */
   concurrency?: number;
+  /**
+   * Additional collapse glob patterns merged with those in config.
+   * Lets callers (CLI --collapse flag) specify patterns without editing config.
+   */
+  extraCollapse?: string[];
 }
 
 /** Max characters of a source file sent to the LLM. */
@@ -198,7 +203,7 @@ export async function runReverseGenerate(
 
   // Apply `collapse` patterns — identify files that should be grouped by
   // parent directory and produce one spec per directory instead of per file.
-  const collapsePatterns = app.collapse ?? [];
+  const collapsePatterns = [...(app.collapse ?? []), ...(opts.extraCollapse ?? [])];
   const collapseSet = new Set(
     collapsePatterns.length > 0 ? await expandGlobs(collapsePatterns, repoDir) : [],
   );

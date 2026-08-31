@@ -132,7 +132,14 @@ export class DashboardHost {
       return;
     }
     if (cmd.type === 'readProjectConfig') { this._pushProjectConfig(); return; }
-    if (cmd.type === 'saveProjectConfig') { await this._saveProjectConfig(cmd.config); return; }
+    if (cmd.type === 'saveProjectConfig') {
+      try {
+        await this._saveProjectConfig(cmd.config);
+      } catch (err) {
+        this.post({ type: 'error', scope: 'saveProjectConfig', message: `Unexpected error saving settings: ${(err as Error).message}` });
+      }
+      return;
+    }
     if (cmd.type === 'markPlanStatus') {
       try {
         const resolved = path.resolve(this.workspaceRoot, cmd.filePath);
@@ -567,6 +574,23 @@ export class DashboardHost {
             : 'no drift detected',
         });
         this._pushActivityLog();
+
+        // Surface drift visibly — show a warning notification so developers see
+        // it rather than having to hunt through the Activity tab.
+        if (hasDrift) {
+          const driftLines = lines.filter((l) => l.startsWith('[drift]'));
+          const summary = driftLines.length > 0
+            ? driftLines.slice(0, 3).join('\n') + (driftLines.length > 3 ? `\n…and ${driftLines.length - 3} more` : '')
+            : 'Spec drift detected in this repo.';
+          void vscode.window.showWarningMessage(
+            `SpecGuard: spec drift detected — ${summary.split('\n')[0]}`,
+            'View Drift',
+          ).then((choice) => {
+            if (choice === 'View Drift') {
+              void vscode.commands.executeCommand('specguard.drift');
+            }
+          });
+        }
       }
     } catch {
       // Background task — ignore errors

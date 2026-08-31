@@ -90,6 +90,7 @@ the whole project from its specs.
 | `specguard status` | Spec + test coverage report |
 | `specguard reverse --all` | Generate Living Specs from source |
 | `specguard generate --all` | Generate test files from specs |
+| `specguard align --all` | Map existing tests to spec scenarios |
 | `specguard heal --all` | Run tests and auto-fix test bugs |
 | `specguard drift` | Detect specs out of sync with code |
 | `specguard security --all` | OWASP security test stubs |

@@ -11,9 +11,13 @@ source of truth. As an AI agent you **must** keep specs and code in sync.
 
 1. **Read the spec** for a module before implementing it.
 2. **Edit** — make your code changes (target language: typescript).
-3. **Check coverage** — `specguard gap-analysis` then `specguard status`.
-4. **Validate** — run tests: `npm test`; `specguard heal --all` to auto-fix test bugs.
+3. **Update the spec** — if implementation reveals gaps or changes, edit the spec file in `specs/` to match.
+4. **Validate** — run `specguard drift` when done. Run tests: `npm test`.
 5. **Report** — include the pipeline summary in your response.
+
+> **Tip**: For new modules with no test coverage yet, run `specguard generate --spec <key>`
+> then `specguard heal --all` to bootstrap tests. Run `specguard align --all` to map
+> existing tests to spec scenarios.
 
 ### Pipelines
 
@@ -24,6 +28,7 @@ source of truth. As an AI agent you **must** keep specs and code in sync.
 | `specguard status` | Spec + test coverage report |
 | `specguard reverse --all` | Generate Living Specs from source |
 | `specguard generate --all` | Generate test files from specs |
+| `specguard align --all` | Map existing tests to spec scenarios |
 | `specguard heal --all` | Run tests and auto-fix test bugs |
 | `specguard drift` | Detect specs out of sync with code |
 | `specguard security --all` | OWASP security test stubs |

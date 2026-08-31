@@ -1,0 +1,33 @@
+# SpecGuard Spec Sync
+
+## After modifying source files
+
+When you edit, create, or delete any source file in a module that has a spec
+in `specs/`, you **must** keep the spec in sync:
+
+1. **Check for a matching spec** — after editing `src/foo/bar.ts`, look for
+   `specs/foo/bar.md`. If it exists, review it and update any scenarios or
+   descriptions that no longer match the implementation.
+
+2. **Create a spec if one is missing** — if no spec exists for the module you
+   just created or substantially changed, write one now. Use the format in
+   `specs/README.md`. Do not defer — an unspecced module is a gap.
+
+3. **Run drift when done** — at the end of a task (not after every file), run:
+   ```
+   specguard drift
+   ```
+   If drift is reported, fix it before declaring the task complete.
+
+## Keep it light
+
+- You do NOT need to run `gap-analysis`, `generate`, or `heal` on every edit.
+- Only the three steps above are expected during normal feature work.
+- Run full pipelines (`heal`, `generate`) when explicitly building out a
+  module from scratch or when the spec says "no tests yet".
+
+## Monorepo / collapse tip
+
+If a directory has many small files that form one logical unit (e.g.,
+`src/resolvers/teams/`), one directory-level spec is enough. Use collapse in
+config, or group them mentally under a single spec file.
