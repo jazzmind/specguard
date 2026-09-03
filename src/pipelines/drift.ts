@@ -212,24 +212,37 @@ async function runMtimeDrift(
     }
   }
 
+  // Orphan spec detection for mtime mode
+  const orphanResult = await detectOrphans(config, cwd);
+  for (const item of orphanResult.items) {
+    log(`[orphan] ${item.key} — orphan spec with no matching source file`);
+    result.items.push(item);
+    result.failed += 1;
+  }
+
   if (result.failed > 0) {
     try {
-      const driftedSpecs = result.items.filter((i) => i.status === 'failed');
+      const driftedSpecs = result.items.filter((i) => i.status === 'failed' && !i.message?.startsWith('orphan'));
+      const orphanSpecs = result.items.filter((i) => i.message?.startsWith('orphan'));
       writePlan({
         pipeline: 'drift',
-        title: `Fix Spec Drift — ${driftedSpecs.length} spec(s) out of sync`,
-        summary: `The drift pipeline found ${driftedSpecs.length} Living Spec(s) that no longer match their source code.`,
+        title: `Fix Spec Drift — ${result.failed} issue(s) found`,
+        summary: `${driftedSpecs.length} drifted spec(s) and ${orphanSpecs.length} orphan spec(s) detected.`,
         sections: [
-          {
+          ...(driftedSpecs.length > 0 ? [{
             heading: 'Drifted Specs',
             items: driftedSpecs.map((i) => `\`${i.key}\` — ${i.message ?? 'source modified after spec'}`),
-          },
+          }] : []),
+          ...(orphanSpecs.length > 0 ? [{
+            heading: 'Orphan Specs',
+            items: orphanSpecs.map((i) => `\`${i.key}\``),
+          }] : []),
           {
             heading: 'Fix Steps',
             ordered: true,
             items: [
-              'Review each drifted spec against the current source code.',
-              'Update the acceptance criteria and scenarios to reflect reality.',
+              'For drifted specs: update acceptance criteria to reflect current source.',
+              'For orphan specs: delete if feature was removed, or rename to match new source path.',
               'Run `specguard drift` to confirm.',
             ],
           },
@@ -391,28 +404,49 @@ export async function runDrift(
 
   saveRegistry(cwd, registry);
 
+  // Orphan spec detection — run after semantic drift checks
+  const orphanResult = await detectOrphans(config, cwd);
+  for (const item of orphanResult.items) {
+    log(`[orphan] ${item.key} — orphan spec with no matching source file`);
+    result.items.push(item);
+    result.failed += 1;
+  }
+  if (orphanResult.orphanCount > 0) {
+    log(`[drift] ${orphanResult.orphanCount} orphan spec(s) detected`);
+  }
+
   if (result.failed > 0) {
     try {
-      const driftedSpecs = result.items.filter((i) => i.status === 'failed');
+      const driftedSpecs = result.items.filter((i) => i.status === 'failed' && !i.message?.startsWith('orphan'));
+      const orphanSpecs = result.items.filter((i) => i.message?.startsWith('orphan'));
+      const allFailed = result.items.filter((i) => i.status === 'failed');
       writePlan({
         pipeline: 'drift',
-        title: `Fix Spec Drift — ${driftedSpecs.length} spec(s) out of sync`,
-        summary: `The drift pipeline found ${driftedSpecs.length} Living Spec(s) that no longer match their source code. ` +
-          `Update each spec to reflect the current implementation, then re-run drift to verify.`,
+        title: `Fix Spec Drift — ${allFailed.length} issue(s) found`,
+        summary:
+          (driftedSpecs.length > 0
+            ? `${driftedSpecs.length} spec(s) have semantic drift. `
+            : '') +
+          (orphanSpecs.length > 0
+            ? `${orphanSpecs.length} orphan spec(s) have no matching source file. `
+            : '') +
+          `Update drifted specs to reflect current code; delete or reconnect orphan specs.`,
         sections: [
-          {
+          ...(driftedSpecs.length > 0 ? [{
             heading: 'Drifted Specs',
             items: driftedSpecs.map((i) => `\`${i.key}\` — ${i.message ?? 'semantic drift detected'}`),
-          },
+          }] : []),
+          ...(orphanSpecs.length > 0 ? [{
+            heading: 'Orphan Specs (no matching source)',
+            items: orphanSpecs.map((i) => `\`${i.key}\` — ${i.path}`),
+          }] : []),
           {
             heading: 'Fix Steps',
             ordered: true,
             items: [
-              'Open each drifted spec file listed above.',
-              'Review the acceptance criteria and scenarios against the current source code.',
-              'Update the spec to reflect the actual implementation.',
-              'If the spec describes intended behaviour that is now missing from the source, restore the source code instead.',
-              'Run `specguard drift` again to confirm no remaining drift.',
+              'For drifted specs: open each spec and update acceptance criteria to match the current source.',
+              'For orphan specs: delete the spec file if the feature was removed, or rename it to match the new source path.',
+              'Run `specguard drift` again to confirm no remaining issues.',
             ],
           },
         ],
@@ -424,6 +458,101 @@ export async function runDrift(
 
   result.exitCode = result.failed > 0 ? ExitCode.DriftDetected : ExitCode.Success;
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Orphan spec detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Return true for spec keys that intentionally have no corresponding source
+ * file and should be excluded from orphan analysis.
+ */
+function isOrphanExempt(specKey: string): boolean {
+  // Test-aligned specs live under __tests__/ — they align to tests, not source files
+  if (specKey.includes('__tests__')) return true;
+  // Root index.md is the architecture overview doc
+  if (specKey === 'index') return true;
+  // README docs
+  if (specKey === 'README' || specKey.endsWith('/README')) return true;
+  return false;
+}
+
+export interface OrphanResult {
+  items: PipelineItem[];
+  orphanCount: number;
+}
+
+/**
+ * For each app, scan `specDir` for all `.md` files and flag any spec that has
+ * no matching source file as an orphan. Orphan specs indicate deleted features,
+ * renamed files, or specs that were never connected to source.
+ */
+export async function detectOrphans(
+  config: SpecGuardConfig,
+  cwd: string,
+): Promise<OrphanResult> {
+  const items: PipelineItem[] = [];
+  let orphanCount = 0;
+
+  for (const app of config.apps) {
+    const repoDir = resolveFromRoot(config, app.repo);
+    const specDirAbs = resolveFromRoot(config, app.specDir);
+
+    // Build the full feature set from source files for this app
+    const patterns: string[] = [];
+    for (const [grp, globs] of Object.entries(app.sources)) {
+      if (grp === 'tests') continue;
+      if (Array.isArray(globs)) patterns.push(...globs);
+    }
+    if (!patterns.length) continue;
+
+    // Build the feature set AND the "domain" (set of first-path-segment prefixes this app covers)
+    let allSources: string[] = [];
+    try { allSources = await expandGlobs(patterns, repoDir); } catch { continue; }
+    const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir)));
+
+    // Domain filtering: only flag orphans for specs whose first-segment prefix
+    // matches what this app's sources can produce. This prevents apps with a
+    // broad specDir (e.g. "specs") from falsely flagging specs that belong to
+    // sibling apps in the same specDir tree.
+    const sourceDomainPrefixes = new Set<string>();
+    for (const feature of featureSet) {
+      sourceDomainPrefixes.add(feature.split('/')[0]);
+    }
+
+    // Load all specs from the specDir
+    let specs: import('../core/types.js').ParsedSpec[] = [];
+    try { specs = loadAllSpecs(specDirAbs); } catch { continue; }
+
+    for (const spec of specs) {
+      const specKey = spec.specKey;
+      if (isOrphanExempt(specKey)) continue;
+
+      // Only flag orphans for specs within this app's feature domain
+      const specFirstSegment = specKey.split('/')[0];
+      if (!sourceDomainPrefixes.has(specFirstSegment)) continue;
+
+      // index files match their parent directory index.{ts,tsx}
+      const featureToMatch = specKey.endsWith('/index')
+        ? specKey  // keep full path including /index
+        : specKey;
+
+      if (!featureSet.has(featureToMatch)) {
+        const key = `${app.name}/${specKey}`;
+        const specPath = path.join(specDirAbs, `${specKey}.md`);
+        items.push({
+          key,
+          status: 'failed',
+          path: specPath,
+          message: 'orphan spec — no matching source file found',
+        });
+        orphanCount += 1;
+      }
+    }
+  }
+
+  return { items, orphanCount };
 }
 
 // ---------------------------------------------------------------------------

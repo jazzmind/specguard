@@ -33,6 +33,7 @@ import {
   featureFromPath,
   type LanguageProfile,
 } from '../core/language-profiles.js';
+import { detectOrphans } from './drift.js';
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
 
@@ -262,8 +263,23 @@ export async function runStatus(
       `${totalMissingSpecs} missing specs`,
   );
 
-  result.failed = totalMissingSpecs;
-  result.exitCode = totalMissingSpecs > 0 ? ExitCode.MissingSpecs : ExitCode.Success;
+  // Orphan detection — specs with no matching source (deleted features etc.)
+  const cwd = config.rootDir ?? process.cwd();
+  const orphanResult = await detectOrphans(config, cwd);
+  if (orphanResult.orphanCount > 0) {
+    log(`ORPHANS: ${orphanResult.orphanCount} spec(s) have no matching source file:`);
+    for (const item of orphanResult.items) {
+      log(`  [orphan] ${item.key}`);
+    }
+    for (const item of orphanResult.items) {
+      result.items.push(item);
+    }
+  } else {
+    log(`ORPHANS: 0`);
+  }
+
+  result.failed = totalMissingSpecs + orphanResult.orphanCount;
+  result.exitCode = result.failed > 0 ? ExitCode.MissingSpecs : ExitCode.Success;
 
   return result;
 }

@@ -80,6 +80,7 @@ import { impactCommand } from './commands/impact.js';
 import { workspaceInitCommand, workspaceStatusCommand } from './commands/workspace.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { indexCommand } from './commands/index.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -344,6 +345,16 @@ program
       await alignCommand(withGlobals(cmd, opts));
     },
   );
+
+// --- index ----------------------------------------------------------------
+program
+  .command('index')
+  .description('generate or update specs/index.md with system architecture overview and route map')
+  .option('--app <name>', 'target app in config (defaults to first app)')
+  .option('--force', 'regenerate even if index.md already exists')
+  .action(async (opts: { app?: string; force?: boolean }, cmd: Command) => {
+    await indexCommand(withGlobals(cmd, opts));
+  });
 
 // --- status ---------------------------------------------------------------
 program
