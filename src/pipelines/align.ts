@@ -8,9 +8,11 @@
  *   - Which scenarios have NO test coverage (gaps)
  *   - Which tests exist but don't map to any spec scenario (unmapped)
  *
- * Output: `.specguard/alignment.json`
+ * Output: `.specguard/alignment.json`, rewritten after every finished spec so a
+ * killed run can resume. Status lines are flushed as each spec completes.
  *
- * CLI: specguard align [--app <name>] [--spec <key>] [--all] [--extra-tests <glob>] [--json]
+ * CLI: specguard align [--app <name>] [--spec <key>] [--all]
+ *        [--concurrency <n>] [--fresh] [--extra-tests <glob>] [--json]
  */
 import path from 'node:path';
 import fs from 'node:fs';
@@ -24,6 +26,7 @@ import { expandGlobs } from '../core/reader.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { resolveProfile } from '../core/language-profiles.js';
 import { writePlan } from '../core/plan-writer.js';
+import { emitStatus } from '../core/status.js';
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -40,6 +43,10 @@ export interface AlignOpts {
    * Resolved relative to `config.rootDir`.
    */
   extraTests?: string[];
+  /** How many specs to send to the LLM at once. Defaults to 4. */
+  concurrency?: number;
+  /** Ignore a saved checkpoint and align every spec again. */
+  fresh?: boolean;
 }
 
 export interface CoveredScenario {
@@ -74,9 +81,18 @@ export interface AlignmentEntry {
   alignmentScore: number;
 }
 
+export interface AlignmentCheckpoint {
+  /** True once every spec in this scope has an entry (LLM failures are absent). */
+  complete: boolean;
+  scope: { app: string | null; spec: string | null };
+  model: string;
+  updatedAt: string;
+}
+
 export interface AlignmentReport {
   generatedAt: string;
   entries: AlignmentEntry[];
+  checkpoint?: AlignmentCheckpoint;
 }
 
 export interface AlignResult extends PipelineResult {
@@ -266,6 +282,74 @@ function selectTestFiles(
   return selected;
 }
 
+const ALIGNMENT_FILE = 'alignment.json';
+
+interface AlignScope {
+  app: string | null;
+  spec: string | null;
+}
+
+function alignmentPath(rootDir: string): string {
+  return path.join(rootDir, '.specguard', ALIGNMENT_FILE);
+}
+
+function sameScope(a: AlignScope, b: AlignScope): boolean {
+  return a.app === b.app && a.spec === b.spec;
+}
+
+function loadCachedEntries(
+  rootDir: string,
+  scope: AlignScope,
+  model: string,
+  fresh: boolean,
+): { entries: AlignmentEntry[]; generatedAt?: string } {
+  if (fresh) return { entries: [] };
+  const file = alignmentPath(rootDir);
+  if (!fs.existsSync(file)) return { entries: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8')) as AlignmentReport;
+    const checkpoint = parsed.checkpoint;
+    if (!checkpoint || checkpoint.model !== model || !sameScope(checkpoint.scope, scope)) {
+      return { entries: [] };
+    }
+    if (!Array.isArray(parsed.entries)) return { entries: [] };
+    return { entries: parsed.entries, generatedAt: parsed.generatedAt };
+  } catch {
+    return { entries: [] };
+  }
+}
+
+function writeAlignment(rootDir: string, report: AlignmentReport): void {
+  const outDir = path.join(rootDir, '.specguard');
+  fs.mkdirSync(outDir, { recursive: true });
+  const file = alignmentPath(rootDir);
+  const tmp = `${file}.${process.pid}.tmp`;
+  const body = JSON.stringify({
+    ...report,
+    entries: [...report.entries].sort((a, b) => a.specKey.localeCompare(b.specKey)),
+  }, null, 2) + '\n';
+  fs.writeFileSync(tmp, body);
+  fs.renameSync(tmp, file);
+}
+
+function parseConcurrency(value: number | undefined): number {
+  if (value == null || !Number.isFinite(value) || value < 1) return 4;
+  return Math.floor(value);
+}
+
+async function mapPool<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  if (items.length === 0) return;
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const item = items[next];
+      next += 1;
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
 // ---------------------------------------------------------------------------
 // Main pipeline function
 // ---------------------------------------------------------------------------
@@ -275,10 +359,55 @@ export async function runAlign(
   opts: AlignOpts = {},
 ): Promise<AlignResult> {
   const result = emptyResult('align') as AlignResult;
-  result.report = { generatedAt: new Date().toISOString(), entries: [] };
-
-  const log = (line: string) => { result.messages.push(line); };
   const rootDir = config.rootDir ?? process.cwd();
+  const scope: AlignScope = { app: opts.app ?? null, spec: opts.spec ?? null };
+  const model = config.llm.model;
+  const cached = loadCachedEntries(rootDir, scope, model, opts.fresh === true);
+  const cachedByKey = new Map(cached.entries.map((entry) => [entry.specKey, entry]));
+  result.report = {
+    generatedAt: cached.generatedAt ?? new Date().toISOString(),
+    entries: [],
+  };
+
+  const log = (line: string) => {
+    result.messages.push(line);
+    emitStatus(line);
+  };
+  const concurrency = parseConcurrency(opts.concurrency);
+
+  let writeChain: Promise<void> = Promise.resolve();
+  let llmFailures = 0;
+
+  const checkpoint = (complete: boolean): void => {
+    result.report.checkpoint = {
+      complete,
+      scope,
+      model,
+      updatedAt: new Date().toISOString(),
+    };
+    writeAlignment(rootDir, result.report);
+  };
+
+  const enqueueCheckpoint = (): Promise<void> => {
+    const job = writeChain.then(() => checkpoint(false));
+    writeChain = job.catch(() => undefined);
+    return job;
+  };
+
+  const account = (entry: AlignmentEntry, fromCache: boolean): void => {
+    const prefix = fromCache ? 'cached ' : '';
+    if (entry.alignmentScore < 80 || entry.uncoveredScenarios.length > 0) {
+      result.items.push({
+        key: entry.specKey,
+        status: entry.alignmentScore === 0 ? 'failed' : 'skipped',
+        message: `${prefix}${entry.alignmentScore}% alignment — ${entry.uncoveredScenarios.length} uncovered scenario(s)`,
+      });
+      result.failed += 1;
+    } else {
+      result.items.push({ key: entry.specKey, status: 'ok', message: `${prefix}${entry.alignmentScore}% alignment` });
+      result.created += 1;
+    }
+  };
 
   const appsInScope = opts.app
     ? config.apps.filter((a) => a.name === opts.app)
@@ -315,24 +444,35 @@ export async function runAlign(
 
     // Collect all test files for this app
     const allTestFiles = await collectTestFiles(config, app, opts.extraTests ?? []);
-    log(`[align] ${app.name}: ${allTestFiles.length} test file(s) found`);
+    const withScenarios = specs.filter((spec) => spec.scenarios.length > 0);
+    const pending = withScenarios.filter((spec) => !cachedByKey.has(`${app.name}/${spec.specKey}`));
+    const resumed = withScenarios.length - pending.length;
+    log(`[align] ${app.name}: ${allTestFiles.length} test file(s), ${specs.length} spec(s), ${resumed} cached, ${pending.length} to analyse, concurrency ${concurrency}`);
 
     for (const spec of specs) {
       const fullKey = `${app.name}/${spec.specKey}`;
-
-      // Skip specs with no scenarios — there's nothing to align
       if (spec.scenarios.length === 0) {
         log(`[align] ${fullKey}: no scenarios defined — skipping`);
         result.items.push({ key: fullKey, status: 'skipped', message: 'no scenarios' });
         result.skipped += 1;
         continue;
       }
+      const saved = cachedByKey.get(fullKey);
+      if (saved) {
+        result.report.entries.push(saved);
+        account(saved, true);
+        log(`[align] ${fullKey}: cached ${saved.alignmentScore}% — skipped`);
+      }
+    }
 
-      // Select the test files most likely relevant to this spec
+    let finished = resumed;
+    const total = specs.filter((spec) => spec.scenarios.length > 0).length;
+
+    await mapPool(pending, concurrency, async (spec) => {
+      const fullKey = `${app.name}/${spec.specKey}`;
       const selectedPaths = selectTestFiles(allTestFiles, spec.specKey, rootDir);
 
       if (selectedPaths.length === 0) {
-        log(`[align] ${fullKey}: no test files found`);
         const entry: AlignmentEntry = {
           specKey: fullKey,
           specTitle: spec.title,
@@ -344,29 +484,26 @@ export async function runAlign(
           alignmentScore: 0,
         };
         result.report.entries.push(entry);
-        result.items.push({ key: fullKey, status: 'failed', message: 'no test files — 0% alignment' });
-        result.failed += 1;
-        continue;
+        account(entry, false);
+        finished += 1;
+        log(`[align] ${finished}/${total} ${fullKey}: no test files — 0%`);
+        await enqueueCheckpoint();
+        return;
       }
 
-      // Build test file content array
       const testFiles = selectedPaths.map((absPath) => ({
         relPath: path.relative(rootDir, absPath),
         content: readFileCapped(absPath),
       }));
 
-      // Call LLM
       try {
         log(`[align] ${fullKey}: analysing ${spec.scenarios.length} scenario(s) against ${testFiles.length} test file(s)…`);
-
-        const prompt = buildPrompt(spec.specKey, spec, testFiles);
-
         const analysis = await llmGenerateObject({
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
           system: SYSTEM_PROMPT,
-          prompt,
+          prompt: buildPrompt(spec.specKey, spec, testFiles),
           schema: AlignmentLlmSchema,
           maxTokens: 8192,
           temperature: 0,
@@ -375,12 +512,9 @@ export async function runAlign(
         const covered = analysis.coveredScenarios ?? [];
         const uncovered = analysis.uncoveredScenarios ?? [];
         const unmapped = analysis.unmappedTests ?? [];
-
-        // Compute alignment score = covered scenarios / total scenarios * 100
         const score = spec.scenarios.length > 0
           ? Math.round((covered.length / spec.scenarios.length) * 100)
           : 100;
-
         const entry: AlignmentEntry = {
           specKey: fullKey,
           specTitle: spec.title,
@@ -392,38 +526,25 @@ export async function runAlign(
           alignmentScore: score,
         };
         result.report.entries.push(entry);
-
+        account(entry, false);
+        finished += 1;
         const icon = score >= 80 ? '✓' : score >= 50 ? '~' : '✗';
-        log(`[align] ${icon} ${fullKey}: ${score}% aligned (${covered.length}/${spec.scenarios.length} scenarios covered, ${unmapped.length} unmapped tests)`);
-
-        if (score < 80 || uncovered.length > 0) {
-          result.items.push({
-            key: fullKey,
-            status: score === 0 ? 'failed' : 'skipped',
-            message: `${score}% alignment — ${uncovered.length} uncovered scenario(s)`,
-          });
-          result.failed += 1;
-        } else {
-          result.items.push({ key: fullKey, status: 'ok', message: `${score}% alignment` });
-          result.created += 1;
-        }
+        log(`[align] ${finished}/${total} ${icon} ${fullKey}: ${score}% (${covered.length}/${spec.scenarios.length} scenarios, ${unmapped.length} unmapped tests)`);
+        await enqueueCheckpoint();
       } catch (err) {
-        log(`[align] ${fullKey}: LLM error — ${(err as Error).message}`);
+        llmFailures += 1;
+        finished += 1;
+        log(`[align] ${finished}/${total} ${fullKey}: LLM error — ${(err as Error).message}`);
         result.items.push({ key: fullKey, status: 'failed', message: (err as Error).message });
         result.failed += 1;
       }
-    }
+    });
   }
 
-  // Persist report
+  await writeChain;
   try {
-    const outDir = path.join(rootDir, '.specguard');
-    fs.mkdirSync(outDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(outDir, 'alignment.json'),
-      JSON.stringify(result.report, null, 2) + '\n',
-    );
-    log(`[align] report written to .specguard/alignment.json`);
+    checkpoint(llmFailures === 0);
+    log(`[align] report written to .specguard/alignment.json${llmFailures > 0 ? ' (incomplete — re-run to retry failed specs)' : ''}`);
   } catch { /* best-effort */ }
 
   // Summary log

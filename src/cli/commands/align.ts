@@ -12,6 +12,8 @@ export interface AlignCliOpts extends GlobalOpts {
   spec?: string;
   all?: boolean;
   extraTests?: string[];
+  concurrency?: number;
+  fresh?: boolean;
 }
 
 export async function alignCommand(opts: AlignCliOpts): Promise<void> {
@@ -20,6 +22,8 @@ export async function alignCommand(opts: AlignCliOpts): Promise<void> {
     app: opts.app,
     spec: opts.spec,
     extraTests: opts.extraTests,
+    concurrency: opts.concurrency,
+    fresh: opts.fresh,
   });
 
   // Print a human-readable summary in addition to the standard output.

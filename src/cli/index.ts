@@ -339,10 +339,19 @@ program
   .option('--app <name>', 'limit to a single app')
   .option('--spec <key>', 'target a single spec key (e.g. auth/login)')
   .option('--all', 'process all apps')
+  .option('--concurrency <n>', 'how many specs to align at once', '4')
+  .option('--fresh', 'ignore a saved alignment checkpoint and start over')
   .option('--extra-tests <globs...>', 'additional test file glob patterns (resolved from workspace root)')
   .action(
-    async (opts: { app?: string; spec?: string; all?: boolean; extraTests?: string[] }, cmd: Command) => {
-      await alignCommand(withGlobals(cmd, opts));
+    async (
+      opts: { app?: string; spec?: string; all?: boolean; concurrency?: string; fresh?: boolean; extraTests?: string[] },
+      cmd: Command,
+    ) => {
+      const concurrency = Number(opts.concurrency);
+      await alignCommand(withGlobals(cmd, {
+        ...opts,
+        concurrency: Number.isFinite(concurrency) ? concurrency : undefined,
+      }));
     },
   );
 
