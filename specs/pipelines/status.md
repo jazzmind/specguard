@@ -26,6 +26,7 @@ This is the read-only health check for a SpecGuard-managed repo: it never calls 
 - [ ] Sets `result.exitCode = ExitCode.MissingSpecs` (4) if ANY source file lacks a spec; otherwise `0`
 - [ ] Sets `result.failed` to the count of source files missing a spec
 - [ ] Does not call the LLM and does not write any files
+- [ ] When a proof ledger exists, appends a `PROOFS:` summary. Those lines do not change `result.exitCode` <!-- claim: proof-lines-informational -->
 
 ## Scenarios
 

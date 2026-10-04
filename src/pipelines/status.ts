@@ -33,6 +33,7 @@ import {
   featureFromPath,
   type LanguageProfile,
 } from '../core/language-profiles.js';
+import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
@@ -280,6 +281,8 @@ export async function runStatus(
 
   result.failed = totalMissingSpecs + orphanResult.orphanCount;
   result.exitCode = result.failed > 0 ? ExitCode.MissingSpecs : ExitCode.Success;
+
+  await appendProofCoverage(config, log);
 
   return result;
 }

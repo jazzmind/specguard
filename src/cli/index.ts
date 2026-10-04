@@ -81,6 +81,8 @@ import { workspaceInitCommand, workspaceStatusCommand } from './commands/workspa
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
+import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
+import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -371,6 +373,48 @@ program
   .description('report spec coverage')
   .action(async (_opts: Record<string, never>, cmd: Command) => {
     await statusCommand(withGlobals(cmd, {}));
+  });
+
+// --- claims ---------------------------------------------------------------
+const claimsCmd = program
+  .command('claims')
+  .description('stable claim ids on acceptance criteria, and the cross-repo catalog');
+
+claimsCmd
+  .command('assign')
+  .description('add claim ids to acceptance-criteria bullets that do not have one')
+  .option('--dir <dir>', 'spec directory to assign (default: the repo specs/ tree)')
+  .option('--dry-run', 'print the ids that would be added without writing')
+  .action(async (opts: { dir?: string; dryRun?: boolean }, cmd: Command) => {
+    await claimsAssignCommand(withGlobals(cmd, opts));
+  });
+
+claimsCmd
+  .command('list')
+  .description('list claim refs and fail on dangling journey references')
+  .option('--workspace', 'catalog every repo in .specguard/workspace.json')
+  .action(async (opts: { workspace?: boolean }, cmd: Command) => {
+    await claimsListCommand(withGlobals(cmd, opts));
+  });
+
+// --- proof ----------------------------------------------------------------
+const proofCmd = program
+  .command('proof')
+  .description('ingest and report spec-anchored proof verdicts');
+
+proofCmd
+  .command('ingest')
+  .description('merge a verdicts file into .specguard/proofs.json')
+  .argument('<verdicts>', 'path to verdicts.json')
+  .action(async (verdicts: string, _opts: Record<string, never>, cmd: Command) => {
+    await proofIngestCommand(verdicts, withGlobals(cmd, {}));
+  });
+
+proofCmd
+  .command('status')
+  .description('report proven, failed, unexercised, stale, and unproven claims')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await proofStatusCommand(withGlobals(cmd, {}));
   });
 
 // --- contracts ------------------------------------------------------------

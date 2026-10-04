@@ -32,6 +32,37 @@ export interface SpecMeta {
   extra: Record<string, string>;
 }
 
+/**
+ * One acceptance-criteria bullet. `id` is the stable `<!-- claim: slug -->`
+ * anchor when present. Bullets without an anchor stay in the list so callers
+ * can see which criteria are not yet addressable by a proof.
+ */
+export interface SpecClaim {
+  id?: string;
+  /** Bullet text with the checkbox and the claim comment removed. */
+  text: string;
+  /** Set when the bullet uses a `- [ ]` / `- [x]` checkbox. */
+  checked?: boolean;
+}
+
+/** One invariant inside a `type: journey` spec. */
+export interface JourneyInvariant {
+  /** Heading slug, stable within the journey file. */
+  id: string;
+  description: string;
+  /** Full claim refs, `repo:specKey#claimId` or `specKey#claimId`. */
+  verifies: string[];
+}
+
+/** Sections required on a journey spec. Empty strings when a section is absent. */
+export interface JourneySpec {
+  world: string;
+  actorsAndGoals: string;
+  invariants: JourneyInvariant[];
+  budget: string;
+  evidence: string;
+}
+
 /** A single scenario within a spec's `## Scenarios` section. */
 export interface SpecScenario {
   /** Scenario name with the `Scenario N:` prefix stripped. */
@@ -56,6 +87,13 @@ export interface ParsedSpec {
   overview: string;
   /** Text under `## Acceptance Criteria`. */
   acceptanceCriteria: string;
+  /** Acceptance-criteria bullets, with claim anchors when present. */
+  claims: SpecClaim[];
+  /**
+   * Populated when `meta.type` is `journey` or the spec has an Invariants section.
+   * Absent for ordinary module specs.
+   */
+  journey?: JourneySpec;
   /** Parsed `## Scenarios`. */
   scenarios: SpecScenario[];
   /** Text under `## Security Notes`. */

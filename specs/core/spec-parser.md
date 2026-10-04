@@ -22,6 +22,8 @@ Compatible with the format used in `practera-test-suite/packages/spec-tools/src/
 - [ ] Handles missing sections gracefully (returns empty string / empty array, not an error)
 - [ ] `loadAllSpecs(dir)` recursively finds all `.md` files excluding `README.md`
 - [ ] All functions are pure (no side effects, no filesystem calls — accept file content as string where possible)
+- [ ] Parses `<!-- claim: slug -->` anchors on acceptance-criteria bullets into `claims`
+- [ ] Parses `World`, `Actors and Goals`, `Invariants`, `Budget`, and `Evidence` into `journey` when `type` is `journey` or an Invariants section is present
 
 ## Scenarios
 
