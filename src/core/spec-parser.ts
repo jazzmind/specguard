@@ -11,6 +11,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 
+import { parseClaims, parseJourney } from './claims.js';
 import type { ParsedSpec, SpecMeta, SpecScenario } from './types.js';
 
 /** Metadata keys that map to typed fields on `SpecMeta`. */
@@ -208,20 +209,25 @@ export function parseSpecContent(
   filePath: string,
   specsRoot: string,
 ): ParsedSpec {
+  const meta = parseMetaComment(content);
+  const acceptanceCriteria = extractSection(content, 'Acceptance Criteria');
+  const sections = parseAllSections(content);
   return {
     title: parseTitle(content),
     specKey: computeSpecKey(filePath, specsRoot),
     filePath,
-    meta: parseMetaComment(content),
+    meta,
     overview: extractSection(content, 'Overview'),
-    acceptanceCriteria: extractSection(content, 'Acceptance Criteria'),
+    acceptanceCriteria,
+    claims: parseClaims(acceptanceCriteria),
+    journey: parseJourney(meta, sections),
     scenarios: parseScenarios(content),
     securityNotes: extractSection(content, 'Security Notes'),
     dependencies: extractSection(content, 'Dependencies'),
     visualExpectations: extractSection(content, 'Visual Expectations'),
     accessibilityRequirements: extractSection(content, 'Accessibility Requirements'),
     uxGuidelines: extractSection(content, 'UX Guidelines'),
-    sections: parseAllSections(content),
+    sections,
   };
 }
 

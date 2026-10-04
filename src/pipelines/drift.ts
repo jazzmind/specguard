@@ -35,6 +35,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
+import { noteStaleProofs } from './proof.js';
 import {
   loadRegistry, saveRegistry, hashFile, hashString,
   getOrCreateSpecEntry, updateFileEntry,
@@ -414,6 +415,8 @@ export async function runDrift(
   if (orphanResult.orphanCount > 0) {
     log(`[drift] ${orphanResult.orphanCount} orphan spec(s) detected`);
   }
+
+  await noteStaleProofs(config, cwd, log, result);
 
   if (result.failed > 0) {
     try {

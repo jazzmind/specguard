@@ -50,6 +50,8 @@ import { runImpact } from '../pipelines/impact.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
+import { runClaimsAssign, runClaimsList } from '../pipelines/claims.js';
+import { appendProofCoverage } from '../pipelines/proof.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
@@ -708,6 +710,67 @@ export function buildServer(): McpServer {
           const { manifest, repos } = await loadWorkspaceWithConfigs(resolveCwd(cwd));
           const result = await runWorkspaceDrift(manifest, repos, { since, force, repo });
           return toolResult(result);
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_claims',
+    {
+      description:
+        'Assign stable claim ids to acceptance criteria, or list the claim catalog. ' +
+        'list with workspace checks that every journey invariant cites a real claim. (CLI: specguard claims)',
+      inputSchema: {
+        action: z.enum(['assign', 'list']).describe('assign writes missing ids; list prints the catalog.'),
+        workspace: z.boolean().optional().describe('Walk .specguard/workspace.json. Used by list.'),
+        dir: z.string().optional().describe('Spec directory for assign. Defaults to the repo specs/ tree.'),
+        dryRun: z.boolean().optional().describe('assign only: report ids without writing.'),
+        cwd: z.string().optional().describe('Working directory.'),
+      },
+    },
+    ({ action, workspace, dir, dryRun, cwd }): Promise<ToolResult> =>
+      withActivityLog('claims', resolveCwd(cwd), async () => {
+        try {
+          const dirPath = resolveCwd(cwd);
+          if (action === 'assign') {
+            const config = dir ? undefined : await loadConfig(dirPath);
+            const result = await runClaimsAssign({ dir, dryRun, config });
+            return toolResult(result);
+          }
+          if (workspace) {
+            return toolResult(await runClaimsList({ cwd: dirPath, workspace: true }));
+          }
+          const config = await loadConfig(dirPath);
+          return toolResult(await runClaimsList({
+            cwd: config.rootDir ?? dirPath,
+            workspace: false,
+            config,
+          }));
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_proof_status',
+    {
+      description:
+        'Report proof coverage for the claims in this repo: proven, failed, unexercised, stale, unproven. ' +
+        '(CLI: specguard proof status)',
+      inputSchema: {
+        cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
+      },
+    },
+    ({ cwd }): Promise<ToolResult> =>
+      withActivityLog('proof-status', resolveCwd(cwd), async () => {
+        try {
+          const config = await loadConfig(resolveCwd(cwd));
+          const lines: string[] = [];
+          await appendProofCoverage(config, (line) => lines.push(line));
+          return textResult(lines.join('\n'));
         } catch (err) {
           return errorResult(err);
         }

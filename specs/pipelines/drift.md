@@ -23,6 +23,7 @@ Detects when source code has changed but its corresponding Living Spec has not b
 - [ ] Each drifted spec is recorded as a `PipelineItem` with `status: 'failed'` and a human-readable `message`; readable lines are pushed to `result.messages`
 - [ ] `result.failed` equals the number of drifted specs; `result.exitCode` is `ExitCode.DriftDetected` (3) when drift exists, else `0`
 - [ ] `opts.spec` filters the report to a single spec key when provided
+- [ ] A stored proof is a failed drift item when its recorded spec hash or a recorded drift-registry file hash no longer matches <!-- claim: stale-proof-is-drift -->
 
 ## Scenarios
 

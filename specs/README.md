@@ -74,6 +74,8 @@ Constraints this module must enforce. Omit section if not applicable.
 Other specs/modules this module depends on. Omit if none.
 ```
 
+Claim anchors sit on acceptance-criteria bullets (`<!-- claim: award-once -->`). A journey spec uses `type: journey` and the sections World, Actors and Goals, Invariants, Budget, and Evidence. Each invariant is an H3 with a `verifies:` line of `repo:specKey#claimId` refs.
+
 ## Rules
 
 - Specs are written **before or alongside** the code — not after
