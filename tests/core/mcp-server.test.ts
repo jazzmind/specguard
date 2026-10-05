@@ -15,14 +15,14 @@ const mocks = vi.hoisted(() => ({
 
 // Mock the MCP SDK transport — we want to confirm connect() is never called.
 vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
-  McpServer: vi.fn().mockImplementation(() => ({
+  McpServer: vi.fn().mockImplementation(function () { return {
     registerTool: mocks.registerTool,
     connect: mocks.connect,
-  })),
+  }; }),
 }));
 
 vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-  StdioServerTransport: vi.fn().mockImplementation(() => ({ type: "stdio" })),
+  StdioServerTransport: vi.fn().mockImplementation(function () { return { type: "stdio" }; }),
 }));
 
 // Mock the core config loader.

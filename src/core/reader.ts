@@ -9,7 +9,7 @@
  */
 import { readFile as fsReadFile, access } from 'node:fs/promises';
 import path from 'node:path';
-import fg from 'fast-glob';
+import { glob } from 'tinyglobby';
 
 /**
  * OS-level system directories that SpecGuard should never need to read.
@@ -80,7 +80,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
  */
 export async function expandGlobs(patterns: string[], baseDir: string): Promise<string[]> {
   if (patterns.length === 0) return [];
-  const matches = await fg(patterns, {
+  const matches = await glob(patterns, {
     cwd: baseDir,
     absolute: true,
     dot: false,
