@@ -13,8 +13,8 @@ import { spawnSync } from 'node:child_process';
 import type { EslintFinding, EslintResult } from './eslint.js';
 
 export const ruffRunner = {
-  run(cwd: string): { stdout: string | null; status: number | null; error?: Error } {
-    const res = spawnSync('ruff', ['check', '--output-format', 'json', '.'], {
+  run(cwd: string, opts: { fix?: boolean } = {}): { stdout: string | null; status: number | null; error?: Error } {
+    const res = spawnSync('ruff', ['check', ...(opts.fix ? ['--fix'] : []), '--output-format', 'json', '.'], {
       cwd,
       encoding: 'utf-8',
       maxBuffer: 32 * 1024 * 1024,
@@ -68,9 +68,9 @@ function parseRuffOutput(stdout: string, cwd: string): EslintResult {
  * Run `ruff check --output-format json .` in `projectDir`.
  * Never throws; returns `{ ok: false }` when ruff is not available.
  */
-export async function runRuff(projectDir: string): Promise<EslintResult> {
+export async function runRuff(projectDir: string, opts: { fix?: boolean } = {}): Promise<EslintResult> {
   try {
-    const res = ruffRunner.run(projectDir);
+    const res = ruffRunner.run(projectDir, opts);
     if (res.error || res.stdout === null) {
       return { findings: [], ok: false, errorCount: 0, warningCount: 0 };
     }

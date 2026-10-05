@@ -19,6 +19,8 @@ The Git-Ops pipeline stages and commits SpecGuard-generated files to a Git repos
 9. When `git add` fails, the pipeline exits with `ExitCode.InternalError` and logs the stderr output.
 10. When `git commit` fails, the pipeline exits with `ExitCode.InternalError` and logs the stderr output.
 11. The safe root set can be overridden via `opts.scope`; the override fully replaces the default roots.
+13. After a successful commit an entry (short SHA, message, pipeline, files, timestamp) is appended to `.specguard/changelog.md`, creating the file and its directory when missing; the write uses ESM imports, never `require`. <!-- claim: changelog-written -->
+14. The default safe roots are extended with every app `specDir`, `testOutput`, string `docs` path, and the `paths.*` directories the config names. <!-- claim: safe-roots-from-config -->
 12. When more than 10 files are skipped, the log shows the first 10 skipped paths and a trailing count of the remainder.
 
 ## Scenarios

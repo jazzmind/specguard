@@ -15,6 +15,7 @@ dist/
 .specguard/dep-check.json
 .specguard/drift-registry.json
 .specguard/gaps.json
+.specguard/security.json
 .specguard/llm-usage.json
 .specguard/traceability.json
 .specguard/traceability.csv

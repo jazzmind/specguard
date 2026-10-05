@@ -62,17 +62,25 @@ export async function runNpmAudit(projectDir: string): Promise<NpmAuditResult> {
       for (const [pkg, info] of Object.entries(v2 as Record<string, unknown>)) {
         const vuln = info as {
           severity?: string;
-          via?: Array<{ title?: string; url?: string }>;
+          isDirect?: boolean;
+          range?: string;
+          fixAvailable?: boolean | { name?: string; version?: string; isSemVerMajor?: boolean };
+          via?: Array<string | { title?: string; url?: string }>;
         };
-        const title =
-          Array.isArray(vuln.via) && vuln.via.length > 0 && typeof vuln.via[0] === 'object'
-            ? (vuln.via[0].title ?? pkg)
-            : pkg;
+        const via = (Array.isArray(vuln.via) ? vuln.via : [])
+          .filter((v): v is { title?: string; url?: string } => typeof v === 'object' && v !== null)
+          .map((v) => ({ title: v.title, url: v.url }));
         findings.push({
           ruleId: `npm-audit/${pkg}`,
           path: `package.json`,
-          message: title,
+          message: via[0]?.title ?? pkg,
           severity: vuln.severity?.toUpperCase(),
+          source: 'npm-audit',
+          package: pkg,
+          range: vuln.range,
+          isDirect: vuln.isDirect,
+          fixAvailable: vuln.fixAvailable,
+          via,
         });
       }
       return { ok: true, findings };
@@ -81,12 +89,24 @@ export async function runNpmAudit(projectDir: string): Promise<NpmAuditResult> {
     const v1 = (doc as { advisories?: unknown }).advisories;
     if (v1 && typeof v1 === 'object') {
       for (const advisory of Object.values(v1 as Record<string, unknown>)) {
-        const a = advisory as { module_name?: string; title?: string; severity?: string };
+        const a = advisory as {
+          module_name?: string;
+          title?: string;
+          severity?: string;
+          url?: string;
+          vulnerable_versions?: string;
+          patched_versions?: string;
+        };
         findings.push({
           ruleId: `npm-audit/${a.module_name ?? 'unknown'}`,
           path: 'package.json',
           message: a.title ?? `Vulnerability in ${a.module_name}`,
           severity: a.severity?.toUpperCase(),
+          source: 'npm-audit',
+          package: a.module_name,
+          range: a.vulnerable_versions,
+          fixVersions: a.patched_versions && a.patched_versions !== '<0.0.0' ? [a.patched_versions] : undefined,
+          via: a.url ? [{ title: a.title, url: a.url }] : undefined,
         });
       }
       return { ok: true, findings };

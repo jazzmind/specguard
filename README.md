@@ -299,7 +299,7 @@ Hybrid analysis combining LLM-powered reasoning with optional SAST (Static Appli
 ```bash
 specguard security --spec auth/login
 specguard security --all
-specguard security --all --with-sast       # enable Semgrep/Bandit integration
+specguard security --all --with-sast       # enable Semgrep + the language's dependency audit
 ```
 
 **LLM-driven analysis:**
@@ -310,11 +310,11 @@ specguard security --all --with-sast       # enable Semgrep/Bandit integration
 - CSRF and XSS surface area from form-based scenarios
 
 **SAST integration (opt-in via `--with-sast` or config):**
-- Runs Semgrep (polyglot) or Bandit (Python) against source files referenced by the spec
+- Runs Semgrep (polyglot) plus the language's dependency audit (`npm audit` or `pip-audit`)
 - Feeds SAST findings into the LLM for contextual analysis against the spec
 - Produces annotated security test stubs that address both LLM-inferred and SAST-detected issues
 
-**Output:** Security test stubs annotated with OWASP category and severity, plus a structured JSON report.
+**Output:** Security test stubs annotated with OWASP category and severity, plus a structured JSON report at `.specguard/security.json`.
 
 ---
 
@@ -614,7 +614,6 @@ Add to `.cursor/mcp.json`:
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "zap": "docker",
     "testRunner": "local"
   },
@@ -838,7 +837,6 @@ SpecGuard separates what it **owns** (brain) from what it **delegates to** (runn
 | Playwright browsers | User runs `npx playwright install` | 400MB+ binary, project-specific version |
 | Test frameworks (Jest, Vitest, pytest) | User's project `devDependencies` | Already in their project |
 | Semgrep binary | Docker container (`semgrep/semgrep:1.78.0`) | Avoid Python dep on host |
-| Bandit | Docker container (`python:3.12-slim` + pip) | Python-only projects |
 | OWASP ZAP | Docker container (`zaproxy/zap-stable`) | Java runtime, heavy |
 | Python itself | Not required unless using native SAST mode | Keep Node-only for most users |
 
@@ -859,7 +857,6 @@ Config controls the strategy per tool:
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "zap": "docker",
     "testRunner": "local"
   }
@@ -950,7 +947,7 @@ A GitHub Action (`specguard/action@v1`) handles environment setup:
 ```yaml
 - uses: specguard/action@v1
   with:
-    scanners: semgrep,bandit    # pulls Docker images, caches layers
+    scanners: semgrep           # pulls Docker images, caches layers
     playwright: true             # installs browsers
 ```
 
@@ -978,7 +975,7 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 
 **Hybrid security: LLM + SAST.** Pure LLM security analysis misses things scanners catch (regex-based CVE patterns, known-vulnerable dependency versions). Pure SAST misses semantic issues (is this auth check actually protecting the right resource?). The hybrid feeds SAST findings into the LLM for contextual reasoning against the spec.
 
-**Native brain, containerised scanners.** The CLI itself is pure TypeScript/Node — zero Python, Java, or Go required on the host. Heavyweight tools (Semgrep, Bandit, ZAP) run in pinned Docker containers with SpecGuard's custom rules mounted as volumes. This gives reproducibility without polluting the host environment. Playwright is the exception — it's Node-native and runs locally for speed.
+**Native brain, containerised scanners.** The CLI itself is pure TypeScript/Node — zero Python, Java, or Go required on the host. Heavyweight tools (Semgrep, ZAP) run in pinned Docker containers with SpecGuard's custom rules mounted as volumes. This gives reproducibility without polluting the host environment. Playwright is the exception — it's Node-native and runs locally for speed.
 
 **Security rules as portable data.** SpecGuard ships custom Semgrep rulesets as YAML files, not as scanner binaries. The rules are spec-aware (they reference spec metadata like `auth:` scopes and scenario inputs). This means the security intelligence is in the rules + LLM reasoning, not in a proprietary scanner.
 
@@ -1020,7 +1017,6 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 - [ ] Custom Semgrep rulesets: data-exposure
 - [ ] Custom Semgrep rulesets: xss-surface
 - [ ] OWASP Top 10 → spec section mapping (JSON)
-- [ ] SAST: Bandit adapter (Python projects)
 - [ ] SAST: npm audit adapter (Node projects)
 - [ ] SAST: OWASP ZAP adapter (dynamic scanning)
 

@@ -217,7 +217,7 @@ export function buildServer(): McpServer {
       inputSchema: {
         spec: z.string().optional().describe('Spec key or path to a .md spec.'),
         all: z.boolean().optional().describe('Analyze every spec.'),
-        withSast: z.boolean().optional().describe('Also run SAST (semgrep/bandit).'),
+        withSast: z.boolean().optional().describe('Also run SAST (Semgrep) and the dependency audit for the app language.'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
@@ -388,7 +388,7 @@ export function buildServer(): McpServer {
       description:
         'Run all diagnostic checks (status, drift, quality, deps) and return prioritised recommendations for which pipelines to run next. Call this first when you are unsure what needs to be done.',
       inputSchema: {
-        autoFix: z.boolean().optional().describe('Automatically run recommended pipelines after analysis.'),
+        autoFix: z.boolean().optional().describe('Run the recommended pipelines that are safe unattended (quality --fix, matrix).'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },

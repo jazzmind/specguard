@@ -1,7 +1,7 @@
 ---
 title: "Docker Runner Adapter"
 sidebar_label: "Docker Runner Adapter"
-description: "The Docker Runner Adapter provides a typed, safe interface for running containerised tools like Semgrep, Bandit, and OWASP ZAP, handling availability checks, volume mounts, environment variables, and graceful degradation when Docker is unavailable."
+description: "The Docker Runner Adapter provides a typed, safe interface for running containerised tools like Semgrep and OWASP ZAP, handling availability checks, volume mounts, environment variables, and graceful degradation when Docker is unavailable."
 category: "adapters"
 order: 10
 generated: true
@@ -9,7 +9,7 @@ generated: true
 
 # Docker Runner Adapter
 
-The Docker Runner Adapter is the execution layer SpecGuard uses to run containerised external tools — including Semgrep, Bandit, and OWASP ZAP. Rather than calling Docker directly from pipeline code, all container-based pipelines route through this adapter, which provides a clean, typed interface, handles availability probing, and degrades gracefully when Docker is not present in the environment.
+The Docker Runner Adapter is the execution layer SpecGuard uses to run containerised external tools — including Semgrep and OWASP ZAP. Rather than calling Docker directly from pipeline code, all container-based pipelines route through this adapter, which provides a clean, typed interface, handles availability probing, and degrades gracefully when Docker is not present in the environment.
 
 > **Note:** Never call `docker run` (or `spawnSync('docker', ...)`) directly from a pipeline. Always use this adapter.
 
