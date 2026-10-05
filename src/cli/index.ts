@@ -85,6 +85,7 @@ import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
 import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
+import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
 import { resultsIngestCommand } from './commands/results.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
@@ -111,9 +112,31 @@ program
   .version(_cliVersion, '-v, --version', 'print the SpecGuard version')
   .option('--config <path>', 'path to .specguard/config.json')
   .option('--json', 'emit machine-readable JSON result to stdout (suppresses human-readable output)')
+  .option('--record', 'record every real LLM response into the replay directory (see llm.replay)')
   .showHelpAfterError('(add --help for usage)')
   // Throw instead of calling process.exit directly so we control exit codes.
   .exitOverride();
+
+// The running command names the pipeline for per-pipeline LLM overrides and the usage log,
+// and --record turns on recording for the whole run.
+program.hook('preAction', (thisCommand, actionCommand) => {
+  const names: string[] = [];
+  for (let c: Command | null = actionCommand; c && c.parent; c = c.parent) names.unshift(c.name());
+  setDefaultPipeline(names.join('-') || undefined);
+  if (thisCommand.opts<{ record?: boolean }>().record) setRecordMode(true);
+});
+
+// A refused LLM call (spend cap) must surface as exit code 8 even when the pipeline
+// swallowed the error and went on to print its own summary.
+process.on('exit', (code) => {
+  const message = budgetExceededMessage();
+  if (message) {
+    process.stderr.write(`${message}\n`);
+    process.exitCode = ExitCode.BudgetExceeded;
+  } else {
+    void code;
+  }
+});
 
 // --- init -----------------------------------------------------------------
 program

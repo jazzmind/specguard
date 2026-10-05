@@ -206,4 +206,17 @@ describe('runAlign deterministic prepass', () => {
     expect(entry.uncoveredScenarios).toEqual(['Gamma refuses a second award']);
     expect(entry.alignmentScore).toBe(50);
   });
+
+  it('runs deterministic-only when llm.provider is none', async () => {
+    await writeFile(path.join(rootDir, 'specs', 'gamma.md'), CLAIM_SPEC);
+    await writeFile(path.join(rootDir, 'tests', 'gamma.test.ts'), "it('gamma awards points @claim:gamma#awards-once', () => {});\n");
+    const config = { ...makeConfig(), llm: { provider: 'none', model: 'none', apiKeyEnv: 'NONE' } };
+    const result = await runAlign(config, { spec: 'gamma' });
+    expect(mockedLlm).not.toHaveBeenCalled();
+    const entry = result.report.entries[0];
+    expect(entry.alignmentScore).toBe(50);
+    expect(entry.uncoveredScenarios).toEqual(['Gamma refuses a second award']);
+    expect(entry.uncoveredClaims).toEqual(['rejects-dupes']);
+    expect(result.messages.some((m) => m.includes('deterministic only'))).toBe(true);
+  });
 });

@@ -55,6 +55,7 @@ import { appendProofCoverage, runProofIngest } from '../pipelines/proof.js';
 import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
 import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
+import { runWithPipeline } from '../core/llm-runtime.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
 
@@ -80,7 +81,7 @@ async function withActivityLog(
   const startMs = Date.now();
   appendActivityLogEntry(cwd, { pipeline, status: 'running', source: 'mcp' });
   try {
-    const result = await fn();
+    const result = await runWithPipeline(pipeline, fn);
     appendActivityLogEntry(cwd, {
       pipeline,
       status: result.isError ? 'fail' : 'pass',
