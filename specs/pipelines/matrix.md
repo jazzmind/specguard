@@ -22,6 +22,10 @@ The matrix enables teams to answer: "Which tests cover this requirement?" and
 - Source files are taken from the spec's `module:` metadata when present.
 - Output is written to `config.matrix.output` (default: `.specguard/traceability.json`).
 - `--format csv` writes a `.csv` file with columns: `specKey,title,testCount,docCount,sourceModule`.
+- Each entry also lists its claims (`claims: [{id, text, tests}]`), where `tests` are the tests whose title, tag, or annotation carries that claim's `@claim:<specKey>#<claimId>` tag, found by scanning test sources and any `--results` files <!-- claim: per-claim-linkage -->
+- Tests are discovered from the app's `testOutput`, its `sources.tests` globs, and `extraTestSources`, not only `testOutput` <!-- claim: honors-test-sources -->
+- A test file that carries a claim tag for a spec is listed in that spec's `tests` even when its file name does not match <!-- claim: tagged-file-listed -->
+- Security tests are looked up under `paths.securityTests` (default `tests/security`) and docs under the app's `docs` path or `paths.docsOut` (default `docs/user`) <!-- claim: configurable-paths -->
 - Exit code is always `0` (informational pipeline).
 - `--app <name>` scopes the matrix to a single app's specs.
 

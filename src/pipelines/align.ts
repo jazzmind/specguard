@@ -27,6 +27,7 @@ import { llmGenerateObject } from '../core/llm.js';
 import { resolveProfile } from '../core/language-profiles.js';
 import { writePlan } from '../core/plan-writer.js';
 import { emitStatus } from '../core/status.js';
+import { buildAppPrepass, collectTestFiles, prepassSpec } from '../core/claim-prepass.js';
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -77,6 +78,10 @@ export interface AlignmentEntry {
   coveredScenarios: CoveredScenario[];
   uncoveredScenarios: string[];
   unmappedTests: UnmappedTest[];
+  /** Claims settled by a claim tag or by the LLM, with the test that covers each. */
+  coveredClaims?: Array<{ claim: string; testFile: string; testName?: string; source: 'tag' | 'llm' }>;
+  /** Anchored claims no test covers. */
+  uncoveredClaims?: string[];
   /** Percentage (0–100) of spec scenarios with at least one test mapping. */
   alignmentScore: number;
 }
@@ -112,6 +117,12 @@ const CoveredScenarioSchema = z.object({
   ),
 });
 
+const CoveredClaimSchema = z.object({
+  claim: z.string().describe('Claim id from the list, e.g. award-once'),
+  testFile: z.string().describe('Relative path to the test file'),
+  testName: z.string().describe('Name of the matching test'),
+});
+
 const UnmappedTestSchema = z.object({
   testFile: z.string().describe('Relative path to the test file'),
   testName: z.string().describe('Test name or it() label'),
@@ -124,6 +135,12 @@ const AlignmentLlmSchema = z.object({
   ),
   uncoveredScenarios: z.array(z.string()).default([]).describe(
     'Scenario names from the spec with NO test coverage',
+  ),
+  coveredClaims: z.array(CoveredClaimSchema).default([]).describe(
+    'Listed claims that at least one test verifies',
+  ),
+  uncoveredClaims: z.array(z.string()).default([]).describe(
+    'Claim ids from the list that no test verifies',
   ),
   unmappedTests: z.array(UnmappedTestSchema).default([]).describe(
     'Tests that exist but do not correspond to any spec scenario',
@@ -155,9 +172,13 @@ const SYSTEM_PROMPT = [
 function buildPrompt(
   specKey: string,
   specContent: { title: string; scenarios: Array<{ name: string; steps: string[]; expectedResults: string[] }> },
+  uncovered: { scenarios: string[]; claims: Array<{ id: string; text: string }> },
   testFiles: Array<{ relPath: string; content: string }>,
 ): string {
+  // Only scenarios the deterministic prepass could not settle are sent.
+  const wanted = new Set(uncovered.scenarios);
   const scenarioBlock = specContent.scenarios
+    .filter((s) => wanted.has(s.name))
     .map((s, i) => [
       `### Scenario ${i + 1}: ${s.name}`,
       s.steps.length > 0 ? `Steps:\n${s.steps.map((step) => `  - ${step}`).join('\n')}` : '',
@@ -167,6 +188,8 @@ function buildPrompt(
     ].filter(Boolean).join('\n'))
     .join('\n\n');
 
+  const claimBlock = uncovered.claims.map((c) => `- ${c.id}: ${c.text}`).join('\n');
+
   const testBlock = testFiles
     .map((f) => `--- TEST FILE: ${f.relPath} ---\n${f.content}\n--- END: ${f.relPath} ---`)
     .join('\n\n');
@@ -175,15 +198,19 @@ function buildPrompt(
     `SPEC KEY: ${specKey}`,
     `SPEC TITLE: ${specContent.title}`,
     '',
-    '## SPEC SCENARIOS',
+    '## SPEC SCENARIOS NOT YET MATCHED TO A TEST',
     '',
-    scenarioBlock || '(No scenarios defined in this spec)',
+    scenarioBlock || '(none)',
+    '',
+    '## SPEC CLAIMS NOT YET MATCHED TO A TEST',
+    '',
+    claimBlock || '(none)',
     '',
     '## TEST FILES',
     '',
     testBlock || '(No test files found for this spec)',
     '',
-    'Analyse the test files above and classify each scenario as covered or uncovered.',
+    'Classify each listed scenario and claim as covered or uncovered by the test files above.',
     'Also identify any tests that are not mapped to any scenario.',
   ].join('\n');
 }
@@ -195,53 +222,6 @@ function buildPrompt(
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   if (path.isAbsolute(p)) return p;
   return path.resolve(config.rootDir ?? process.cwd(), p);
-}
-
-/**
- * Collect test files for an app from its `testOutput` directory,
- * the `tests` source group, any `extraTestSources` in config,
- * and any extra globs passed at the CLI.
- */
-async function collectTestFiles(
-  config: SpecGuardConfig,
-  app: AppConfig,
-  extraTests: string[],
-): Promise<string[]> {
-  const rootDir = config.rootDir ?? process.cwd();
-  const repoDir = resolveFromRoot(config, app.repo);
-  const found: string[] = [];
-
-  // testOutput directory
-  const testOutDir = resolveFromRoot(config, app.testOutput);
-  const profile = resolveProfile(app);
-  const testGlob = `${testOutDir}/**/*${profile.testExt}`;
-  const fromTestOut = await expandGlobs([testGlob], path.dirname(testOutDir)).catch(() => []);
-  found.push(...fromTestOut);
-
-  // sources.tests group
-  const testSrcGlobs = app.sources.tests ?? [];
-  if (testSrcGlobs.length > 0) {
-    const fromSrc = await expandGlobs(testSrcGlobs, repoDir).catch(() => []);
-    found.push(...fromSrc);
-  }
-
-  // extraTestSources from config (if the field exists via passthrough)
-  const configExtra = (app as unknown as Record<string, unknown>)['extraTestSources'];
-  if (Array.isArray(configExtra) && configExtra.length > 0) {
-    const fromConfigExtra = await expandGlobs(
-      configExtra as string[],
-      rootDir,
-    ).catch(() => []);
-    found.push(...fromConfigExtra);
-  }
-
-  // Extra globs from CLI --extra-tests
-  if (extraTests.length > 0) {
-    const fromCliExtra = await expandGlobs(extraTests, rootDir).catch(() => []);
-    found.push(...fromCliExtra);
-  }
-
-  return [...new Set(found)].sort();
 }
 
 /** Read a file, cap at maxChars. */
@@ -257,11 +237,9 @@ function readFileCapped(absPath: string, maxChars = 8_000): string {
 }
 
 /**
- * Select which test files to send to the LLM for a given spec.
- *
- * Strategy:
- *  1. Always include slug-matched files (naming convention).
- *  2. Fill up to MAX_TEST_FILES total from the full pool.
+ * Select which test files to send to the LLM for a given spec: files whose name
+ * matches the spec slug and files that carry one of the spec's claim tags. Nothing
+ * else is sent, so unrelated tests never pad the prompt.
  */
 const MAX_TEST_FILES = 12;
 
@@ -269,17 +247,16 @@ function selectTestFiles(
   allTestFiles: string[],
   specKey: string,
   rootDir: string,
+  taggedRel: string[],
 ): string[] {
-  const slug = path.basename(specKey);
-  // Slug-matched files first (by filename substring)
-  const slugMatched = allTestFiles.filter((f) =>
-    path.basename(f).toLowerCase().includes(slug.toLowerCase()) ||
-    path.basename(f).toLowerCase().includes(slug.replace(/-/g, '.').toLowerCase()),
-  );
-  // Fill with remaining files up to MAX
-  const remaining = allTestFiles.filter((f) => !slugMatched.includes(f));
-  const selected = [...slugMatched, ...remaining].slice(0, MAX_TEST_FILES);
-  return selected;
+  const slug = path.basename(specKey).toLowerCase();
+  const dotted = slug.replace(/-/g, '.');
+  const tagged = new Set(taggedRel.map((rel) => path.resolve(rootDir, rel)));
+  const wanted = allTestFiles.filter((f) => {
+    const base = path.basename(f).toLowerCase();
+    return base.includes(slug) || base.includes(dotted) || tagged.has(f);
+  });
+  return wanted.slice(0, MAX_TEST_FILES);
 }
 
 const ALIGNMENT_FILE = 'alignment.json';
@@ -444,14 +421,16 @@ export async function runAlign(
 
     // Collect all test files for this app
     const allTestFiles = await collectTestFiles(config, app, opts.extraTests ?? []);
-    const withScenarios = specs.filter((spec) => spec.scenarios.length > 0);
+    const prepass = buildAppPrepass(config, allTestFiles);
+    const hasWork = (spec: (typeof specs)[number]) => spec.scenarios.length > 0 || spec.claims.some((c) => c.id);
+    const withScenarios = specs.filter(hasWork);
     const pending = withScenarios.filter((spec) => !cachedByKey.has(`${app.name}/${spec.specKey}`));
     const resumed = withScenarios.length - pending.length;
     log(`[align] ${app.name}: ${allTestFiles.length} test file(s), ${specs.length} spec(s), ${resumed} cached, ${pending.length} to analyse, concurrency ${concurrency}`);
 
     for (const spec of specs) {
       const fullKey = `${app.name}/${spec.specKey}`;
-      if (spec.scenarios.length === 0) {
+      if (!hasWork(spec)) {
         log(`[align] ${fullKey}: no scenarios defined — skipping`);
         result.items.push({ key: fullKey, status: 'skipped', message: 'no scenarios' });
         result.skipped += 1;
@@ -466,27 +445,63 @@ export async function runAlign(
     }
 
     let finished = resumed;
-    const total = specs.filter((spec) => spec.scenarios.length > 0).length;
+    const total = specs.filter(hasWork).length;
 
     await mapPool(pending, concurrency, async (spec) => {
       const fullKey = `${app.name}/${spec.specKey}`;
-      const selectedPaths = selectTestFiles(allTestFiles, spec.specKey, rootDir);
+      const settled = prepassSpec(spec, prepass);
+      const selectedPaths = selectTestFiles(allTestFiles, spec.specKey, rootDir, settled.taggedFiles);
 
-      if (selectedPaths.length === 0) {
-        const entry: AlignmentEntry = {
+      const entryFrom = (
+        llm: {
+          coveredScenarios: CoveredScenario[];
+          uncoveredScenarios: string[];
+          unmappedTests: UnmappedTest[];
+          coveredClaims: Array<{ claim: string; testFile: string; testName?: string }>;
+          uncoveredClaims: string[];
+        } | null,
+      ): AlignmentEntry => {
+        const covered: CoveredScenario[] = [
+          ...settled.coveredScenarios.map((c) => ({ ...c, confidence: 'high' as const })),
+          ...(llm?.coveredScenarios ?? []),
+        ];
+        const stillUncovered = llm ? llm.uncoveredScenarios : settled.uncoveredScenarios;
+        const claimsCovered: NonNullable<AlignmentEntry['coveredClaims']> = [
+          ...settled.coveredClaims.map((c) => ({
+            claim: c.id,
+            testFile: c.tests[0].file,
+            testName: c.tests[0].title,
+            source: 'tag' as const,
+          })),
+          ...(llm?.coveredClaims ?? []).map((c) => ({ ...c, source: 'llm' as const })),
+        ];
+        const coveredIds = new Set(claimsCovered.map((c) => c.claim));
+        const claimIds = spec.claims.filter((c) => c.id).map((c) => c.id as string);
+        const total = spec.scenarios.length > 0 ? spec.scenarios.length : claimIds.length;
+        const done = spec.scenarios.length > 0 ? covered.length : coveredIds.size;
+        return {
           specKey: fullKey,
           specTitle: spec.title,
           appName: app.name,
           scenarioCount: spec.scenarios.length,
-          coveredScenarios: [],
-          uncoveredScenarios: spec.scenarios.map((s) => s.name),
-          unmappedTests: [],
-          alignmentScore: 0,
+          coveredScenarios: covered,
+          uncoveredScenarios: stillUncovered,
+          unmappedTests: llm?.unmappedTests ?? [],
+          coveredClaims: claimsCovered,
+          uncoveredClaims: claimIds.filter((id) => !coveredIds.has(id)),
+          alignmentScore: total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 100,
         };
+      };
+
+      const needsLlm = settled.uncoveredScenarios.length > 0 || settled.uncoveredClaims.length > 0;
+      if (!needsLlm || selectedPaths.length === 0) {
+        const entry = entryFrom(null);
         result.report.entries.push(entry);
         account(entry, false);
         finished += 1;
-        log(`[align] ${finished}/${total} ${fullKey}: no test files — 0%`);
+        log(
+          `[align] ${finished}/${total} ${fullKey}: ${needsLlm ? 'no candidate test files' : 'fully settled by claim tags and titles'} — ${entry.alignmentScore}%`,
+        );
         await enqueueCheckpoint();
         return;
       }
@@ -497,34 +512,36 @@ export async function runAlign(
       }));
 
       try {
-        log(`[align] ${fullKey}: analysing ${spec.scenarios.length} scenario(s) against ${testFiles.length} test file(s)…`);
+        log(`[align] ${fullKey}: asking the LLM about ${settled.uncoveredScenarios.length} scenario(s) and ${settled.uncoveredClaims.length} claim(s) against ${testFiles.length} test file(s)…`);
         const analysis = await llmGenerateObject({
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
           system: SYSTEM_PROMPT,
-          prompt: buildPrompt(spec.specKey, spec, testFiles),
+          prompt: buildPrompt(
+            spec.specKey,
+            spec,
+            { scenarios: settled.uncoveredScenarios, claims: settled.uncoveredClaims },
+            testFiles,
+          ),
           schema: AlignmentLlmSchema,
           maxTokens: 8192,
           temperature: 0,
         });
 
-        const covered = analysis.coveredScenarios ?? [];
-        const uncovered = analysis.uncoveredScenarios ?? [];
-        const unmapped = analysis.unmappedTests ?? [];
-        const score = spec.scenarios.length > 0
-          ? Math.round((covered.length / spec.scenarios.length) * 100)
-          : 100;
-        const entry: AlignmentEntry = {
-          specKey: fullKey,
-          specTitle: spec.title,
-          appName: app.name,
-          scenarioCount: spec.scenarios.length,
-          coveredScenarios: covered,
-          uncoveredScenarios: uncovered,
-          unmappedTests: unmapped,
-          alignmentScore: score,
-        };
+        const llmCovered = analysis.coveredScenarios ?? [];
+        // Anything the LLM did not cover is uncovered, even if it forgot to list it.
+        const coveredNames = new Set(llmCovered.map((c) => c.scenario));
+        const entry = entryFrom({
+          coveredScenarios: llmCovered,
+          uncoveredScenarios: settled.uncoveredScenarios.filter((n) => !coveredNames.has(n)),
+          unmappedTests: analysis.unmappedTests ?? [],
+          coveredClaims: analysis.coveredClaims ?? [],
+          uncoveredClaims: analysis.uncoveredClaims ?? [],
+        });
+        const score = entry.alignmentScore;
+        const covered = entry.coveredScenarios;
+        const unmapped = entry.unmappedTests;
         result.report.entries.push(entry);
         account(entry, false);
         finished += 1;

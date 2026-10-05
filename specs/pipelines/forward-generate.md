@@ -25,6 +25,8 @@ Config-driven: the spec's owning app (matched by `specDir`) supplies the default
 - [ ] If the test file exists and `--force` is not set, the spec is skipped with a `[skip]` log line and recorded as `skipped`
 - [ ] Otherwise the LLM is called, accidental Markdown code fences are stripped, and the file is written via the writer abstraction (recorded as `created`, `[gen]` log line)
 - [ ] An LLM error for one spec records `failed` and continues with the remaining specs
+- [ ] When the spec has claim anchors, the prompt lists every claim with its exact `@claim:<specKey>#<claimId>` tag and requires the tag in the title of the test that verifies it, so `results ingest` can map the test to the claim <!-- claim: emit-claim-tags -->
+- [ ] After generation the output is scanned for claim tags and a `[warn]` line names every claim whose tag is missing, and the result is still written <!-- claim: warn-missing-tags -->
 - [ ] Returns a `PipelineResult` with counts, per-item detail, and progress messages (the CLI renders the summary)
 
 ## Test Generation Prompt Requirements
@@ -34,6 +36,7 @@ The LLM system prompt must instruct the model to:
 - Create exactly one `it()` / test block per scenario, titled with the scenario name
 - Import the module under test from the spec's `module` metadata path
 - Translate each scenario's steps and expected results into arrange/act/assert code
+- Put the exact `@claim:<specKey>#<claimId>` tag of each listed claim in the title of the test that verifies it
 - Output ONLY valid test code — no Markdown fences, no prose, no explanation
 
 ## Scenarios

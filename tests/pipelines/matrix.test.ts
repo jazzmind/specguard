@@ -137,3 +137,32 @@ describe('runMatrix', () => {
     await expect(runMatrix(makeConfig(), { app: 'nonexistent' })).rejects.toThrow('Unknown app');
   });
 });
+
+describe('matrix claim linkage', () => {
+  it('links claims to tests by tag, honours sources.tests and extraTestSources, and reads result files', async () => {
+    const { makeRepo } = await import('../helpers/repo.js');
+    const repo = makeRepo();
+    repo.write('tests/awards.test.ts', "it('awards once @claim:core/awards#award-once', () => {});\n");
+    repo.write('integration/odd-name.spec.ts', "// [claim: core/awards#no-dupes]\nit('dupes', () => {});\n");
+    repo.write('elsewhere/more.test.ts', "it('x @claim:core/awards#award-once', () => {});\n");
+    repo.write(
+      'report.xml',
+      '<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#untested" time="0.1"/></testsuite>',
+    );
+    const { loadConfig } = await import('../../src/core/config.js');
+    const config = await loadConfig(repo.dir);
+    config.apps[0].sources.tests = ['integration/**/*.spec.ts'];
+    config.apps[0].extraTestSources = ['elsewhere/*.test.ts'];
+    config.apps[0].specDir = 'specs';
+    const result = await runMatrix(config, { results: ['report.xml'], out: 'out/trace.json' });
+    expect(result.exitCode).toBe(0);
+    const { readFileSync } = await import('node:fs');
+    const matrix = JSON.parse(readFileSync(path.join(repo.dir, 'out/trace.json'), 'utf8'));
+    const entry = matrix.entries.find((e: { specKey: string }) => e.specKey === 'core/awards');
+    const byId = Object.fromEntries(entry.claims.map((c: { id: string }) => [c.id, c]));
+    expect(byId['award-once'].tests.map((t: { file: string }) => t.file).sort()).toEqual(['elsewhere/more.test.ts', 'tests/awards.test.ts']);
+    expect(byId['no-dupes'].tests[0]).toMatchObject({ file: 'integration/odd-name.spec.ts', title: 'dupes' });
+    expect(byId['untested'].tests[0]).toMatchObject({ origin: 'result', file: 'report.xml', status: 'pass' });
+    expect(entry.tests.map((t: string) => path.basename(t)).sort()).toEqual(['awards.test.ts', 'more.test.ts', 'odd-name.spec.ts']);
+  });
+});
