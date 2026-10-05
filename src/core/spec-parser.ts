@@ -22,6 +22,8 @@ const KNOWN_META_KEYS = new Set([
   'auth',
   'url',
   'framework',
+  'feature',
+  'channel',
 ]);
 
 /**
@@ -38,18 +40,20 @@ export function parseMetaComment(content: string): SpecMeta {
   for (const rawLine of body.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
+    // Practera specs put several keys on one line: `module: x / type: y`.
+    for (const segment of line.split(/\s+\/\s+/)) {
+      const sep = segment.indexOf(':');
+      if (sep === -1) continue;
 
-    const sep = line.indexOf(':');
-    if (sep === -1) continue;
+      const key = segment.slice(0, sep).trim();
+      const value = segment.slice(sep + 1).trim();
+      if (!key) continue;
 
-    const key = line.slice(0, sep).trim();
-    const value = line.slice(sep + 1).trim();
-    if (!key) continue;
-
-    if (KNOWN_META_KEYS.has(key)) {
-      (meta as unknown as Record<string, string>)[key] = value;
-    } else {
-      meta.extra[key] = value;
+      if (KNOWN_META_KEYS.has(key)) {
+        (meta as unknown as Record<string, string>)[key] = value;
+      } else {
+        meta.extra[key] = value;
+      }
     }
   }
 

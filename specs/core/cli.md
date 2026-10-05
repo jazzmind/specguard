@@ -36,6 +36,8 @@ The `specguard` CLI binary. Parses arguments, loads config from `.specguard/conf
 | `drift` | drift | `--since`, `--spec` |
 | `matrix` | matrix | `--out`, `--format` |
 | `status` | status | (none) |
+| `align` | align | `--app`, `--spec`, `--all` |
+| `features` | features | `--state`, `--cases` |
 
 ## Exit Codes
 

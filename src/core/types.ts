@@ -28,6 +28,10 @@ export interface SpecMeta {
   auth?: string;
   url?: string;
   framework?: string;
+  /** Comma-separated catalog feature ids. `platform` marks foundation and UI specs. */
+  feature?: string;
+  /** Surface this spec implements: ui, api, or mcp. */
+  channel?: string;
   /** Any metadata key not in the known set, preserved verbatim. */
   extra: Record<string, string>;
 }

@@ -1,7 +1,7 @@
 /**
  * Proof ledger types and the pure staleness rule.
  *
- * A stored verdict is `proven`, `failed`, or `unexercised`. `stale` is not
+ * A stored verdict is `proven`, `failed`, `unexercised`, or `error`. `stale` is not
  * stored: it is computed when the spec hash, or a drift-registry file hash
  * recorded at ingest, no longer matches. `unproven` means the ledger has no
  * row for that claim.
@@ -9,7 +9,7 @@
  * Spec: specs/pipelines/proof.md
  */
 
-export type StoredVerdict = 'proven' | 'failed' | 'unexercised';
+export type StoredVerdict = 'proven' | 'failed' | 'unexercised' | 'error';
 
 export type EffectiveVerdict = StoredVerdict | 'stale' | 'unproven';
 

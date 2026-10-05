@@ -15,7 +15,7 @@ Compatible with the format used in `practera-test-suite/packages/spec-tools/src/
 ## Acceptance Criteria
 
 - [ ] Parses the H1 title from a spec file
-- [ ] Parses the `<!-- key: value -->` metadata block into a typed `SpecMeta` object
+- [ ] Parses the `<!-- key: value -->` metadata block into a typed `SpecMeta` object, including a single line split on ` / `, a comma-separated `feature` key, and an optional `channel` of `ui`, `api`, or `mcp`
 - [ ] Extracts all H2 sections by name into string fields
 - [ ] Parses `## Scenarios` into an array of `SpecScenario` objects with name, steps, and expected results
 - [ ] Returns a stable `specKey` derived from the file path relative to the specs root (e.g. `core/spec-parser`)

@@ -116,6 +116,20 @@ describe('parseMetaComment', () => {
     expect((meta as Record<string, unknown>)['custom-key']).toBeUndefined();
   });
 
+  it('splits a single-line module comment and reads feature', () => {
+    const meta = parseMetaComment('<!-- module: pages/x / type: page / status: live / feature: design.experience.create, platform -->');
+    expect(meta.module).toBe('pages/x');
+    expect(meta.type).toBe('page');
+    expect(meta.status).toBe('live');
+    expect(meta.feature).toBe('design.experience.create, platform');
+  });
+
+  it('reads an explicit channel', () => {
+    const meta = parseMetaComment('<!-- module: src/tools/author/create.ts / type: core / channel: mcp / feature: design.experience.create-scratch -->');
+    expect(meta.channel).toBe('mcp');
+    expect(meta.feature).toBe('design.experience.create-scratch');
+  });
+
   it('always returns extra as an object even with no comment', () => {
     const meta = parseMetaComment('# No comment here\n');
     expect(meta.extra).toEqual({});

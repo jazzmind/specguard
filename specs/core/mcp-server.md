@@ -53,6 +53,7 @@ and `zod` raw-shape input schemas via `server.registerTool`. The bin entry
 | `specguard_write_spec` | utility | `path`, `content` |
 | `specguard_claims` | `runClaimsAssign` / `runClaimsList` | `action`, `workspace?`, `dir?`, `dryRun?`, `cwd?` |
 | `specguard_proof_status` | `appendProofCoverage` | `cwd?` |
+| `specguard_feature_state` | `runFeatureState` | `cwd?`, `cases?` |
 
 Each backing function is the identical export the CLI subcommand dispatches to
 (see `specs/core/cli.md`).

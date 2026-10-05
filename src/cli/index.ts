@@ -59,6 +59,8 @@ import { ExitCode } from '../core/exit-codes.js';
 import type { GlobalOpts } from './commands/helpers.js';
 import { reverseCommand } from './commands/reverse.js';
 import { statusCommand } from './commands/status.js';
+import { featuresCommand } from './commands/features.js';
+import { featureStateCommand } from './commands/feature-state.js';
 import { driftCommand } from './commands/drift.js';
 import { generateCommand } from './commands/generate.js';
 import { healCommand } from './commands/heal.js';
@@ -373,6 +375,17 @@ program
   .description('report spec coverage')
   .action(async (_opts: Record<string, never>, cmd: Command) => {
     await statusCommand(withGlobals(cmd, {}));
+  });
+
+// --- features -------------------------------------------------------------
+program
+  .command('features')
+  .description('list spec back-references, or with --state the channel report and agent gate')
+  .option('--state', 'print summary, UI/API/MCP state, and the agent gate')
+  .option('--cases <file>', 'extra TestCaseResult rows (JSON array) used with --state')
+  .action(async (opts: { state?: boolean; cases?: string }, cmd: Command) => {
+    if (opts.state) await featureStateCommand(withGlobals(cmd, opts));
+    else await featuresCommand(withGlobals(cmd, {}));
   });
 
 // --- claims ---------------------------------------------------------------
