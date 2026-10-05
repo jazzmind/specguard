@@ -18,13 +18,11 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { z } from 'zod';
-import type { SpecGuardConfig, AppConfig, PipelineResult } from '../core/types.js';
+import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
-import { expandGlobs } from '../core/reader.js';
 import { llmGenerateObject } from '../core/llm.js';
-import { resolveProfile } from '../core/language-profiles.js';
 import { writePlan } from '../core/plan-writer.js';
 import { emitStatus } from '../core/status.js';
 import { buildAppPrepass, collectTestFiles, prepassSpec } from '../core/claim-prepass.js';

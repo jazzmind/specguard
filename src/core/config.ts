@@ -189,7 +189,6 @@ const CONFIG_REL = path.join('.specguard', 'config.json');
 async function findConfigDir(start: string): Promise<string | null> {
   let dir = path.resolve(start);
   // Walk until the filesystem root (parent === dir).
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (await fileExists(path.join(dir, CONFIG_REL))) {
       return dir;

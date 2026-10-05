@@ -24,7 +24,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 
-import type { SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { runStatus } from './status.js';

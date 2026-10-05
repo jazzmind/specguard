@@ -13,7 +13,7 @@ This module provides the CLI resolution and process-spawning infrastructure for 
 - AC-3: When neither AC-1 nor AC-2 applies, `resolveCliPath` returns `{workspace}/src/cli/index.ts` if that file exists.
 - AC-4: When none of AC-1 through AC-3 applies and `_extensionPath` is set, `resolveCliPath` returns `{extensionPath}/dist/cli.js` if that file exists.
 - AC-5: When no CLI path is resolvable, `resolveCliPath` returns an empty string.
-- AC-6: `spawnCli` called with an empty `cliPath` returns a `SpawnHandle` whose `promise` rejects with an error message directing the user to set `specguard.cliPath` or run `npm install specguard`.
+- AC-6: `spawnCli` called with an empty `cliPath` returns a `SpawnHandle` whose `promise` rejects with an error message directing the user to set `specguard.cliPath` or run `npm install specguard-ai`.
 - AC-7: `.js` CLI paths are invoked via `node`; `.ts` CLI paths are invoked via `npx tsx`; all other paths are invoked directly.
 - AC-8: On Windows, all spawned processes use `shell: true` regardless of CLI path type.
 - AC-9: `buildEnv` merges `.specguard/.env` key-value pairs with `process.env`, with `process.env` values taking precedence over `.env` file values.
@@ -98,7 +98,7 @@ This module provides the CLI resolution and process-spawning infrastructure for 
 - The promise rejects with an `Error`.
 - The error message contains the text `SpecGuard CLI not found`.
 - The error message contains a reference to `specguard.cliPath`.
-- The error message contains a reference to `npm install specguard`.
+- The error message contains a reference to `npm install specguard-ai`.
 - Calling `kill()` on the handle does not throw.
 
 ---
@@ -165,7 +165,7 @@ This module provides the CLI resolution and process-spawning infrastructure for 
 
 - The `.specguard/.env` file may contain sensitive credentials such as API keys. Its contents must never be logged, echoed to the `onLine` callback, or included in error messages. The spec redacts all such values.
 - `process.env` values always take precedence over `.env` file values, preventing a malicious or misconfigured `.env` file from overriding inherited shell credentials.
-- The `npx specguard` fallback is intentionally omitted to prevent resolution of an unrelated third-party npm package (`specguard@0.2.1`) that could execute arbitrary code.
+- The bare `npx specguard` fallback is intentionally omitted to prevent resolution of an unrelated third-party npm package (`specguard@0.2.1`) that could execute arbitrary code.
 - The explicit `specguard.cliPath` setting should be validated by the caller to ensure it does not point to an untrusted executable.
 
 ## Dependencies

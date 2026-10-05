@@ -64,7 +64,7 @@ export async function registerMcpForCursor(): Promise<void> {
   // Resolve the specguard-mcp binary path.
   const localMcp = path.join(ws, 'node_modules', '.bin', 'specguard-mcp');
   const mcpCommand = fs.existsSync(localMcp) ? localMcp : 'npx';
-  const mcpArgs = fs.existsSync(localMcp) ? [] : ['specguard-mcp'];
+  const mcpArgs = fs.existsSync(localMcp) ? [] : ['-y', '-p', 'specguard-ai', 'specguard-mcp'];
 
   // Write the entry.
   config.mcpServers['specguard-mcp'] = {

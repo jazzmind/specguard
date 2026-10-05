@@ -14,12 +14,9 @@ import { readFileSync } from 'node:fs';
 import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { fileExists } from '../core/reader.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import {
   type ContractGraph,
-  type ContractEdge,
-  type ContractNode,
   emptyContractGraph,
   upsertNode,
   upsertEdge,

@@ -6,7 +6,6 @@
  * to a pipeline. No business logic lives here — each subcommand delegates to a
  * handler in `./commands/` which in turn calls a pipeline.
  */
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { join, resolve, parse } from 'node:path';
@@ -87,16 +86,10 @@ import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
 import { resultsIngestCommand } from './commands/results.js';
+import { cliVersion, versionInfo } from '../core/version.js';
 
-// Resolve version from package.json. Falls back gracefully when the CLI is
-// bundled into the extension (installed at a path where ../../package.json
-// doesn't exist).
-let _cliVersion = '0.1.0';
-try {
-  const require = createRequire(import.meta.url);
-  const pkg = require('../../package.json') as { version: string };
-  _cliVersion = pkg.version;
-} catch { /* bundled deployment — version unavailable */ }
+// One version source: package.json, or the value injected at bundle time (src/core/version.ts).
+const _cliVersion = cliVersion();
 
 /** Merge a subcommand's own options with the global options (`--config`, `--json`). */
 function withGlobals<T extends object>(cmd: Command, local: T): T & GlobalOpts {
@@ -568,6 +561,12 @@ workspaceCmd
   });
 
 export async function main(): Promise<void> {
+  // `specguard --version --json` is machine-readable: the extension uses it to detect a CLI/extension mismatch.
+  const argv = process.argv.slice(2);
+  if ((argv.includes('--version') || argv.includes('-v')) && argv.includes('--json')) {
+    process.stdout.write(`${JSON.stringify(versionInfo())}\n`);
+    process.exit(0);
+  }
   try {
     await program.parseAsync(process.argv);
   } catch (err) {

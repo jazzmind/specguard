@@ -3,10 +3,15 @@
  * SpecGuard VS Code extension release script.
  *
  * Usage:
- *   node scripts/release.mjs [patch|minor|major] [--dry-run] [--no-package]
+ *   node scripts/release.mjs [--dry-run] [--no-package]
+ *
+ * The version is not bumped here: the repo-root package.json (the CLI) is the
+ * single version source and the extension follows it. Publishing is tag-driven
+ * (.github/workflows/release.yml); this script prepares the changelog and a
+ * local .vsix.
  *
  * What it does:
- *   1. Bumps the version in package.json (semver)
+ *   1. Sets the extension version to the repo-root version
  *   2. Collects commits since the last git tag for release notes
  *   3. Prepends a new section to CHANGELOG.md
  *   4. Builds the extension (webview + host)
@@ -37,10 +42,6 @@ const noPackage = args.includes('--no-package');
 // Helpers
 // ---------------------------------------------------------------------------
 
-function run(cmd, opts = {}) {
-  return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: 'pipe', ...opts }).trim();
-}
-
 function git(args) {
   const res = spawnSync('git', args, { cwd: path.resolve(ROOT, '..'), encoding: 'utf-8' });
   return { stdout: (res.stdout ?? '').trim(), ok: res.status === 0 };
@@ -61,7 +62,7 @@ function formatDate() {
 // Collect changelog entries from git log
 // ---------------------------------------------------------------------------
 
-function collectCommits(currentVersion) {
+function collectCommits() {
   // Try to find the most recent tag matching the extension's version scheme
   const tagResult = git(['tag', '--sort=-version:refname', '--list', 'ext-v*']);
   const lastTag = tagResult.ok && tagResult.stdout ? tagResult.stdout.split('\n')[0] : null;
@@ -131,16 +132,20 @@ function buildChangelogSection(newVersion, commits) {
 
 const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf-8'));
 const currentVersion = pkg.version;
-const newVersion = bumpVersion(currentVersion, bumpType);
+// The repo-root package.json (the CLI) is the single version source; the extension follows it.
+const rootVersion = JSON.parse(fs.readFileSync(path.resolve(ROOT, '..', 'package.json'), 'utf-8')).version;
+const newVersion = rootVersion;
+void bumpVersion;
+void bumpType;
 
 console.log(`\nSpecGuard extension release`);
-console.log(`  Current: ${currentVersion}`);
-console.log(`  New:     ${newVersion}  (${bumpType} bump)`);
+console.log(`  Extension: ${currentVersion}`);
+console.log(`  Release:   ${newVersion}  (the repo-root package.json version)`);
 if (dryRun) console.log(`  Mode:    DRY RUN — no files will be modified\n`);
 console.log('');
 
 // Collect commits
-const commits = collectCommits(currentVersion);
+const commits = collectCommits();
 console.log(`  Collected ${commits.length} commit(s) since last ext tag`);
 
 const newSection = buildChangelogSection(newVersion, commits);
@@ -201,12 +206,14 @@ console.log(`
   SpecGuard ${newVersion} ready to ship
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Next steps:
-  git add extension/package.json extension/CHANGELOG.md
-  git commit -m "chore(ext): release v${newVersion}"
-  git tag ext-v${newVersion}
-  git push && git push --tags
+Releases are tag-driven and publish the CLI and the extension together
+(.github/workflows/release.yml). The repo-root package.json is the single
+version source, so this script only prepares the extension changelog.
 
-To publish to the VS Code Marketplace:
-  cd extension && vsce publish
+  git add extension/CHANGELOG.md
+  git commit -m "docs(ext): changelog for v${newVersion}"
+
+To release both packages at one version:
+  npm version <x.y.z> --no-git-tag-version       # repo root
+  git commit -am "chore: release <x.y.z>" && git tag v<x.y.z> && git push --follow-tags
 `);

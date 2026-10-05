@@ -489,7 +489,7 @@ export interface OrphanResult {
  */
 export async function detectOrphans(
   config: SpecGuardConfig,
-  cwd: string,
+  _cwd?: string,
 ): Promise<OrphanResult> {
   const items: PipelineItem[] = [];
   let orphanCount = 0;

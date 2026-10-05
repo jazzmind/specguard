@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -72,7 +72,7 @@ describe('catalog', () => {
     expect(practeraCatalogProvider.defaultDir).toBe(PRACTERA_CATALOG_DIR);
     const root = mkdtempSync(path.join(os.tmpdir(), 'sg-cat-'));
     const dir = path.join(root, 'practera-test-suite', 'catalog');
-    require('node:fs').mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, 'x.yaml'), '- id: a.b.c\n  title: "T: x"\n  requires: [ui]\n  tests:\n    unit: [x.test.ts]\n  agent:\n    prompt: hi\n');
     const [f] = await practeraCatalogProvider.load({ rootDir: root });
     expect(f).toMatchObject({ id: 'a.b.c', title: 'T: x', requires: ['ui'] });

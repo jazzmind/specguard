@@ -161,7 +161,7 @@ export async function runIndex(
   }
 
   // Render the index.md
-  const rendered = renderIndex(analysis, specFiles, config, repoDir, rootSpecDir);
+  const rendered = renderIndex(analysis, specFiles, config, repoDir);
   fs.mkdirSync(path.dirname(indexPath), { recursive: true });
   fs.writeFileSync(indexPath, rendered, 'utf-8');
   log(`[index] wrote ${path.relative(cwd, indexPath)}`);
@@ -228,7 +228,6 @@ function renderIndex(
   specFiles: string[],
   config: SpecGuardConfig,
   repoDir: string,
-  rootSpecDir: string,
 ): string {
   const now = new Date().toISOString().slice(0, 10);
   const lines: string[] = [

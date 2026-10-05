@@ -10,7 +10,9 @@ import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
 import { initWorkspaceState } from './workspace-state.js';
-import { setExtensionPath } from './dashboard/cli.js';
+import { resolveCliPath, setExtensionPath } from './dashboard/cli.js';
+import { expectedCliVersion, mismatchMessage, queryCliVersion } from './cli-version.js';
+import * as path from 'path';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let coverageProvider: CoverageProvider | undefined;
@@ -61,8 +63,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initial coverage load (non-blocking)
   void coverageProvider.refresh();
 
+  // Warn (once per session) when an installed CLI is not the version this extension was built for.
+  void warnOnCliMismatch(context);
+
   // Offer MCP registration to new users
   await maybeOfferMcpRegistration(context);
+}
+
+async function warnOnCliMismatch(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const expected = expectedCliVersion();
+    if (!ws || !expected) return;
+    const cliPath = await resolveCliPath(ws);
+    if (!cliPath || cliPath.endsWith('.ts')) return; // nothing found, or a dev checkout
+    const bundled = path.join(context.extensionPath, 'dist', 'cli.js');
+    if (path.resolve(cliPath) === path.resolve(bundled)) return; // the bundled CLI matches by construction
+    const message = mismatchMessage(await queryCliVersion(cliPath, ws), expected);
+    if (message) void vscode.window.showWarningMessage(message);
+  } catch {
+    /* a version check must never break activation */
+  }
 }
 
 export function deactivate(): void {
