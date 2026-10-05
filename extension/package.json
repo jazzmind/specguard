@@ -6,7 +6,7 @@
   "publisher": "WesSonnenreich",
   "repository": {
     "type": "git",
-    "url": "https://github.com/specguard/specguard"
+    "url": "https://github.com/jazzmind/specguard"
   },
   "engines": {
     "vscode": "^1.85.0"
