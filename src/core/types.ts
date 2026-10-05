@@ -237,12 +237,54 @@ export interface RunnersConfig {
   testRunner?: 'local' | 'docker' | string;
 }
 
+/** One place a call can go: provider, model, and the env var holding its key. */
+export interface LlmTarget {
+  provider: string;
+  model: string;
+  apiKeyEnv?: string;
+}
+
+/** Hard cap on LLM spend for one process run. Any field that is set is enforced. */
+export interface LlmBudget {
+  maxUsd?: number;
+  maxTokens?: number;
+  maxCalls?: number;
+}
+
+/** Per-million-token prices used for the cost estimate. */
+export interface LlmPrice {
+  inputPerMTok: number;
+  outputPerMTok: number;
+}
+
 /** LLM provider configuration. */
 export interface LlmConfig {
-  provider: 'anthropic' | 'openai' | string;
+  /** anthropic | openai | litellm | replay (serve recordings) | none (deterministic only). */
+  provider: 'anthropic' | 'openai' | 'litellm' | 'replay' | 'none' | string;
   model: string;
   /** Name of the env var holding the API key. */
   apiKeyEnv: string;
+  /** Per-pipeline overrides keyed by pipeline name (reverse, align, drift, heal, ...). */
+  pipelines?: Record<string, Partial<LlmTarget> & { fallback?: LlmTarget[] }>;
+  /** Tried in order after the primary target has failed all its attempts. */
+  fallback?: LlmTarget[];
+  /** Per-attempt timeout. Default 120000. */
+  timeoutMs?: number;
+  /** Retries after the first attempt for retryable failures. Default 2. */
+  retries?: number;
+  /** First backoff delay; doubles per retry with jitter. Default 1000. */
+  backoffMs?: number;
+  budget?: LlmBudget;
+  /** Overrides for the built-in price table, keyed by model name. */
+  pricing?: Record<string, LlmPrice>;
+  /** When false, a call that carries images is rejected and `validate` sends none. Default true. */
+  allowImages?: boolean;
+  replay?: {
+    /** Directory for recordings, relative to the config root. Default `.specguard/replay`. */
+    dir?: string;
+    /** Record every real response (also set by `--record`). */
+    record?: boolean;
+  };
 }
 
 /** Automation triggers. */

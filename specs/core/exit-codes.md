@@ -8,10 +8,10 @@ This module defines the canonical, typed process exit codes used throughout Spec
 
 ## Acceptance Criteria
 
-- AC1: The `ExitCode` object exposes exactly seven named constants: `Success` (0), `InternalError` (1), `ValidationFailed` (2), `DriftDetected` (3), `MissingSpecs` (4), `SecurityIssues` (5), and `HealFailed` (7).
-- AC2: No exit code value is duplicated across the seven named constants.
-- AC3: `exitCodeLabel` returns the correct human-readable string for each of the seven defined codes.
-- AC4: `exitCodeLabel` returns a string matching the pattern `unknown (<n>)` for any numeric input that is not one of the seven defined codes.
+- AC1: The `ExitCode` object exposes exactly eight named constants: `Success` (0), `InternalError` (1), `ValidationFailed` (2), `DriftDetected` (3), `MissingSpecs` (4), `SecurityIssues` (5), `HealFailed` (7), and `BudgetExceeded` (8, the LLM spend cap was reached).
+- AC2: No exit code value is duplicated across the eight named constants.
+- AC3: `exitCodeLabel` returns the correct human-readable string for each of the eight defined codes.
+- AC4: `exitCodeLabel` returns a string matching the pattern `unknown (<n>)` for any numeric input that is not one of the eight defined codes.
 - AC5: The numeric values of all named constants must not change between releases (stability guarantee for CI and MCP consumers).
 - AC6: The `ExitCode` type is a union of the literal numeric values, preventing assignment of arbitrary numbers where the type is required.
 

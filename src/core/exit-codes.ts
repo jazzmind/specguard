@@ -20,6 +20,8 @@ export const ExitCode = {
   SecurityIssues: 5,
   /** Heal failed (tests still broken after max retries). */
   HealFailed: 7,
+  /** The LLM spend cap (`llm.budget`) was reached. */
+  BudgetExceeded: 8,
 } as const;
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
@@ -41,6 +43,8 @@ export function exitCodeLabel(code: number): string {
       return 'security issues';
     case ExitCode.HealFailed:
       return 'heal failed';
+    case ExitCode.BudgetExceeded:
+      return 'llm budget exceeded';
     default:
       return `unknown (${code})`;
   }

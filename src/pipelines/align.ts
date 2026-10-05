@@ -494,13 +494,14 @@ export async function runAlign(
       };
 
       const needsLlm = settled.uncoveredScenarios.length > 0 || settled.uncoveredClaims.length > 0;
-      if (!needsLlm || selectedPaths.length === 0) {
+      const llmOff = config.llm.provider === 'none';
+      if (!needsLlm || selectedPaths.length === 0 || llmOff) {
         const entry = entryFrom(null);
         result.report.entries.push(entry);
         account(entry, false);
         finished += 1;
         log(
-          `[align] ${finished}/${total} ${fullKey}: ${needsLlm ? 'no candidate test files' : 'fully settled by claim tags and titles'} — ${entry.alignmentScore}%`,
+          `[align] ${finished}/${total} ${fullKey}: ${!needsLlm ? 'fully settled by claim tags and titles' : llmOff ? 'deterministic only (llm.provider is none)' : 'no candidate test files'} — ${entry.alignmentScore}%`,
         );
         await enqueueCheckpoint();
         return;

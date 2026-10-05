@@ -11,6 +11,7 @@ import { z } from 'zod';
 import type { SpecGuardConfig } from './types.js';
 import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
+import { configureLlm } from './llm-runtime.js';
 
 // ---------------------------------------------------------------------------
 // Zod schema — mirrors the types in ./types.ts, permissive on unknown keys so
@@ -72,11 +73,47 @@ const runnersSchema = z
   })
   .passthrough();
 
+const llmTargetSchema = z
+  .object({
+    provider: z.string(),
+    model: z.string(),
+    apiKeyEnv: z.string().optional(),
+  })
+  .passthrough();
+
 const llmSchema = z
   .object({
     provider: z.string(),
     model: z.string(),
     apiKeyEnv: z.string(),
+    pipelines: z
+      .record(
+        z.string(),
+        z
+          .object({
+            provider: z.string().optional(),
+            model: z.string().optional(),
+            apiKeyEnv: z.string().optional(),
+            fallback: z.array(llmTargetSchema).optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
+    fallback: z.array(llmTargetSchema).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    retries: z.number().int().min(0).max(10).optional(),
+    backoffMs: z.number().int().min(0).optional(),
+    budget: z
+      .object({
+        maxUsd: z.number().positive().optional(),
+        maxTokens: z.number().int().positive().optional(),
+        maxCalls: z.number().int().positive().optional(),
+      })
+      .passthrough()
+      .optional(),
+    pricing: z.record(z.string(), z.object({ inputPerMTok: z.number().min(0), outputPerMTok: z.number().min(0) })).optional(),
+    allowImages: z.boolean().optional(),
+    replay: z.object({ dir: z.string().optional(), record: z.boolean().optional() }).passthrough().optional(),
   })
   .passthrough();
 
@@ -252,5 +289,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
   // canonical type and stamp the resolved root directory.
   const config = result.data as unknown as SpecGuardConfig;
   config.rootDir = rootDir;
+  // The LLM layer is configured once per process from the config it was given.
+  configureLlm({ rootDir, llm: config.llm });
   return config;
 }
