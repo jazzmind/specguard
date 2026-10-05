@@ -50,5 +50,9 @@
     "tsx": "^4",
     "typescript": "^5.7",
     "vitest": "^4.1.11"
+  },
+  "homepage": "https://github.com/jazzmind/specguard#readme",
+  "bugs": {
+    "url": "https://github.com/jazzmind/specguard/issues"
   }
 }
