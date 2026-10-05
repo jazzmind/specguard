@@ -18,6 +18,8 @@ export interface InitOpts {
   language?: string;
   /** Which harness files to generate (claude|cursor|both). */
   harness?: string;
+  /** One app even when a workspace is detected. */
+  single?: boolean;
 }
 
 export async function initCommand(opts: InitOpts): Promise<void> {
@@ -25,6 +27,7 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     framework: opts.withPlaywright ? 'playwright' : undefined,
     language: opts.language as LanguageId | undefined,
     harness: opts.harness as Harness | undefined,
+    single: opts.single,
   });
 
   for (const line of result.messages) {

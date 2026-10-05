@@ -197,6 +197,8 @@ export interface AppConfig {
    * Example (Angular): `["src/app/pages/**\/*.ts"]`
    */
   collapse?: string[];
+  /** How to run this app's tests. Absent: the shared `heal.testCommand` or the language default. */
+  test?: AppTestConfig;
   /**
    * Repo-relative POSIX prefix (or prefixes) removed from a source path when it
    * is turned into a feature key, e.g. `src/features/`. When set, it replaces
@@ -209,6 +211,22 @@ export interface AppConfig {
    * endpoints. Used by `index`. Absent: the framework profile's defaults.
    */
   entryPoints?: string[];
+}
+
+/** Per-app test invocation. */
+export interface AppTestConfig {
+  /** Shell command, e.g. `npx vitest run` or `pnpm test`. */
+  command?: string;
+  /** Working directory, relative to the config root. Default: the config root. */
+  cwd?: string;
+  /** Test-runner adapter: vitest | jest | playwright | pytest | junit | go | cargo. Default: from the language profile. */
+  reporter?: string;
+  /** Reporter output file or glob (relative to `cwd`). When set the command runs verbatim. */
+  resultsFile?: string;
+  /** Kill the run after this many milliseconds. Default 600000. */
+  timeoutMs?: number;
+  /** Docker image for `runners.testRunner: "docker"`. */
+  image?: string;
 }
 
 /** Runner placement: where each external tool executes. */

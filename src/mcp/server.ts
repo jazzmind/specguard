@@ -158,16 +158,19 @@ export function buildServer(): McpServer {
       description:
         'Run the self-healing test loop (CLI: specguard heal).',
       inputSchema: {
-        spec: z.string().optional().describe('Target a single spec\'s tests (best-effort).'),
-        all: z.boolean().optional().describe('Heal across all apps.'),
+        spec: z.string().optional().describe('Run only the app that owns this spec, and only its tests.'),
+        all: z.boolean().optional().describe('Heal every app (the default).'),
+        app: z.string().optional().describe('Heal a single app by name.'),
         maxRetries: z.number().optional().describe('Override the retry budget from config.'),
+        classifyOnly: z.boolean().optional().describe('Classify failures only: never rewrite a test or re-run.'),
+        lenient: z.boolean().optional().describe('Treat an unreadable report as passing when the runner exited 0.'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    ({ spec, all, maxRetries, cwd }): Promise<ToolResult> =>
+    ({ spec, all, app, maxRetries, classifyOnly, lenient, cwd }): Promise<ToolResult> =>
       withActivityLog('heal', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runHeal(config, { spec, all, maxRetries });
+        const result = await runHeal(config, { spec, all, app, maxRetries, classifyOnly, lenient });
         return toolResult(result);
       }).catch(errorResult),
   );
