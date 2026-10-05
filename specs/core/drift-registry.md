@@ -18,8 +18,11 @@ The Drift Registry is a persistent JSON store located at `.specguard/drift-regis
 - AC-8: `hashString(s)` returns a lowercase hex SHA-256 digest of the given string.
 - AC-9: `getOrCreateSpecEntry` creates a new `DriftSpecEntry` with an empty `files` map when the spec key is not present in the registry.
 - AC-10: `getOrCreateSpecEntry` updates `specHash` on an existing entry without clearing its `files` map.
-- AC-11: `updateFileEntry` writes a `DriftFileEntry` keyed by `absPath` containing the provided hash, an ISO 8601 `lastChecked` timestamp, and the provided verdict.
+- AC-11: `updateFileEntry` writes a `DriftFileEntry` keyed by the key it is given (callers pass a relative key from `toRegistryKey`) containing the provided hash, an ISO 8601 `lastChecked` timestamp, and the provided verdict.
 - AC-12: `lastVerdict` values are restricted to `'no-drift'`, `'drifted'`, or `'new-file'`.
+- AC-13: File entries are keyed by a repo-relative POSIX path (relative to the registry root), never an absolute path, so the registry is identical on every machine and OS. <!-- claim: portable-keys -->
+- AC-14: `toRegistryKey(rootDir, abs)` returns the relative POSIX key and `fromRegistryKey(rootDir, key)` resolves it back to an absolute path. <!-- claim: key-roundtrip -->
+- AC-15: `loadRegistry` migrates a registry whose keys are absolute paths under `rootDir` to relative keys in the same call and persists the migrated file once; a registry that is already relative is not rewritten. <!-- claim: migrate-once -->
 
 ## Scenarios
 

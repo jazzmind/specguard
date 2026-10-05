@@ -51,7 +51,8 @@ import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
 import { runClaimsAssign, runClaimsList } from '../pipelines/claims.js';
-import { appendProofCoverage } from '../pipelines/proof.js';
+import { appendProofCoverage, runProofIngest } from '../pipelines/proof.js';
+import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
 import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
@@ -784,16 +785,69 @@ export function buildServer(): McpServer {
         'Report proof coverage for the claims in this repo: proven, failed, unexercised, stale, unproven. ' +
         '(CLI: specguard proof status)',
       inputSchema: {
+        ledger: z.string().optional().describe('Proof ledger file override.'),
         cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
       },
     },
-    ({ cwd }): Promise<ToolResult> =>
+    ({ cwd, ledger }): Promise<ToolResult> =>
       withActivityLog('proof-status', resolveCwd(cwd), async () => {
         try {
           const config = await loadConfig(resolveCwd(cwd));
           const lines: string[] = [];
-          await appendProofCoverage(config, (line) => lines.push(line));
+          await appendProofCoverage(config, (line) => lines.push(line), { ledger });
           return textResult(lines.join('\n'));
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_results_ingest',
+    {
+      description:
+        'Ingest test-runner reports (Vitest/Jest JSON, Playwright JSON, JUnit XML, pytest-json-report, go test -json, ' +
+        'cargo JSON) as proof verdicts. Tests map to claims by @claim:<specKey>#<claimId> tags. ' +
+        '(CLI: specguard results ingest)',
+      inputSchema: {
+        files: z.array(z.string()).min(1).describe('Result file paths or globs, relative to cwd.'),
+        format: z.string().optional().describe('auto (default), vitest, jest, playwright, junit, pytest, go, cargo.'),
+        runId: z.string().optional().describe('Ledger run id.'),
+        unexercised: z.boolean().optional().describe('Also store unexercised for spec claims no test tagged.'),
+        ledger: z.string().optional().describe('Proof ledger file override.'),
+        cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
+      },
+    },
+    ({ files, format, runId, unexercised, ledger, cwd }): Promise<ToolResult> =>
+      withActivityLog('results-ingest', resolveCwd(cwd), async () => {
+        try {
+          const fmt = format ?? 'auto';
+          if (!isResultFormat(fmt)) return errorResult(new Error(`unknown format '${fmt}'`));
+          return toolResult(
+            await runResultsIngest(files, resolveCwd(cwd), { format: fmt, runId, unexercised, ledger }),
+          );
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_proof_ingest',
+    {
+      description:
+        'Merge a verdicts file ({runId, verdicts:[{claim, verdict, exercised?, counterexamples?, evidencePath?}]}) ' +
+        'into the proof ledger. (CLI: specguard proof ingest)',
+      inputSchema: {
+        verdicts: z.string().describe('Path to verdicts.json, relative to cwd.'),
+        ledger: z.string().optional().describe('Proof ledger file override.'),
+        cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
+      },
+    },
+    ({ verdicts, ledger, cwd }): Promise<ToolResult> =>
+      withActivityLog('proof-ingest', resolveCwd(cwd), async () => {
+        try {
+          return toolResult(await runProofIngest(verdicts, resolveCwd(cwd), { ledger }));
         } catch (err) {
           return errorResult(err);
         }

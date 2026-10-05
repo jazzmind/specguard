@@ -1,0 +1,6 @@
+{"Action":"run","Package":"x/awards","Test":"TestAwardOnce"}
+{"Action":"output","Package":"x/awards","Test":"TestAwardOnce","Output":"ok\n"}
+{"Action":"pass","Package":"x/awards","Test":"TestAwardOnce","Elapsed":0.01}
+{"Action":"run","Package":"x/awards","Test":"TestNoDupes"}
+{"Action":"fail","Package":"x/awards","Test":"TestNoDupes","Elapsed":0.02}
+{"Action":"fail","Package":"x/awards","Elapsed":0.1}

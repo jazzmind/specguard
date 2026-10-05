@@ -1,0 +1,6 @@
+{"numTotalTests":4,"testResults":[{"name":"tests/awards.test.ts","assertionResults":[
+{"title":"awards once @claim:core/awards#award-once","fullName":"awards awards once @claim:core/awards#award-once","ancestorTitles":["awards"],"status":"passed","duration":4.2,"failureMessages":[]},
+{"title":"no duplicates [claim: core/awards#no-dupes]","fullName":"awards no duplicates [claim: core/awards#no-dupes]","ancestorTitles":["awards"],"status":"failed","duration":2,"failureMessages":["AssertionError: expected 2 to be 1"]},
+{"title":"awards twice @claim:core/awards#award-once","fullName":"awards awards twice @claim:core/awards#award-once","ancestorTitles":["awards"],"status":"passed","duration":1,"failureMessages":[]},
+{"title":"later @claim:core/awards#deferred","fullName":"awards later","ancestorTitles":["awards"],"status":"pending","duration":0,"failureMessages":[]}
+]}]}

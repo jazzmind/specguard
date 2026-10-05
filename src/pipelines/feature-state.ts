@@ -9,10 +9,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
 import { hashString } from '../core/drift-registry.js';
 import { effectiveVerdict, emptyLedger, type ProofLedger } from '../core/proof-ledger.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
+import { currentFileHashes } from './proof.js';
 import type { ParsedSpec, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
@@ -548,7 +550,11 @@ export function discoverImplementations(
   return found;
 }
 
-async function loadProofs(rootDir: string, specs: FeatureSpec[]): Promise<FeatureProof[]> {
+async function loadProofs(
+  rootDir: string,
+  specs: FeatureSpec[],
+  repoDirs: Map<string, string>,
+): Promise<FeatureProof[]> {
   const file = path.join(rootDir, '.specguard', 'proofs.json');
   if (!(await fileExists(file))) return [];
   let ledger: ProofLedger = emptyLedger();
@@ -563,9 +569,15 @@ async function loadProofs(rootDir: string, specs: FeatureSpec[]): Promise<Featur
     const spec = byRef.get(record.claim.split('#')[0] ?? '');
     if (!spec?.filePath || !existsSync(spec.filePath)) continue;
     const currentHash = hashString(readFileSync(spec.filePath, 'utf8'));
+    const repoDir = repoDirs.get(repoOf(spec.ref)) ?? rootDir;
     proofs.push({
       claim: record.claim,
-      verdict: effectiveVerdict(record, { specHash: currentHash, fileHashes: record.fileHashes }),
+      verdict: effectiveVerdict(record, {
+        specHash: currentHash,
+        // Hash the recorded files as they are now. Comparing a record with its own hashes can never be stale.
+        fileHashes: currentFileHashes(repoDir, record.fileHashes ?? {}),
+        dependencyFingerprint: dependencyFingerprint(repoDir),
+      }),
     });
   }
   return proofs;
@@ -613,7 +625,7 @@ export async function collectFeatureState(cwd: string, extraCases: FeatureCase[]
     features,
     specs,
     cases,
-    proofs: await loadProofs(manifest.rootDir, specs),
+    proofs: await loadProofs(manifest.rootDir, specs, new Map(repos.map((repo) => [repo.key, repo.absPath]))),
     implementations: discoverImplementations(features, specs, repos),
   };
 }

@@ -15,7 +15,8 @@ import { z } from 'zod';
 
 import { loadConfig } from '../core/config.js';
 import { formatClaimRef, parseClaimRef } from '../core/claims.js';
-import { hashString, loadRegistry } from '../core/drift-registry.js';
+import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
+import { fromRegistryKey, hashFile, hashString, loadRegistry, toRegistryKey } from '../core/drift-registry.js';
 import { ExitCode } from '../core/exit-codes.js';
 import {
   effectiveVerdict,
@@ -46,8 +47,26 @@ const VerdictFileSchema = z.object({
 
 export type VerdictFile = z.infer<typeof VerdictFileSchema>;
 
-export function ledgerPath(rootDir: string): string {
+export interface ProofOpts {
+  /** Ledger file. Overrides `paths.proofLedger`. Relative paths resolve from the cwd. */
+  ledger?: string;
+}
+
+export function ledgerPath(rootDir: string, override?: string): string {
+  if (override) return path.isAbsolute(override) ? override : path.resolve(rootDir, override);
   return path.join(rootDir, '.specguard', 'proofs.json');
+}
+
+async function resolveLedgerFile(cwd: string, opts: ProofOpts): Promise<{ root: string; file: string }> {
+  const root = await ledgerRoot(cwd);
+  if (opts.ledger) return { root, file: path.isAbsolute(opts.ledger) ? opts.ledger : path.resolve(cwd, opts.ledger) };
+  let configured: string | undefined;
+  try {
+    configured = (await loadConfig(cwd)).paths?.proofLedger;
+  } catch {
+    /* no config: the default location applies */
+  }
+  return { root, file: ledgerPath(root, configured) };
 }
 
 async function ledgerRoot(cwd: string): Promise<string> {
@@ -71,19 +90,38 @@ function gitHead(dir: string): string | undefined {
   }
 }
 
-function fileHashesFor(repoDir: string, specKey: string): Record<string, string> {
+/**
+ * File hashes recorded for one spec. The registry key is `<app>/<specKey>`; the
+ * match is exact on a known app name, so two apps with the same spec key do not
+ * share hashes. Values are read from disk so they reflect the file now.
+ */
+export function fileHashesFor(
+  repoDir: string,
+  specKey: string,
+  appNames?: string[],
+): Record<string, string> {
   const registry = loadRegistry(repoDir);
   const hashes: Record<string, string> = {};
-  for (const entry of Object.values(registry)) {
-    const feature = entry.specKey.includes('/')
-      ? entry.specKey.split('/').slice(1).join('/')
-      : entry.specKey;
-    if (feature !== specKey && entry.specKey !== specKey) continue;
+  for (const [key, entry] of Object.entries(registry)) {
+    const matches = appNames
+      ? appNames.some((app) => key === `${app}/${specKey}`)
+      : key === specKey || key.endsWith(`/${specKey}`);
+    if (!matches) continue;
     for (const [file, meta] of Object.entries(entry.files)) {
-      hashes[file] = meta.hash;
+      hashes[file] = hashFile(fromRegistryKey(repoDir, file)) ?? meta.hash;
     }
   }
   return hashes;
+}
+
+/** Current on-disk hash for each recorded file. Files that no longer exist are omitted. */
+export function currentFileHashes(repoDir: string, recorded: Record<string, string>): Record<string, string> {
+  const now: Record<string, string> = {};
+  for (const key of Object.keys(recorded)) {
+    const hash = hashFile(fromRegistryKey(repoDir, key));
+    if (hash) now[key] = hash;
+  }
+  return now;
 }
 
 async function repoKeyFor(cwd: string): Promise<string | undefined> {
@@ -149,14 +187,49 @@ async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | nul
   return null;
 }
 
-async function readLedger(file: string): Promise<ProofLedger> {
+async function candidateRoots(cwd: string): Promise<string[]> {
+  const roots = [path.resolve(cwd)];
+  try {
+    const { manifest, repos } = await loadWorkspaceWithConfigs(cwd);
+    roots.push(path.resolve(manifest.rootDir), ...repos.map((repo) => path.resolve(repo.absPath)));
+  } catch {
+    /* single repo */
+  }
+  return roots;
+}
+
+/** Rewrite absolute fileHashes keys as repo-relative POSIX keys. Returns true when changed. */
+export function migrateLedgerPaths(ledger: ProofLedger, roots: string[]): boolean {
+  let changed = false;
+  const ordered = [...roots].sort((a, b) => b.length - a.length);
+  for (const record of Object.values(ledger.proofs)) {
+    for (const key of Object.keys(record.fileHashes ?? {})) {
+      if (!path.isAbsolute(key) && !/^[A-Za-z]:[\\/]/.test(key)) continue;
+      const root = ordered.find((candidate) => !path.relative(candidate, key).startsWith('..')) ?? ordered[ordered.length - 1];
+      const rel = root ? toRegistryKey(root, key) : path.basename(key);
+      record.fileHashes[rel] = record.fileHashes[key];
+      delete record.fileHashes[key];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+async function readLedger(file: string, cwd: string): Promise<ProofLedger> {
   if (!(await fileExists(file))) return emptyLedger();
   const parsed = JSON.parse(await readFile(file)) as ProofLedger;
   if (!parsed || parsed.version !== 1 || !parsed.proofs) return emptyLedger();
+  if (migrateLedgerPaths(parsed, await candidateRoots(cwd))) {
+    await writeFile(file, JSON.stringify(parsed, null, 2) + '\n');
+  }
   return parsed;
 }
 
-export async function runProofIngest(verdictsPath: string, cwd: string): Promise<PipelineResult> {
+export async function runProofIngest(
+  verdictsPath: string,
+  cwd: string,
+  opts: ProofOpts = {},
+): Promise<PipelineResult> {
   const result = emptyResult('proof-ingest');
   const absVerdicts = path.resolve(cwd, verdictsPath);
   let raw: unknown;
@@ -175,11 +248,22 @@ export async function runProofIngest(verdictsPath: string, cwd: string): Promise
     result.messages.push(`Verdicts file is not valid: ${parsed.error.message}`);
     return result;
   }
+  return ingestVerdicts(parsed.data, cwd, opts, result);
+}
 
-  const root = await ledgerRoot(cwd);
-  const file = ledgerPath(root);
-  const ledger = await readLedger(file);
-  const body = parsed.data;
+/**
+ * Merge validated verdicts into the ledger. Shared by `proof ingest` and
+ * `results ingest` so both write identical rows.
+ */
+export async function ingestVerdicts(
+  body: VerdictFile,
+  cwd: string,
+  opts: ProofOpts = {},
+  result: PipelineResult = emptyResult('proof-ingest'),
+): Promise<PipelineResult> {
+  const { file } = await resolveLedgerFile(cwd, opts);
+  const ledger = await readLedger(file, cwd);
+  const appNames = await appNamesFor(cwd);
 
   for (const row of body.verdicts) {
     if (!parseClaimRef(row.claim)) {
@@ -196,6 +280,12 @@ export async function runProofIngest(verdictsPath: string, cwd: string): Promise
       continue;
     }
     const ref = parseClaimRef(row.claim);
+    if (ref && !new RegExp(`<!--\\s*claim:\\s*${ref.claimId}\\s*-->`, 'i').test(located.content)) {
+      result.failed += 1;
+      result.items.push({ key: row.claim, status: 'failed', message: 'claim id is not anchored in the spec' });
+      result.messages.push(`${row.claim}: claim id not found in spec`);
+      continue;
+    }
     const repoSha = (ref?.repo && body.repoShas?.[ref.repo]) || gitHead(located.repoDir);
     const record: ProofRecord = {
       claim: row.claim,
@@ -203,7 +293,8 @@ export async function runProofIngest(verdictsPath: string, cwd: string): Promise
       runId: body.runId,
       specHash: hashString(located.content),
       repoSha,
-      fileHashes: fileHashesFor(located.repoDir, ref?.specKey ?? ''),
+      fileHashes: fileHashesFor(located.repoDir, ref?.specKey ?? '', appNames),
+      dependencyFingerprint: dependencyFingerprint(located.repoDir),
       exercised: row.exercised ?? 0,
       counterexamples: row.counterexamples ?? 0,
       evidencePath: row.evidencePath,
@@ -221,6 +312,14 @@ export async function runProofIngest(verdictsPath: string, cwd: string): Promise
   return result;
 }
 
+async function appNamesFor(cwd: string): Promise<string[] | undefined> {
+  try {
+    return (await loadConfig(cwd)).apps.map((app) => app.name);
+  } catch {
+    return undefined;
+  }
+}
+
 interface CoverageCounts {
   proven: number;
   failed: number;
@@ -234,11 +333,12 @@ async function walkClaims(
   config: SpecGuardConfig,
   cwd: string,
   onVerdict: (ref: string, verdict: ReturnType<typeof effectiveVerdict>) => void,
+  opts: ProofOpts = {},
 ): Promise<CoverageCounts | null> {
-  const root = await ledgerRoot(cwd);
-  const file = ledgerPath(root);
+  const { file } = await resolveLedgerFile(cwd, opts);
   if (!(await fileExists(file))) return null;
-  const ledger = await readLedger(file);
+  const ledger = await readLedger(file, cwd);
+  const fingerprint = dependencyFingerprint(cwd);
   const repoKey = await repoKeyFor(cwd);
   const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0 };
   const top = path.join(cwd, 'specs');
@@ -256,10 +356,7 @@ async function walkClaims(
     for (const spec of specs) {
       const specFile = path.join(specDir, `${spec.specKey}.md`);
       if (!(await fileExists(specFile))) continue;
-      const current = {
-        specHash: hashString(await readFile(specFile)),
-        fileHashes: fileHashesFor(cwd, spec.specKey),
-      };
+      const specHash = hashString(await readFile(specFile));
       for (const claim of spec.claims) {
         if (!claim.id) {
           counts.unproven += 1;
@@ -267,7 +364,11 @@ async function walkClaims(
         }
         const ref = formatClaimRef(repoKey, spec.specKey, claim.id);
         const record = ledger.proofs[ref] ?? ledger.proofs[formatClaimRef(undefined, spec.specKey, claim.id)];
-        const verdict = effectiveVerdict(record, current);
+        const verdict = effectiveVerdict(record, {
+          specHash,
+          fileHashes: record ? currentFileHashes(cwd, record.fileHashes) : {},
+          dependencyFingerprint: fingerprint,
+        });
         counts[verdict] += 1;
         onVerdict(ref, verdict);
       }
@@ -280,12 +381,13 @@ async function walkClaims(
 export async function appendProofCoverage(
   config: SpecGuardConfig,
   log: (line: string) => void,
+  opts: ProofOpts = {},
 ): Promise<void> {
   const cwd = config.rootDir ?? process.cwd();
   const counts = await walkClaims(config, cwd, (ref, verdict) => {
     if (verdict === 'proven' || verdict === 'unproven') return;
     log(`  [proof-${verdict}] ${ref}`);
-  });
+  }, opts);
   if (!counts) {
     log('PROOFS: no ledger');
     return;
