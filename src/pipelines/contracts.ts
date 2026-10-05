@@ -2,7 +2,7 @@
  * Contracts pipeline — workspace-level cross-repo dependency graph builder.
  *
  * Builds or refreshes `<workspace>/.specguard/contracts.json` by:
- * 1. Reading each repo's existing `traceability.json` for `graphqlDependencies`
+ * 1. Running contract importers supplied by enabled plugins (e.g. a legacy dependency file)
  * 2. Parsing each repo's spec `## Dependencies` sections for `<!-- contracts:start -->` blocks
  * 3. Optionally using LLM extraction for unstructured dependency text
  * 4. Merging, deduplicating, and validating the unified graph
@@ -29,6 +29,7 @@ import {
   nodeId,
   parseContractsBlock,
 } from '../core/contracts.js';
+import { loadPlugins } from '../plugins/index.js';
 import {
   type WorkspaceManifest,
   type WorkspaceRepoWithConfig,
@@ -48,119 +49,8 @@ export interface ContractsOpts {
   withLlm?: boolean;
   /** Restrict to a single repo key. */
   repo?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Legacy traceability.json reader
-// ---------------------------------------------------------------------------
-
-/** Shape of the existing admin-app traceability.json mappings. */
-interface LegacyTraceabilityMapping {
-  spec: string;
-  sources?: string[];
-  graphqlDependencies?: string[];
-  docPage?: string | null;
-}
-
-interface LegacyTraceability {
-  version?: string;
-  repo?: string;
-  mappings?: LegacyTraceabilityMapping[];
-}
-
-/**
- * Read legacy graphqlDependencies from a repo's `.specguard/traceability.json`
- * and emit ContractEdge-compatible data. The edges reference the graphql-api
- * spec paths as provider node IDs (without repo prefix — caller resolves).
- */
-function readLegacyTraceability(
-  repoKey: string,
-  repoAbsPath: string,
-  manifest: WorkspaceManifest,
-): Array<{ consumerSpec: string; providerPath: string; docPage: string | null }> {
-  const tracePath = path.join(repoAbsPath, '.specguard', 'traceability.json');
-  if (!require_sync_file_exists(tracePath)) return [];
-
-  let raw: string;
-  try {
-    raw = readFileSync(tracePath, 'utf-8');
-  } catch {
-    return [];
-  }
-
-  let parsed: LegacyTraceability;
-  try {
-    parsed = JSON.parse(raw) as LegacyTraceability;
-  } catch {
-    return [];
-  }
-
-  if (!Array.isArray(parsed.mappings)) return [];
-
-  const results: Array<{ consumerSpec: string; providerPath: string; docPage: string | null }> = [];
-
-  for (const mapping of parsed.mappings) {
-    // GraphQL dependencies
-    for (const dep of mapping.graphqlDependencies ?? []) {
-      // dep is a relative path like `../practera-graphql-api/specs/auth/context.md`
-      // Resolve it to find the repo key and spec path
-      const absDepPath = path.resolve(repoAbsPath, dep);
-      const repoInfo = resolvePathToNode(absDepPath, manifest);
-      if (repoInfo) {
-        results.push({
-          consumerSpec: mapping.spec,
-          providerPath: repoInfo.nodeId,
-          docPage: null,
-        });
-      }
-    }
-
-    // Doc page
-    if (mapping.docPage) {
-      const absDocPath = path.resolve(repoAbsPath, mapping.docPage);
-      const docRepoInfo = resolvePathToNode(absDocPath, manifest);
-      if (docRepoInfo) {
-        results.push({
-          consumerSpec: mapping.spec,
-          providerPath: docRepoInfo.nodeId,
-          docPage: mapping.docPage,
-        });
-      }
-    }
-  }
-
-  return results;
-}
-
-function require_sync_file_exists(filePath: string): boolean {
-  try {
-    readFileSync(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Given an absolute file path, find which repo in the manifest it belongs to
- * and compute the node ID.
- */
-function resolvePathToNode(
-  absPath: string,
-  manifest: WorkspaceManifest,
-): { nodeId: string; repoKey: string; relPath: string } | null {
-  // Normalize
-  const normalized = path.normalize(absPath);
-
-  for (const [key, repo] of Object.entries(manifest.repos)) {
-    const repoAbs = path.resolve(manifest.rootDir, repo.path);
-    if (normalized.startsWith(repoAbs + path.sep) || normalized === repoAbs) {
-      const relPath = path.relative(repoAbs, normalized).split(path.sep).join('/');
-      return { nodeId: `${key}::${relPath}`, repoKey: key, relPath };
-    }
-  }
-
-  return null;
+  /** Plugin names whose contract importers run. Default: the union of the repos' `plugins`. */
+  plugins?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -315,45 +205,53 @@ export async function runContracts(
     ? repos.filter((r) => r.key === opts.repo)
     : repos;
 
-  // --- Pass 1: Import legacy traceability.json graphqlDependencies -----------
-  log('Pass 1: Reading legacy traceability.json files...');
+  // --- Pass 1: contract importers from enabled plugins ---------------------
+  const pluginNames = opts.plugins ?? [
+    ...new Set(repos.flatMap((r) => r.specGuardConfig?.plugins ?? [])),
+  ];
+  const importers = (await loadPlugins(pluginNames)).flatMap((p) => p.contractImporters ?? []);
+  log(`Pass 1: Running ${importers.length} contract importer(s)...`);
+  const importManifest = {
+    rootDir: manifest.rootDir,
+    repos: Object.fromEntries(Object.entries(manifest.repos).map(([k, r]) => [k, { path: r.path }])),
+  };
   for (const repo of reposInScope) {
-    const legacyEdges = readLegacyTraceability(repo.key, repo.absPath, manifest);
-    if (legacyEdges.length === 0) continue;
+    for (const importer of importers) {
+      const legacyEdges = importer.read({ key: repo.key, absPath: repo.absPath }, importManifest);
+      if (legacyEdges.length === 0) continue;
 
-    log(`  ${repo.key}: found ${legacyEdges.length} legacy traceability links`);
+      log(`  ${repo.key}: ${importer.id} found ${legacyEdges.length} link(s)`);
 
-    for (const { consumerSpec, providerPath, docPage } of legacyEdges) {
-      const consumerId = nodeId(repo.key, consumerSpec);
-      const type = docPage ? 'docs' : 'graphql';
+      for (const { consumerSpec, providerPath, docPage } of legacyEdges) {
+        const consumerId = nodeId(repo.key, consumerSpec);
+        const type = docPage ? 'docs' : 'graphql';
 
-      // Upsert consumer node
-      upsertNode(graph, {
-        id: consumerId,
-        repo: repo.key,
-        spec: consumerSpec,
-        title: specTitle(repo.key, consumerSpec, manifest),
-      });
-
-      // Upsert provider node
-      const parsed = parseNodeId_safe(providerPath);
-      if (parsed) {
         upsertNode(graph, {
-          id: providerPath,
-          repo: parsed.repo,
-          spec: parsed.spec,
-          title: specTitle(parsed.repo, parsed.spec, manifest),
+          id: consumerId,
+          repo: repo.key,
+          spec: consumerSpec,
+          title: specTitle(repo.key, consumerSpec, manifest),
+        });
+
+        const parsed = parseNodeId_safe(providerPath);
+        if (parsed) {
+          upsertNode(graph, {
+            id: providerPath,
+            repo: parsed.repo,
+            spec: parsed.spec,
+            title: specTitle(parsed.repo, parsed.spec, manifest),
+          });
+        }
+
+        upsertEdge(graph, {
+          consumer: consumerId,
+          provider: providerPath,
+          type,
+          surface: [],
+          lastVerified: new Date().toISOString().split('T')[0],
+          source: 'traceability',
         });
       }
-
-      upsertEdge(graph, {
-        consumer: consumerId,
-        provider: providerPath,
-        type,
-        surface: [],
-        lastVerified: new Date().toISOString().split('T')[0],
-        source: 'traceability',
-      });
     }
   }
 

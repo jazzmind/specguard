@@ -27,6 +27,7 @@ This is the read-only health check for a SpecGuard-managed repo: it never calls 
 - [ ] Sets `result.failed` to the count of source files missing a spec
 - [ ] Does not call the LLM and does not write any files
 - [ ] When a proof ledger exists, appends a `PROOFS:` summary. Those lines do not change `result.exitCode` <!-- claim: proof-lines-informational -->
+- [ ] An `UNFEATURED:` line listing specs of a feature-bearing type with no `feature:` tag is emitted only when a feature catalog is configured (`featureState.catalog`, or an enabled plugin with a default catalog); with no catalog it is absent and nothing about features is reported <!-- claim: unfeatured-needs-catalog -->
 
 ## Scenarios
 

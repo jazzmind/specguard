@@ -10,7 +10,7 @@
 
 Parses Living Specification Markdown files into structured `ParsedSpec` objects. This is the foundational module — every pipeline reads specs through this parser. The format is structured Markdown with an HTML comment metadata block and conventional H2/H3 sections.
 
-Compatible with the format used in `practera-test-suite/packages/spec-tools/src/spec-parser.ts` — any spec from that project can be read by this parser without modification.
+Specs written for the original SpecGuard prototype parse without modification (see `docs/migration-from-practera.md`).
 
 ## Acceptance Criteria
 

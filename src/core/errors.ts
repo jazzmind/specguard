@@ -16,7 +16,7 @@ export class SpecGuardError extends Error {
     this.exitCode = exitCode;
     this.cause = cause;
     // Restore prototype chain for instanceof across transpilation targets.
-    Object.setPrototypeOf(this, SpecGuardError.prototype);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

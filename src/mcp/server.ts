@@ -620,7 +620,7 @@ export function buildServer(): McpServer {
           .string()
           .describe(
             'Spec to analyze. Can be a node ID (e.g. graphql-api::specs/mutations/designer.md), ' +
-            'a path relative to workspace root (e.g. practera-graphql-api/specs/mutations/designer.md), ' +
+            'a path relative to workspace root (e.g. provider-api/specs/mutations/designer.md), ' +
             'or an absolute path.',
           ),
         maxDepth: z.number().optional().describe('Maximum traversal depth (default: 6).'),

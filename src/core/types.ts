@@ -173,7 +173,7 @@ export interface AppConfig {
    * directory — e.g. cross-repo regression suites. Resolved relative to the
    * directory containing `.specguard/config.json`. Used by `align` and `matrix`.
    *
-   * Example: `["../practera-test-suite/suites/regression/specs/auth/*.spec.ts"]`
+   * Example: `["../e2e-suite/specs/auth/*.spec.ts"]`
    */
   extraTestSources?: string[];
   /**
@@ -273,8 +273,27 @@ export interface PathsConfig {
   proofLedger?: string;
 }
 
+/** Feature-state (`specguard features --state`) settings. */
+export interface FeatureStateConfig {
+  /** Feature catalog directory (versioned YAML), relative to the config/workspace root. */
+  catalog?: string;
+  /** Directories of normalized FeatureCase JSON. */
+  resultsDirs?: string[];
+  /** Reporter output files (or globs) read as test results. */
+  reporters?: Array<{ path: string; kind?: string; format?: string }>;
+  /** Spec `type:` -> channel (ui | api | mcp). */
+  channelByType?: Record<string, string>;
+  /** Repo key -> channel its specs implement. */
+  repoChannels?: Record<string, string>;
+  /** External-id adapters to apply: generic, zephyr, jira. */
+  externalIds?: string[];
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
+  /** Built-in plugins to enable: directory names under `src/plugins/`. Empty means none. */
+  plugins?: string[];
+  featureState?: FeatureStateConfig;
   /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
   extends?: string;
   paths?: PathsConfig;

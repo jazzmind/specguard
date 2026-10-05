@@ -51,7 +51,6 @@ Steps and expected results go here.
 - **H2 sections**: Any number of named sections (e.g. `## Overview`, `## Acceptance Criteria`). Sections that are absent from a file are returned as empty strings — the parser never throws an error for a missing section.
 - **H2 Scenarios section**: The special `## Scenarios` section is parsed deeply into structured `SpecScenario` objects. If this section is absent, an empty array is returned.
 
-> **Compatibility note:** The Spec Parser is fully compatible with the format used in `practera-test-suite/packages/spec-tools/src/spec-parser.ts`. Any spec written for that project can be read by SpecGuard without modification.
 
 ---
 

@@ -36,8 +36,8 @@ import {
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadPlugins } from '../plugins/index.js';
 
-const UNFEATURED_TYPES = new Set(['page', 'feature', 'mutation', 'query']);
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
 
@@ -287,6 +287,19 @@ export async function runStatus(
 
   await appendProofCoverage(config, log);
 
+  // UNFEATURED only makes sense against a feature catalog: report it only when one is configured.
+  const plugins = await loadPlugins(config.plugins);
+  const catalogConfigured =
+    Boolean(config.featureState?.catalog) ||
+    plugins.some((plugin) => plugin.catalogProviders?.some((provider) => provider.defaultDir));
+  if (!catalogConfigured) return result;
+
+  // Spec types that must carry a `feature:` tag: `feature`, plus every type the config or a plugin maps to a channel.
+  const featureTypes = new Set<string>([
+    'feature',
+    ...plugins.flatMap((plugin) => Object.keys(plugin.featureState?.channelByType ?? {})),
+    ...Object.keys(config.featureState?.channelByType ?? {}),
+  ]);
   const unfeatured: string[] = [];
   for (const app of config.apps) {
     const specDirAbs = resolveFromRoot(config, app.specDir);
@@ -298,7 +311,7 @@ export async function runStatus(
     }
     for (const spec of specs) {
       const kind = spec.meta.type ?? '';
-      if (!UNFEATURED_TYPES.has(kind)) continue;
+      if (!featureTypes.has(kind)) continue;
       const tagged = (spec.meta.feature ?? '').split(',').map((part) => part.trim()).filter(Boolean);
       if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.specKey}`);
     }

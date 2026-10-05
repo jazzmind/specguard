@@ -791,29 +791,9 @@ Exit codes follow the [PrintingPress typed-exit convention](https://github.com/m
 
 ---
 
-## Relationship to Practera Test Suite
+## Migrating from the original prototype
 
-SpecGuard generalises the approach proven in [practera-test-suite](https://github.com/nickengineer/practera-test-suite):
-
-| Practera Implementation | SpecGuard |
-|---|---|
-| `packages/spec-tools/src/spec-parser.ts` | Core spec parser (same format) |
-| `packages/spec-tools/src/validate.ts` | `specguard validate` |
-| `packages/spec-tools/src/reverse-generate.ts` | `specguard reverse` |
-| `packages/spec-tools/src/doc-generate.ts` | `specguard docs` |
-| `.claude/agents/playwright-test-planner.md` | `specguard generate` (Playwright mode) |
-| `.claude/agents/playwright-test-generator.md` | `specguard generate` (code output) |
-| `.claude/agents/playwright-test-healer.md` | `specguard heal` |
-| Hard-coded `APP_CONFIGS` in reverse-generate.ts | `.specguard/config.json` |
-| Practera-specific `SPECS_DIR` paths | Config-driven `specDir` per app |
-| No external requirements import | `specguard import` |
-| No security pipeline | `specguard security` (LLM + SAST) |
-| No drift detection | `specguard drift` |
-| No traceability export | `specguard matrix` |
-| Manual CLI only | Parallel agent via Cursor Skill |
-| Anthropic-only | Pluggable LLM (Anthropic, OpenAI, Ollama) |
-
-The spec format is **fully compatible**. Any `specs/` directory from the Practera test suite works with SpecGuard out of the box.
+See [docs/migration-from-practera.md](docs/migration-from-practera.md).
 
 ### Patterns Adopted from QA-Agent
 
@@ -1057,7 +1037,7 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 
 ## Contributing
 
-This project is in active development. The core pipelines are extracted from production use in the Practera test suite and are being generalised here. PRs welcome — especially:
+This project is in active development. The core pipelines were extracted from production use and generalised. PRs welcome — especially:
 
 - Framework adapters for test generation (pytest, JUnit, Cypress)
 - SAST tool integrations beyond Semgrep

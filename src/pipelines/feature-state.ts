@@ -6,73 +6,57 @@
  *
  * Spec: specs/pipelines/feature-state.md
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { loadConfig } from '../core/config.js';
 import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
 import { hashString } from '../core/drift-registry.js';
 import { effectiveVerdict, emptyLedger, type ProofLedger } from '../core/proof-ledger.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
-import { currentFileHashes } from './proof.js';
-import type { ParsedSpec, PipelineResult } from '../core/types.js';
+import type { ParsedSpec, PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { yamlCatalogProvider } from '../plugins/catalog.js';
+import {
+  BUILTIN_DISCOVERERS,
+  graphqlOperations,
+  repoOf,
+  resolveModuleFile,
+} from '../plugins/discoverers.js';
+import { normalizeCases } from '../plugins/external-id.js';
+import { loadPlugins, resolveExternalIdAdapters } from '../plugins/index.js';
+import { caseDirSource, readCaseFiles, reporterSource } from '../plugins/result-sources.js';
+import {
+  CHANNELS,
+  type CatalogFeatureInput,
+  type CatalogProvider,
+  type CatalogTests,
+  type ChannelImplementation,
+  type ChannelName,
+  type ChannelState,
+  type FeatureCase,
+  type FeatureProof,
+  type FeatureSpec,
+  type FeatureStateTuning,
+  type ImplementationDiscoverer,
+  type ResultSource,
+  type SpecGuardPlugin,
+} from '../plugins/types.js';
+import { currentFileHashes, ledgerPath } from './proof.js';
 
-export const CHANNELS = ['ui', 'api', 'mcp'] as const;
-export type ChannelName = (typeof CHANNELS)[number];
-export type ChannelState = 'no' | 'stub' | 'built' | 'broken' | 'passing' | 'proven';
-
-export interface CatalogTests {
-  unit: string[];
-  regression: string[];
-  integration: string[];
-  proof: string[];
-}
-
-export interface CatalogFeatureInput {
-  id: string;
-  title: string;
-  area: string;
-  summary: string;
-  requires: ChannelName[];
-  specs: string[];
-  tests: CatalogTests;
-  status: string;
-}
-
-export interface FeatureSpec {
-  ref: string;
-  featureIds: string[];
-  channel: ChannelName | null;
-  overview: string;
-  filePath?: string;
-  /** `module:` from the spec, used to find the source file. */
-  module?: string;
-}
-
-/** What the repo actually contains for one feature. Learner MCP does not count as an admin tool. */
-export interface ChannelImplementation {
-  ui?: string;
-  api?: string;
-  mcpAdmin?: string;
-  mcpLearner?: string;
-}
-
-export interface FeatureCase {
-  kind: string;
-  status: string;
-  name?: string;
-  file?: string;
-  zephyr?: string;
-  featureId?: string;
-  channel?: ChannelName;
-}
-
-export interface FeatureProof {
-  claim: string;
-  verdict: string;
-}
+export { CHANNELS, graphqlOperations, resolveModuleFile };
+export type {
+  CatalogFeatureInput,
+  CatalogTests,
+  ChannelImplementation,
+  ChannelName,
+  ChannelState,
+  FeatureCase,
+  FeatureProof,
+  FeatureSpec,
+};
 
 export interface ChannelReport {
   state: ChannelState;
@@ -97,82 +81,47 @@ export interface FeatureStateInput {
   cases: FeatureCase[];
   proofs: FeatureProof[];
   implementations?: Record<string, ChannelImplementation>;
+  tuning?: Partial<FeatureStateTuning>;
 }
 
-const UI_REPOS = new Set(['admin-app', 'app', 'login-app', 'project-hub']);
-const API_REPOS = new Set(['graphql-api', 'login-api', 'services']);
+const DEFAULT_TUNING: FeatureStateTuning = {
+  channelByType: { ui: 'ui', api: 'api', mcp: 'mcp' },
+  repoChannels: {},
+};
+
+function tuned(partial?: Partial<FeatureStateTuning>): FeatureStateTuning {
+  return {
+    ...DEFAULT_TUNING,
+    ...partial,
+    channelByType: { ...DEFAULT_TUNING.channelByType, ...partial?.channelByType },
+    repoChannels: { ...DEFAULT_TUNING.repoChannels, ...partial?.repoChannels },
+  };
+}
+
 const HIGHER = new Set(['integration', 'regression', 'e2e', 'agent', 'proof']);
 const KIND_ORDER = ['unit', 'integration', 'regression', 'e2e', 'agent', 'proof'];
-
-function splitList(value: string): string[] {
-  const inner = value.trim().replace(/^\[/, '').replace(/\]$/, '').trim();
-  if (!inner) return [];
-  return inner.split(',').map((part) => part.trim()).filter(Boolean);
-}
-
-function unquote(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('"') && trimmed.endsWith('"')) return JSON.parse(trimmed) as string;
-  return trimmed;
-}
 
 function isChannel(value: string): value is ChannelName {
   return (CHANNELS as readonly string[]).includes(value);
 }
 
-/** Read the restricted catalog YAML. Agent blocks are skipped. */
-export function parseFeatureCatalog(text: string): CatalogFeatureInput[] {
-  const features: CatalogFeatureInput[] = [];
-  let current: CatalogFeatureInput | null = null;
-  let inAgent = false;
-  for (const raw of text.split('\n')) {
-    if (!raw.trim() || raw.trim().startsWith('#')) continue;
-    if (raw.startsWith('- id:')) {
-      if (current) features.push(current);
-      current = {
-        id: raw.slice(5).trim(),
-        title: '',
-        area: '',
-        summary: '',
-        requires: [],
-        specs: [],
-        tests: { unit: [], regression: [], integration: [], proof: [] },
-        status: 'planned',
-      };
-      inAgent = false;
-      continue;
-    }
-    if (!current) continue;
-    const test = raw.match(/^    (unit|regression|integration|proof): (.*)$/);
-    if (test && !inAgent) {
-      current.tests[test[1] as keyof CatalogTests] = splitList(test[2]);
-      continue;
-    }
-    const field = raw.match(/^  (\w+): (.*)$/);
-    if (!field) {
-      if (raw.trim() === 'agent:') inAgent = true;
-      if (raw.trim() === 'tests:') inAgent = false;
-      continue;
-    }
-    inAgent = field[1] === 'agent';
-    const value = unquote(field[2] ?? '');
-    if (field[1] === 'title') current.title = value;
-    else if (field[1] === 'area') current.area = value;
-    else if (field[1] === 'summary') current.summary = value;
-    else if (field[1] === 'requires') current.requires = splitList(value).filter(isChannel);
-    else if (field[1] === 'specs') current.specs = splitList(value);
-    else if (field[1] === 'status') current.status = value;
-  }
-  if (current) features.push(current);
-  return features;
-}
-
-/** Channel a spec implements. An explicit channel wins over the type default. */
-export function channelOf(meta: { channel?: string; type?: string; module?: string }, specKey = ''): ChannelName | null {
+/**
+ * Channel a spec implements. Order: explicit `channel:`, then the spec `type:`
+ * through `channelByType`, then the module path pattern, then the repo's channel.
+ */
+export function channelOf(
+  meta: { channel?: string; type?: string; module?: string },
+  specKey = '',
+  tuning?: Partial<FeatureStateTuning>,
+  repoKey?: string,
+): ChannelName | null {
+  const t = tuned(tuning);
   if (meta.channel && isChannel(meta.channel)) return meta.channel;
-  if (meta.type === 'page' || meta.type === 'ui') return 'ui';
-  if (meta.type === 'mutation' || meta.type === 'query') return 'api';
-  if (/\/mcp\/|\/tools\/|mcp-server/i.test(`${meta.module ?? ''} ${specKey}`)) return 'mcp';
+  const byType = meta.type ? t.channelByType[meta.type] : undefined;
+  if (byType && isChannel(byType)) return byType;
+  if (t.mcpModulePattern?.test(`${meta.module ?? ''} ${specKey}`)) return 'mcp';
+  const byRepo = repoKey ? t.repoChannels[repoKey] : undefined;
+  if (byRepo && isChannel(byRepo)) return byRepo;
   return null;
 }
 
@@ -182,26 +131,23 @@ function firstSentence(text: string): string {
   return (match ? match[0] : flat).trim();
 }
 
-function repoOf(ref: string): string {
-  return ref.split(':')[0] ?? '';
-}
-
 export function inferRequires(
   feature: CatalogFeatureInput,
   specs: FeatureSpec[],
   impl?: ChannelImplementation,
+  tuning?: Partial<FeatureStateTuning>,
 ): ChannelName[] {
+  const t = tuned(tuning);
   const requires: ChannelName[] = [];
   const refs = new Set(feature.specs);
   for (const spec of specs) {
     if (spec.featureIds.includes(feature.id)) refs.add(spec.ref);
   }
-  const repos = [...refs].map(repoOf);
+  const repoChannels = [...refs].map((ref) => t.repoChannels[repoOf(ref)]).filter((c): c is ChannelName => Boolean(c) && isChannel(c));
   if (feature.requires.length > 0) requires.push(...feature.requires);
   else {
-    if (repos.some((repo) => UI_REPOS.has(repo))) requires.push('ui');
-    if (repos.some((repo) => API_REPOS.has(repo))) requires.push('api');
-    const mcp = repos.includes('mcp') || specs.some((spec) => spec.featureIds.includes(feature.id) && spec.channel === 'mcp');
+    for (const channel of repoChannels) if (channel !== 'mcp' && !requires.includes(channel)) requires.push(channel);
+    const mcp = repoChannels.includes('mcp') || specs.some((spec) => spec.featureIds.includes(feature.id) && spec.channel === 'mcp');
     if (mcp && requires.length === 0) requires.push('mcp');
   }
   if (impl?.ui && !requires.includes('ui')) requires.push('ui');
@@ -210,59 +156,61 @@ export function inferRequires(
   return CHANNELS.filter((channel) => requires.includes(channel));
 }
 
-/** A drafted summary that is a scenario heading, not a sentence about the feature. */
-export function headingSummary(summary: string): boolean {
-  return /^[a-z0-9]+(?:-[a-z0-9]+)+ — /.test(summary.trim());
-}
-
 function isIndexFeature(feature: CatalogFeatureInput): boolean {
-  return /\.(list|index)$/.test(feature.id) || /\b(list|index)\b/i.test(feature.title);
+  return /[.\-_](list|index)$/i.test(feature.id) || /\b(list|index)\b/i.test(feature.title);
 }
 
-function summaryFor(feature: CatalogFeatureInput, specs: FeatureSpec[]): string {
+function summaryFor(feature: CatalogFeatureInput, specs: FeatureSpec[], t: FeatureStateTuning): string {
   const catalog = feature.summary.trim();
   const linked = specs.filter((spec) => spec.featureIds.includes(feature.id) || feature.specs.includes(spec.ref));
   const page = linked.find((spec) => spec.channel === 'ui') ?? linked[0];
-  if ((!catalog || headingSummary(catalog)) && page && (isIndexFeature(feature) || linked.length === 1)) {
+  const placeholder = t.isPlaceholderSummary?.(catalog) ?? false;
+  if ((!catalog || placeholder) && page && (isIndexFeature(feature) || linked.length === 1)) {
     return firstSentence(page.overview);
   }
   return catalog;
 }
 
+/** Default tokens of a feature id: every alphanumeric run longer than three characters. No id structure is assumed. */
+function defaultIdTokens(id: string): string[] {
+  return id.toLowerCase().split(/[^a-z0-9]+/).filter((part) => part.length > 3);
+}
+
 /** Drop a unit file when its name matches a sibling feature better than this one. */
-export function unitBelongs(feature: CatalogFeatureInput, file: string, features: CatalogFeatureInput[]): boolean {
+export function unitBelongs(
+  feature: CatalogFeatureInput,
+  file: string,
+  features: CatalogFeatureInput[],
+  idTokens: (id: string) => string[] = defaultIdTokens,
+): boolean {
   const base = path.basename(file).replace(/\.(test|spec)\.[a-z]+$/i, '').toLowerCase();
-  const tokens = (id: string) => id.split('.').slice(2).join('-').split(/[^a-z0-9]+/).filter((part) => part.length > 3);
   const fileTokens = base.split(/[^a-z0-9]+/).filter((part) => part.length > 3);
-  const score = (id: string) => fileTokens.filter((token) => tokens(id).includes(token)).length;
+  const score = (id: string) => fileTokens.filter((token) => idTokens(id).includes(token)).length;
   const mine = score(feature.id);
   const bestOther = features.reduce((best, other) => (other.id === feature.id ? best : Math.max(best, score(other.id))), 0);
   return bestOther <= mine;
 }
 
-function withOwnedUnits(feature: CatalogFeatureInput, features: CatalogFeatureInput[]): CatalogFeatureInput {
+function withOwnedUnits(
+  feature: CatalogFeatureInput,
+  features: CatalogFeatureInput[],
+  idTokens?: (id: string) => string[],
+): CatalogFeatureInput {
   return {
     ...feature,
-    tests: { ...feature.tests, unit: feature.tests.unit.filter((file) => unitBelongs(feature, file, features)) },
+    tests: { ...feature.tests, unit: feature.tests.unit.filter((file) => unitBelongs(feature, file, features, idTokens)) },
   };
 }
 
-/** Root field of each GraphQL operation in a source file. */
-export function graphqlOperations(source: string): Array<{ kind: string; field: string }> {
-  const ops: Array<{ kind: string; field: string }> = [];
-  const re = /\b(query|mutation|subscription)\b[^{]*\{/g;
-  for (const match of source.matchAll(re)) {
-    const name = source.slice((match.index ?? 0) + match[0].length).match(/^\s*([A-Za-z_][\w]*)/);
-    if (name && !['query', 'mutation', 'subscription', 'fragment'].includes(name[1])) {
-      ops.push({ kind: match[1], field: name[1] });
-    }
-  }
-  return ops;
+function caseIds(row: FeatureCase): string[] {
+  return [row.externalId, ...(Array.isArray(row.externalIds) ? row.externalIds : [])].filter((id): id is string => typeof id === 'string' && id.length > 0);
 }
 
 function caseMatches(feature: CatalogFeatureInput, row: FeatureCase): boolean {
   if (row.featureId === feature.id) return true;
-  if (row.zephyr && feature.tests.regression.includes(row.zephyr)) return true;
+  if (Array.isArray(row.tags) && row.tags.includes(`@feature:${feature.id}`)) return true;
+  const featureIds = [...feature.tests.regression, ...(feature.externalIds ?? [])];
+  if (caseIds(row).some((id) => featureIds.includes(id))) return true;
   const file = row.file ?? '';
   const name = row.name ?? '';
   const linked = [...feature.tests.unit, ...feature.tests.integration, ...feature.tests.proof];
@@ -295,7 +243,7 @@ function scoreCases(feature: CatalogFeatureInput, cases: FeatureCase[]): Scored[
       rank: kindRank(kind),
       index,
       status,
-      label: `${kind} ${row.zephyr || row.file || row.name || 'test'} ${status}`,
+      label: `${kind} ${row.externalId || row.file || row.name || 'test'} ${status}`,
       channel: row.channel && isChannel(row.channel) ? row.channel : null,
       higher: HIGHER.has(kind),
     });
@@ -366,10 +314,11 @@ function builtEvidence(channel: ChannelName, impl?: ChannelImplementation): stri
 }
 
 export function featureStates(input: FeatureStateInput): FeatureStateRow[] {
+  const t = tuned(input.tuning);
   return input.features.map((raw) => {
-    const feature = withOwnedUnits(raw, input.features);
+    const feature = withOwnedUnits(raw, input.features, t.idTokens);
     const impl = input.implementations?.[feature.id];
-    const requires = inferRequires(feature, input.specs, impl);
+    const requires = inferRequires(feature, input.specs, impl, t);
     const cases = scoreCases(feature, input.cases);
     const channels = {} as Record<ChannelName, ChannelReport>;
     for (const channel of CHANNELS) {
@@ -388,7 +337,7 @@ export function featureStates(input: FeatureStateInput): FeatureStateRow[] {
     }
     return {
       id: feature.id,
-      summary: summaryFor(feature, input.specs),
+      summary: summaryFor(feature, input.specs, t),
       requires,
       legacy: feature.status === 'legacy',
       channels,
@@ -398,164 +347,44 @@ export function featureStates(input: FeatureStateInput): FeatureStateRow[] {
   });
 }
 
-function loadCatalogDir(dir: string): CatalogFeatureInput[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => name.endsWith('.yaml'))
-    .sort()
-    .flatMap((name) => parseFeatureCatalog(readFileSync(path.join(dir, name), 'utf8')));
-}
-
-function specToFeature(repo: string, spec: ParsedSpec): FeatureSpec {
+function specToFeature(repo: string, spec: ParsedSpec, tuning: Partial<FeatureStateTuning>): FeatureSpec {
   const featureIds = (spec.meta.feature ?? '').split(',').map((part) => part.trim()).filter((part) => part && part !== 'platform');
   return {
     ref: `${repo}:${spec.specKey}`,
     featureIds,
-    channel: channelOf(spec.meta, spec.specKey),
+    channel: channelOf(spec.meta, spec.specKey, tuning, repo),
     overview: spec.overview,
     filePath: spec.filePath,
     module: spec.meta.module,
   };
 }
 
-function isFile(file: string): boolean {
-  try {
-    return statSync(file).isFile();
-  } catch {
-    return false;
-  }
-}
-
-/** Turn a spec `module:` path into a source file, when one exists. */
-export function resolveModuleFile(repoDir: string, modulePath: string): string | null {
-  const cleaned = modulePath.replace(/\(.*\)/, '').trim();
-  const rest = cleaned.replace(/^[a-z0-9-]+\//, '');
-  const stems = [cleaned, rest, path.join('src/pages', rest), path.join('src', rest), path.join('src/components', rest), path.join('src/schema', rest)];
-  for (const stem of stems) {
-    const withExt = /\.[a-z]+$/i.test(stem) ? [stem] : [stem, `${stem}.tsx`, `${stem}.ts`, path.join(stem, 'index.tsx'), path.join(stem, 'index.ts')];
-    for (const rel of withExt) {
-      const abs = path.join(repoDir, rel);
-      if (isFile(abs)) return abs;
-    }
-  }
-  return null;
-}
-
-function bestApiSpec(specs: FeatureSpec[], field: string, kind: string): { spec: FeatureSpec; score: number } | undefined {
-  const singular = field.endsWith('ies') ? `${field.slice(0, -3)}y` : field.replace(/s$/, '');
-  let best: { spec: FeatureSpec; score: number } | undefined;
-  for (const spec of specs) {
-    if (!spec.ref.startsWith('graphql-api:') && spec.channel !== 'api') continue;
-    const key = (spec.ref.split(':')[1] ?? '').toLowerCase();
-    const last = key.split('/').pop() ?? '';
-    let score = 0;
-    if (last === field.toLowerCase() || last === singular) score += 5;
-    if (key.includes(field.toLowerCase()) || (singular.length > 3 && key.includes(singular))) score += 2;
-    if (spec.overview.toLowerCase().includes(field.toLowerCase())) score += 1;
-    if (kind === 'query' && key.includes('queries/')) score += 4;
-    if (kind === 'mutation' && key.includes('mutations/')) score += 4;
-    if (score > 0 && (!best || score > best.score)) best = { spec, score };
-  }
-  return best;
-}
-
-interface McpToolHit {
-  name: string;
-  audience: 'admin' | 'learner';
-  fields: string[];
-}
-
-function walkFiles(dir: string, out: string[] = []): string[] {
-  if (!existsSync(dir)) return out;
-  for (const name of readdirSync(dir)) {
-    const abs = path.join(dir, name);
-    if (statSync(abs).isDirectory()) walkFiles(abs, out);
-    else if (name.endsWith('.ts') && !name.endsWith('.d.ts')) out.push(abs);
-  }
-  return out;
-}
-
-function mcpTools(toolsDir: string): McpToolHit[] {
-  const hits: McpToolHit[] = [];
-  for (const file of walkFiles(toolsDir)) {
-    const source = readFileSync(file, 'utf8');
-    const name = source.match(/server\.tool\(\s*['"]([^'"]+)['"]/)?.[1];
-    if (!name) continue;
-    const audience = /\/student\/|\/learner\//.test(file) ? 'learner' : 'admin';
-    hits.push({ name, audience, fields: graphqlOperations(source).map((op) => op.field) });
-  }
-  return hits;
-}
-
-function pageSources(pageFile: string): string {
-  const dir = path.dirname(pageFile);
-  const chunks = [readFileSync(pageFile, 'utf8')];
-  for (const name of ['queries.ts', 'queries.tsx', 'query.ts']) {
-    const sibling = path.join(dir, name);
-    if (isFile(sibling)) chunks.push(readFileSync(sibling, 'utf8'));
-  }
-  return chunks.join('\n');
-}
-
-function linkedSpecs(feature: CatalogFeatureInput, specs: FeatureSpec[]): FeatureSpec[] {
-  return specs.filter((spec) => spec.featureIds.includes(feature.id) || feature.specs.includes(spec.ref));
-}
-
 /**
- * Find the screen, the GraphQL query it calls, and any MCP tool on that same field.
- * A learner tool is recorded separately and does not make MCP built.
+ * Run every discoverer and merge. The first discoverer to report a channel for a
+ * feature wins that channel; later ones fill the channels still missing.
  */
 export function discoverImplementations(
   features: CatalogFeatureInput[],
   specs: FeatureSpec[],
   repos: Array<{ key: string; absPath: string }>,
+  discoverers: ImplementationDiscoverer[] = BUILTIN_DISCOVERERS,
+  moduleStems: string[] = [],
 ): Record<string, ChannelImplementation> {
-  const repoDir = new Map(repos.map((repo) => [repo.key, repo.absPath]));
-  const toolsDir = repoDir.get('mcp-server');
-  const tools = toolsDir ? mcpTools(path.join(toolsDir, 'src', 'tools')) : [];
-  const found: Record<string, ChannelImplementation> = {};
-  for (const feature of features) {
-    const impl: ChannelImplementation = {};
-    const fields = new Map<string, string>();
-    for (const spec of linkedSpecs(feature, specs)) {
-      const repo = repoOf(spec.ref);
-      const dir = repoDir.get(repo);
-      if (!dir || !spec.module) continue;
-      const file = resolveModuleFile(dir, spec.module);
-      if (!file) continue;
-      if (spec.channel === 'ui' || spec.channel === null) {
-        impl.ui = path.relative(dir, file);
-        const ops = graphqlOperations(pageSources(file));
-        const queries = ops.filter((op) => op.kind === 'query');
-        const relevant = isIndexFeature(feature) ? queries.slice(0, 1) : ops;
-        for (const op of relevant) fields.set(op.field, op.kind);
-      }
-      if (spec.channel === 'api') impl.api = spec.ref;
-    }
-    let apiScore = 0;
-    for (const [field, kind] of fields) {
-      const match = bestApiSpec(specs, field, kind);
-      if (match && match.score > apiScore) {
-        apiScore = match.score;
-        impl.api = match.spec.ref;
-      }
-    }
-    const matched = tools.filter((tool) => tool.fields.some((field) => fields.has(field)));
-    const admin = matched.find((tool) => tool.audience === 'admin');
-    const learner = matched.find((tool) => tool.audience === 'learner');
-    if (admin) impl.mcpAdmin = admin.name;
-    else if (learner) impl.mcpLearner = `learner ${learner.name}; no admin tool`;
-    if (impl.ui || impl.api || impl.mcpAdmin || impl.mcpLearner) found[feature.id] = impl;
+  const merged: Record<string, ChannelImplementation> = {};
+  for (const discoverer of discoverers) {
+    const found = discoverer.discover({ features, specs, repos, moduleStems });
+    for (const [id, impl] of Object.entries(found)) merged[id] = { ...impl, ...merged[id] };
   }
-  return found;
+  return merged;
 }
 
 async function loadProofs(
   rootDir: string,
   specs: FeatureSpec[],
   repoDirs: Map<string, string>,
+  ledgerOverride?: string,
 ): Promise<FeatureProof[]> {
-  const file = path.join(rootDir, '.specguard', 'proofs.json');
+  const file = ledgerPath(rootDir, ledgerOverride);
   if (!(await fileExists(file))) return [];
   let ledger: ProofLedger = emptyLedger();
   try {
@@ -583,58 +412,125 @@ async function loadProofs(
   return proofs;
 }
 
-function readCaseFiles(dir: string): FeatureCase[] {
-  if (!existsSync(dir)) return [];
-  const rows: FeatureCase[] = [];
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.json')) continue;
-    try {
-      const parsed = JSON.parse(readFileSync(path.join(dir, name), 'utf8')) as FeatureCase[] | { cases?: FeatureCase[] };
-      rows.push(...(Array.isArray(parsed) ? parsed : parsed.cases ?? []));
-    } catch {
-      /* a bad results file is not a pass */
-    }
-  }
-  return rows;
+export interface FeatureStateOptions {
+  /** Override the plugin list (default: `config.plugins`). */
+  plugins?: string[];
 }
 
-export async function collectFeatureState(cwd: string, extraCases: FeatureCase[] = []): Promise<FeatureStateInput> {
-  const { manifest, repos } = await loadWorkspaceWithConfigs(cwd);
-  const features = loadCatalogDir(path.resolve(manifest.rootDir, manifest.catalog ?? 'practera-test-suite/catalog'));
-  const specs: FeatureSpec[] = [];
+interface Resolved {
+  rootDir: string;
+  repos: Array<{ key: string; absPath: string; specGuardConfig: SpecGuardConfig | null }>;
+  config: SpecGuardConfig | null;
+  manifestCatalog?: string;
+  manifestPlugins?: string[];
+}
+
+async function resolveWorkspace(cwd: string): Promise<Resolved> {
+  let config: SpecGuardConfig | null = null;
+  try {
+    config = await loadConfig(cwd);
+  } catch {
+    config = null;
+  }
+  try {
+    const { manifest, repos } = await loadWorkspaceWithConfigs(cwd);
+    const raw = manifest as unknown as { plugins?: string[] };
+    return { rootDir: manifest.rootDir, repos, config, manifestCatalog: manifest.catalog, manifestPlugins: raw.plugins };
+  } catch {
+    if (!config) throw new Error('No .specguard/workspace.json or .specguard/config.json found.');
+    const rootDir = config.rootDir ?? cwd;
+    return {
+      rootDir,
+      repos: [{ key: path.basename(rootDir), absPath: rootDir, specGuardConfig: config }],
+      config,
+    };
+  }
+}
+
+export async function collectFeatureState(
+  cwd: string,
+  extraCases: FeatureCase[] = [],
+  opts: FeatureStateOptions = {},
+): Promise<FeatureStateInput & { notes: string[] }> {
+  const resolved = await resolveWorkspace(cwd);
+  const { rootDir, repos, config } = resolved;
+  const plugins: SpecGuardPlugin[] = await loadPlugins(opts.plugins ?? config?.plugins ?? resolved.manifestPlugins);
+  const fs = config?.featureState ?? {};
+  const notes: string[] = [];
+
+  const tuning: Partial<FeatureStateTuning> = {};
+  for (const plugin of plugins) Object.assign(tuning, plugin.featureState, {
+    channelByType: { ...tuning.channelByType, ...plugin.featureState?.channelByType },
+    repoChannels: { ...tuning.repoChannels, ...plugin.featureState?.repoChannels },
+  });
+  tuning.channelByType = { ...tuning.channelByType, ...(fs.channelByType as FeatureStateTuning['channelByType'] | undefined) };
+  tuning.repoChannels = { ...tuning.repoChannels, ...(fs.repoChannels as FeatureStateTuning['repoChannels'] | undefined) };
+
+  // Catalog: config, then workspace manifest, then a plugin's default directory.
+  const configured = fs.catalog ?? resolved.manifestCatalog;
+  const providers: CatalogProvider[] = [...plugins.flatMap((p) => p.catalogProviders ?? []), yamlCatalogProvider];
+  const features: CatalogFeatureInput[] = [];
   const seen = new Set<string>();
+  for (const provider of providers) {
+    const dir = configured ?? provider.defaultDir;
+    if (!dir) continue;
+    for (const feature of await provider.load({ rootDir, dir })) {
+      if (seen.has(feature.id)) continue;
+      seen.add(feature.id);
+      features.push(feature);
+    }
+  }
+  if (features.length === 0) {
+    notes.push('no feature catalog found: set featureState.catalog (versioned YAML) or enable a plugin that provides one');
+  }
+
+  const specs: FeatureSpec[] = [];
+  const seenDirs = new Set<string>();
   for (const repo of repos) {
     if (!repo.specGuardConfig) continue;
     for (const app of repo.specGuardConfig.apps ?? []) {
       const specDir = path.resolve(repo.absPath, app.specDir);
-      if (seen.has(specDir) || !existsSync(specDir)) continue;
-      seen.add(specDir);
+      if (seenDirs.has(specDir) || !existsSync(specDir)) continue;
+      seenDirs.add(specDir);
       try {
-        for (const spec of loadAllSpecs(specDir)) specs.push(specToFeature(repo.key, spec));
+        for (const spec of loadAllSpecs(specDir)) specs.push(specToFeature(repo.key, spec, tuning));
       } catch {
         /* a repo without readable specs still reports from the catalog */
       }
     }
   }
-  const cases = [
-    ...readCaseFiles(path.join(manifest.rootDir, '.results', 'cases')),
-    ...readCaseFiles(path.join(manifest.rootDir, 'practera-test-suite', '.results', 'cases')),
-    ...extraCases,
+
+  const sources: ResultSource[] = [
+    ...plugins.flatMap((p) => p.resultSources ?? []),
+    caseDirSource('config-results', fs.resultsDirs ?? []),
+    reporterSource((fs.reporters ?? []).map((r) => ({ path: r.path, kind: r.kind, format: r.format as never }))),
   ];
+  const adapters = resolveExternalIdAdapters(fs.externalIds, plugins);
+  const cases = normalizeCases([...sources.flatMap((source) => source.load({ rootDir })), ...extraCases], adapters);
+
+  const discoverers = [...BUILTIN_DISCOVERERS, ...plugins.flatMap((p) => p.discoverers ?? [])];
+  const moduleStems = plugins.flatMap((p) => p.moduleStems ?? []);
   return {
     features,
     specs,
     cases,
-    proofs: await loadProofs(manifest.rootDir, specs, new Map(repos.map((repo) => [repo.key, repo.absPath]))),
-    implementations: discoverImplementations(features, specs, repos),
+    proofs: await loadProofs(rootDir, specs, new Map(repos.map((repo) => [repo.key, repo.absPath])), config?.paths?.proofLedger),
+    implementations: discoverImplementations(features, specs, repos, discoverers, moduleStems),
+    tuning,
+    notes,
   };
 }
 
-export async function runFeatureState(cwd: string, extraCases: FeatureCase[] = []): Promise<PipelineResult> {
-  const rows = featureStates(await collectFeatureState(cwd, extraCases));
+export async function runFeatureState(
+  cwd: string,
+  extraCases: FeatureCase[] = [],
+  opts: FeatureStateOptions = {},
+): Promise<PipelineResult> {
+  const input = await collectFeatureState(cwd, extraCases, opts);
+  const rows = featureStates(input);
   const result = emptyResult('feature-state');
   result.updated = rows.length;
-  result.messages = [JSON.stringify(rows)];
+  result.messages = [JSON.stringify(rows), ...input.notes];
   return result;
 }
 
@@ -643,3 +539,5 @@ export function loadCasesFile(file: string): FeatureCase[] {
   const parsed = JSON.parse(readFileSync(file, 'utf8')) as FeatureCase[] | { cases?: FeatureCase[] };
   return Array.isArray(parsed) ? parsed : parsed.cases ?? [];
 }
+
+export { readCaseFiles };

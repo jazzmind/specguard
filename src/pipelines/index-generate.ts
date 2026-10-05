@@ -67,7 +67,7 @@ function readRoutingSource(repoDir: string): string {
 }
 
 const IndexSchema = z.object({
-  title: z.string().describe('Short title for the system (e.g. "Practera Admin App")'),
+  title: z.string().describe('Short title for the system (e.g. "Acme Admin App")'),
   overview: z.string().describe('2-4 sentences describing what the app does, its tech stack, and main users'),
   dataFlow: z.string().describe('1-3 sentence description of the data flow (auth, API calls, integrations)'),
   contextTree: z.string().optional().describe('If the source shows React context providers, describe the provider tree in a code block'),
