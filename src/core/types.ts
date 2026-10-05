@@ -233,7 +233,6 @@ export interface AppTestConfig {
 export interface RunnersConfig {
   playwright?: 'local' | 'docker' | string;
   semgrep?: 'local' | 'docker' | 'auto' | string;
-  bandit?: 'local' | 'docker' | 'auto' | string;
   testRunner?: 'local' | 'docker' | string;
 }
 

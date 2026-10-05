@@ -35,6 +35,14 @@ export interface DepFinding {
   source: string;
   /** Files using this dep (for missing-dep findings). */
   usedIn?: string[];
+  /** Vulnerability detail kept from the audit tool. */
+  package?: string;
+  range?: string;
+  isDirect?: boolean;
+  fixAvailable?: boolean | { name?: string; version?: string; isSemVerMajor?: boolean };
+  fixVersions?: string[];
+  /** Advisory URLs. */
+  references?: string[];
 }
 
 export interface DepCheckReport {
@@ -76,23 +84,31 @@ function appsInScope(config: SpecGuardConfig, opts: DepCheckOpts): AppConfig[] {
   return [app];
 }
 
+/** An unknown severity on a known vulnerability counts as medium: it is real, just unrated. */
 function vulnerabilitySeverity(sev?: string): DepFinding['severity'] {
   const s = (sev ?? '').toLowerCase();
   if (s === 'critical') return 'critical';
   if (s === 'high') return 'high';
   if (s === 'moderate' || s === 'medium') return 'medium';
   if (s === 'low') return 'low';
-  return 'info';
+  return 'medium';
 }
 
-function normalizeAudit(findings: SastFinding[]): DepFinding[] {
+/** `runner` labels findings whose adapter did not set `source` itself. */
+export function normalizeAudit(findings: SastFinding[], runner: string): DepFinding[] {
   return findings.map((f) => ({
     name: f.ruleId,
     severity: vulnerabilitySeverity(f.severity),
     category: 'vulnerability' as const,
     message: f.message,
     rule: f.ruleId,
-    source: 'npm-audit',
+    source: f.source ?? runner,
+    package: f.package,
+    range: f.range,
+    isDirect: f.isDirect,
+    fixAvailable: f.fixAvailable,
+    fixVersions: f.fixVersions,
+    references: f.via?.map((v) => v.url).filter((u): u is string => Boolean(u)),
   }));
 }
 
@@ -156,7 +172,7 @@ export async function runDepCheck(
       runsDepcheck ? runDepcheck(repoAbs) : Promise.resolve({ ok: false, findings: [] as DepcheckFinding[] }),
     ]);
 
-    const vulnFindings = normalizeAudit(auditResult.findings);
+    const vulnFindings = normalizeAudit(auditResult.findings, auditRunner);
     const depFindings = normalizeDepcheck(depcheckResult.findings);
     const appFindings = [...vulnFindings, ...depFindings];
 
@@ -165,9 +181,9 @@ export async function runDepCheck(
     const missingCount = depFindings.filter((f) => f.category === 'missing-dep').length;
 
     if (auditResult.ok) {
-      log(`[npm-audit] ${app.name}: ${vulnCount} vulnerability(ies)`);
+      log(`[${auditRunner}] ${app.name}: ${vulnCount} vulnerability(ies)`);
     } else {
-      log(`[warn] ${app.name}: npm audit not available`);
+      log(`[warn] ${app.name}: ${auditRunner} not available`);
     }
 
     if (depcheckResult.ok) {
@@ -202,6 +218,7 @@ export async function runDepCheck(
   result.messages.push(`[deps] ${totalVulnerabilities} vulnerability(ies), ${totalUnused} unused dep(s), ${totalMissing} missing dep(s)`);
 
   result.created = allFindings.length;
+  result.failed = allFindings.length;
 
   // Fail gate: non-zero exit if critical/high vulnerabilities found
   const criticalOrHigh = allFindings.filter((f) => f.severity === 'critical' || f.severity === 'high').length;

@@ -7,7 +7,7 @@
 ## Overview
 
 The Docker adapter is the execution layer for running containerised external tools
-(Semgrep, Bandit, OWASP ZAP). It abstracts `docker run --rm` invocations behind a
+(Semgrep, OWASP ZAP). It abstracts `docker run --rm` invocations behind a
 typed interface, handles availability probing, volume mounts, and graceful degradation
 when Docker is unavailable.
 

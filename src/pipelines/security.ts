@@ -49,6 +49,7 @@ import { llmGenerateText } from '../core/llm.js';
 import { resolveProfile, type LanguageProfile } from '../core/language-profiles.js';
 import { runContainer } from '../adapters/docker.js';
 import { runNpmAudit } from '../adapters/npm-audit.js';
+import { runPipAudit } from '../adapters/pip-audit.js';
 
 export interface SecurityOpts {
   /** A spec key (e.g. `core/spec-parser`) or a direct path to a `.md` spec. */
@@ -75,6 +76,20 @@ export interface SastFinding {
   message: string;
   /** Severity as reported by the tool, if known. */
   severity?: string;
+  /** Tool that produced the finding: `semgrep`, `npm-audit`, `pip-audit`. */
+  source?: string;
+  /** Package name, for dependency findings. */
+  package?: string;
+  /** Installed version or vulnerable range, for dependency findings. */
+  range?: string;
+  /** True when the vulnerable package is a direct dependency. */
+  isDirect?: boolean;
+  /** npm's `fixAvailable`: true, false, or the version that fixes it. */
+  fixAvailable?: boolean | { name?: string; version?: string; isSemVerMajor?: boolean };
+  /** Versions that fix the vulnerability (pip-audit). */
+  fixVersions?: string[];
+  /** Advisory titles and URLs. */
+  via?: Array<{ title?: string; url?: string }>;
 }
 
 /** Result of a SAST run. `ok` is false when the tool could not run at all. */
@@ -335,26 +350,34 @@ export async function runSecurity(
     return res;
   };
 
-  const runNpmAuditForApp = async (app: AppConfig): Promise<SastFinding[]> => {
+  /** Dependency audit with the app's own language runner (npm audit, pip-audit, or none). */
+  const runAuditForApp = async (app: AppConfig): Promise<SastFinding[]> => {
     const repoAbs = resolveFromRoot(config, app.repo);
-    const cached = npmAuditByRepo.get(repoAbs);
+    const runner = resolveProfile(app).auditRunner;
+    const cacheKey = `${runner}:${repoAbs}`;
+    const cached = npmAuditByRepo.get(cacheKey);
     if (cached) return cached;
-    const auditResult = await runNpmAudit(repoAbs);
+    if (runner === 'unsupported') {
+      log(`[deps] ${app.name}: no dependency-audit runner for ${resolveProfile(app).id} — skipping dep scan`);
+      npmAuditByRepo.set(cacheKey, []);
+      return [];
+    }
+    const auditResult = runner === 'pip-audit' ? await runPipAudit(repoAbs) : await runNpmAudit(repoAbs);
     if (!auditResult.ok) {
-      log(`[warn] npm audit unavailable for ${app.name} — skipping dep scan`);
-      npmAuditByRepo.set(repoAbs, []);
+      log(`[warn] ${runner} unavailable for ${app.name} — skipping dep scan`);
+      npmAuditByRepo.set(cacheKey, []);
       return [];
     }
     if (auditResult.findings.length > 0) {
       sawRealFindings = true;
-      log(`[npm-audit] ${app.name}: ${auditResult.findings.length} vulnerable dep(s)`);
+      log(`[${runner}] ${app.name}: ${auditResult.findings.length} vulnerable dep(s)`);
       for (const f of auditResult.findings.slice(0, 10)) {
         log(`  - ${f.ruleId}: ${f.message}`);
       }
     } else {
-      log(`[npm-audit] ${app.name}: no vulnerabilities`);
+      log(`[${runner}] ${app.name}: no vulnerabilities`);
     }
-    npmAuditByRepo.set(repoAbs, auditResult.findings);
+    npmAuditByRepo.set(cacheKey, auditResult.findings);
     return auditResult.findings;
   };
 
@@ -421,7 +444,7 @@ export async function runSecurity(
       const hasRules = await fe(rulesDir);
       const [sastResult, auditFindings] = await Promise.all([
         runSastForApp(app, hasRules ? rulesDir : undefined),
-        runNpmAuditForApp(app),
+        runAuditForApp(app),
       ]);
       sastFindings = [...sastResult.findings, ...auditFindings];
     }
@@ -511,5 +534,48 @@ export async function runSecurity(
     } catch { /* best-effort */ }
   }
 
+  await writeSecurityReport(config, result, [...sastByRepo.values()].flatMap((r) => r.findings), [...npmAuditByRepo.values()].flat(), opts);
+
   return result;
+}
+
+/** Shape of `.specguard/security.json`. */
+export interface SecurityReport {
+  generatedAt: string;
+  withSast: boolean;
+  /** Findings from the SAST tool and from the dependency audit, with every field the tool gave. */
+  findings: SastFinding[];
+  counts: { total: number; bySeverity: Record<string, number> };
+  /** One row per spec the pipeline handled. */
+  tests: Array<{ key: string; status: string; path?: string; message?: string }>;
+}
+
+/** Write the structured JSON report the README promises: `.specguard/security.json`. */
+async function writeSecurityReport(
+  config: SpecGuardConfig,
+  result: PipelineResult,
+  sast: SastFinding[],
+  audit: SastFinding[],
+  opts: SecurityOpts,
+): Promise<void> {
+  try {
+    const findings = [...sast.map((f) => ({ ...f, source: f.source ?? 'semgrep' })), ...audit];
+    const bySeverity: Record<string, number> = {};
+    for (const f of findings) {
+      const sev = (f.severity ?? 'UNKNOWN').toUpperCase();
+      bySeverity[sev] = (bySeverity[sev] ?? 0) + 1;
+    }
+    const report: SecurityReport = {
+      generatedAt: new Date().toISOString(),
+      withSast: opts.withSast === true,
+      findings,
+      counts: { total: findings.length, bySeverity },
+      tests: result.items.map((i) => ({ key: i.key, status: i.status, path: i.path, message: i.message })),
+    };
+    const file = resolveFromRoot(config, path.join('.specguard', 'security.json'));
+    await writeFile(file, `${JSON.stringify(report, null, 2)}\n`);
+    result.messages.push(`[security] wrote ${path.relative(config.rootDir ?? process.cwd(), file)}`);
+  } catch {
+    /* the report is best-effort; it never changes the outcome */
+  }
 }

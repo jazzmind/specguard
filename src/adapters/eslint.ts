@@ -38,10 +38,10 @@ export interface EslintResult {
 // ---------------------------------------------------------------------------
 
 export const eslintRunner = {
-  run(cwd: string): { stdout: string | null; status: number | null; error?: Error } {
+  run(cwd: string, opts: { fix?: boolean } = {}): { stdout: string | null; status: number | null; error?: Error } {
     const res = spawnSync(
       'npx',
-      ['eslint', '--format', 'json', '--no-error-on-unmatched-pattern', '.'],
+      ['eslint', ...(opts.fix ? ['--fix'] : []), '--format', 'json', '--no-error-on-unmatched-pattern', '.'],
       {
         cwd,
         encoding: 'utf-8',
@@ -126,9 +126,9 @@ function parseEslintOutput(stdout: string, cwd: string): EslintResult {
  * Run `npx eslint --format json .` in `projectDir`.
  * Never throws; returns `{ ok: false }` when eslint is not available.
  */
-export async function runEslint(projectDir: string): Promise<EslintResult> {
+export async function runEslint(projectDir: string, opts: { fix?: boolean } = {}): Promise<EslintResult> {
   try {
-    const res = eslintRunner.run(projectDir);
+    const res = eslintRunner.run(projectDir, opts);
 
     if (res.error || res.stdout === null) {
       return { findings: [], ok: false, errorCount: 0, warningCount: 0 };

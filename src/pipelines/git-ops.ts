@@ -15,6 +15,7 @@
  * - Never touches src/, app/, lib/ or any file outside the safe roots.
  * - --dry-run prints what would be staged/committed without changing anything.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -209,7 +210,7 @@ export async function runGitOps(
 // Changelog helper
 // ---------------------------------------------------------------------------
 
-interface ChangelogEntry {
+export interface ChangelogEntry {
   hash: string;
   message: string;
   pipeline?: string;
@@ -221,11 +222,10 @@ interface ChangelogEntry {
  * Append a single entry to `.specguard/changelog.md`.
  * The file is append-only — never truncated — so every commit is tracked.
  */
-function _appendChangelog(cwd: string, entry: ChangelogEntry): void {
+export function _appendChangelog(cwd: string, entry: ChangelogEntry): void {
   try {
-    const fs = require('fs') as typeof import('fs');
-    const nodePath = require('path') as typeof import('path');
-    const changelogPath = nodePath.join(cwd, '.specguard', 'changelog.md');
+    const changelogPath = path.join(cwd, '.specguard', 'changelog.md');
+    fs.mkdirSync(path.dirname(changelogPath), { recursive: true });
     const isNew = !fs.existsSync(changelogPath);
 
     const lines: string[] = [];

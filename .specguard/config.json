@@ -95,7 +95,6 @@
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "testRunner": "local"
   },
   "llm": {

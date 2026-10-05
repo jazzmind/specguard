@@ -99,7 +99,6 @@ function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: M
     runners: {
       playwright: 'local',
       semgrep: 'auto',
-      bandit: 'auto',
       testRunner: 'local',
     },
     llm: {

@@ -256,7 +256,7 @@ program
   .description('run security analysis for specs')
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
-  .option('--with-sast', 'include static analysis (Semgrep/Bandit)')
+  .option('--with-sast', 'include static analysis (Semgrep) and the dependency audit for the app language')
   .option('--app <name>', 'limit to a single app')
   .option('--force', 'overwrite existing security tests')
   .action(
@@ -342,7 +342,7 @@ program
 program
   .command('analyze')
   .description('run all diagnostic checks and return recommendations')
-  .option('--auto-fix', 'automatically run recommended pipelines after analysis')
+  .option('--auto-fix', 'run the recommended pipelines that are safe unattended (quality --fix, matrix); the rest stay recommendations')
   .action(async (opts: { autoFix?: boolean }, cmd: Command) => {
     await analyzeCommand(withGlobals(cmd, opts));
   });

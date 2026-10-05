@@ -68,7 +68,6 @@ const runnersSchema = z
   .object({
     playwright: z.string().optional(),
     semgrep: z.string().optional(),
-    bandit: z.string().optional(),
     testRunner: z.string().optional(),
   })
   .passthrough();
