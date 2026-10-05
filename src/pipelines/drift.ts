@@ -29,7 +29,8 @@ import { execFileSync } from 'node:child_process';
 import { stat } from 'node:fs/promises';
 
 import { z } from 'zod';
-import type { SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import type { AppConfig, SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
@@ -84,15 +85,8 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   return path.resolve(config.rootDir ?? process.cwd(), p);
 }
 
-function deriveFeature(absFile: string, repoDir: string): string {
-  let rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-  const segments = rel.split('/');
-  if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) segments.shift();
-  if (segments.length > 1) segments.shift();
-  rel = segments.join('/');
-  rel = rel.replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '');
-  rel = rel.replace(/\.[cm]?[jt]sx?$/i, '');
-  return rel;
+function deriveFeature(absFile: string, repoDir: string, app: AppConfig): string {
+  return featureFromPath(absFile, repoDir, resolveProfile(app), app);
 }
 
 async function mtimeMs(absPath: string): Promise<number | null> {
@@ -190,7 +184,7 @@ async function runMtimeDrift(
     const inScope = changedAbs ? allSources.filter((abs) => changedAbs.has(abs)) : allSources;
 
     for (const absFile of inScope) {
-      const feature = deriveFeature(absFile, repoDir);
+      const feature = deriveFeature(absFile, repoDir, app);
       const key = `${app.name}/${feature}`;
       if (opts.spec && opts.spec !== key) continue;
 
@@ -329,7 +323,7 @@ export async function runDrift(
       const feature = key.split('/').slice(1).join('/');
       // Files that plausibly relate to this spec (same feature key in their path).
       const relatedSources = allSources.filter((abs) => {
-        const f = deriveFeature(abs, repoDir);
+        const f = deriveFeature(abs, repoDir, app);
         return f === feature;
       });
 
@@ -515,7 +509,7 @@ export async function detectOrphans(
     // Build the feature set AND the "domain" (set of first-path-segment prefixes this app covers)
     let allSources: string[] = [];
     try { allSources = await expandGlobs(patterns, repoDir); } catch { continue; }
-    const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir)));
+    const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir, app)));
 
     // Domain filtering: only flag orphans for specs whose first-segment prefix
     // matches what this app's sources can produce. This prevents apps with a
@@ -592,7 +586,7 @@ async function _buildInitialRegistry(
       const specEntry = getOrCreateSpecEntry(registry, key, specHash);
 
       const feature = spec.specKey;
-      const related = allSources.filter((abs) => deriveFeature(abs, repoDir) === feature);
+      const related = allSources.filter((abs) => deriveFeature(abs, repoDir, app) === feature);
       for (const absFile of related) {
         const h = hashFile(absFile);
         if (h) updateFileEntry(specEntry, toRegistryKey(cwd, absFile), h, 'no-drift');

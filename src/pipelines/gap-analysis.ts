@@ -129,7 +129,7 @@ export async function runGapAnalysis(
     const profile = resolveProfile(app);
     const implementedFeatures = new Set<string>();
     for (const absFile of sourceFiles) {
-      implementedFeatures.add(featureFromPath(absFile, repoDir, profile));
+      implementedFeatures.add(featureFromPath(absFile, repoDir, profile, app));
     }
 
     // Load all specs for this app.

@@ -678,7 +678,7 @@ specguard generate --spec auth/login           # uses default (anthropic)
       "specDir": "specs/web",
       "sources": { "pages": ["src/pages/**/*.tsx"] },
       "framework": "playwright",
-      "baseUrl": "http://localhost:3000"
+      "testOutput": "packages/web/tests/"
     },
     {
       "name": "api",
@@ -693,6 +693,7 @@ specguard generate --spec auth/login           # uses default (anthropic)
       "repo": "services/core",
       "specDir": "specs/core",
       "sources": { "api": ["app/routes/**/*.py"] },
+      "language": "python",
       "framework": "pytest",
       "testOutput": "services/core/tests/"
     }

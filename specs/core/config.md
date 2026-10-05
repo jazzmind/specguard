@@ -22,6 +22,10 @@ This module is the single entry point for config — pipelines never read the co
 - [ ] Ignores the `_comment` field and tolerates unknown keys via passthrough
 - [ ] Sets `rootDir` on the returned config to the directory containing `.specguard/`
 - [ ] Successfully loads the repo's own `.specguard/config.json` without error
+- [ ] The upward search stops at the repository boundary (the first directory containing `.git`), so a repo without its own config never silently inherits a parent repo's config <!-- claim: repo-boundary -->
+- [ ] `"extends": "<path>"` (a config file, or a directory containing `.specguard/config.json`, resolved from the extending config's directory) is the only way to inherit another config: keys merge one level deep, arrays and `apps` in the child replace the parent's, and a cycle is a `ConfigInvalidError` <!-- claim: extends-explicit -->
+- [ ] `paths` accepts `specsRoot`, `docsOut`, `securityTests`, and `proofLedger`, and replaces the hard-coded `specs/`, `docs/user`, `tests/security/` and `.specguard/proofs.json` locations <!-- claim: paths-block -->
+- [ ] Each app accepts `stripPrefix` (string or list) and `entryPoints` (list of paths or globs), and `plugins` / `featureState` are accepted at the top level <!-- claim: app-fields -->
 
 ## Scenarios
 

@@ -66,6 +66,26 @@ export const gitRunner = {
 /** Default file scopes that SpecGuard is allowed to commit. */
 const DEFAULT_SAFE_ROOTS = ['tests/', 'docs/', 'specs/', '.specguard/'];
 
+/** The defaults plus every directory this config tells SpecGuard to write into. */
+export function safeRootsFor(config: SpecGuardConfig): string[] {
+  const root = config.rootDir ?? process.cwd();
+  const dirs = new Set(DEFAULT_SAFE_ROOTS);
+  const add = (p: string | undefined) => {
+    if (!p) return;
+    const rel = (path.isAbsolute(p) ? path.relative(root, p) : p).split(path.sep).join('/').replace(/^\.\//, '').replace(/\/+$/, '');
+    if (rel && !rel.startsWith('..') && rel !== '.') dirs.add(`${rel}/`);
+  };
+  for (const app of config.apps) {
+    add(app.specDir);
+    add(app.testOutput);
+    if (typeof app.docs === 'string') add(app.docs);
+  }
+  add(config.paths?.specsRoot);
+  add(config.paths?.docsOut);
+  add(config.paths?.securityTests);
+  return [...dirs];
+}
+
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   if (path.isAbsolute(p)) return p;
   return path.resolve(config.rootDir ?? process.cwd(), p);
@@ -95,7 +115,7 @@ export async function runGitOps(
 ): Promise<PipelineResult> {
   const result = emptyResult('git-ops');
   const cwd = resolveFromRoot(config, '.');
-  const safeRoots = opts.scope ?? DEFAULT_SAFE_ROOTS;
+  const safeRoots = opts.scope ?? safeRootsFor(config);
   const dryRun = opts.dryRun ?? false;
 
   const log = (line: string) => result.messages.push(line);
