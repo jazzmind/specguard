@@ -38,6 +38,8 @@ export interface WorkspaceManifest {
   name: string;
   /** Map of short repo key → repo config. */
   repos: Record<string, WorkspaceRepo>;
+  /** Feature catalog directory, relative to the workspace root. */
+  catalog?: string;
   /** Absolute path to the workspace root (the dir containing `.specguard/workspace.json`). */
   rootDir: string;
 }
@@ -68,6 +70,7 @@ const workspaceSchema = z
     version: z.string(),
     name: z.string(),
     repos: z.record(z.string(), repoSchema),
+    catalog: z.string().optional(),
   })
   .passthrough();
 

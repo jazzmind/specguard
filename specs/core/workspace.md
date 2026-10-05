@@ -21,6 +21,7 @@ The workspace manifest enables workspace-level pipelines (`contracts`, `impact`,
 - [ ] `resolveRepoPath(manifest, repoKey)` returns the absolute path of a repo
 - [ ] `hasWorkspace(cwd)` returns boolean without throwing
 - [ ] Unknown fields in manifest are preserved (passthrough schema)
+- [ ] An optional `catalog` path, relative to the workspace root, names the shared feature catalog directory
 
 ## Scenarios
 

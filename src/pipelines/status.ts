@@ -35,6 +35,9 @@ import {
 } from '../core/language-profiles.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
+import { loadAllSpecs } from '../core/spec-parser.js';
+
+const UNFEATURED_TYPES = new Set(['page', 'feature', 'mutation', 'query']);
 /** Options for the status pipeline (reserved for forward-compat). */
 export interface StatusOpts {}
 
@@ -283,6 +286,25 @@ export async function runStatus(
   result.exitCode = result.failed > 0 ? ExitCode.MissingSpecs : ExitCode.Success;
 
   await appendProofCoverage(config, log);
+
+  const unfeatured: string[] = [];
+  for (const app of config.apps) {
+    const specDirAbs = resolveFromRoot(config, app.specDir);
+    let specs;
+    try {
+      specs = loadAllSpecs(specDirAbs);
+    } catch {
+      continue;
+    }
+    for (const spec of specs) {
+      const kind = spec.meta.type ?? '';
+      if (!UNFEATURED_TYPES.has(kind)) continue;
+      const tagged = (spec.meta.feature ?? '').split(',').map((part) => part.trim()).filter(Boolean);
+      if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.specKey}`);
+    }
+  }
+  log(`UNFEATURED: ${unfeatured.length}`);
+  for (const key of unfeatured.slice(0, 40)) log(`  [unfeatured] ${key}`);
 
   return result;
 }

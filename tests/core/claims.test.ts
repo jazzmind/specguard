@@ -213,4 +213,30 @@ describe('proof ingest', () => {
       { specHash: row.specHash, fileHashes: {} },
     )).toBe('proven');
   });
+
+  it('stores an error verdict and reports it as error, not unexercised', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sg-proof-err-'));
+    mkdirSync(path.join(dir, 'specs'), { recursive: true });
+    mkdirSync(path.join(dir, '.specguard'), { recursive: true });
+    writeFileSync(
+      path.join(dir, 'specs', 'widget.md'),
+      `# Widget\n\n<!--\n  module: src/widget.ts\n  type: core\n-->\n\n## Acceptance Criteria\n\n- Does the thing <!-- claim: does-the-thing -->\n`,
+    );
+    writeFileSync(
+      path.join(dir, '.specguard', 'config.json'),
+      JSON.stringify({
+        apps: [{ name: 'widget', repo: '.', specDir: 'specs', sources: { api: ['src/**/*.ts'] }, framework: 'vitest', testOutput: 'tests' }],
+        llm: { provider: 'anthropic', model: 'claude', apiKeyEnv: 'ANTHROPIC_API_KEY' },
+      }),
+    );
+    const verdicts = path.join(dir, 'verdicts.json');
+    writeFileSync(verdicts, JSON.stringify({ runId: 'r', verdicts: [{ claim: 'widget#does-the-thing', verdict: 'error' }] }));
+
+    const ingested = await runProofIngest(verdicts, dir);
+    expect(ingested.failed).toBe(0);
+    const ledger = JSON.parse(readFileSync(path.join(dir, '.specguard', 'proofs.json'), 'utf8'));
+    const row = ledger.proofs['widget#does-the-thing'];
+    expect(row.verdict).toBe('error');
+    expect(effectiveVerdict(row, { specHash: row.specHash, fileHashes: {} })).toBe('error');
+  });
 });

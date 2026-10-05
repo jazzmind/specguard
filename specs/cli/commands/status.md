@@ -14,6 +14,7 @@ The `specguard status` command provides a spec coverage report as part of the Ph
 - AC4: The process exits with the exact exit code returned by `runStatus` result.
 - AC5: No output is written to `process.stderr` by this command directly.
 - AC6: The command is asynchronous and resolves only after all messages have been written and `process.exit` is called.
+- AC7: The `runStatus` pipeline appends `UNFEATURED: <n>` and up to 40 `[unfeatured] <app>:<specKey>` lines for specs of type page, feature, mutation or query that have no `feature:` meta value. `feature: platform` counts as featured.
 
 ## Scenarios
 

@@ -52,6 +52,7 @@ import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
 import { runClaimsAssign, runClaimsList } from '../pipelines/claims.js';
 import { appendProofCoverage } from '../pipelines/proof.js';
+import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
@@ -748,6 +749,28 @@ export function buildServer(): McpServer {
             workspace: false,
             config,
           }));
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_feature_state',
+    {
+      description:
+        'Feature summary, UI/API/MCP state (no, stub, broken, passing, proven), and whether an agent may run. ' +
+        '(CLI: specguard features --state)',
+      inputSchema: {
+        cwd: z.string().optional().describe('Workspace or repo directory.'),
+        cases: z.string().optional().describe('Path to extra TestCaseResult JSON.'),
+      },
+    },
+    ({ cwd, cases }): Promise<ToolResult> =>
+      withActivityLog('feature-state', resolveCwd(cwd), async () => {
+        try {
+          const result = await runFeatureState(resolveCwd(cwd), cases ? loadCasesFile(cases) : []);
+          return textResult(result.messages.join('\n'));
         } catch (err) {
           return errorResult(err);
         }

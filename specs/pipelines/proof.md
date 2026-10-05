@@ -10,7 +10,7 @@
 
 Stores the result of a proof run against claim ids. `specguard proof ingest` merges a verdicts file into `.specguard/proofs.json` on the workspace root when `.specguard/workspace.json` is found, and on the repo root otherwise. Each row records the verdict, the run id, the spec hash, the owning repo's git HEAD, and the drift-registry file hashes at ingest time.
 
-`proven`, `failed`, and `unexercised` are stored. `stale` is computed when the spec hash or a recorded source-file hash no longer matches. `unproven` means the ledger has no row. `specguard status` prints the counts and does not change its exit code. `specguard drift` counts a stale proof as drift.
+`proven`, `failed`, `unexercised`, and `error` are stored. `error` means a probe threw, so the claim was not exercised. `stale` is computed when the spec hash or a recorded source-file hash no longer matches. `unproven` means the ledger has no row. A non-stale `proven` claim counts as Proven for that spec's channel when `specguard features --state` runs. `specguard status` prints the counts and does not change its exit code. `specguard drift` counts a stale proof as drift.
 
 ## Acceptance Criteria
 

@@ -113,3 +113,24 @@ describe('runStatus', () => {
     expect(res.messages.some((m) => m.includes('TOTAL: 0 source files'))).toBe(true);
   });
 });
+
+describe('runStatus UNFEATURED report', () => {
+  const page = (feature: string): string =>
+    `# P\n\n<!-- module: src/core/p.ts / type: page / status: draft${feature} -->\n\n## Acceptance Criteria\n\n- [ ] ok\n`;
+
+  it('lists page specs without a feature id and not those with one or marked platform', async () => {
+    await writeRel('src/core/p.ts');
+    await writeRel('src/core/q.ts');
+    await writeRel('src/core/r.ts');
+    await writeRel('specs/core/p.md', page(''));
+    await writeRel('specs/core/q.md', page(' / feature: design.q'));
+    await writeRel('specs/core/r.md', page(' / feature: platform'));
+
+    const res = await runStatus(makeConfig());
+
+    expect(res.messages).toContain('UNFEATURED: 1');
+    expect(res.messages.some((m) => m.includes('[unfeatured] core:p'))).toBe(true);
+    expect(res.messages.some((m) => m.includes('[unfeatured] core:q'))).toBe(false);
+    expect(res.messages.some((m) => m.includes('[unfeatured] core:r'))).toBe(false);
+  });
+});

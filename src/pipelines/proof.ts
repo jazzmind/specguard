@@ -36,7 +36,7 @@ const VerdictFileSchema = z.object({
   verdicts: z.array(
     z.object({
       claim: z.string().min(1),
-      verdict: z.enum(['proven', 'failed', 'unexercised']),
+      verdict: z.enum(['proven', 'failed', 'unexercised', 'error']),
       exercised: z.number().int().nonnegative().optional(),
       counterexamples: z.number().int().nonnegative().optional(),
       evidencePath: z.string().optional(),
@@ -225,6 +225,7 @@ interface CoverageCounts {
   proven: number;
   failed: number;
   unexercised: number;
+  error: number;
   stale: number;
   unproven: number;
 }
@@ -239,7 +240,7 @@ async function walkClaims(
   if (!(await fileExists(file))) return null;
   const ledger = await readLedger(file);
   const repoKey = await repoKeyFor(cwd);
-  const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, stale: 0, unproven: 0 };
+  const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0 };
   const top = path.join(cwd, 'specs');
   const specDirs = (await fileExists(top))
     ? [top]
@@ -290,7 +291,7 @@ export async function appendProofCoverage(
     return;
   }
   log(
-    `PROOFS: ${counts.proven} proven, ${counts.failed} failed, ` +
+    `PROOFS: ${counts.proven} proven, ${counts.failed} failed, ${counts.error} error, ` +
       `${counts.unexercised} unexercised, ${counts.stale} stale, ${counts.unproven} unproven`,
   );
 }
