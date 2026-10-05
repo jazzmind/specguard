@@ -33,7 +33,6 @@ import type {
   AppConfig,
   ParsedSpec,
   PipelineResult,
-  PipelineItem,
 } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
@@ -46,7 +45,6 @@ import { syncRootDocs } from '../core/root-doc-sync.js';
 
 /** Category values from most general to most specific — the DocsView groups by this. */
 const DOC_CATEGORIES = ['overview', 'getting-started', 'core', 'pipelines', 'adapters', 'reference'] as const;
-type DocCategory = typeof DOC_CATEGORIES[number];
 
 /** Schema for the LLM's structured doc output. */
 const DocOutputSchema = z.object({

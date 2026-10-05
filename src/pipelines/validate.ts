@@ -28,7 +28,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { writeFile, ensureDir } from '../core/writer.js';
 import { fileExists } from '../core/reader.js';
-import { llmGenerateObject, llmGenerateText } from '../core/llm.js';
+import { llmGenerateObject } from '../core/llm.js';
 import {
   launchBrowser,
   closeBrowser,

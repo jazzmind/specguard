@@ -17,7 +17,7 @@
  * without launching a real browser.
  */
 import path from 'node:path';
-import { ensureDir, writeFile } from '../core/writer.js';
+import { ensureDir } from '../core/writer.js';
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -81,7 +81,6 @@ export const playwrightRunner = {
     try {
       // Dynamic import via Function constructor avoids TypeScript resolving the
       // optional peer dep at compile time. This is intentional.
-      // eslint-disable-next-line no-new-func
       const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<unknown>;
       const pw = await dynamicImport('@playwright/test');
       return pw as { chromium: unknown };

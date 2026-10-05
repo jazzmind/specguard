@@ -56,11 +56,12 @@ import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
 import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
 import { runWithPipeline } from '../core/llm-runtime.js';
+import { cliVersion } from '../core/version.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
 
 const SERVER_NAME = 'specguard-mcp';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = cliVersion();
 
 /** Resolve the working directory a tool should load config from. */
 function resolveCwd(cwd?: string): string {
@@ -881,7 +882,6 @@ function isMainModule(): boolean {
 
 if (isMainModule()) {
   main().catch((err) => {
-    // eslint-disable-next-line no-console
     console.error('[specguard-mcp] fatal:', err);
     process.exit(1);
   });

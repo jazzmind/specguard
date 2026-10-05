@@ -13,7 +13,7 @@ The MCP Registration Helper writes a `specguard-mcp` server entry into the Curso
 - AC-3: If `.cursor/mcp.json` exists and is valid JSON, its existing content is preserved and the `specguard-mcp` key under `mcpServers` is added or updated.
 - AC-4: If `.cursor/mcp.json` exists but cannot be parsed, a warning is shown and a fresh config object is used (existing file content is overwritten).
 - AC-5: When `node_modules/.bin/specguard-mcp` exists in the workspace, the registered entry uses that path as `command` with an empty `args` array.
-- AC-6: When `node_modules/.bin/specguard-mcp` does not exist, the registered entry uses `npx` as `command` with `["specguard-mcp"]` as `args`.
+- AC-6: When `node_modules/.bin/specguard-mcp` does not exist, the registered entry uses `npx` as `command` with `["-y", "-p", "specguard-ai", "specguard-mcp"]` as `args`.
 - AC-7: The written `specguard-mcp` entry always includes an `env` field set to an empty object.
 - AC-8: The config file is written as pretty-printed JSON (2-space indent) with a trailing newline.
 - AC-9: An information message is shown after a successful write; selecting "Open Config" opens the config file in the editor.
@@ -68,7 +68,7 @@ The MCP Registration Helper writes a `specguard-mcp` server entry into the Curso
 
 **Expected Results:**
 - The `.cursor/` directory is created.
-- `.cursor/mcp.json` is created with `command` set to `"npx"` and `args` set to `["specguard-mcp"]`.
+- `.cursor/mcp.json` is created with `command` set to `"npx"` and `args` set to `["-y", "-p", "specguard-ai", "specguard-mcp"]`.
 - The `env` field is present and equals `{}`.
 - An information message appears containing the path to `mcp.json`.
 

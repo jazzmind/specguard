@@ -23,6 +23,8 @@ Generates the agent-harness files that let an AI coding agent run SpecGuard alon
 - [ ] `CLAUDE.md` is created with SpecGuard sentinel sections when missing; when present, only the sentinel sections are updated (surrounding content preserved)
 - [ ] `.claude/settings.json` gains an MCP server entry (`specguard-mcp`) and a `PostToolUse` hook without removing or overwriting unrelated existing keys
 - [ ] `.cursor/mcp.json` gains a `specguard-mcp` server entry without dropping existing servers
+- [ ] Every command SpecGuard writes for a user to run without a global install uses `npx -p specguard-ai specguard ...` (the package is `specguard-ai`, the binary is `specguard`), and the MCP entry is `npx -y -p specguard-ai specguard-mcp`; bare `npx specguard` or `npx specguard-mcp` is never written <!-- claim: correct-npx-forms -->
+- [ ] An existing `specguard-mcp` entry or `PostToolUse` hook written by an older version in the broken `npx specguard...` form is repaired in place; an entry the user customised is left alone <!-- claim: repair-broken-npx -->
 - [ ] Malformed existing JSON in a config file is reported in `messages` and the file is left unchanged (no throw)
 - [ ] All file writes go through `core/writer.ts` / `core/reader.ts`; no direct `fs` writes leak the abstraction
 

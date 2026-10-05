@@ -34,6 +34,8 @@ source of truth. As an AI agent you **must** keep specs and code in sync.
 | `specguard security --all` | OWASP security test stubs |
 | (tests run via) | `npm test` |
 
+Without a global install, run any command as `npx -p specguard-ai specguard <command>`.
+
 ### Safety Rules
 
 - NO secrets or credentials in code.

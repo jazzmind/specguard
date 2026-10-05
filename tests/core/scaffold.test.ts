@@ -87,3 +87,34 @@ describe('scaffoldHarnessFiles', () => {
     expect(res.skipped.some((p) => p.endsWith('mcp.json'))).toBe(true);
   });
 });
+
+describe('npx forms', () => {
+  it('writes the package-qualified npx commands', async () => {
+    const { mergeClaudeSettings, mergeCursorMcpJson, NPX_CLI, mcpServerEntry } = await import('../../src/core/scaffold.js');
+    const claude = mergeClaudeSettings({}) as { mcpServers: Record<string, { command: string; args: string[] }>; hooks: unknown };
+    expect(claude.mcpServers['specguard-mcp']).toEqual({ command: 'npx', args: ['-y', '-p', 'specguard-ai', 'specguard-mcp'] });
+    expect(JSON.stringify(claude.hooks)).toContain(`${NPX_CLI} status`);
+    expect(NPX_CLI).toBe('npx -p specguard-ai specguard');
+    expect(mergeCursorMcpJson({}).mcpServers).toEqual({ 'specguard-mcp': mcpServerEntry() });
+  });
+
+  it('repairs the broken form written by older versions and leaves customised entries alone', async () => {
+    const { mergeClaudeSettings, mergeCursorMcpJson, mcpServerEntry } = await import('../../src/core/scaffold.js');
+    const broken = {
+      mcpServers: { 'specguard-mcp': { command: 'npx', args: ['specguard-mcp'] } },
+      hooks: { PostToolUse: [{ matcher: 'Edit', hooks: [{ type: 'command', command: 'npx specguard status | tail -3' }] }] },
+    };
+    const fixed = mergeClaudeSettings(broken) as typeof broken;
+    expect(fixed.mcpServers['specguard-mcp']).toEqual(mcpServerEntry());
+    expect(JSON.stringify(fixed.hooks)).toContain('npx -p specguard-ai specguard status | tail -3');
+    expect(JSON.stringify(fixed.hooks)).not.toContain('npx specguard status');
+    expect(fixed.hooks.PostToolUse).toHaveLength(1);
+
+    const custom = { mcpServers: { 'specguard-mcp': { command: '/opt/specguard-mcp', args: [] } } };
+    expect(mergeCursorMcpJson(custom).mcpServers).toEqual(custom.mcpServers);
+    expect(mergeCursorMcpJson({ mcpServers: { 'specguard-mcp': { command: 'npx', args: ['specguard-mcp'] }, other: { command: 'x' } } }).mcpServers).toEqual({
+      'specguard-mcp': mcpServerEntry(),
+      other: { command: 'x' },
+    });
+  });
+});

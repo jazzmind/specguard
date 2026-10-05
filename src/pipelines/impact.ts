@@ -16,19 +16,12 @@ import {
   type ContractGraph,
   type ContractNode,
   type ContractEdge,
-  type TraversalStep,
   loadContractGraph,
   findNode,
   nodeId,
   traverseGraph,
-  parseNodeId,
 } from '../core/contracts.js';
-import {
-  type WorkspaceManifest,
-  type WorkspaceRepoWithConfig,
-  resolveRepoPath,
-} from '../core/workspace.js';
-import { resolveProfile } from '../core/language-profiles.js';
+import type { WorkspaceManifest } from '../core/workspace.js';
 
 // ---------------------------------------------------------------------------
 // Types

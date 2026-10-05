@@ -6,14 +6,12 @@
  *   Drift   — run specguard workspace drift and stream results
  */
 import * as vscode from 'vscode';
-import * as path from 'path';
 import * as crypto from 'crypto';
 import {
   loadWorkspaceManifest,
   loadContractsSummary,
   getWorkspaceManifestRoot,
   getActiveWorkspaceRoot,
-  type WorkspaceRepo,
 } from './workspace-state.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
 
@@ -136,7 +134,7 @@ async function streamCommand(label: string, args: string[], streamTarget: string
 // HTML / CSS / JS
 // ---------------------------------------------------------------------------
 
-function buildHtml(webview: vscode.Webview): string {
+function buildHtml(_webview: vscode.Webview): string {
   const nonce = crypto.randomBytes(16).toString('base64');
   return `<!doctype html>
 <html lang="en">

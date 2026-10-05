@@ -19,9 +19,11 @@ export function setExtensionPath(extPath: string): void {
  *  3. `{workspace}/src/cli/index.ts` (dev: the workspace IS the specguard source repo)
  *  4. `{extensionPath}/dist/cli.js` (bundled CLI baked into every extension build — always available)
  *
- * NOTE: `npx specguard` is intentionally NOT used as a fallback. There is an
- * unrelated npm package named `specguard@0.2.1` that would be fetched instead,
- * causing "unknown command" errors for import, status, reverse, etc.
+ * NOTE: bare `npx specguard` is intentionally NOT used as a fallback. There is an
+ * unrelated npm package named `specguard@0.2.1` that it would fetch instead,
+ * causing "unknown command" errors for import, status, reverse, etc. The
+ * terminal commands in commands.ts use `npx -p specguard-ai specguard`, which
+ * names the right package explicitly.
  */
 export async function resolveCliPath(workspaceRoot: string): Promise<string> {
   const cfg = vscode.workspace.getConfiguration('specguard');
@@ -106,7 +108,7 @@ export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (
       'SpecGuard CLI not found.\n' +
       'Options:\n' +
       '  • Set "specguard.cliPath" in VS Code settings to point to the bundled CLI\n' +
-      '  • Or run `npm install specguard` in your project to install it locally',
+      '  • Or run `npm install specguard-ai` in your project to install it locally',
     ));
     return { promise: promise.catch((e: unknown) => { throw e; }), kill: () => {} };
   }

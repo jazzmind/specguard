@@ -3,9 +3,11 @@
     "specguard-mcp": {
       "command": "npx",
       "args": [
+        "-y",
+        "-p",
+        "specguard-ai",
         "specguard-mcp"
-      ],
-      "env": {}
+      ]
     }
   }
 }

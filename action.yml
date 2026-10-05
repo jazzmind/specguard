@@ -1,0 +1,123 @@
+name: 'SpecGuard'
+description: 'Run SpecGuard spec-driven QA gates (status, drift, proofs, alignment, test-result ingestion, optional validate) and upload the evidence.'
+author: 'jazzmind'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  version:
+    description: >-
+      Version of specguard-ai to install: an exact version such as 0.2.0, a dist-tag, or "latest".
+      Use "local" to build and use the repository that is checked out (SpecGuard's own CI does this).
+    required: false
+    default: 'latest'
+  node-version:
+    description: 'Node.js version.'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Directory containing .specguard/config.json.'
+    required: false
+    default: '.'
+  gates:
+    description: >-
+      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps.
+    required: false
+    default: 'status,proof'
+  fail-on:
+    description: >-
+      Comma-separated thresholds that fail the job: missing-specs, drift, proof-failed, proof-stale,
+      proof-unexercised, proof-unproven, align-below:<percent>, results, validate, security, deps, none.
+    required: false
+    default: 'missing-specs,drift,proof-failed,proof-stale,results'
+  results:
+    description: 'Reporter output files or globs (Vitest/Jest JSON, Playwright JSON, JUnit XML, pytest-json-report, go test -json) for `results ingest`. Comma or newline separated. Used by the "results" gate.'
+    required: false
+    default: ''
+  run-id:
+    description: 'Run id recorded in the proof ledger by `results ingest`.'
+    required: false
+    default: '${{ github.run_id }}-${{ github.run_attempt }}'
+  drift-since:
+    description: 'Git ref `drift` compares against (for example origin/main). Default: HEAD~1.'
+    required: false
+    default: ''
+  validate-url:
+    description: 'Base URL of the running app for the "validate" gate.'
+    required: false
+    default: ''
+  install-playwright:
+    description: 'Install Playwright browsers (needed by the "validate" gate).'
+    required: false
+    default: 'false'
+  upload-evidence:
+    description: 'Upload .specguard/ (without secrets) as an artifact.'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Name of the evidence artifact.'
+    required: false
+    default: 'specguard-evidence'
+
+outputs:
+  failed:
+    description: '"true" when any fail-on threshold tripped.'
+    value: ${{ steps.gates.outputs.failed }}
+  tripped:
+    description: 'Comma-separated thresholds that tripped.'
+    value: ${{ steps.gates.outputs.tripped }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install SpecGuard
+      shell: bash
+      env:
+        SG_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ "$SG_VERSION" = "local" ]; then
+          npm ci
+          npm run build
+          npm link
+        elif [ "$SG_VERSION" = "latest" ] || [ -z "$SG_VERSION" ]; then
+          npm install -g specguard-ai
+        else
+          npm install -g "specguard-ai@${SG_VERSION}"
+        fi
+        specguard --version
+
+    - name: Install Playwright browsers
+      if: ${{ inputs.install-playwright == 'true' }}
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: Run SpecGuard gates
+      id: gates
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SG_GATES: ${{ inputs.gates }}
+        SG_FAIL_ON: ${{ inputs.fail-on }}
+        SG_RESULTS: ${{ inputs.results }}
+        SG_RUN_ID: ${{ inputs.run-id }}
+        SG_DRIFT_SINCE: ${{ inputs.drift-since }}
+        SG_VALIDATE_URL: ${{ inputs.validate-url }}
+      run: node "${{ github.action_path }}/action/run-gates.mjs"
+
+    - name: Upload SpecGuard evidence
+      if: ${{ always() && inputs.upload-evidence == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.working-directory }}/.specguard/
+          !${{ inputs.working-directory }}/.specguard/.env
+          !${{ inputs.working-directory }}/.specguard/auth/
+        if-no-files-found: ignore
+        retention-days: 30

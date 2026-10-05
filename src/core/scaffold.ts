@@ -52,6 +52,8 @@ const COMMAND_TABLE = (p: LanguageProfile): string =>
     '| `specguard drift` | Detect specs out of sync with code |',
     '| `specguard security --all` | OWASP security test stubs |',
     `| (tests run via) | \`${p.testCommand}\` |`,
+    '',
+    'Without a global install, run any command as `npx -p specguard-ai specguard <command>`.',
   ].join('\n');
 
 /** AGENTS.md — harness-agnostic agent guide. */
@@ -104,7 +106,8 @@ ${MANAGED_MARKER}
 # SpecGuard Skill (${profile.id})
 
 The \`specguard\` CLI and MCP server run every QA pipeline. Prefer the MCP tools
-(\`specguard_*\`) when available; otherwise use \`npx specguard <command>\`.
+(\`specguard_*\`) when available; otherwise use \`npx -p specguard-ai specguard <command>\`
+(or just \`specguard <command>\` when the CLI is installed with \`npm install -g specguard-ai\`).
 
 ## When to Run
 
@@ -195,9 +198,23 @@ interface JsonObject {
   [key: string]: unknown;
 }
 
+/** How to run the CLI without installing it: the package is `specguard-ai`, the binary is `specguard`. */
+export const NPX_CLI = 'npx -p specguard-ai specguard';
+
 /** The specguard-mcp server entry (shared by Claude + Cursor configs). */
-function mcpServerEntry(): JsonObject {
-  return { command: 'npx', args: ['specguard-mcp'] };
+export function mcpServerEntry(): JsonObject {
+  return { command: 'npx', args: ['-y', '-p', 'specguard-ai', 'specguard-mcp'] };
+}
+
+/**
+ * `npx specguard-mcp` resolves to an unrelated or missing package. Entries that
+ * older SpecGuard versions wrote that way are repaired; anything else the user
+ * wrote is left alone.
+ */
+function isBrokenMcpEntry(entry: unknown): boolean {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const e = entry as { command?: unknown; args?: unknown };
+  return e.command === 'npx' && Array.isArray(e.args) && e.args.length === 1 && e.args[0] === 'specguard-mcp';
 }
 
 /** Merge the specguard-mcp server + run-alongside hook into Claude settings. */
@@ -205,7 +222,9 @@ export function mergeClaudeSettings(existing: JsonObject): JsonObject {
   const next: JsonObject = { ...existing };
 
   const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  if (!mcpServers['specguard-mcp']) mcpServers['specguard-mcp'] = mcpServerEntry();
+  if (!mcpServers['specguard-mcp'] || isBrokenMcpEntry(mcpServers['specguard-mcp'])) {
+    mcpServers['specguard-mcp'] = mcpServerEntry();
+  }
   next.mcpServers = mcpServers;
 
   // PostToolUse hook: read-only `specguard status` after edits. The script
@@ -215,6 +234,13 @@ export function mergeClaudeSettings(existing: JsonObject): JsonObject {
   const alreadyWired = postToolUse.some(
     (h) => typeof h === 'object' && h !== null && JSON.stringify(h).includes('specguard status'),
   );
+  // Repair a hook an older version wrote as `npx specguard status`.
+  for (let i = 0; i < postToolUse.length; i += 1) {
+    const text = JSON.stringify(postToolUse[i]);
+    if (text.includes('npx specguard status')) {
+      postToolUse[i] = JSON.parse(text.split('npx specguard status').join(`${NPX_CLI} status`));
+    }
+  }
   if (!alreadyWired) {
     postToolUse.push({
       matcher: 'Edit|Write|MultiEdit',
@@ -224,7 +250,7 @@ export function mergeClaudeSettings(existing: JsonObject): JsonObject {
           command:
             'f="$(cat | sed -n \'s/.*"file_path"[: ]*"\\([^"]*\\)".*/\\1/p\')"; ' +
             'case "$f" in *"/specs/"*|*"/tests/"*|*"/.specguard/"*) exit 0;; esac; ' +
-            'npx specguard status 2>/dev/null | tail -3 || true',
+            `${NPX_CLI} status 2>/dev/null | tail -3 || true`,
         },
       ],
     });
@@ -276,7 +302,9 @@ If a directory has many small files that form one logical unit (e.g.,
 export function mergeCursorMcpJson(existing: JsonObject): JsonObject {
   const next: JsonObject = { ...existing };
   const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  if (!mcpServers['specguard-mcp']) mcpServers['specguard-mcp'] = mcpServerEntry();
+  if (!mcpServers['specguard-mcp'] || isBrokenMcpEntry(mcpServers['specguard-mcp'])) {
+    mcpServers['specguard-mcp'] = mcpServerEntry();
+  }
   next.mcpServers = mcpServers;
   return next;
 }

@@ -39,7 +39,7 @@ import { loadAllSpecs } from '../core/spec-parser.js';
 import { loadPlugins } from '../plugins/index.js';
 
 /** Options for the status pipeline (reserved for forward-compat). */
-export interface StatusOpts {}
+export type StatusOpts = Record<string, never>;
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {

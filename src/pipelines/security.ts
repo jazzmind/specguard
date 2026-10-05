@@ -37,7 +37,6 @@ import type {
   AppConfig,
   ParsedSpec,
   PipelineResult,
-  PipelineItem,
 } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
