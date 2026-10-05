@@ -264,7 +264,7 @@ export async function runDocGenerate(
   }
 
   const apps = appsInScope(config, opts);
-  const outDirAbs = resolveFromRoot(config, opts.out ?? DEFAULT_OUT);
+  const outDirAbs = resolveFromRoot(config, opts.out ?? config.paths?.docsOut ?? DEFAULT_OUT);
 
   // Build the list of owned spec files to process.
   const owned: OwnedSpec[] = [];

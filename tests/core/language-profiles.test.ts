@@ -135,3 +135,25 @@ describe('parsers', () => {
     expect(parsePytestJson('no json here')).toBeNull();
   });
 });
+
+describe('featureFromPath stripPrefix', () => {
+  const ts = getProfile('typescript');
+  it('keeps the legacy src/area heuristic without stripPrefix', () => {
+    expect(featureFromPath('/repo/src/core/sub/reader.ts', '/repo', ts)).toBe('sub/reader');
+  });
+  it('strips the configured prefix instead of the heuristic', () => {
+    const app = { stripPrefix: 'src/features/' };
+    expect(featureFromPath('/repo/src/features/orders/create.ts', '/repo', ts, app)).toBe('orders/create');
+    expect(featureFromPath('/repo/src/features/orders/create.test.ts', '/repo', ts, app)).toBe('orders/create');
+  });
+  it('uses the first matching prefix of a list and leaves non-matching paths whole', () => {
+    const app = { stripPrefix: ['lib/', 'src/'] };
+    expect(featureFromPath('/repo/src/a/b.ts', '/repo', ts, app)).toBe('a/b');
+    expect(featureFromPath('/repo/other/c.ts', '/repo', ts, app)).toBe('other/c');
+  });
+  it('applies the profile extension rules to other languages', () => {
+    const py = getProfile('python');
+    expect(featureFromPath('/repo/app/orders/create.py', '/repo', py, { stripPrefix: 'app/' })).toBe('orders/create');
+  });
+});
+

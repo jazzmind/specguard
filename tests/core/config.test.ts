@@ -105,3 +105,73 @@ describe('expandGlobs', () => {
     expect(await expandGlobs([], REPO_ROOT)).toEqual([]);
   });
 });
+
+describe('loadConfig repo boundary and extends', () => {
+  const base = {
+    apps: [{ name: 'a', repo: '.', specDir: 'specs', sources: {}, framework: 'vitest', testOutput: 'tests/' }],
+    llm: { provider: 'anthropic', model: 'm', apiKeyEnv: 'K' },
+  };
+  const put = (root: string, rel: string, body: unknown) => {
+    mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    writeFileSync(path.join(root, rel), typeof body === 'string' ? body : JSON.stringify(body));
+  };
+
+  it('does not inherit a parent repo config across a .git boundary', async () => {
+    const parent = makeTempDir();
+    put(parent, '.git/HEAD', 'ref: refs/heads/main');
+    put(parent, '.specguard/config.json', base);
+    put(parent, 'child/.git/HEAD', 'ref: refs/heads/main');
+    put(parent, 'child/src/x.ts', '');
+    await expect(loadConfig(path.join(parent, 'child', 'src'))).rejects.toBeInstanceOf(ConfigNotFoundError);
+    // the parent itself still loads, and a subdirectory of the same repo walks up to it
+    expect((await loadConfig(path.join(parent))).rootDir).toBe(parent);
+    put(parent, 'pkg/deep/y.ts', '');
+    expect((await loadConfig(path.join(parent, 'pkg', 'deep'))).rootDir).toBe(parent);
+  });
+
+  it('inherits a parent config only through extends, merging one level deep', async () => {
+    const parent = makeTempDir();
+    put(parent, '.git/HEAD', '');
+    put(parent, '.specguard/config.json', { ...base, runners: { semgrep: 'docker' }, paths: { docsOut: 'documentation' } });
+    put(parent, 'child/.git/HEAD', '');
+    put(parent, 'child/.specguard/config.json', {
+      extends: '../.specguard/config.json',
+      apps: [{ name: 'child', repo: '.', specDir: 'specs', sources: {}, framework: 'jest', testOutput: 'tests/' }],
+      paths: { specsRoot: 'spec' },
+    });
+    const config = await loadConfig(path.join(parent, 'child'));
+    expect(config.rootDir).toBe(path.join(parent, 'child'));
+    expect(config.apps.map((a) => a.name)).toEqual(['child']);
+    expect(config.llm.model).toBe('m');
+    expect(config.runners?.semgrep).toBe('docker');
+    expect(config.paths).toEqual({ docsOut: 'documentation', specsRoot: 'spec' });
+  });
+
+  it('accepts a directory as the extends target and rejects cycles and missing targets', async () => {
+    const root = makeTempDir();
+    put(root, 'a/.specguard/config.json', base);
+    put(root, 'b/.specguard/config.json', { extends: '../a' });
+    expect((await loadConfig(path.join(root, 'b'))).apps[0].name).toBe('a');
+    put(root, 'c/.specguard/config.json', { extends: '../d' });
+    put(root, 'd/.specguard/config.json', { extends: '../c' });
+    await expect(loadConfig(path.join(root, 'c'))).rejects.toThrow(/cycle/);
+    put(root, 'e/.specguard/config.json', { extends: '../nope' });
+    await expect(loadConfig(path.join(root, 'e'))).rejects.toThrow(/not found/);
+  });
+
+  it('accepts paths, stripPrefix, entryPoints, plugins and featureState', async () => {
+    const root = makeTempDir();
+    put(root, '.specguard/config.json', {
+      ...base,
+      apps: [{ ...base.apps[0], stripPrefix: ['src/features/', 'lib/'], entryPoints: ['src/main.ts'] }],
+      paths: { specsRoot: 's', docsOut: 'd', securityTests: 't', proofLedger: 'p.json' },
+      plugins: ['x'],
+      featureState: { catalog: 'c' },
+    });
+    const config = await loadConfig(root);
+    expect(config.apps[0].stripPrefix).toEqual(['src/features/', 'lib/']);
+    expect(config.paths?.proofLedger).toBe('p.json');
+    expect(config.featureState?.catalog).toBe('c');
+  });
+});
+

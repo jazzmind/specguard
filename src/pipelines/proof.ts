@@ -149,7 +149,7 @@ async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | nul
       const { repos } = await loadWorkspaceWithConfigs(cwd);
       const repo = repos.find((row) => row.key === ref.repo);
       if (!repo) return null;
-      const top = path.join(repo.absPath, 'specs', `${ref.specKey}.md`);
+      const top = path.join(path.resolve(repo.absPath, repo.specGuardConfig?.paths?.specsRoot ?? 'specs'), `${ref.specKey}.md`);
       if (await fileExists(top)) {
         return { abs: top, repoDir: repo.absPath, content: await readFile(top) };
       }
@@ -174,7 +174,7 @@ async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | nul
     return null;
   }
   const root = config.rootDir ?? cwd;
-  const top = path.join(root, 'specs', `${ref.specKey}.md`);
+  const top = path.join(path.resolve(root, config.paths?.specsRoot ?? 'specs'), `${ref.specKey}.md`);
   if (await fileExists(top)) {
     return { abs: top, repoDir: root, content: await readFile(top) };
   }
@@ -341,7 +341,7 @@ async function walkClaims(
   const fingerprint = dependencyFingerprint(cwd);
   const repoKey = await repoKeyFor(cwd);
   const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0 };
-  const top = path.join(cwd, 'specs');
+  const top = path.resolve(cwd, config.paths?.specsRoot ?? 'specs');
   const specDirs = (await fileExists(top))
     ? [top]
     : config.apps.map((app) => path.resolve(cwd, app.specDir));

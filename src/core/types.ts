@@ -197,6 +197,18 @@ export interface AppConfig {
    * Example (Angular): `["src/app/pages/**\/*.ts"]`
    */
   collapse?: string[];
+  /**
+   * Repo-relative POSIX prefix (or prefixes) removed from a source path when it
+   * is turned into a feature key, e.g. `src/features/`. When set, it replaces
+   * the legacy heuristic that drops a leading `src/`/`tests/` segment and the
+   * next (area) segment. The first matching prefix wins.
+   */
+  stripPrefix?: string | string[];
+  /**
+   * Files (paths or globs relative to `repo`) that declare the app's routes or
+   * endpoints. Used by `index`. Absent: the framework profile's defaults.
+   */
+  entryPoints?: string[];
 }
 
 /** Runner placement: where each external tool executes. */

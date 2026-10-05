@@ -48,7 +48,7 @@ interface SpecSource {
  * are the fallback when a repo has no top-level specs directory.
  */
 async function claimSpecDirs(repoDir: string, config: SpecGuardConfig | null): Promise<string[]> {
-  const top = path.join(repoDir, 'specs');
+  const top = path.resolve(repoDir, config?.paths?.specsRoot ?? 'specs');
   if (await fileExists(top)) return [top];
   if (!config) return [];
   const root = config.rootDir ?? repoDir;

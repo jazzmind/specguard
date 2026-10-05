@@ -47,6 +47,8 @@ const appConfigSchema = z
     extraTestSources: z.array(z.string()).optional(),
     exclude: z.array(z.string()).optional(),
     collapse: z.array(z.string()).optional(),
+    stripPrefix: z.union([z.string(), z.array(z.string())]).optional(),
+    entryPoints: z.array(z.string()).optional(),
   })
   .passthrough();
 
@@ -132,6 +134,9 @@ const CONFIG_REL = path.join('.specguard', 'config.json');
 
 /**
  * Walk up from `start` (inclusive) looking for `.specguard/config.json`.
+ * The search stops at the repository boundary: the first directory that
+ * contains `.git`. A repo with no config of its own therefore never picks up a
+ * parent repo's config; use `extends` to inherit one on purpose.
  * Returns the directory containing `.specguard/`, or null if none found.
  */
 async function findConfigDir(start: string): Promise<string | null> {
@@ -142,6 +147,7 @@ async function findConfigDir(start: string): Promise<string | null> {
     if (await fileExists(path.join(dir, CONFIG_REL))) {
       return dir;
     }
+    if (await fileExists(path.join(dir, '.git'))) return null;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -158,11 +164,51 @@ function formatZodError(err: z.ZodError): string {
     .join('; ');
 }
 
+type Json = Record<string, unknown>;
+
+function isPlainObject(value: unknown): value is Json {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Merge a child over a parent: objects merge one level deep, everything else (arrays, apps, scalars) is replaced. */
+function mergeConfigs(parent: Json, child: Json): Json {
+  const out: Json = { ...parent };
+  for (const [key, value] of Object.entries(child)) {
+    if (key === 'extends') continue;
+    const base = out[key];
+    out[key] = isPlainObject(value) && isPlainObject(base) ? { ...base, ...value } : value;
+  }
+  return out;
+}
+
+async function resolveExtends(configPath: string, raw: Json, seen: Set<string>): Promise<Json> {
+  const target = raw.extends;
+  if (target === undefined) return raw;
+  if (typeof target !== 'string' || target.length === 0) {
+    throw new ConfigInvalidError('extends must be a path to a config file or a directory containing .specguard/config.json');
+  }
+  let parentPath = path.resolve(path.dirname(path.dirname(configPath)), target);
+  if (!parentPath.endsWith('.json')) parentPath = path.join(parentPath, CONFIG_REL);
+  if (seen.has(parentPath)) throw new ConfigInvalidError(`extends cycle through ${parentPath}`);
+  seen.add(parentPath);
+  if (!(await fileExists(parentPath))) throw new ConfigInvalidError(`extends target not found: ${parentPath}`);
+  let parentRaw: unknown;
+  try {
+    parentRaw = JSON.parse(await readFile(parentPath));
+  } catch (err) {
+    throw new ConfigInvalidError(`extended config ${parentPath} is not valid JSON (${(err as Error).message})`, err);
+  }
+  if (!isPlainObject(parentRaw)) throw new ConfigInvalidError(`extended config ${parentPath} is not an object`);
+  const resolvedParent = await resolveExtends(parentPath, parentRaw, seen);
+  return mergeConfigs(resolvedParent, raw);
+}
+
 /**
- * Load and validate `.specguard/config.json`, searching from `cwd` upward.
+ * Load and validate `.specguard/config.json`, searching from `cwd` upward to the
+ * repository boundary.
  *
- * @throws {ConfigNotFoundError} when no config file is found in any ancestor.
- * @throws {ConfigInvalidError} when the file is not valid JSON or fails schema validation.
+ * @throws {ConfigNotFoundError} when no config file is found before the repo boundary.
+ * @throws {ConfigInvalidError} when the file is not valid JSON, fails schema validation, or `extends` is broken.
  */
 export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuardConfig> {
   const rootDir = await findConfigDir(cwd);
@@ -181,6 +227,9 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
       `config.json is not valid JSON (${(err as Error).message})`,
       err,
     );
+  }
+  if (isPlainObject(parsed)) {
+    parsed = await resolveExtends(configPath, parsed, new Set([configPath]));
   }
 
   const result = configSchema.safeParse(parsed);

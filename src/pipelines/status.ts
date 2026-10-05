@@ -119,7 +119,7 @@ export async function runStatus(
 
     for (const absFile of files) {
       if (collapseSet.has(absFile)) {
-        const fileFeature = featureFromPath(absFile, repoDir, profile);
+        const fileFeature = featureFromPath(absFile, repoDir, profile, app);
         const dirFeature = path.posix.dirname(fileFeature);
         if (dirFeature === '.') {
           individualFiles.push(absFile);
@@ -144,7 +144,7 @@ export async function runStatus(
 
     // --- Individual files (1 file → 1 spec) ---
     for (const absFile of individualFiles) {
-      const feature = featureFromPath(absFile, repoDir, profile);
+      const feature = featureFromPath(absFile, repoDir, profile, app);
       const key = `${app.name}/${feature}`;
 
       const specPath = path.join(specDirAbs, `${feature}.md`);

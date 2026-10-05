@@ -371,10 +371,10 @@ export async function runSecurity(
       continue;
     }
 
-    // Security tests are collected under a single tests/security/ tree.
+    // Security tests are collected under a single tree (`paths.securityTests`, default tests/security).
     const targetTest = resolveFromRoot(
       config,
-      path.join('tests', 'security', `${feature}${profile.testExt}`),
+      path.join(config.paths?.securityTests ?? path.join('tests', 'security'), `${feature}${profile.testExt}`),
     );
 
     if (!opts.force && (await fileExists(targetTest))) {

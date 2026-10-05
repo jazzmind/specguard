@@ -217,7 +217,7 @@ export async function runReverseGenerate(
     if (collapseSet.has(absFile)) {
       // Derive the directory-level feature key: take the normal feature key
       // and drop the final path segment (the filename).
-      const fileFeature = featureFromPath(absFile, repoDir, profile);
+      const fileFeature = featureFromPath(absFile, repoDir, profile, app);
       const dirFeature = path.posix.dirname(fileFeature);
       // If dirname collapses to '.' the file is at the top of the specDir —
       // treat it as individual to avoid a degenerate '.' spec.
@@ -254,7 +254,7 @@ export async function runReverseGenerate(
 
   // --- Process individual files (unchanged 1:1 behaviour) ---
   await runConcurrent(individualFiles, concurrency, async (absFile) => {
-    const feature = featureFromPath(absFile, repoDir, profile);
+    const feature = featureFromPath(absFile, repoDir, profile, app);
     const key = `${app.name}/${feature}`;
 
     if (!(await fileExists(absFile))) {
