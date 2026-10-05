@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -109,7 +112,15 @@ describe('featureStates', () => {
 });
 
 describe('experiences index', () => {
-  const workspace = '/Users/wessonnenreich/Code/practera';
+  // A throwaway workspace: no checkout outside the repo is needed.
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'sg-fs-'));
+  const put = (rel: string, body: string) => {
+    mkdirSync(path.dirname(path.join(workspace, rel)), { recursive: true });
+    writeFileSync(path.join(workspace, rel), body);
+  };
+  put('practera-admin-app/src/pages/experiences/index.tsx', 'export default function Page() { return null; }\n');
+  put('practera-admin-app/src/pages/experiences/queries.ts', 'export const Q = gql`query { experiences { id } }`;\n');
+  put('practera-mcp-server/src/tools/learner/list.ts', "server.tool('list_experiences', {}, async () => { const q = `query { experiences { id } }`; });\n");
   const list: CatalogFeatureInput = {
     id: 'design.experience.list',
     title: 'Experiences index',

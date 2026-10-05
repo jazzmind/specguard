@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SpecGuardError, ConfigNotFoundError, ConfigInvalidError, ExitCode } from "specguard-core/errors";
+import { SpecGuardError, ConfigNotFoundError, ConfigInvalidError } from "specguard-core/errors";
+import { ExitCode } from "specguard-core/exit-codes";
 
 describe("SpecGuard Core Error Classes", () => {
   it("Constructing SpecGuardError with default exit code", () => {
