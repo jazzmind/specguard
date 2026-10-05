@@ -140,3 +140,22 @@ export function buildClaimTestIndex(input: IndexInput): ClaimTestIndex {
   }
   return index;
 }
+
+export interface TestTitle {
+  file: string;
+  line: number;
+  title: string;
+}
+
+const PY_TITLE = /^\s*(?:async\s+)?def\s+(test\w*)/;
+const GO_TITLE = /^\s*func\s+(Test\w*)/;
+
+/** Test titles found in one source file (`it('..')`, `def test_x`, `func TestX`). */
+export function scanTestTitles(source: string, file: string): TestTitle[] {
+  const out: TestTitle[] = [];
+  source.split(/\r?\n/).forEach((line, index) => {
+    const title = line.match(TITLE_ON_LINE)?.[2] ?? line.match(PY_TITLE)?.[1] ?? line.match(GO_TITLE)?.[1];
+    if (title) out.push({ file, line: index + 1, title });
+  });
+  return out;
+}
