@@ -37,7 +37,7 @@ import { loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { noteStaleProofs } from './proof.js';
 import {
-  loadRegistry, saveRegistry, hashFile, hashString,
+  loadRegistry, saveRegistry, hashFile, hashString, toRegistryKey,
   getOrCreateSpecEntry, updateFileEntry,
 } from '../core/drift-registry.js';
 import { writePlan } from '../core/plan-writer.js';
@@ -339,10 +339,11 @@ export async function runDrift(
 
       // Also seed any source file that isn't registered yet.
       for (const absFile of relatedSources) {
-        if (!specEntry.files[absFile]) {
+        const regKey = toRegistryKey(cwd, absFile);
+        if (!specEntry.files[regKey]) {
           const h = hashFile(absFile);
           if (h) {
-            updateFileEntry(specEntry, absFile, h, 'new-file');
+            updateFileEntry(specEntry, regKey, h, 'new-file');
           }
         }
       }
@@ -356,7 +357,8 @@ export async function runDrift(
         const currentHash = hashFile(absFile);
         if (!currentHash) continue;
 
-        const prev = specEntry.files[absFile];
+        const regKey = toRegistryKey(cwd, absFile);
+        const prev = specEntry.files[regKey];
         const hashChanged = !prev || prev.hash !== currentHash;
 
         if (!hashChanged && !opts.force) {
@@ -370,7 +372,7 @@ export async function runDrift(
         try {
           const diff = getFileDiff(absFile, cwd, range);
           const { drifted, reason } = await llmSemanticDrift(config, diff, criteria, key);
-          updateFileEntry(specEntry, absFile, currentHash, drifted ? 'drifted' : 'no-drift');
+          updateFileEntry(specEntry, regKey, currentHash, drifted ? 'drifted' : 'no-drift');
           if (drifted) {
             specDrifted = true;
             log(`[drift] ${key} — semantic drift detected: ${reason}`);
@@ -388,7 +390,7 @@ export async function runDrift(
         } catch (err) {
           // LLM failed — fall back to flagging the hash change as drift.
           log(`[drift] ${key}: LLM check failed (${(err as Error).message}) — flagging as possible drift`);
-          updateFileEntry(specEntry, absFile, currentHash, 'drifted');
+          updateFileEntry(specEntry, regKey, currentHash, 'drifted');
           specDrifted = true;
           result.items.push({ key, status: 'failed', path: specPath, message: `hash changed, LLM unavailable` });
           result.failed += 1;
@@ -593,7 +595,7 @@ async function _buildInitialRegistry(
       const related = allSources.filter((abs) => deriveFeature(abs, repoDir) === feature);
       for (const absFile of related) {
         const h = hashFile(absFile);
-        if (h) updateFileEntry(specEntry, absFile, h, 'no-drift');
+        if (h) updateFileEntry(specEntry, toRegistryKey(cwd, absFile), h, 'no-drift');
       }
     }
   }

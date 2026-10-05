@@ -258,8 +258,26 @@ export interface AuthConfig {
   profiles: AuthProfile[];
 }
 
+/**
+ * Locations that used to be hard-coded. Every path is relative to the
+ * directory containing `.specguard/` unless absolute.
+ */
+export interface PathsConfig {
+  /** Root of the spec tree for single-repo layouts. Default `specs`. */
+  specsRoot?: string;
+  /** Where `docs` writes user documentation. Default `docs/user`. */
+  docsOut?: string;
+  /** Where `security` writes generated tests. Default `tests/security`. */
+  securityTests?: string;
+  /** Proof ledger file. Default `.specguard/proofs.json`. */
+  proofLedger?: string;
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
+  /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
+  extends?: string;
+  paths?: PathsConfig;
   apps: AppConfig[];
   runners?: RunnersConfig;
   llm: LlmConfig;

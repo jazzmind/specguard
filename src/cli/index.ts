@@ -85,6 +85,7 @@ import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
 import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
+import { resultsIngestCommand } from './commands/results.js';
 
 // Resolve version from package.json. Falls back gracefully when the CLI is
 // bundled into the extension (installed at a path where ../../package.json
@@ -419,16 +420,41 @@ proofCmd
   .command('ingest')
   .description('merge a verdicts file into .specguard/proofs.json')
   .argument('<verdicts>', 'path to verdicts.json')
-  .action(async (verdicts: string, _opts: Record<string, never>, cmd: Command) => {
-    await proofIngestCommand(verdicts, withGlobals(cmd, {}));
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(async (verdicts: string, opts: { ledger?: string }, cmd: Command) => {
+    await proofIngestCommand(verdicts, withGlobals(cmd, opts));
   });
 
 proofCmd
   .command('status')
   .description('report proven, failed, unexercised, stale, and unproven claims')
-  .action(async (_opts: Record<string, never>, cmd: Command) => {
-    await proofStatusCommand(withGlobals(cmd, {}));
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(async (opts: { ledger?: string }, cmd: Command) => {
+    await proofStatusCommand(withGlobals(cmd, opts));
   });
+
+// --- results --------------------------------------------------------------
+const resultsCmd = program
+  .command('results')
+  .description('ingest test-runner reports as proof verdicts');
+
+resultsCmd
+  .command('ingest')
+  .description('map test results to claims by @claim tags and write proof verdicts')
+  .argument('<files...>', 'reporter output files (globs allowed): vitest/jest JSON, playwright JSON, JUnit XML, pytest-json-report, go test -json, cargo JSON')
+  .option('--format <fmt>', 'auto|vitest|jest|playwright|junit|pytest|go|cargo', 'auto')
+  .option('--run-id <id>', 'ledger run id (default: timestamped)')
+  .option('--unexercised', 'also store unexercised for spec claims that no test tagged')
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(
+    async (
+      files: string[],
+      opts: { format?: string; runId?: string; unexercised?: boolean; ledger?: string },
+      cmd: Command,
+    ) => {
+      await resultsIngestCommand(files, withGlobals(cmd, opts));
+    },
+  );
 
 // --- contracts ------------------------------------------------------------
 program

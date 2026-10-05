@@ -3,7 +3,7 @@
  *
  * A stored verdict is `proven`, `failed`, `unexercised`, or `error`. `stale` is not
  * stored: it is computed when the spec hash, or a drift-registry file hash
- * recorded at ingest, no longer matches. `unproven` means the ledger has no
+ * recorded at ingest, or the dependency fingerprint, no longer matches. `unproven` means the ledger has no
  * row for that claim.
  *
  * Spec: specs/pipelines/proof.md
@@ -21,8 +21,10 @@ export interface ProofRecord {
   specHash: string;
   /** Git HEAD of the owning repo at ingest. Recorded, not used for staleness. */
   repoSha?: string;
-  /** Drift-registry file hashes captured at ingest, keyed by absolute path. */
+  /** Drift-registry file hashes captured at ingest, keyed by repo-relative POSIX path. */
   fileHashes: Record<string, string>;
+  /** Hash of the repo's lockfiles/manifests at ingest. Absent on older rows and repos without any. */
+  dependencyFingerprint?: string;
   exercised: number;
   counterexamples: number;
   evidencePath?: string;
@@ -41,6 +43,7 @@ export function emptyLedger(): ProofLedger {
 export interface CurrentClaimState {
   specHash: string;
   fileHashes: Record<string, string>;
+  dependencyFingerprint?: string;
 }
 
 /**
@@ -54,6 +57,13 @@ export function effectiveVerdict(
 ): EffectiveVerdict {
   if (!record) return 'unproven';
   if (record.specHash !== current.specHash) return 'stale';
+  if (
+    record.dependencyFingerprint !== undefined &&
+    current.dependencyFingerprint !== undefined &&
+    record.dependencyFingerprint !== current.dependencyFingerprint
+  ) {
+    return 'stale';
+  }
   for (const [file, hash] of Object.entries(record.fileHashes)) {
     const now = current.fileHashes[file];
     if (now !== undefined && now !== hash) return 'stale';

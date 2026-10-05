@@ -90,8 +90,19 @@ const matrixSchema = z
   })
   .passthrough();
 
+const pathsSchema = z
+  .object({
+    specsRoot: z.string().optional(),
+    docsOut: z.string().optional(),
+    securityTests: z.string().optional(),
+    proofLedger: z.string().optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
+    extends: z.string().optional(),
+    paths: pathsSchema.optional(),
     apps: z.array(appConfigSchema).min(1),
     runners: runnersSchema.optional(),
     llm: llmSchema,
