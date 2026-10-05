@@ -28,7 +28,7 @@ import { ConfigInvalidError } from './errors.js';
  * | rest      | admin-app calls login-api POST /code/send |
  * | iframe    | admin-app embeds CakePHP pages via LegacyFrame |
  * | upload    | admin-app uses TUS protocol to tusd |
- * | event     | graphql-api triggers Lambda in practera-services |
+ * | event     | graphql-api triggers a Lambda in the services repo |
  * | test      | test-suite regression specs cover a feature |
  * | docs      | devops-support-center documents a feature |
  */

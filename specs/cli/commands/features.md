@@ -4,7 +4,7 @@
 
 ## Overview
 
-`specguard features` prints a JSON array that maps each spec to the catalog feature ids named in its `feature:` meta value. The Practera test-suite catalog uses it to check that specs and catalog rows agree. `collectFeatures(config)` is the pure part; the command loads the CLI config and writes its result to stdout.
+`specguard features` prints a JSON array that maps each spec to the catalog feature ids named in its `feature:` meta value. A feature catalog can use it to check that specs and catalog rows agree. `collectFeatures(config)` is the pure part; the command loads the CLI config and writes its result to stdout.
 
 ## Acceptance Criteria
 

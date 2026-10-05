@@ -99,8 +99,23 @@ const pathsSchema = z
   })
   .passthrough();
 
+const featureStateSchema = z
+  .object({
+    catalog: z.string().optional(),
+    resultsDirs: z.array(z.string()).optional(),
+    reporters: z
+      .array(z.object({ path: z.string(), kind: z.string().optional(), format: z.string().optional() }))
+      .optional(),
+    channelByType: z.record(z.string(), z.string()).optional(),
+    repoChannels: z.record(z.string(), z.string()).optional(),
+    externalIds: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
+    plugins: z.array(z.string()).optional(),
+    featureState: featureStateSchema.optional(),
     extends: z.string().optional(),
     paths: pathsSchema.optional(),
     apps: z.array(appConfigSchema).min(1),

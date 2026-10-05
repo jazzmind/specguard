@@ -40,7 +40,7 @@ export function parseMetaComment(content: string): SpecMeta {
   for (const rawLine of body.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
-    // Practera specs put several keys on one line: `module: x / type: y`.
+    // Several keys may share one line: `module: x / type: y`.
     for (const segment of line.split(/\s+\/\s+/)) {
       const sep = segment.indexOf(':');
       if (sep === -1) continue;
