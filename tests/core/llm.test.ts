@@ -12,7 +12,7 @@ vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: vi.fn(() => (model: string) => ({ provider: 'anthropic', model })),
 }));
 vi.mock('@ai-sdk/openai', () => ({
-  createOpenAI: vi.fn(() => (model: string) => ({ provider: 'openai', model })),
+  createOpenAI: vi.fn(() => ({ chat: (model: string) => ({ provider: 'openai', model }) })),
 }));
 
 import { generateText, generateObject } from 'ai';

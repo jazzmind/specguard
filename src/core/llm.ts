@@ -71,12 +71,12 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
     case 'openai': {
       const baseURL = process.env['OPENAI_BASE_URL'] || undefined;
       const openai = createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-      return openai(model);
+      return openai.chat(model);
     }
     case 'litellm': {
       const baseURL = process.env['LITELLM_BASE_URL'] || 'http://localhost:4000';
       const openai = createOpenAI({ apiKey: apiKey || 'nokey', baseURL });
-      return openai(model);
+      return openai.chat(model);
     }
     default:
       throw new SpecGuardError(
@@ -103,7 +103,7 @@ export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
           ],
         },
       ],
-      maxTokens: opts.maxTokens,
+      maxOutputTokens: opts.maxTokens,
       temperature: opts.temperature,
     });
     return text;
@@ -113,7 +113,7 @@ export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
     model,
     system: opts.system,
     prompt: opts.prompt,
-    maxTokens: opts.maxTokens,
+    maxOutputTokens: opts.maxTokens,
     temperature: opts.temperature,
   });
   return text;
@@ -137,7 +137,7 @@ export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
           ],
         },
       ],
-      maxTokens: opts.maxTokens,
+      maxOutputTokens: opts.maxTokens,
       temperature: opts.temperature,
     });
     return object;
@@ -148,7 +148,7 @@ export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
     schema: opts.schema,
     system: opts.system,
     prompt: opts.prompt,
-    maxTokens: opts.maxTokens,
+    maxOutputTokens: opts.maxTokens,
     temperature: opts.temperature,
   });
   return object;
