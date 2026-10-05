@@ -7,7 +7,10 @@ import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 export interface HealCliOpts extends GlobalOpts {
   spec?: string;
   all?: boolean;
+  app?: string;
   maxRetries?: string;
+  classifyOnly?: boolean;
+  lenient?: boolean;
 }
 
 export async function healCommand(opts: HealCliOpts): Promise<void> {
@@ -17,6 +20,9 @@ export async function healCommand(opts: HealCliOpts): Promise<void> {
   const result = await runHeal(config, {
     spec: opts.spec,
     all: opts.all,
+    app: opts.app,
+    classifyOnly: opts.classifyOnly,
+    lenient: opts.lenient,
     maxRetries: Number.isNaN(maxRetries as number) ? undefined : maxRetries,
   });
 

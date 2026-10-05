@@ -122,11 +122,13 @@ program
   .option('--with-playwright', 'configure Playwright as the test framework')
   .option('--language <id>', 'target language (typescript|python|go|rust|java); auto-detected when omitted')
   .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string }) => {
+  .option('--single', 'treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
       harness: opts.harness,
+      single: opts.single,
     });
   });
 
@@ -192,11 +194,17 @@ program
 program
   .command('heal')
   .description('self-heal failing generated tests')
-  .option('--spec <key>', 'target a single spec')
-  .option('--all', 'process all specs')
+  .option('--spec <key>', 'run only the app that owns this spec, and only its tests')
+  .option('--all', 'heal every app (the default)')
+  .option('--app <name>', 'heal a single app')
   .option('--max-retries <n>', 'maximum heal attempts')
+  .option('--classify-only', 'classify failures and report them; never rewrite a test or re-run')
+  .option('--lenient', 'treat an unreadable test report as passing when the runner exited 0 (default: failure)')
   .action(
-    async (opts: { spec?: string; all?: boolean; maxRetries?: string }, cmd: Command) => {
+    async (
+      opts: { spec?: string; all?: boolean; app?: string; maxRetries?: string; classifyOnly?: boolean; lenient?: boolean },
+      cmd: Command,
+    ) => {
       await healCommand(withGlobals(cmd, opts));
     },
   );

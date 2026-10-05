@@ -16,6 +16,7 @@ The `specguard init` command bootstraps a new SpecGuard workspace by creating th
 - AC-6: `.specguard/.env` contains only a placeholder value for `ANTHROPIC_API_KEY`; no real secret is written.
 - AC-7: `.gitignore` gets a managed block (`# specguard:generated-state:start` … `end`) listing `.specguard/.env` and the generated run state; existing `.gitignore` content outside the block is preserved and a second run changes nothing. <!-- claim: ignore-block -->
 - AC-8: `init` does not create `drift-registry.json` (the drift pipeline owns it, and it is git-ignored). Config, rules, plans, replay recordings, and the proof ledger are not ignored. <!-- claim: no-registry-seed -->
+- AC-12: In a pnpm, Yarn, npm, Nx, or Turbo workspace `init` writes one app per package (see `specs/core/monorepo.md`); `--single` writes one app for the whole repo. <!-- claim: workspace-apps -->
 - AC-11: When git already tracks generated state files, `init` prints the `git rm --cached` command that untracks them. <!-- claim: untrack-hint -->
 - AC-9: stdout reports the detected framework, each `created` path, each `skipped` path, and next-step instructions.
 - AC-10: The process exits with code `0` after successful execution.

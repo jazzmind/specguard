@@ -47,6 +47,17 @@ const appConfigSchema = z
     extraTestSources: z.array(z.string()).optional(),
     exclude: z.array(z.string()).optional(),
     collapse: z.array(z.string()).optional(),
+    test: z
+      .object({
+        command: z.string().optional(),
+        cwd: z.string().optional(),
+        reporter: z.string().optional(),
+        resultsFile: z.string().optional(),
+        timeoutMs: z.number().int().positive().optional(),
+        image: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
     stripPrefix: z.union([z.string(), z.array(z.string())]).optional(),
     entryPoints: z.array(z.string()).optional(),
   })

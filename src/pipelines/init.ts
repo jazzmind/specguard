@@ -25,6 +25,7 @@ import {
 } from '../core/language-profiles.js';
 import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
 import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
+import { appNameFor, detectMonorepo, testCommandFor, type MonorepoInfo } from '../core/monorepo.js';
 
 export interface InitOpts {
   /** Test framework override; defaults to the language profile's framework. */
@@ -35,6 +36,8 @@ export interface InitOpts {
   harness?: Harness;
   /** Override the target directory (default: process.cwd()). */
   cwd?: string;
+  /** Treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected. */
+  single?: boolean;
 }
 
 export interface InitResult extends PipelineResult {
@@ -46,26 +49,53 @@ export interface InitResult extends PipelineResult {
   skippedFiles: string[];
 }
 
-/** Build a config template from the resolved language profile. */
-function defaultConfig(profile: LanguageProfile, framework: string): string {
-  const config = {
-    apps: [
-      {
-        name: 'app',
-        repo: '.',
-        language: profile.id,
-        specDir: 'specs',
-        sources: {
-          routes: profile.sourceGlobs.routes,
-          api: profile.sourceGlobs.api,
-          tests: profile.sourceGlobs.tests,
-        },
-        framework,
-        testOutput: profile.testOutput,
-        security: { enabled: false },
-        docs: false,
+/** One app per workspace package, each with the command that runs only its tests. */
+function monorepoApps(info: MonorepoInfo, profile: LanguageProfile): Array<Record<string, unknown>> {
+  return info.packages.map((pkg) => {
+    const name = appNameFor(pkg);
+    return {
+      name,
+      repo: pkg.dir,
+      language: profile.id,
+      specDir: `specs/${name}`,
+      sources: {
+        routes: profile.sourceGlobs.routes,
+        api: profile.sourceGlobs.api,
+        tests: profile.sourceGlobs.tests,
       },
-    ],
+      framework: pkg.framework,
+      testOutput: `${pkg.dir}/${profile.testOutput}`,
+      test: { command: testCommandFor(info, pkg), reporter: pkg.framework },
+      security: { enabled: false },
+      docs: false,
+    };
+  });
+}
+
+/** Build a config template from the resolved language profile. */
+function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: MonorepoInfo | null): string {
+  const apps =
+    monorepo && monorepo.packages.length > 0
+      ? monorepoApps(monorepo, profile)
+      : [
+          {
+            name: 'app',
+            repo: '.',
+            language: profile.id,
+            specDir: 'specs',
+            sources: {
+              routes: profile.sourceGlobs.routes,
+              api: profile.sourceGlobs.api,
+              tests: profile.sourceGlobs.tests,
+            },
+            framework,
+            testOutput: profile.testOutput,
+            security: { enabled: false },
+            docs: false,
+          },
+        ];
+  const config = {
+    apps,
     runners: {
       playwright: 'local',
       semgrep: 'auto',
@@ -183,7 +213,13 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   };
 
-  await tryCreate(configPath, defaultConfig(profile, framework));
+  const monorepo = opts.single || profile.id !== 'typescript' ? null : await detectMonorepo(cwd);
+  if (monorepo && monorepo.packages.length > 0) {
+    result.messages.push(
+      `  detected ${monorepo.tools.join(' + ')} workspace: ${monorepo.packages.length} package(s), one app each`,
+    );
+  }
+  await tryCreate(configPath, defaultConfig(profile, framework, monorepo));
   await tryCreate(specsReadmePath, SPECS_README);
   await tryCreate(dotEnvPath, DOT_ENV_TEMPLATE);
 
