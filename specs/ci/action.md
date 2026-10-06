@@ -20,6 +20,8 @@
 - [ ] A release tag must equal the root `package.json` version, the CLI is published before the extension, and both are built at that version <!-- claim: release-lockstep -->
 - [ ] CI runs typecheck, ESLint, the CLI and extension tests, the builds, checks that the bundled CLI reports the package version, and runs `status` and `proof status` on SpecGuard itself through the action <!-- claim: ci-dogfood -->
 
+- [ ] `mode: remediate` runs `specguard remediate` instead of the gates, adds `--pr` when `open-pr` is true, exposes the exit code as `remediate-exit`, fails the job only on exit 1 or 11, and never merges <!-- claim: remediate-mode -->
+
 ## Scenarios
 
 ### Scenario 1: A failed claim fails the job

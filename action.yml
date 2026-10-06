@@ -6,6 +6,25 @@ branding:
   color: 'blue'
 
 inputs:
+  mode:
+    description: >-
+      "gates" (default) runs the QA gates. "remediate" runs `specguard remediate`: it patches vulnerable
+      dependencies in a throwaway worktree, proves behavior is preserved, and opens a PR (draft unless PRESERVED).
+      It never merges. See docs/ci-remediate.md.
+    required: false
+    default: 'gates'
+  remediate-args:
+    description: 'Extra arguments for `specguard remediate` (for example "--min-severity critical --allow-major"). Used when mode is remediate.'
+    required: false
+    default: ''
+  open-pr:
+    description: 'Pass --pr so the branch is pushed and a PR is opened. Needs contents: write and pull-requests: write. Used when mode is remediate.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token for git push and `gh pr create` in remediate mode. Pass secrets.GITHUB_TOKEN (or a PAT when workflows must run on the PR).'
+    required: false
+    default: ''
   version:
     description: >-
       Version of specguard-ai to install: an exact version such as 0.2.0, a dist-tag, or "latest".
@@ -61,6 +80,9 @@ inputs:
     default: 'specguard-evidence'
 
 outputs:
+  remediate-exit:
+    description: 'Exit code of `specguard remediate`: 0 nothing to do, 5 findings present, 8 PRESERVED, 9 CHANGED, 10 INCONCLUSIVE, 11 baseline not green or setup error.'
+    value: ${{ steps.remediate.outputs.exit }}
   failed:
     description: '"true" when any fail-on threshold tripped.'
     value: ${{ steps.gates.outputs.failed }}
@@ -97,8 +119,42 @@ runs:
       shell: bash
       run: npx playwright install --with-deps chromium
 
+    - name: Install OSV-Scanner (remediate)
+      if: ${{ inputs.mode == 'remediate' }}
+      shell: bash
+      run: |
+        # OSV-Scanner is the universal detector. Without it SpecGuard falls back to native audits (npm audit, pip-audit, ...).
+        if ! command -v osv-scanner >/dev/null 2>&1; then
+          (go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest && echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH") \
+            || echo "osv-scanner not installed; falling back to native audits"
+        fi
+
+    - name: Run specguard remediate
+      id: remediate
+      if: ${{ inputs.mode == 'remediate' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SG_ARGS: ${{ inputs.remediate-args }}
+        SG_OPEN_PR: ${{ inputs.open-pr }}
+      run: |
+        set -uo pipefail
+        args="$SG_ARGS"
+        if [ "$SG_OPEN_PR" = "true" ]; then args="$args --pr"; fi
+        # shellcheck disable=SC2086
+        specguard remediate $args
+        code=$?
+        echo "exit=$code" >> "$GITHUB_OUTPUT"
+        echo "specguard remediate exited $code (8 preserved, 9 changed, 10 inconclusive, 11 setup error)"
+        # A draft PR for CHANGED / INCONCLUSIVE is a successful run: the humans decide. Only setup errors fail the job.
+        if [ "$code" = "1" ] || [ "$code" = "11" ]; then exit "$code"; fi
+        exit 0
+
     - name: Run SpecGuard gates
       id: gates
+      if: ${{ inputs.mode != 'remediate' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:

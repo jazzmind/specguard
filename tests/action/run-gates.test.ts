@@ -22,7 +22,7 @@ describe('action.yml', () => {
       expect(action.inputs).toHaveProperty(name);
     }
     expect(action.inputs['fail-on'].default).toBe(DEFAULT_FAIL_ON);
-    expect(Object.keys(action.outputs)).toEqual(['failed', 'tripped']);
+    expect(Object.keys(action.outputs)).toEqual(['remediate-exit', 'failed', 'tripped']);
   });
 
   it('sets up Node, installs specguard-ai@<version>, runs the gates, and uploads evidence without secrets', () => {
@@ -134,5 +134,17 @@ describe('main (end to end with a fake specguard)', () => {
 
   it('rejects an unknown gate', () => {
     expect(main({ SG_GATES: 'status,bogus' })).toBe(2);
+  });
+});
+
+describe('remediate mode', () => {
+  it('action.yml exposes mode: remediate without merging', async () => {
+    // claim: remediate-mode
+    const { readFileSync } = await import('node:fs');
+    const text = readFileSync(new URL('../../action.yml', import.meta.url), 'utf8');
+    expect(text).toMatch(/mode:\s*\n\s+description:/);
+    expect(text).toContain('specguard remediate $args');
+    expect(text).toContain('--pr');
+    expect(text).not.toMatch(/gh pr merge|--auto|automerge/i);
   });
 });
