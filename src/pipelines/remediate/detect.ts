@@ -107,7 +107,7 @@ export async function detect(config: SpecGuardConfig, root: string, deps: Remedi
         warnings.push('semgrep did not run (Docker/Semgrep unavailable); SAST findings skipped.');
         break;
       }
-      sources.includes('semgrep') || sources.push('semgrep');
+      if (!sources.includes('semgrep')) sources.push('semgrep');
       for (const f of res.findings) {
         const sev = semgrepSeverity(f.severity);
         if (!meetsThreshold(sev, opts.threshold)) continue;
@@ -127,7 +127,7 @@ export async function detect(config: SpecGuardConfig, root: string, deps: Remedi
         seen.add(g.warning);
         break;
       }
-      sources.includes('gitleaks') || sources.push('gitleaks');
+      if (!sources.includes('gitleaks')) sources.push('gitleaks');
       secrets.push(...g.issues.map((i) => ({ ...i, path: path.relative(root, path.resolve(dir, i.path)).split(path.sep).join('/') })));
     }
   }
