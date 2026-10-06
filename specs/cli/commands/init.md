@@ -18,6 +18,8 @@ The `specguard init` command bootstraps a new SpecGuard workspace by creating th
 - AC-8: `init` does not create `drift-registry.json` (the drift pipeline owns it, and it is git-ignored). Config, rules, plans, replay recordings, and the proof ledger are not ignored. <!-- claim: no-registry-seed -->
 - AC-12: In a pnpm, Yarn, npm, Nx, or Turbo workspace `init` writes one app per package (see `specs/core/monorepo.md`); `--single` writes one app for the whole repo. <!-- claim: workspace-apps -->
 - AC-11: When git already tracks generated state files, `init` prints the `git rm --cached` command that untracks them. <!-- claim: untrack-hint -->
+- AC-13: `init --runner node|npx|path` chooses how the generated MCP command and hook invoke SpecGuard. With no flag it uses a resolved local binary (`SPECGUARD_CLI`, then `node_modules/.bin/specguard`, then a global `specguard` on PATH) and falls back to `npx -p specguard-ai specguard` only when none exists, with a comment saying why. `--runner path` takes `--runner-path <file>`. <!-- claim: runner-resolution -->
+- AC-14: `init` never rewrites an existing user hook or MCP entry silently: when the generated command differs it prints a diff and leaves the file alone unless `--update-hooks` is given. <!-- claim: no-silent-hook-rewrite -->
 - AC-9: stdout reports the detected framework, each `created` path, each `skipped` path, and next-step instructions.
 - AC-10: The process exits with code `0` after successful execution.
 

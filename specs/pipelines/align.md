@@ -17,6 +17,7 @@ Compares each spec's scenarios and claims with the tests that exist. A determini
 - [ ] A spec with nothing left uncovered makes no LLM call <!-- claim: no-call-when-covered -->
 - [ ] The LLM prompt lists only uncovered scenarios and uncovered claims <!-- claim: prompt-only-uncovered -->
 - [ ] The LLM receives the spec's name-matched test files and the files that carry its claim tags, and no unrelated files used as padding <!-- claim: no-padding -->
+- [ ] Entries and claim matching use the canonical spec key (`specs/core/spec-key.md`), so tags written with the specs-root-relative key cover claims under per-app spec dirs <!-- claim: canonical-keys -->
 - [ ] Each entry records `coveredClaims` and `uncoveredClaims` <!-- claim: entry-claims -->
 - [ ] The alignment score counts deterministically covered and LLM-covered scenarios together <!-- claim: score-combines -->
 
