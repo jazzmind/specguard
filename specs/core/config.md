@@ -27,6 +27,7 @@ This module is the single entry point for config — pipelines never read the co
 - [ ] `paths` accepts `specsRoot`, `docsOut`, `securityTests`, and `proofLedger`, and replaces the hard-coded `specs/`, `docs/user`, `tests/security/` and `.specguard/proofs.json` locations <!-- claim: paths-block -->
 - [ ] Each app accepts a `test` block `{ command, cwd, reporter, resultsFile, timeoutMs, image }`, and `runners.testRunner` may be `local` or `docker` <!-- claim: app-test-block -->
 - [ ] Each app accepts `stripPrefix` (string or list) and `entryPoints` (list of paths or globs), and `plugins` / `featureState` are accepted at the top level <!-- claim: app-fields -->
+- [ ] `sources` globs (and a spec's `sources:` header) are resolved relative to the app's `repo`; a pattern that matches nothing there but matches files relative to the config root is accepted with a one-time warning <!-- claim: sources-relative-to-repo -->
 
 ## Scenarios
 
