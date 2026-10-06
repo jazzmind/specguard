@@ -35,6 +35,7 @@ import {
 } from '../core/language-profiles.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
+import { buildAppPrepass, collectTestFiles, prepassSpec } from '../core/claim-prepass.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { loadPlugins } from '../plugins/index.js';
 
@@ -65,6 +66,29 @@ function pct(part: number, total: number): number {
 }
 
 /**
+ * `<app>\0<app-local key>` of specs that have at least one test carrying one of their
+ * claim tags (claim-tag prepass over every app's test files). Filename
+ * matching stays as the fallback in `runStatus`.
+ */
+async function taggedSpecKeys(config: SpecGuardConfig): Promise<Set<string>> {
+  const keys = new Set<string>();
+  try {
+    const files = new Set<string>();
+    for (const app of config.apps) for (const f of await collectTestFiles(config, app)) files.add(f);
+    if (files.size === 0) return keys;
+    const pre = buildAppPrepass(config, [...files].sort());
+    for (const app of config.apps) {
+      for (const spec of loadCanonicalSpecs(config, resolveFromRoot(config, app.specDir))) {
+        if (prepassSpec(spec, pre).coveredClaims.length > 0) keys.add(`${app.name}\0${spec.localKey ?? spec.specKey}`);
+      }
+    }
+  } catch {
+    /* no prepass: filename matching only */
+  }
+  return keys;
+}
+
+/**
  * Report spec/test coverage for every app in the config.
  */
 export async function runStatus(
@@ -76,6 +100,8 @@ export async function runStatus(
   const log = (line: string): void => {
     result.messages.push(line);
   };
+
+  const taggedKeys = await taggedSpecKeys(config);
 
   let totalFiles = 0;
   let totalSpecs = 0;
@@ -151,8 +177,9 @@ export async function runStatus(
       const hasSpec = await fileExists(specPath);
 
       const candidates = testCandidates(testOutputAbs, feature, profile);
-      let hasTest = false;
+      let hasTest = taggedKeys.has(`${app.name}\0${feature}`);
       for (const c of candidates) {
+        if (hasTest) break;
         if (await fileExists(c)) { hasTest = true; break; }
       }
 
@@ -181,8 +208,9 @@ export async function runStatus(
 
       // Test: check using the directory-level feature key
       const candidates = testCandidates(testOutputAbs, dirFeature, profile);
-      let hasTest = false;
+      let hasTest = taggedKeys.has(`${app.name}\0${dirFeature}`);
       for (const c of candidates) {
+        if (hasTest) break;
         if (await fileExists(c)) { hasTest = true; break; }
       }
 
@@ -218,8 +246,9 @@ export async function runStatus(
           specFileCount += 1;
 
           const candidates = testCandidates(testOutputAbs, feature, profile);
-          let hasTest = false;
+          let hasTest = taggedKeys.has(`${app.name}\0${feature}`);
           for (const c of candidates) {
+            if (hasTest) break;
             if (await fileExists(c)) { hasTest = true; break; }
           }
           if (hasTest) specTestCount += 1;
