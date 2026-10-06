@@ -105,7 +105,8 @@ describe('runMatrix', () => {
     const content = JSON.parse(await readFile(outPath, 'utf-8'));
     const entry = content.entries[0];
     expect(entry.tests).toEqual([]);
-    expect(entry.specKey).toBe('parser');
+    // canonical key: relative to the specs root, not to the app's specDir
+    expect(entry.specKey).toBe('one/parser');
   });
 
   it('finds matching test file by basename convention', async () => {

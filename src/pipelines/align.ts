@@ -21,7 +21,7 @@ import { z } from 'zod';
 import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { writePlan } from '../core/plan-writer.js';
 import { emitStatus } from '../core/status.js';
@@ -394,7 +394,7 @@ export async function runAlign(
     // Load specs
     let specs;
     try {
-      specs = loadAllSpecs(specDirAbs);
+      specs = loadCanonicalSpecs(config, specDirAbs);
     } catch {
       log(`[warn] Could not load specs from ${specDirAbs}`);
       continue;

@@ -23,6 +23,7 @@
  *
  * Spec: specs/pipelines/drift.md
  */
+import { loadCanonicalSpecs, migrateRegistrySpecKeys, specFileOf } from '../core/spec-key.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -34,7 +35,6 @@ import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { noteStaleProofs } from './proof.js';
 import {
@@ -271,6 +271,10 @@ export async function runDrift(
 
   // Load registry.
   const registry = loadRegistry(cwd);
+  if (migrateRegistrySpecKeys(config, registry)) {
+    saveRegistry(cwd, registry);
+    log('[drift] migrated legacy registry keys to canonical spec keys');
+  }
   const hasRegistry = Object.keys(registry).length > 0;
 
   if (!hasRegistry) {
@@ -298,12 +302,13 @@ export async function runDrift(
     const repoDir = resolveFromRoot(config, app.repo);
     const specDirAbs = resolveFromRoot(config, app.specDir);
 
-    let specFiles: { key: string; specPath: string; criteria: string }[] = [];
+    let specFiles: { key: string; local: string; specPath: string; criteria: string }[] = [];
     try {
-      const specs = loadAllSpecs(specDirAbs);
+      const specs = loadCanonicalSpecs(config, specDirAbs);
       specFiles = specs.map((s) => ({
-        key: `${app.name}/${s.specKey}`,
-        specPath: path.join(specDirAbs, `${s.specKey}.md`),
+        key: s.specKey,
+        local: s.localKey ?? s.specKey,
+        specPath: specFileOf(s, specDirAbs),
         criteria: s.acceptanceCriteria || s.overview,
       }));
     } catch { continue; }
@@ -317,10 +322,10 @@ export async function runDrift(
     if (!patterns.length) continue;
     const allSources = await expandGlobs(patterns, repoDir);
 
-    for (const { key, specPath, criteria } of specFiles) {
-      if (opts.spec && opts.spec !== key) continue;
+    for (const { key, local, specPath, criteria } of specFiles) {
+      if (opts.spec && opts.spec !== key && opts.spec !== `${app.name}/${local}`) continue;
 
-      const feature = key.split('/').slice(1).join('/');
+      const feature = local;
       // Files that plausibly relate to this spec (same feature key in their path).
       const relatedSources = allSources.filter((abs) => {
         const f = deriveFeature(abs, repoDir, app);
@@ -522,10 +527,10 @@ export async function detectOrphans(
 
     // Load all specs from the specDir
     let specs: import('../core/types.js').ParsedSpec[] = [];
-    try { specs = loadAllSpecs(specDirAbs); } catch { continue; }
+    try { specs = loadCanonicalSpecs(config, specDirAbs); } catch { continue; }
 
     for (const spec of specs) {
-      const specKey = spec.specKey;
+      const specKey = spec.localKey ?? spec.specKey;
       if (isOrphanExempt(specKey)) continue;
 
       // Only flag orphans for specs within this app's feature domain
@@ -538,7 +543,7 @@ export async function detectOrphans(
         : specKey;
 
       if (!featureSet.has(featureToMatch)) {
-        const key = `${app.name}/${specKey}`;
+        const key = spec.specKey;
         const specPath = path.join(specDirAbs, `${specKey}.md`);
         items.push({
           key,
@@ -576,16 +581,16 @@ async function _buildInitialRegistry(
 
     const allSources = await expandGlobs(patterns, repoDir);
     let specs: import('../core/types.js').ParsedSpec[] = [];
-    try { specs = loadAllSpecs(specDirAbs); } catch { continue; }
+    try { specs = loadCanonicalSpecs(config, specDirAbs); } catch { continue; }
 
     for (const spec of specs) {
-      const key = `${app.name}/${spec.specKey}`;
-      const specPath = path.join(specDirAbs, `${spec.specKey}.md`);
+      const key = spec.specKey;
+      const specPath = specFileOf(spec, specDirAbs);
       const specContent = fs.existsSync(specPath) ? fs.readFileSync(specPath, 'utf-8') : '';
       const specHash = hashString(specContent);
       const specEntry = getOrCreateSpecEntry(registry, key, specHash);
 
-      const feature = spec.specKey;
+      const feature = spec.localKey ?? spec.specKey;
       const related = allSources.filter((abs) => deriveFeature(abs, repoDir, app) === feature);
       for (const absFile of related) {
         const h = hashFile(absFile);

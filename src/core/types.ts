@@ -83,6 +83,8 @@ export interface ParsedSpec {
   title: string;
   /** Stable key derived from path relative to specs root, e.g. `core/spec-parser`. */
   specKey: string;
+  /** Key relative to the owning app's `specDir`; set by `loadCanonicalSpecs` (equals `specKey` in single-app layouts). */
+  localKey?: string;
   /** Absolute or repo-relative path the spec was loaded from. */
   filePath: string;
   /** Parsed metadata comment block. */

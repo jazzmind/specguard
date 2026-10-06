@@ -35,7 +35,7 @@ import {
 } from '../core/language-profiles.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { loadPlugins } from '../plugins/index.js';
 
 /** Options for the status pipeline (reserved for forward-compat). */
@@ -305,7 +305,7 @@ export async function runStatus(
     const specDirAbs = resolveFromRoot(config, app.specDir);
     let specs;
     try {
-      specs = loadAllSpecs(specDirAbs);
+      specs = loadCanonicalSpecs(config, specDirAbs);
     } catch {
       continue;
     }
@@ -313,7 +313,7 @@ export async function runStatus(
       const kind = spec.meta.type ?? '';
       if (!featureTypes.has(kind)) continue;
       const tagged = (spec.meta.feature ?? '').split(',').map((part) => part.trim()).filter(Boolean);
-      if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.specKey}`);
+      if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.localKey ?? spec.specKey}`);
     }
   }
   log(`UNFEATURED: ${unfeatured.length}`);
