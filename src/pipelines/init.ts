@@ -38,6 +38,11 @@ export interface InitOpts {
   cwd?: string;
   /** Treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected. */
   single?: boolean;
+  /** How generated MCP/hook commands invoke SpecGuard: node|npx|path (default: local binary, else npx). */
+  runner?: 'node' | 'npx' | 'path';
+  runnerPath?: string;
+  /** Apply differing existing MCP entries/hooks instead of printing a diff. */
+  updateHooks?: boolean;
 }
 
 export interface InitResult extends PipelineResult {
@@ -240,7 +245,14 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   } catch { /* best-effort */ }
 
   // Generate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
-  const scaffold = await scaffoldHarnessFiles({ cwd, profile, harness: opts.harness });
+  const scaffold = await scaffoldHarnessFiles({
+    cwd,
+    profile,
+    harness: opts.harness,
+    runner: opts.runner,
+    runnerPath: opts.runnerPath,
+    updateHooks: opts.updateHooks,
+  });
   result.createdFiles.push(...scaffold.created);
   result.skippedFiles.push(...scaffold.skipped);
   result.created += scaffold.created.length;
