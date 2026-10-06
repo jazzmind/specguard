@@ -70,7 +70,7 @@ specguard results ingest <files...>         # test-runner reports -> proof verdi
 specguard proof status                      # proven / failed / stale / unproven claims
 ```
 
-Install the CLI with `npm install -g specguard-ai` (the package is `specguard-ai`, the binary is `specguard`), or run any command without installing: `npx -p specguard-ai specguard <command>`.
+Install the CLI with `npm install -g specguard-ai` (the package is `specguard-ai`, the binary is `specguard`), or run any command without installing: `npx -p specguard-ai specguard <command>` (npx can hang offline or under load). `specguard init`/`scaffold` wire the MCP server and the hook to a local binary (`SPECGUARD_CLI`, `node_modules/.bin/specguard`, or a global install) and fall back to npx only when none exists; choose with `--runner node|npx|path` (`--runner-path <file>`). An existing differing MCP entry or hook is never rewritten silently: a diff is printed and `--update-hooks` applies it.
 
 ### MCP Server (`specguard-mcp`)
 
@@ -749,7 +749,11 @@ A spec claim is an acceptance-criteria bullet with a stable id: `- Award is skip
 
 3. **Read the verdicts.** Per claim: any failing test gives `failed` (with the failing titles as counterexamples); at least one pass and no failure gives `proven`; only skipped or no tests gives `unexercised`. `specguard proof status` lists them and exits 2 when a claim is failed or stale. A proof goes stale when its spec, a recorded source file, or the lockfiles change.
 
-`results ingest` options: `--run-id <id>`, `--unexercised` (also store `unexercised` for spec claims no test tagged), `--ledger <file>` (default `paths.proofLedger` or `.specguard/proofs.json`; keep a baseline and a patched ledger side by side). `specguard matrix` shows, per claim, the tests that carry its tag.
+**Spec keys.** A claim ref is `<specKey>#<claimId>`, where `<specKey>` is the spec's path under `paths.specsRoot` without extension (`specs/api/services/messaging.md` is `api/services/messaging`), whichever app owns it. The ledger, drift registry, `matrix`, `align` and `status` all use that key; old `<app>/<key>` registry entries migrate automatically. At ingest each row records the hashes of the files the spec lists in its `sources:` header (else `module:`), so editing one of them makes exactly those claims stale. `sources` globs (config and header) resolve relative to the app's `repo`; a root-relative pattern is accepted with a one-time warning.
+
+**Partial vs full runs.** A partial ingest only updates the claims present in the files. `--unexercised` (alias `--sweep`) stores `unexercised` for claims absent from every ingested file only with `--full-run` (or when the files already touch every app that has claims), and never downgrades a `proven` claim whose spec and sources still match.
+
+`results ingest` options: `--run-id <id>`, `--unexercised`/`--sweep` and `--full-run` (see above), `--ledger <file>` (default `paths.proofLedger` or `.specguard/proofs.json`; keep a baseline and a patched ledger side by side). `specguard matrix` shows, per claim, the tests that carry its tag.
 
 ### Running tests from SpecGuard
 
