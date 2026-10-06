@@ -1022,7 +1022,7 @@ When SpecGuard drives a browser (validation, heal), every action is classified b
 | **Destructive** | Delete, archive, purge, drop, remove | Block, log, flag in report |
 | **Outbound** | Send, invite, share, publish, pay, submit payment | Block, log, flag in report |
 
-Classification is keyword-based on the action's description/label (not LLM-driven — deterministic and fast). This is a safety net, not a permission system: it prevents the most common destructive mistakes without adding latency.
+Classification is deterministic (not LLM-driven): whole-word matching, so `postcode` does not match `post`, and when the target element is known its role and accessible name decide (typing in a text field is safe; a button or link is judged by its own name). Add words with `validate.guardrails.deny` / `allow`; `--allow-outbound` (or `validate.guardrails.allowOutbound`) lets outbound actions run on staging, and destructive actions stay blocked. This is a safety net, not a permission system: it prevents the most common destructive mistakes without adding latency.
 
 Blocked actions appear in the validation/heal report as `BLOCKED` verdicts with the reason.
 
