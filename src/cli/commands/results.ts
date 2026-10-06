@@ -12,6 +12,8 @@ export interface ResultsIngestCliOpts extends GlobalOpts {
   format?: string;
   runId?: string;
   unexercised?: boolean;
+  sweep?: boolean;
+  fullRun?: boolean;
   ledger?: string;
 }
 
@@ -28,6 +30,8 @@ export async function resultsIngestCommand(files: string[], opts: ResultsIngestC
     format: format as never,
     runId: opts.runId,
     unexercised: opts.unexercised,
+    sweep: opts.sweep,
+    fullRun: opts.fullRun,
     ledger: opts.ledger,
   });
   outputResult(result, opts);

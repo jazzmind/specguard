@@ -480,12 +480,14 @@ resultsCmd
   .argument('<files...>', 'reporter output files (globs allowed): vitest/jest JSON, playwright JSON, JUnit XML, pytest-json-report, go test -json, cargo JSON')
   .option('--format <fmt>', 'auto|vitest|jest|playwright|junit|pytest|go|cargo', 'auto')
   .option('--run-id <id>', 'ledger run id (default: timestamped)')
-  .option('--unexercised', 'also store unexercised for spec claims that no test tagged')
+  .option('--unexercised', 'also store unexercised for claims absent from every ingested file (only on a full run; see --full-run)')
+  .option('--sweep', 'alias of --unexercised')
+  .option('--full-run', 'the ingested files are the complete run; lets --unexercised/--sweep apply')
   .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
   .action(
     async (
       files: string[],
-      opts: { format?: string; runId?: string; unexercised?: boolean; ledger?: string },
+      opts: { format?: string; runId?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string },
       cmd: Command,
     ) => {
       await resultsIngestCommand(files, withGlobals(cmd, opts));

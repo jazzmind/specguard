@@ -821,18 +821,19 @@ export function buildServer(): McpServer {
         files: z.array(z.string()).min(1).describe('Result file paths or globs, relative to cwd.'),
         format: z.string().optional().describe('auto (default), vitest, jest, playwright, junit, pytest, go, cargo.'),
         runId: z.string().optional().describe('Ledger run id.'),
-        unexercised: z.boolean().optional().describe('Also store unexercised for spec claims no test tagged.'),
+        unexercised: z.boolean().optional().describe('Also store unexercised for claims absent from all files; only on a full run.'),
+        fullRun: z.boolean().optional().describe('The files are the complete run; lets unexercised apply.'),
         ledger: z.string().optional().describe('Proof ledger file override.'),
         cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
       },
     },
-    ({ files, format, runId, unexercised, ledger, cwd }): Promise<ToolResult> =>
+    ({ files, format, runId, unexercised, fullRun, ledger, cwd }): Promise<ToolResult> =>
       withActivityLog('results-ingest', resolveCwd(cwd), async () => {
         try {
           const fmt = format ?? 'auto';
           if (!isResultFormat(fmt)) return errorResult(new Error(`unknown format '${fmt}'`));
           return toolResult(
-            await runResultsIngest(files, resolveCwd(cwd), { format: fmt, runId, unexercised, ledger }),
+            await runResultsIngest(files, resolveCwd(cwd), { format: fmt, runId, unexercised, fullRun, ledger }),
           );
         } catch (err) {
           return errorResult(err);
