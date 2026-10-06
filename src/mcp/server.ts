@@ -47,6 +47,7 @@ import { runAnalyze } from '../pipelines/analyze.js';
 import { runPlanFix } from '../pipelines/plan-fix.js';
 import { runContracts } from '../pipelines/contracts.js';
 import { runImpact } from '../pipelines/impact.js';
+import { runRemediate } from '../pipelines/remediate/index.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
@@ -858,6 +859,37 @@ export function buildServer(): McpServer {
         } catch (err) {
           return errorResult(err);
         }
+      }).catch(errorResult),
+  );
+
+  // Remediation is deliberately read-only over MCP: an agent may scan and dry-run, never branch,
+  // push or open a PR. Those side effects need a human running the CLI (or the CI workflow).
+  server.registerTool(
+    'specguard_remediate',
+    {
+      description:
+        'Scan for vulnerabilities (scan-only) or run the whole remediation loop in a throwaway worktree without committing, ' +
+        'pushing or opening a PR (dry-run). Creating branches and PRs is only available from the CLI. (CLI: specguard remediate)',
+      inputSchema: {
+        mode: z.enum(['scan-only', 'dry-run']).optional().describe('scan-only (default) or dry-run. Nothing else is allowed over MCP.'),
+        minSeverity: z.enum(['critical', 'high', 'moderate', 'low']).optional().describe('Lowest severity to report. Default high.'),
+        advisory: z.string().optional().describe('Limit to one advisory id (GHSA/CVE/OSV).'),
+        allowMajor: z.boolean().optional().describe('Allow a major version bump.'),
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ mode, minSeverity, advisory, allowMajor, cwd }): Promise<ToolResult> =>
+      withActivityLog('remediate', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runRemediate(config, {
+          scanOnly: (mode ?? 'scan-only') === 'scan-only',
+          dryRun: mode === 'dry-run',
+          pr: false,
+          minSeverity,
+          advisory,
+          allowMajor,
+        });
+        return toolResult(result);
       }).catch(errorResult),
   );
 
