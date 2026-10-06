@@ -222,6 +222,27 @@ const featureStateSchema = z
   })
   .passthrough();
 
+const remediateSchema = z
+  .object({
+    minSeverity: z.enum(['critical', 'high', 'moderate', 'low']).optional(),
+    allowMajor: z.boolean().optional(),
+    maxAdvisories: z.number().int().positive().optional(),
+    maxFilesChanged: z.number().int().positive().optional(),
+    maxLinesChanged: z.number().int().positive().optional(),
+    buildCommand: z.string().optional(),
+    typecheckCommand: z.string().optional(),
+    installCommand: z.string().optional(),
+    stepTimeoutMs: z.number().int().positive().optional(),
+    baseBranch: z.string().optional(),
+    branchPrefix: z.string().optional(),
+    sandbox: z.enum(['local', 'docker']).optional(),
+    osv: z.boolean().optional(),
+    semgrep: z.boolean().optional(),
+    gitleaks: z.boolean().optional(),
+    strictUnexercised: z.boolean().optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
     plugins: z.array(z.string()).optional(),
@@ -236,6 +257,7 @@ const configSchema = z
     triggers: triggersSchema.optional(),
     heal: healSchema.optional(),
     matrix: matrixSchema.optional(),
+    remediate: remediateSchema.optional(),
   })
   .passthrough();
 

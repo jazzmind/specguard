@@ -62,7 +62,7 @@ function evidenceFor(agg: ClaimAggregate, perFile: Map<string, ClaimAggregate[]>
   return first;
 }
 
-async function specClaimRefs(config: SpecGuardConfig, cwd: string): Promise<string[]> {
+export async function specClaimRefs(config: SpecGuardConfig, cwd: string): Promise<string[]> {
   const refs: string[] = [];
   const root = config.rootDir ?? cwd;
   const specsRoot = path.resolve(root, config.paths?.specsRoot ?? 'specs');

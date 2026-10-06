@@ -413,6 +413,38 @@ export interface ValidateConfig {
   };
 }
 
+/** Settings for `specguard remediate`. Every field is optional. */
+export interface RemediateConfig {
+  /** Lowest severity to remediate: critical | high | moderate | low. Default high. */
+  minSeverity?: string;
+  allowMajor?: boolean;
+  /** Most advisories handled in one run. Default 5. */
+  maxAdvisories?: number;
+  /** Abort when a change touches more files than this. Default 20. */
+  maxFilesChanged?: number;
+  /** Abort when a change touches more lines than this. Default 2000 (lockfiles included). */
+  maxLinesChanged?: number;
+  /** Command run after install. Absent: the `build` script of package.json when there is one. */
+  buildCommand?: string;
+  typecheckCommand?: string;
+  /** Overrides the ecosystem install command. */
+  installCommand?: string;
+  /** Per-step timeout in milliseconds. Default 600000. */
+  stepTimeoutMs?: number;
+  /** Branch the PR targets. Default: the current branch. */
+  baseBranch?: string;
+  /** Branch name prefix. Default `specguard/remediate/`. */
+  branchPrefix?: string;
+  /** Run tests in docker (uses each app's test.image). Default: follows `runners.testRunner`. */
+  sandbox?: 'local' | 'docker';
+  /** Use OSV-Scanner when available. Default true. */
+  osv?: boolean;
+  semgrep?: boolean;
+  gitleaks?: boolean;
+  /** Treat claims with no exercising test in the baseline as INCONCLUSIVE. Default true. */
+  strictUnexercised?: boolean;
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
   /** Built-in plugins to enable: directory names under `src/plugins/`. Empty means none. */
@@ -429,6 +461,7 @@ export interface SpecGuardConfig {
   matrix?: MatrixConfig;
   auth?: AuthConfig;
   validate?: ValidateConfig;
+  remediate?: RemediateConfig;
   /** Directory the config was loaded from (the dir containing `.specguard/`). */
   rootDir?: string;
 }
