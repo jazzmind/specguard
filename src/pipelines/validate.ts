@@ -36,11 +36,19 @@ import {
   takeScreenshot,
   getAccessibilitySnapshot,
   getPageHtml,
+  inspectTarget,
   PlaywrightUnavailableError,
 } from '../adapters/playwright.js';
 import type { BrowserHandle } from '../adapters/playwright.js';
-import { authenticate, clearSessionCache } from '../adapters/auth-state-machine.js';
-import { classifyAction, isBlocked, makeBlockedAction } from '../adapters/guardrails.js';
+import { clearSessionCache } from '../adapters/auth-state-machine.js';
+import { SessionPool } from '../adapters/sessions.js';
+import {
+  classifyAction,
+  isBlocked,
+  makeBlockedAction,
+  type GuardrailPolicy,
+} from '../adapters/guardrails.js';
+import { createRedactor, loadRedactHook, type Redactor } from '../core/redact.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,6 +70,21 @@ export interface ValidateOpts {
    * Useful for fast iteration when you only need criterion verdicts.
    */
   noReview?: boolean;
+  /** Show the browser window (overrides `validate.headless`). */
+  headed?: boolean;
+  /** Let outbound actions (send, invite, pay, ...) run, for staging. Destructive actions stay blocked. */
+  allowOutbound?: boolean;
+}
+
+/** Everything one validate run shares across specs. */
+interface RunContext {
+  /** Launches the single browser on first use. Rejects with PlaywrightUnavailableError when missing. */
+  browser: () => Promise<BrowserHandle>;
+  pool: () => Promise<SessionPool>;
+  redactor: Redactor;
+  policy: GuardrailPolicy;
+  /** False when `llm.allowImages` is false: nothing visual goes to the LLM. */
+  allowImages: boolean;
 }
 
 /** A single criterion verdict. */
@@ -145,6 +168,24 @@ function resolveUrl(base: string | undefined, specUrl: string): string {
   return base.replace(/\/$/, '') + '/' + specUrl.replace(/^\//, '');
 }
 
+/**
+ * Evidence (screenshots, DOM, saved logins) can hold personal data. Write a
+ * `.gitignore` inside the evidence and auth directories so they stay out of
+ * version control even when the repo's own ignore file does not mention them.
+ */
+async function ensureEvidenceIgnored(config: SpecGuardConfig): Promise<void> {
+  for (const dir of ['.specguard/evidence', '.specguard/auth', '.specguard/reports']) {
+    try {
+      const abs = resolveFromRoot(config, dir);
+      await ensureDir(abs);
+      const marker = path.join(abs, '.gitignore');
+      if (!(await fileExists(marker))) await writeFile(marker, '*\n!.gitignore\n');
+    } catch {
+      /* best-effort: the run does not depend on it */
+    }
+  }
+}
+
 function overallVerdict(verdicts: CriterionVerdict[]): Verdict {
   if (verdicts.some((v) => v.verdict === 'FAIL')) return 'FAIL';
   if (verdicts.every((v) => v.verdict === 'PASS')) return 'PASS';
@@ -226,6 +267,7 @@ async function validateSpec(
   spec: ParsedSpec,
   opts: ValidateOpts,
   log: (line: string) => void,
+  run: RunContext,
 ): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport }> {
   const verdicts: CriterionVerdict[] = [];
   const evidenceFiles: string[] = [];
@@ -235,10 +277,12 @@ async function validateSpec(
   const evidenceDir = resolveFromRoot(config, `.specguard/evidence/${spec.specKey}`);
   await ensureDir(evidenceDir);
 
-  // Launch browser.
+  // One browser per run; one context per auth profile.
   let handle: BrowserHandle;
+  let pool: SessionPool;
   try {
-    handle = await launchBrowser({ headless: true });
+    await run.browser();
+    pool = await run.pool();
   } catch (err) {
     if (err instanceof PlaywrightUnavailableError) {
       log(`[skip] ${spec.specKey} — Playwright not available: ${err.message}`);
@@ -257,28 +301,32 @@ async function validateSpec(
     throw err;
   }
 
-  try {
-    // Authenticate if required.
-    if (spec.meta.auth) {
-      if (!opts.reuseSession) clearSessionCache();
-      const authResult = await authenticate(handle, spec.meta.auth, config);
-      if (!authResult.success) {
-        log(`[fail] ${spec.specKey} — auth failed: ${authResult.error}`);
-        return {
-          verdicts: [
-            {
-              criterion: '(auth)',
-              verdict: 'FAIL',
-              reason: `Authentication failed: ${authResult.error}`,
-            },
-          ],
-          evidence: [],
-          issueReport: undefined,
-        };
-      }
-      log(`[auth] ${spec.specKey} — authenticated as ${spec.meta.auth}`);
+  {
+    // The spec's auth profile decides which context it runs in (anonymous when it names none).
+    const session = await pool.acquire(spec.meta.auth);
+    if (spec.meta.auth && session.auth && !session.auth.success) {
+      log(`[fail] ${spec.specKey} — auth failed: ${session.auth.error}`);
+      return {
+        verdicts: [
+          {
+            criterion: '(auth)',
+            verdict: 'FAIL',
+            reason: `Authentication failed: ${session.auth.error}`,
+          },
+        ],
+        evidence: [],
+        issueReport: undefined,
+      };
     }
+    handle = session.handle;
+    handle._consoleErrors.length = 0;
+    if (spec.meta.auth) log(`[auth] ${spec.specKey} — authenticated as ${spec.meta.auth}`);
+  }
 
+  const mask = run.redactor.blankSelectors;
+  const safe = (text: string, kind: 'dom' | 'a11y' | 'console' | 'text' = 'text') => run.redactor.text(text, kind);
+
+  try {
     // --- PERCEIVE ---
     const snapshot = await navigateTo(handle, url);
     log(`[perceive] ${spec.specKey} — ${url} → HTTP ${snapshot.statusCode}`);
@@ -287,10 +335,11 @@ async function validateSpec(
       handle,
       `${path.basename(spec.specKey)}-initial`,
       evidenceDir,
+      { maskSelectors: mask },
     );
     evidenceFiles.push(screenshotPath);
 
-    const a11y = await getAccessibilitySnapshot(handle);
+    const a11y = await getAccessibilitySnapshot(handle, run.redactor);
 
     if (snapshot.statusCode >= 400 && snapshot.statusCode !== 0) {
       verdicts.push({
@@ -315,10 +364,10 @@ async function validateSpec(
       spec.acceptanceCriteria,
       '',
       `Current page: ${url}`,
-      `Page title: "${snapshot.title}"`,
+      `Page title: "${safe(snapshot.title, 'dom')}"`,
       `HTTP status: ${snapshot.statusCode}`,
       snapshot.consoleErrors.length > 0
-        ? `Console errors: ${snapshot.consoleErrors.slice(0, 5).join('; ')}`
+        ? `Console errors: ${snapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
         : '',
       '',
       `Accessibility tree:`,
@@ -349,8 +398,10 @@ async function validateSpec(
     // --- ACT ---
     const blockedActions: ReturnType<typeof makeBlockedAction>[] = [];
     for (const action of plannedActions.actions) {
-      const classification = classifyAction(action.description);
-      if (isBlocked(classification)) {
+      // Judge the element the action will touch (its role and accessible name), not just the planner's words.
+      const target = action.selector ? await inspectTarget(handle, action.selector) : null;
+      const classification = classifyAction(action.description, target ?? undefined, run.policy);
+      if (isBlocked(classification, run.policy)) {
         const blocked = makeBlockedAction(action.description, classification);
         blockedActions.push(blocked);
         log(`[blocked] ${spec.specKey} — ${blocked.reason}: "${action.description}"`);
@@ -378,10 +429,11 @@ async function validateSpec(
       handle,
       `${path.basename(spec.specKey)}-post-action`,
       evidenceDir,
+      { maskSelectors: mask },
     );
     evidenceFiles.push(postScreenshot);
-    const postA11y = await getAccessibilitySnapshot(handle);
-    const postHtml = await getPageHtml(handle);
+    const postA11y = await getAccessibilitySnapshot(handle, run.redactor);
+    const postHtml = await getPageHtml(handle, 40_000, run.redactor);
     const postSnapshot = await navigateTo(handle, handle._page !== null ? (handle._page as { url?: () => string }).url?.() ?? url : url);
 
     // --- VERIFY ---
@@ -395,10 +447,10 @@ async function validateSpec(
       spec.acceptanceCriteria,
       '',
       `Page state after actions:`,
-      `Title: "${postSnapshot.title}"`,
+      `Title: "${safe(postSnapshot.title, 'dom')}"`,
       `HTTP status: ${postSnapshot.statusCode}`,
       postSnapshot.consoleErrors.length > 0
-        ? `Console errors: ${postSnapshot.consoleErrors.slice(0, 5).join('; ')}`
+        ? `Console errors: ${postSnapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
         : '',
       '',
       `Accessibility tree (post-action):`,
@@ -471,10 +523,11 @@ async function validateSpec(
       try {
         let screenshotBuffer: Buffer | undefined;
         try {
+          if (!run.allowImages) throw new Error('images disabled by llm.allowImages');
           const { readFile: fsReadFileReview } = await import('node:fs/promises');
           screenshotBuffer = await fsReadFileReview(postScreenshot);
         } catch {
-          // Screenshot not readable — proceed without image.
+          // Screenshot not readable, or images are not allowed — proceed without one.
         }
 
         const uiSectionsText = [
@@ -537,7 +590,7 @@ async function validateSpec(
       }
     }
   } finally {
-    await closeBrowser(handle);
+    // The pool owns the contexts and the run owns the browser; both are closed once the run ends.
   }
 
   await appendHistory(config, {
@@ -578,6 +631,47 @@ export async function runValidate(
 
   let anyFailed = false;
 
+  // --- run-wide setup: redaction, guardrail policy, one browser, one context per auth profile ---
+  const rootDir = config.rootDir ?? process.cwd();
+  const cfg = config.validate;
+  let hook;
+  if (cfg?.redaction?.hookPath) {
+    try {
+      hook = await loadRedactHook(rootDir, cfg.redaction.hookPath);
+    } catch (err) {
+      // A redaction hook that cannot load must stop the run: continuing would send unredacted text.
+      throw new SpecGuardError(`validate.redaction.hookPath: ${(err as Error).message}`, ExitCode.InternalError);
+    }
+  }
+  const redactor = createRedactor(cfg?.redaction, hook);
+  const policy: GuardrailPolicy = {
+    deny: cfg?.guardrails?.deny,
+    allow: cfg?.guardrails?.allow,
+    allowOutbound: opts.allowOutbound ?? cfg?.guardrails?.allowOutbound ?? false,
+  };
+  const headless = opts.headed ? false : (cfg?.headless ?? true);
+  clearSessionCache();
+
+  const launched: { browser?: Promise<BrowserHandle>; pool?: Promise<SessionPool> } = {};
+  const run: RunContext = {
+    browser: () => {
+      launched.browser ??= launchBrowser({
+        headless,
+        runner: config.runners?.playwright === 'docker' ? 'docker' : 'local',
+      });
+      return launched.browser;
+    },
+    pool: () => {
+      launched.pool ??= run.browser().then((browser) => new SessionPool(browser, config, rootDir));
+      return launched.pool;
+    },
+    redactor,
+    policy,
+    allowImages: config.llm.allowImages !== false,
+  };
+  await ensureEvidenceIgnored(config);
+
+  try {
   for (const spec of specs) {
     if (!spec.meta.url && !opts.baseUrl) {
       log(`[skip] ${spec.specKey} — no url in spec metadata`);
@@ -589,7 +683,7 @@ export async function runValidate(
     log(`[validate] ${spec.specKey}`);
 
     try {
-      const { verdicts, issueReport } = await validateSpec(config, spec, opts, log);
+      const { verdicts, issueReport } = await validateSpec(config, spec, opts, log, run);
       const ov = overallVerdict(verdicts);
 
       for (const v of verdicts) {
@@ -630,6 +724,14 @@ export async function runValidate(
       anyFailed = true;
       result.failed += 1;
       result.items.push({ key: spec.specKey, status: 'failed', message });
+    }
+  }
+
+  } finally {
+    if (launched.pool) await (await launched.pool.catch(() => null))?.closeAll();
+    if (launched.browser) {
+      const browser = await launched.browser.catch(() => null);
+      if (browser) await closeBrowser(browser);
     }
   }
 

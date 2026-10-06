@@ -261,13 +261,15 @@ export function buildServer(): McpServer {
         all: z.boolean().optional().describe('Validate all specs with url: metadata.'),
         baseUrl: z.string().optional().describe('Base URL of the running app.'),
         app: z.string().optional().describe('Limit to a single app.'),
+        allowOutbound: z.boolean().optional().describe('Let outbound actions run (staging). Destructive actions stay blocked.'),
+        headed: z.boolean().optional().describe('Show the browser window.'),
         cwd: z.string().optional(),
       },
     },
-    ({ spec, all, baseUrl, app, cwd }): Promise<ToolResult> =>
+    ({ spec, all, baseUrl, app, allowOutbound, headed, cwd }): Promise<ToolResult> =>
       withActivityLog('validate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runValidate(config, { spec, all, baseUrl, app });
+        const result = await runValidate(config, { spec, all, baseUrl, app, allowOutbound, headed });
         return toolResult(result);
       }).catch(errorResult),
   );

@@ -306,22 +306,55 @@ export interface MatrixConfig {
   output: string;
 }
 
-/** A named authentication profile for the validate pipeline. */
+/** How a profile gets the browser logged in. */
+export type AuthStrategy = 'form' | 'storageState' | 'header' | 'token' | 'script';
+
+/**
+ * A named authentication profile for the validate pipeline. Each profile gets
+ * its own browser context. Credentials are only ever read from environment
+ * variables named here, never stored in config and never sent to the LLM.
+ */
 export interface AuthProfile {
   /** Profile name, referenced by spec `auth:` metadata. */
   name: string;
+  /** Default `form`. */
+  strategy?: AuthStrategy;
+
+  // --- form (also used by storageState to create the state file) -----------
   /** URL of the login page. */
-  loginUrl: string;
+  loginUrl?: string;
   /** Name of env var holding the username. */
-  usernameEnvVar: string;
+  usernameEnvVar?: string;
   /** Name of env var holding the password. */
-  passwordEnvVar: string;
+  passwordEnvVar?: string;
   /** Optional selector for the username input (default: [name="username"], [type="email"]). */
   usernameSelector?: string;
   /** Optional selector for the password input (default: [type="password"]). */
   passwordSelector?: string;
   /** Optional selector for the submit button (default: [type="submit"]). */
   submitSelector?: string;
+  /** URL (or `/regex/`) the browser must reach after login. Default: any URL other than the login page. */
+  successUrl?: string;
+  /** Selector that must be visible after login. */
+  successSelector?: string;
+
+  // --- storageState ----------------------------------------------------------
+  /** Saved browser state. Default `.specguard/auth/<name>.json`. */
+  storageStatePath?: string;
+
+  // --- header / token --------------------------------------------------------
+  /** Header name -> name of the env var that holds its value. */
+  headers?: Record<string, string>;
+  /** Env var holding a bearer token (sent as `Authorization: Bearer <token>`). */
+  tokenEnvVar?: string;
+  /** Header for the token. Default `Authorization`. */
+  tokenHeader?: string;
+  /** Prefix before the token. Default `Bearer `. Use an empty string for a bare token. */
+  tokenPrefix?: string;
+
+  // --- script ----------------------------------------------------------------
+  /** Module (relative to the config root) whose default export is `async ({ page, context, profile }) => void`. */
+  scriptPath?: string;
 }
 
 /** Authentication configuration block. */
@@ -360,6 +393,26 @@ export interface FeatureStateConfig {
   externalIds?: string[];
 }
 
+/** Settings for `specguard validate`. */
+export interface ValidateConfig {
+  /** Run the browser headless. Default true. `--headed` overrides. */
+  headless?: boolean;
+  guardrails?: {
+    /** Words or phrases that always block. */
+    deny?: string[];
+    /** Words or phrases that are always safe. */
+    allow?: string[];
+    /** Let outbound actions run (staging). `--allow-outbound` overrides. */
+    allowOutbound?: boolean;
+  };
+  redaction?: {
+    builtin?: boolean;
+    patterns?: string[];
+    blankSelectors?: string[];
+    hookPath?: string;
+  };
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
   /** Built-in plugins to enable: directory names under `src/plugins/`. Empty means none. */
@@ -375,6 +428,7 @@ export interface SpecGuardConfig {
   heal?: HealConfig;
   matrix?: MatrixConfig;
   auth?: AuthConfig;
+  validate?: ValidateConfig;
   /** Directory the config was loaded from (the dir containing `.specguard/`). */
   rootDir?: string;
 }

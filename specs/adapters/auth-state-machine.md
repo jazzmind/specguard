@@ -25,6 +25,12 @@ States: `NavigateToLogin → FillCredentials → WaitForResult → Success | 2FA
 - When env vars are missing, returns `AuthResult { success: false, error: 'Missing credentials env var: <VAR>' }`.
 - When login navigation times out or fails, returns `AuthResult { success: false, error: 'Login failed: <reason>' }`.
 - `clearSessionCache()` empties the in-memory session cache (used between test runs).
+- [ ] The `form` strategy fills the username and password from the environment variables named in the profile and succeeds when the post-login predicate holds <!-- claim: strategy-form -->
+- [ ] The `storageState` strategy loads `.specguard/auth/<profile>.json` (or `storageStatePath`) into the context and creates it from a form login when missing <!-- claim: strategy-storage-state -->
+- [ ] The `header` and `token` strategies set extra HTTP headers from environment variables, with `token` sending `Authorization: Bearer <token>` by default <!-- claim: strategy-header-token -->
+- [ ] The `script` strategy runs the default export of `scriptPath` with `{ page, context, profile }` <!-- claim: strategy-script -->
+- [ ] Login succeeds when `successUrl` (a URL or `/regex/`) is reached or `successSelector` is visible; without either, any URL other than the login page counts <!-- claim: success-predicate -->
+- [ ] Credentials are read only from environment variables and never appear in config output or LLM prompts <!-- claim: no-secrets-to-llm -->
 
 ## Scenarios
 

@@ -23,6 +23,8 @@ vi.mock('../../src/adapters/playwright.js', () => {
       _consoleErrors: [],
     })),
     closeBrowser: vi.fn(async () => {}),
+    openSession: vi.fn(async () => ({ _browser: browser, _page: page, _consoleErrors: [], _ownsBrowser: false })),
+    inspectTarget: vi.fn(async () => null),
     navigateTo: vi.fn(async () => ({
       url: 'http://localhost:3000/',
       title: 'My App',
@@ -42,6 +44,7 @@ vi.mock('../../src/adapters/playwright.js', () => {
 
 vi.mock('../../src/adapters/auth-state-machine.js', () => ({
   authenticate: vi.fn(async () => ({ success: true, profile: 'admin' })),
+  contextOptionsFor: vi.fn(() => ({ options: {} })),
   clearSessionCache: vi.fn(),
 }));
 

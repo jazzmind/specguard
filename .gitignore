@@ -23,4 +23,7 @@ dist/
 .specguard/auth/
 .specguard/evidence/
 .specguard/runs/
+.specguard/reports/
+.specguard/validation-history.json
+.specguard/ci/
 # specguard:generated-state:end

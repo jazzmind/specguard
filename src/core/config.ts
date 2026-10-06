@@ -139,6 +139,67 @@ const matrixSchema = z
   })
   .passthrough();
 
+const authProfileSchema = z
+  .object({
+    name: z.string().min(1),
+    strategy: z.enum(['form', 'storageState', 'header', 'token', 'script']).optional(),
+    loginUrl: z.string().optional(),
+    usernameEnvVar: z.string().optional(),
+    passwordEnvVar: z.string().optional(),
+    usernameSelector: z.string().optional(),
+    passwordSelector: z.string().optional(),
+    submitSelector: z.string().optional(),
+    successUrl: z.string().optional(),
+    successSelector: z.string().optional(),
+    storageStatePath: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    tokenEnvVar: z.string().optional(),
+    tokenHeader: z.string().optional(),
+    tokenPrefix: z.string().optional(),
+    scriptPath: z.string().optional(),
+  })
+  .passthrough()
+  .superRefine((profile, ctx) => {
+    const strategy = profile.strategy ?? 'form';
+    const need = (ok: boolean, message: string) => {
+      if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `auth profile '${profile.name}': ${message}` });
+    };
+    if (strategy === 'form') {
+      need(Boolean(profile.loginUrl && profile.usernameEnvVar && profile.passwordEnvVar), 'strategy form needs loginUrl, usernameEnvVar and passwordEnvVar');
+    } else if (strategy === 'storageState') {
+      // A saved state file is enough; a form login is optional and creates the file when it is missing.
+    } else if (strategy === 'header') {
+      need(Boolean(profile.headers && Object.keys(profile.headers).length > 0), 'strategy header needs headers (header name -> env var name)');
+    } else if (strategy === 'token') {
+      need(Boolean(profile.tokenEnvVar), 'strategy token needs tokenEnvVar');
+    } else if (strategy === 'script') {
+      need(Boolean(profile.scriptPath), 'strategy script needs scriptPath');
+    }
+  });
+
+const validateSchema = z
+  .object({
+    headless: z.boolean().optional(),
+    guardrails: z
+      .object({
+        deny: z.array(z.string()).optional(),
+        allow: z.array(z.string()).optional(),
+        allowOutbound: z.boolean().optional(),
+      })
+      .passthrough()
+      .optional(),
+    redaction: z
+      .object({
+        builtin: z.boolean().optional(),
+        patterns: z.array(z.string()).optional(),
+        blankSelectors: z.array(z.string()).optional(),
+        hookPath: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
 const pathsSchema = z
   .object({
     specsRoot: z.string().optional(),
@@ -165,6 +226,8 @@ const configSchema = z
   .object({
     plugins: z.array(z.string()).optional(),
     featureState: featureStateSchema.optional(),
+    auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
+    validate: validateSchema.optional(),
     extends: z.string().optional(),
     paths: pathsSchema.optional(),
     apps: z.array(appConfigSchema).min(1),

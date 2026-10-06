@@ -31,6 +31,13 @@ Results are appended to `.specguard/validation-history.json`.
 - Exit code is `1` (ValidationFailed) when any criterion is `FAIL`; `0` when all pass.
 - Results are appended to `.specguard/validation-history.json`.
 - `--spec <key>` validates a single spec; `--all` validates all specs with a `url:` field.
+- [ ] Each auth profile gets its own browser context, and a spec without `auth:` runs in an anonymous context that is never logged in <!-- claim: one-context-per-profile -->
+- [ ] The browser is headless unless `validate.headless` is false or `--headed` is passed <!-- claim: headless-config -->
+- [ ] `--allow-outbound` (or `validate.guardrails.allowOutbound`) lets outbound actions run; destructive actions stay blocked <!-- claim: allow-outbound -->
+- [ ] DOM text, accessibility text and console errors are passed through the redactor before they reach the LLM <!-- claim: redact-before-llm -->
+- [ ] When `llm.allowImages` is false no screenshot is sent to the LLM <!-- claim: images-gated -->
+- [ ] `.specguard/evidence`, `.specguard/auth` and `.specguard/reports` get a `.gitignore` that ignores their contents <!-- claim: evidence-gitignored -->
+- [ ] When `runners.playwright` is `docker` the pipeline uses the docker adapter instead of a local browser <!-- claim: docker-runner -->
 
 ## Scenarios
 

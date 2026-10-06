@@ -234,12 +234,23 @@ program
   .option('--url <url>', 'base URL of the running app')
   .option('--app <name>', 'limit to a single app')
   .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
+  .option('--headed', 'show the browser window (default: headless, or validate.headless)')
+  .option('--allow-outbound', 'let outbound actions (send, invite, pay, ...) run; for staging. Destructive actions stay blocked')
   .action(
     async (
-      opts: { spec?: string; all?: boolean; url?: string; app?: string; noReview?: boolean },
+      opts: {
+        spec?: string;
+        all?: boolean;
+        url?: string;
+        app?: string;
+        review?: boolean;
+        headed?: boolean;
+        allowOutbound?: boolean;
+      },
       cmd: Command,
     ) => {
-      await validateCommand(withGlobals(cmd, opts));
+      // commander turns --no-review into review:false
+      await validateCommand(withGlobals(cmd, { ...opts, noReview: opts.review === false }));
     },
   );
 

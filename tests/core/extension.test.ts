@@ -424,3 +424,5 @@ describe("SpecGuard VS Code Extension", () => {
       expect.arrayContaining(["drift"]),
       expect.objectContaining({ cwd: "/workspace/my-project" })
     );
+  });
+});
