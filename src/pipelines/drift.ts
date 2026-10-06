@@ -34,7 +34,7 @@ import type { AppConfig, SpecGuardConfig, PipelineResult, PipelineItem } from '.
 import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { fileExists, expandGlobs } from '../core/reader.js';
+import { fileExists } from '../core/reader.js';
 import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { noteStaleProofs } from './proof.js';
