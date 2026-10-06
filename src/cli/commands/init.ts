@@ -20,6 +20,20 @@ export interface InitOpts {
   harness?: string;
   /** One app even when a workspace is detected. */
   single?: boolean;
+  runner?: string;
+  runnerPath?: string;
+  updateHooks?: boolean;
+}
+
+const RUNNERS = ['node', 'npx', 'path'];
+
+function checkRunner(runner: string | undefined): 'node' | 'npx' | 'path' | undefined {
+  if (runner === undefined) return undefined;
+  if (!RUNNERS.includes(runner)) {
+    process.stderr.write(`unknown --runner '${runner}'. Use node, npx, or path.\n`);
+    process.exit(1);
+  }
+  return runner as 'node' | 'npx' | 'path';
 }
 
 export async function initCommand(opts: InitOpts): Promise<void> {
@@ -28,6 +42,9 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     language: opts.language as LanguageId | undefined,
     harness: opts.harness as Harness | undefined,
     single: opts.single,
+    runner: checkRunner(opts.runner),
+    runnerPath: opts.runnerPath,
+    updateHooks: opts.updateHooks,
   });
 
   for (const line of result.messages) {
@@ -44,6 +61,9 @@ export async function initCommand(opts: InitOpts): Promise<void> {
 
 export interface ScaffoldCmdOpts {
   harness?: string;
+  runner?: string;
+  runnerPath?: string;
+  updateHooks?: boolean;
 }
 
 /** Regenerate agent-harness files for an already-initialised project. */
@@ -55,6 +75,9 @@ export async function scaffoldCommand(opts: ScaffoldCmdOpts): Promise<void> {
     cwd,
     profile,
     harness: opts.harness as Harness | undefined,
+    runner: checkRunner(opts.runner),
+    runnerPath: opts.runnerPath,
+    updateHooks: opts.updateHooks,
   });
 
   process.stdout.write(`specguard scaffold (language: ${profile.id}, harness: ${opts.harness ?? 'both'})\n`);

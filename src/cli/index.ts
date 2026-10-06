@@ -140,12 +140,18 @@ program
   .option('--language <id>', 'target language (typescript|python|go|rust|java); auto-detected when omitted')
   .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
   .option('--single', 'treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean }) => {
+  .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
+  .option('--runner-path <file>', 'specguard CLI entry for --runner path')
+  .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
       harness: opts.harness,
       single: opts.single,
+      runner: opts.runner,
+      runnerPath: opts.runnerPath,
+      updateHooks: opts.updateHooks,
     });
   });
 
@@ -154,8 +160,11 @@ program
   .command('scaffold')
   .description('regenerate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal) for an existing project')
   .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
-  .action(async (opts: { harness?: string }) => {
-    await scaffoldCommand({ harness: opts.harness });
+  .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
+  .option('--runner-path <file>', 'specguard CLI entry for --runner path')
+  .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
+  .action(async (opts: { harness?: string; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
+    await scaffoldCommand({ harness: opts.harness, runner: opts.runner, runnerPath: opts.runnerPath, updateHooks: opts.updateHooks });
   });
 
 // --- import <file> --------------------------------------------------------
