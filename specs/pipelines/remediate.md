@@ -12,7 +12,7 @@
 
 Loop: detect (ecosystem audit + OSV, Semgrep, gitleaks) -> dedupe, ignore, threshold -> clean-tree and lock check -> baseline in a worktree (tests twice for flakes, environment fingerprint, ledger snapshot) -> plan (smallest fixing version, changelog, LLM breaking-change analysis, risk) -> apply with a write allowlist -> install, build, typecheck -> select tests (claim-tagged first, then the full suite always) -> patched ledger -> re-detect -> verdict -> evidence JSON and PR body -> commit on `specguard/remediate/<id>` -> optional push and `gh pr create`.
 
-Exit codes for this command: 0 nothing to do, 5 findings present (`--scan-only`), 8 branch/PR produced and PRESERVED, 9 CHANGED (draft PR or rolled back), 10 INCONCLUSIVE, 11 baseline not green or tool/setup error (including a reached LLM budget).
+Exit codes for this command: 0 nothing to do, 5 findings present (`--scan-only`), 8 branch/PR produced and PRESERVED, 9 CHANGED (draft PR or rolled back), 10 INCONCLUSIVE, 11 baseline not green or tool/setup error.
 
 ## Acceptance Criteria
 
@@ -24,7 +24,7 @@ Exit codes for this command: 0 nothing to do, 5 findings present (`--scan-only`)
 - [ ] A baseline that is not green (failing or unparseable tests, apart from quarantined ones) ends the run with exit 11 and no patch is applied <!-- claim: baseline-not-green -->
 - [ ] The baseline snapshots the proof ledger to `.specguard/remediation/<runId>/baseline-proofs.json` and records an environment fingerprint <!-- claim: baseline-snapshot -->
 - [ ] The planner picks the smallest fixing version (patch over minor); a major bump needs `--allow-major` and is otherwise skipped with a reason <!-- claim: plan-smallest -->
-- [ ] Changelog notes are fetched through an injectable HTTP function and summarized by the LLM layer (budget and replay apply); a failed fetch or LLM call never blocks the run and lowers confidence in the risk score <!-- claim: plan-changelog -->
+- [ ] Changelog notes are fetched through an injectable HTTP function and summarized by the LLM layer (budget and replay apply); a failed fetch, a reached LLM budget or a failed LLM call never blocks the run: the analysis falls back to a keyword heuristic and the risk score notes the lower confidence <!-- claim: plan-changelog -->
 - [ ] One branch per advisory group named `specguard/remediate/<id>`; a re-run skips an advisory whose branch or PR already exists <!-- claim: idempotent -->
 - [ ] A dependency bump may only change manifests and lockfiles, a code fix only the files named in the finding, and limits on file and line counts apply; any other changed file aborts the run, rolls back and exits 11 <!-- claim: write-allowlist -->
 - [ ] After apply the ecosystem install, then the configured build and typecheck commands, run in the worktree <!-- claim: apply-install-build -->

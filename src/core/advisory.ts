@@ -34,6 +34,8 @@ export interface Advisory {
   source: string;
   url?: string;
   title?: string;
+  /** Project directory (relative to the config root) where it was found. Absent: the root. */
+  repo?: string;
 }
 
 /** One concrete change that could fix an advisory. */
@@ -88,7 +90,7 @@ export function dedupeAdvisories(list: Advisory[]): Advisory[] {
   const out: Advisory[] = [];
   for (const adv of list) {
     const hit = out.find(
-      (o) => o.ecosystem === adv.ecosystem && o.package === adv.package && ids(o).some((i) => ids(adv).includes(i)),
+      (o) => o.ecosystem === adv.ecosystem && o.package === adv.package && (o.repo ?? '') === (adv.repo ?? '') && ids(o).some((i) => ids(adv).includes(i)),
     );
     if (!hit) {
       out.push({ ...adv, aliases: [...new Set(adv.aliases.filter((x) => x !== adv.id))], fixedVersions: [...adv.fixedVersions] });
