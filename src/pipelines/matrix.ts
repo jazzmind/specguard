@@ -12,7 +12,7 @@ import type { SpecGuardConfig, AppConfig, PipelineResult } from '../core/types.j
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { resolveProfile } from '../core/language-profiles.js';
@@ -181,7 +181,7 @@ export async function runMatrix(
     const specDirAbs = resolveFromRoot(config, app.specDir);
     let specs;
     try {
-      specs = loadAllSpecs(specDirAbs);
+      specs = loadCanonicalSpecs(config, specDirAbs);
     } catch {
       log(`[warn] Could not load specs from ${specDirAbs}`);
       continue;

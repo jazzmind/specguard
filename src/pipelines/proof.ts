@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { loadConfig } from '../core/config.js';
 import { formatClaimRef, parseClaimRef } from '../core/claims.js';
 import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
-import { fromRegistryKey, hashFile, hashString, loadRegistry, toRegistryKey } from '../core/drift-registry.js';
+import { fromRegistryKey, hashFile, hashString, loadRegistry, saveRegistry, toRegistryKey } from '../core/drift-registry.js';
 import { ExitCode } from '../core/exit-codes.js';
 import {
   effectiveVerdict,
@@ -25,7 +25,15 @@ import {
   type ProofRecord,
 } from '../core/proof-ledger.js';
 import { fileExists, readFile } from '../core/reader.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { parseSpecContent } from '../core/spec-parser.js';
+import {
+  appForSpecFile,
+  declaredSources,
+  loadCanonicalSpecs,
+  migrateRegistrySpecKeys,
+  resolveDeclaredSources,
+  specFileOf,
+} from '../core/spec-key.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
@@ -103,13 +111,40 @@ export function fileHashesFor(
   const registry = loadRegistry(repoDir);
   const hashes: Record<string, string> = {};
   for (const [key, entry] of Object.entries(registry)) {
-    const matches = appNames
-      ? appNames.some((app) => key === `${app}/${specKey}`)
-      : key === specKey || key.endsWith(`/${specKey}`);
+    // Canonical key first; legacy `<app>/<key>` entries are still read.
+    const matches =
+      key === specKey ||
+      (appNames
+        ? appNames.some((app) => key === `${app}/${specKey}`)
+        : key.endsWith(`/${specKey}`));
     if (!matches) continue;
     for (const [file, meta] of Object.entries(entry.files)) {
       hashes[file] = hashFile(fromRegistryKey(repoDir, file)) ?? meta.hash;
     }
+  }
+  return hashes;
+}
+
+/**
+ * Hashes of the files a spec declares in `sources:` (else `module:`), keyed by
+ * root-relative POSIX path. Globs resolve relative to the owning app's repo,
+ * with a one-time-warned root-relative fallback.
+ */
+export async function declaredFileHashes(
+  config: SpecGuardConfig,
+  specAbs: string,
+  content: string,
+  warn?: (msg: string) => void,
+): Promise<Record<string, string>> {
+  const spec = parseSpecContent(content, specAbs, path.dirname(specAbs));
+  const patterns = declaredSources(spec);
+  if (patterns.length === 0) return {};
+  const files = await resolveDeclaredSources(config, appForSpecFile(config, specAbs), patterns, warn);
+  const root = config.rootDir ?? process.cwd();
+  const hashes: Record<string, string> = {};
+  for (const abs of files) {
+    const hash = hashFile(abs);
+    if (hash) hashes[toRegistryKey(root, abs)] = hash;
   }
   return hashes;
 }
@@ -138,6 +173,7 @@ interface LocatedSpec {
   abs: string;
   repoDir: string;
   content: string;
+  config?: SpecGuardConfig;
 }
 
 async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | null> {
@@ -151,13 +187,13 @@ async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | nul
       if (!repo) return null;
       const top = path.join(path.resolve(repo.absPath, repo.specGuardConfig?.paths?.specsRoot ?? 'specs'), `${ref.specKey}.md`);
       if (await fileExists(top)) {
-        return { abs: top, repoDir: repo.absPath, content: await readFile(top) };
+        return { abs: top, repoDir: repo.absPath, content: await readFile(top), config: repo.specGuardConfig ?? undefined };
       }
       if (repo.specGuardConfig) {
         for (const app of repo.specGuardConfig.apps) {
           const abs = path.resolve(repo.absPath, app.specDir, `${ref.specKey}.md`);
           if (await fileExists(abs)) {
-            return { abs, repoDir: repo.absPath, content: await readFile(abs) };
+            return { abs, repoDir: repo.absPath, content: await readFile(abs), config: repo.specGuardConfig ?? undefined };
           }
         }
       }
@@ -176,12 +212,12 @@ async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | nul
   const root = config.rootDir ?? cwd;
   const top = path.join(path.resolve(root, config.paths?.specsRoot ?? 'specs'), `${ref.specKey}.md`);
   if (await fileExists(top)) {
-    return { abs: top, repoDir: root, content: await readFile(top) };
+    return { abs: top, repoDir: root, content: await readFile(top), config };
   }
   for (const app of config.apps) {
     const abs = path.resolve(root, app.specDir, `${ref.specKey}.md`);
     if (await fileExists(abs)) {
-      return { abs, repoDir: root, content: await readFile(abs) };
+      return { abs, repoDir: root, content: await readFile(abs), config };
     }
   }
   return null;
@@ -293,7 +329,7 @@ export async function ingestVerdicts(
       runId: body.runId,
       specHash: hashString(located.content),
       repoSha,
-      fileHashes: fileHashesFor(located.repoDir, ref?.specKey ?? '', appNames),
+      fileHashes: await recordedFileHashes(located, ref?.specKey ?? '', appNames, result),
       dependencyFingerprint: dependencyFingerprint(located.repoDir),
       exercised: row.exercised ?? 0,
       counterexamples: row.counterexamples ?? 0,
@@ -312,6 +348,30 @@ export async function ingestVerdicts(
   return result;
 }
 
+/** Registry hashes for the spec merged with hashes of its declared `sources:`. */
+async function recordedFileHashes(
+  located: LocatedSpec,
+  specKey: string,
+  appNames: string[] | undefined,
+  result: PipelineResult,
+): Promise<Record<string, string>> {
+  let config = located.config;
+  if (!config) {
+    try {
+      config = await loadConfig(located.repoDir);
+    } catch {
+      return fileHashesFor(located.repoDir, specKey, appNames);
+    }
+  }
+  const registry = loadRegistry(located.repoDir);
+  if (migrateRegistrySpecKeys(config, registry)) saveRegistry(located.repoDir, registry);
+  const hashes = fileHashesFor(located.repoDir, specKey, appNames);
+  const declared = await declaredFileHashes(config, located.abs, located.content, (msg) => {
+    if (!result.messages.includes(msg)) result.messages.push(msg);
+  });
+  return { ...hashes, ...declared };
+}
+
 async function appNamesFor(cwd: string): Promise<string[] | undefined> {
   try {
     return (await loadConfig(cwd)).apps.map((app) => app.name);
@@ -327,6 +387,15 @@ interface CoverageCounts {
   error: number;
   stale: number;
   unproven: number;
+}
+
+/** Effective verdict of every anchored claim (used by status, proof status and tests). */
+export async function walkClaimVerdicts(
+  config: SpecGuardConfig,
+  onVerdict: (ref: string, verdict: ReturnType<typeof effectiveVerdict>) => void,
+  opts: ProofOpts = {},
+): Promise<CoverageCounts | null> {
+  return walkClaims(config, config.rootDir ?? process.cwd(), onVerdict, opts);
 }
 
 async function walkClaims(
@@ -349,12 +418,12 @@ async function walkClaims(
   for (const specDir of specDirs) {
     let specs;
     try {
-      specs = loadAllSpecs(specDir);
+      specs = loadCanonicalSpecs(config, specDir);
     } catch {
       continue;
     }
     for (const spec of specs) {
-      const specFile = path.join(specDir, `${spec.specKey}.md`);
+      const specFile = specFileOf(spec, specDir);
       if (!(await fileExists(specFile))) continue;
       const specHash = hashString(await readFile(specFile));
       for (const claim of spec.claims) {
