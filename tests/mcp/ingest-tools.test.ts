@@ -53,3 +53,17 @@ describe('mcp results/proof ingest tools', () => {
     expect(ledger['core/awards#award-once']).toMatchObject({ verdict: 'proven' });
   });
 });
+
+describe('mcp remediate tool', () => {
+  it('is registered and exposes no way to open a PR', async () => {
+    // claim: mcp-readonly
+    const client = await connect();
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'specguard_remediate')!;
+    expect(tool).toBeTruthy();
+    const props = Object.keys((tool.inputSchema as { properties: object }).properties);
+    expect(props).not.toContain('pr');
+    expect(props).not.toContain('push');
+    const mode = (tool.inputSchema as { properties: { mode: { enum: string[] } } }).properties.mode;
+    expect(mode.enum).toEqual(['scan-only', 'dry-run']);
+  });
+});
