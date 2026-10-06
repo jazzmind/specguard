@@ -14,7 +14,7 @@ import { resetSourceWarnings } from '../../src/core/spec-key.js';
 import { runAlign } from '../../src/pipelines/align.js';
 import { runDrift } from '../../src/pipelines/drift.js';
 import { runMatrix } from '../../src/pipelines/matrix.js';
-import { appendProofCoverage, walkClaimVerdicts } from '../../src/pipelines/proof.js';
+import { walkClaimVerdicts } from '../../src/pipelines/proof.js';
 import { runResultsIngest } from '../../src/pipelines/results.js';
 import { runStatus } from '../../src/pipelines/status.js';
 import { INBOX, JOURNEY, makeHiRockyRepo, MESSAGING, SIGNATURE, type HiRockyFixture } from '../helpers/hirocky-fixture.js';
@@ -94,6 +94,34 @@ describe('hirocky-shaped repo', () => {
     expect(registry[MESSAGING].specKey).toBe(MESSAGING);
     expect(Object.keys(registry)).not.toContain('api/api/services/messaging');
   });
-});
 
-void appendProofCoverage;
+  it('a partial ingest keeps other apps proofs; the sweep needs --full-run and keeps proven claims', async () => {
+    await runResultsIngest(ALL(), fx.dir, { runId: 'full' });
+    // only the api suite, with --unexercised: ignored (web/journeys absent), nothing overwritten
+    const partial = await runResultsIngest([fx.reports.api], fx.dir, { runId: 'api-only', unexercised: true });
+    expect(partial.messages.join('\n')).toContain('partial ingest');
+    let proofs = ledger(fx.dir);
+    expect(proofs[`${INBOX}#lists-cases`].verdict).toBe('proven');
+    expect(proofs[`${JOURNEY}#journey-stop`].verdict).toBe('proven');
+    // forced full-run sweep with only the api report: untouched unchanged proofs stay proven
+    await runResultsIngest([fx.reports.api], fx.dir, { runId: 'forced', sweep: true, fullRun: true });
+    proofs = ledger(fx.dir);
+    expect(Object.values(proofs).every((p) => p.verdict === 'proven')).toBe(true);
+    // after a source edit the web proof is stale, so a forced sweep may mark it unexercised
+    writeFileSync(path.join(fx.dir, 'apps/web/src/pages/inbox.tsx'), 'export const Inbox = 2;\n');
+    await runResultsIngest([fx.reports.api], fx.dir, { runId: 'forced2', sweep: true, fullRun: true });
+    expect(ledger(fx.dir)[`${INBOX}#lists-cases`].verdict).toBe('unexercised');
+  });
+
+  it('a full-coverage ingest records every claim and re-ingest after a source edit refreshes hashes', async () => {
+    await runResultsIngest(ALL(), fx.dir, { runId: 'r1' });
+    const before = ledger(fx.dir)[`${MESSAGING}#stop-opts-out`].fileHashes['apps/api/src/services/messaging.ts'];
+    writeFileSync(path.join(fx.dir, 'apps/api/src/services/messaging.ts'), 'export const send = 2;\n');
+    await runResultsIngest(ALL(), fx.dir, { runId: 'r2' });
+    const after = ledger(fx.dir)[`${MESSAGING}#stop-opts-out`].fileHashes['apps/api/src/services/messaging.ts'];
+    expect(after).not.toBe(before);
+    const stale: string[] = [];
+    await walkClaimVerdicts(await loadConfig(fx.dir), (ref, v) => v === 'stale' && stale.push(ref));
+    expect(stale).toEqual([]);
+  });
+});
