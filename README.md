@@ -875,6 +875,17 @@ Exit codes follow the [PrintingPress typed-exit convention](https://github.com/m
 | 7 | Heal failed (tests still broken after max retries, or a test report could not be read) |
 | 8 | LLM budget exceeded (`llm.budget`) |
 
+`specguard remediate` has its own exit codes (command-scoped: 8 is also "budget exceeded" for every other command):
+
+| Code | Meaning under `remediate` |
+|---|---|
+| 0 | Nothing to remediate, or every advisory already has a branch/PR |
+| 5 | Security findings present (`--scan-only`, or nothing could be planned automatically) |
+| 8 | Branch/PR produced and the behavior verdict is PRESERVED |
+| 9 | Verdict CHANGED (draft PR, or branch left for review) |
+| 10 | Verdict INCONCLUSIVE |
+| 11 | Baseline not green, or a tool/setup error |
+
 ---
 
 ## Migrating from the original prototype
@@ -1048,7 +1059,18 @@ The action in this repository (`jazzmind/specguard`) sets up Node, installs the 
 
 **No agent framework middleware.** No LangGraph, CrewAI, or AutoGen. Direct LLM calls via ai-sdk (Vercel AI SDK) with `generateObject`/`generateText`. The orchestration happens in the Cursor Skill, not in a framework. Keeps the dependency tree minimal and the code debuggable.
 
-**No git/PR management built in.** SpecGuard generates artifacts (specs, tests, docs, reports). It does not create branches or raise PRs — that's the coding agent's job. Clean separation of concerns.
+**No git/PR management built in, with one opt-in exception.** SpecGuard generates artifacts (specs, tests, docs, reports). It does not create branches or raise PRs — that's the coding agent's job. The single exception is `specguard remediate`: it patches a vulnerable dependency or code issue in a temporary git worktree, runs your tests before and after, and commits on a `specguard/remediate/<id>` branch. It pushes and opens a PR (via `gh`) only when you pass `--pr`, and it never merges: humans always merge. See [docs/ci-remediate.md](docs/ci-remediate.md).
+
+### `specguard remediate`
+
+```bash
+specguard remediate --scan-only --json          # detect only (ecosystem audit + OSV, Semgrep, gitleaks); exit 5 if findings
+specguard remediate --dry-run                   # whole loop in a throwaway worktree, nothing left behind
+specguard remediate --pr                        # branch + push + gh pr create (draft unless PRESERVED)
+specguard remediate --advisory GHSA-xxxx --min-severity critical --allow-major --ledger .specguard/proofs.json
+```
+
+The verdict is PRESERVED only when no baseline-passing test fails or disappears, no proven claim drops, claim and test counts do not fall, the advisory is gone, nothing new at or above the threshold appeared, build and typecheck are green, and (for dependency bumps) the proofs went stale through the dependency fingerprint and were re-proven. Otherwise CHANGED (with the exact differing tests and claims) or INCONCLUSIVE (flaky tests, unparseable output, coverage gaps). `heal` never rewrites a test during remediation. Evidence lands in `.specguard/remediation/<runId>.json` plus baseline and patched proof ledgers. Suppress known advisories in `.specguard/vuln-ignore.json` (entries expire). Over MCP only `scan-only` and `dry-run` are available.
 
 **Hybrid security: LLM + SAST.** Pure LLM security analysis misses things scanners catch (regex-based CVE patterns, known-vulnerable dependency versions). Pure SAST misses semantic issues (is this auth check actually protecting the right resource?). The hybrid feeds SAST findings into the LLM for contextual reasoning against the spec.
 
