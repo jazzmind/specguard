@@ -35,6 +35,8 @@ export interface RemediateDeps {
   tmpRoot?: string;
   /** Disables the LLM analysis entirely (budget exhausted, offline). */
   llm?: boolean;
+  /** Code fixer for Semgrep findings. Default: the LLM-backed fixer. */
+  codeFix?: import('./apply.js').CodeFixer;
 }
 
 export interface RemediateOpts {
@@ -98,6 +100,8 @@ export interface PlanItem {
   risk: RiskScore;
   breaking?: BreakingAnalysis;
   changelog?: string;
+  /** Set for code fixes: the Semgrep finding to patch. */
+  issue?: SastIssue;
   skip?: string;
 }
 
