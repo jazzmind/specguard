@@ -13,7 +13,7 @@ import { formatClaimRef } from '../core/claims.js';
 import { loadConfig } from '../core/config.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
 import {
   aggregateClaims,
   parseResults,
@@ -23,13 +23,20 @@ import {
   type TestCaseResult,
 } from '../core/test-results.js';
 import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
-import { ingestVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
+import { ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
 
 export interface ResultsIngestOpts extends ProofOpts {
   format?: ResultFormat | 'auto';
   runId?: string;
-  /** Also store `unexercised` for spec claims that no test tagged. */
+  /**
+   * Also store `unexercised` for spec claims absent from every ingested file.
+   * Honoured only on a full run (`fullRun`, or the files cover every configured
+   * app); otherwise ignored with a warning. Alias: `sweep`.
+   */
   unexercised?: boolean;
+  sweep?: boolean;
+  /** Declares that the ingested files are the complete run, enabling the sweep. */
+  fullRun?: boolean;
 }
 
 export function isResultFormat(value: string): value is ResultFormat | 'auto' {
@@ -71,7 +78,7 @@ export async function specClaimRefs(config: SpecGuardConfig, cwd: string): Promi
     : config.apps.map((app) => path.resolve(root, app.specDir));
   for (const dir of dirs) {
     try {
-      for (const spec of loadAllSpecs(dir)) {
+      for (const spec of loadCanonicalSpecs(config, dir)) {
         for (const claim of spec.claims) {
           if (claim.id) refs.push(formatClaimRef(undefined, spec.specKey, claim.id));
         }
@@ -81,6 +88,31 @@ export async function specClaimRefs(config: SpecGuardConfig, cwd: string): Promi
     }
   }
   return refs;
+}
+
+/** Apps with at least one anchored claim, and which of them the ingested claim refs touch. */
+async function appCoverage(config: SpecGuardConfig, tagged: Set<string>): Promise<{ all: string[]; covered: string[] }> {
+  const root = config.rootDir ?? process.cwd();
+  const all: string[] = [];
+  const covered: string[] = [];
+  for (const app of config.apps) {
+    let hasClaims = false;
+    let touched = false;
+    try {
+      for (const spec of loadCanonicalSpecs(config, path.resolve(root, app.specDir))) {
+        for (const claim of spec.claims) {
+          if (!claim.id) continue;
+          hasClaims = true;
+          if (tagged.has(formatClaimRef(undefined, spec.specKey, claim.id))) touched = true;
+        }
+      }
+    } catch {
+      /* unreadable spec dir */
+    }
+    if (hasClaims) all.push(app.name);
+    if (touched) covered.push(app.name);
+  }
+  return { all, covered };
 }
 
 export async function runResultsIngest(
@@ -128,7 +160,7 @@ export async function runResultsIngest(
     evidencePath: evidenceFor(agg, perFile),
   }));
 
-  if (opts.unexercised) {
+  if (opts.unexercised || opts.sweep) {
     let config: SpecGuardConfig | undefined;
     try {
       config = await loadConfig(cwd);
@@ -137,8 +169,29 @@ export async function runResultsIngest(
     }
     if (config) {
       const tagged = new Set(aggregates.map((agg) => agg.claim));
-      for (const ref of await specClaimRefs(config, cwd)) {
-        if (!tagged.has(ref)) verdicts.push({ claim: ref, verdict: 'unexercised', exercised: 0, counterexamples: 0 });
+      const { all, covered } = await appCoverage(config, tagged);
+      const missingApps = all.filter((name) => !covered.includes(name));
+      if (!opts.fullRun && missingApps.length > 0) {
+        result.messages.push(
+          `[warn] --unexercised ignored: this is a partial ingest (no results for app(s): ${missingApps.join(', ')}). ` +
+            'Pass --full-run to sweep anyway. Only claims present in the results were updated.',
+        );
+      } else {
+        // Never downgrade a proven claim whose spec and source hashes still match.
+        const stillProven = new Set<string>();
+        await walkClaimVerdicts(config, (ref, verdict) => {
+          if (verdict === 'proven') stillProven.add(ref);
+        }, { ledger: opts.ledger });
+        let kept = 0;
+        for (const ref of await specClaimRefs(config, cwd)) {
+          if (tagged.has(ref)) continue;
+          if (stillProven.has(ref)) {
+            kept += 1;
+            continue;
+          }
+          verdicts.push({ claim: ref, verdict: 'unexercised', exercised: 0, counterexamples: 0 });
+        }
+        if (kept > 0) result.messages.push(`sweep kept ${kept} proven claim(s) whose spec and sources are unchanged`);
       }
     }
   }

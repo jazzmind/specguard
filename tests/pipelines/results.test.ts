@@ -62,3 +62,48 @@ describe('results ingest', () => {
     expect(ledger(repo.dir, 'out/ledger.json')['core/awards#award-once']).toBeDefined();
   });
 });
+
+describe('results ingest sweep semantics', () => {
+  const tag = (id: string) => `<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#${id}"/></testsuite>`;
+
+  function twoApps() {
+    const repo = makeRepo({
+      apps: [
+        { name: 'one', repo: '.', specDir: 'specs/core', sources: { routes: ['src/**/*.ts'] }, framework: 'vitest', testOutput: 'tests/' },
+        { name: 'two', repo: '.', specDir: 'specs/other', sources: { routes: ['lib/**/*.ts'] }, framework: 'vitest', testOutput: 'tests/' },
+      ],
+    });
+    repo.write('specs/other/thing.md', '# Thing\n\n<!-- module: lib/thing.ts / type: core / status: draft -->\n\n## Acceptance Criteria\n\n- [ ] Works <!-- claim: works -->\n');
+    repo.write('lib/thing.ts', 'export const t = 1;\n');
+    return repo;
+  }
+
+  it('a partial ingest only updates claims present; --unexercised is ignored with a warning [partial-ingest]', async () => {
+    const repo = twoApps();
+    repo.write('a.xml', tag('award-once'));
+    await runResultsIngest(['a.xml'], repo.dir);
+    const r = await runResultsIngest(['a.xml'], repo.dir, { unexercised: true });
+    expect(r.messages.join('\n')).toContain('partial ingest');
+    expect(Object.keys(ledger(repo.dir))).toEqual(['core/awards#award-once']);
+  });
+
+  it('--full-run lets the sweep apply (alias --sweep) but keeps proven claims with matching hashes [sweep-keeps-proven]', async () => {
+    const repo = twoApps();
+    repo.write('both.xml', `<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#award-once"/><testcase classname="c" name="u @claim:core/awards#no-dupes"/></testsuite>`);
+    await runResultsIngest(['both.xml'], repo.dir);
+    repo.write('a.xml', tag('award-once'));
+    const r = await runResultsIngest(['a.xml'], repo.dir, { sweep: true, fullRun: true });
+    const proofs = ledger(repo.dir);
+    expect(proofs['core/awards#no-dupes']).toMatchObject({ verdict: 'proven' });
+    expect(proofs['core/awards#untested']).toMatchObject({ verdict: 'unexercised' });
+    expect(proofs['other/thing#works']).toMatchObject({ verdict: 'unexercised' });
+    expect(r.messages.join('\n')).toContain('sweep kept 1 proven');
+  });
+
+  it('a sweep covering every app applies without --full-run [unexercised-flag]', async () => {
+    const repo = twoApps();
+    repo.write('both.xml', `<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#award-once"/><testcase classname="c" name="u @claim:other/thing#works"/></testsuite>`);
+    await runResultsIngest(['both.xml'], repo.dir, { unexercised: true });
+    expect(ledger(repo.dir)['core/awards#no-dupes']).toMatchObject({ verdict: 'unexercised' });
+  });
+});
