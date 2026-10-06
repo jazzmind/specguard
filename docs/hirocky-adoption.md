@@ -20,23 +20,20 @@ Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx spe
       "name": "api", "repo": "apps/api", "language": "typescript", "framework": "vitest",
       "specDir": "specs/api", "testOutput": "apps/api/test/",
       "sources": { "api": ["apps/api/src/**/*.ts"], "tests": ["apps/api/test/**/*.test.ts"] },
-      "test": { "command": "npm run test --workspace @bm/api", "reporter": "vitest",
-                "resultsFile": "reports/vitest-api.json", "timeoutMs": 600000 }
+      "test": { "command": "npm run test --workspace @bm/api", "reporter": "vitest" }
     },
     {
       "name": "web", "repo": "apps/web", "language": "typescript", "framework": "vitest",
       "specDir": "specs/web", "testOutput": "apps/web/src/",
       "sources": { "api": ["apps/web/src/**/*.{ts,tsx}"], "tests": ["apps/web/src/**/*.test.{ts,tsx}"] },
       "exclude": ["apps/web/src/**/*.test.{ts,tsx}"],
-      "test": { "command": "npm run test --workspace @bm/web", "reporter": "vitest",
-                "resultsFile": "reports/vitest-web.json" }
+      "test": { "command": "npm run test --workspace @bm/web", "reporter": "vitest" }
     },
     {
       "name": "e2e", "repo": "e2e", "language": "typescript", "framework": "playwright",
       "specDir": "specs/e2e", "testOutput": "e2e/journeys/",
       "sources": { "api": ["e2e/journeys/**/*.ts"], "tests": ["e2e/journeys/**/*.spec.ts"] },
-      "test": { "command": "npx playwright test --reporter=list,json", "reporter": "playwright",
-                "resultsFile": "reports/playwright.json" }
+      "test": { "command": "npx playwright test --reporter=list,json", "reporter": "playwright" }
     }
   ],
   "paths": { "specsRoot": "specs", "proofLedger": ".specguard/proofs.json" },
@@ -59,7 +56,7 @@ Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx spe
 
 Notes that follow from the code:
 
-- When `test.resultsFile` is set the command runs verbatim and SpecGuard only reads that file, so the command must write it. Vitest resolves `--outputFile` relative to the workspace directory. Easiest: leave `resultsFile` unset and let SpecGuard inject the reporter flags (`--reporter=json --outputFile=<tmp>`, Playwright `PLAYWRIGHT_JSON_OUTPUT_NAME`) when it runs the command itself through `heal`. For CI, run the tests yourself (step 4) and ingest the files.
+- The `test` blocks are for `heal`: with no `resultsFile`, SpecGuard adds the reporter flags itself (`--reporter=json --outputFile=<tmp>`, Playwright `PLAYWRIGHT_JSON_OUTPUT_NAME`) and reads that file. If you set `resultsFile`, the command runs verbatim and must write it. In CI you run the tests yourself (step 4) and ingest the files; Vitest resolves `--outputFile` relative to the workspace directory.
 - Do not commit `.specguard/auth/`, `.specguard/evidence/`, `.specguard/reports/`; the first `validate` run writes a `.gitignore` in each. `.specguard/proofs.json` is meant to be committed.
 - The `storageState` profile reads `.specguard/auth/admin.json`; when it is missing, SpecGuard logs in with the env vars and creates it. `successUrl` is a URL or a `/regex/`; omit it and any URL other than the login page counts as logged in. Other strategies: `header`, `token`, `script` (see `specs/adapters/auth-state-machine.md`).
 - `llm.allowImages: false` keeps screenshots away from the LLM; DOM, a11y text and console errors are always redacted first (email, phone, SSN, card numbers, plus `patterns` and `blankSelectors`).
