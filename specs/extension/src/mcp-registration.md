@@ -4,7 +4,7 @@
 
 ## Overview
 
-The MCP Registration Helper writes a `specguard-mcp` server entry into the Cursor MCP configuration file located at `.cursor/mcp.json` within the active workspace folder. It is invoked either by the `specguard.registerMcp` command or automatically on first activation inside a Cursor environment. The operation is idempotent: if a `specguard-mcp` entry already exists in the config, it is overwritten in place with the current resolved values. The helper resolves the MCP binary from the local workspace `node_modules/.bin/specguard-mcp` when available, falling back to `npx specguard-mcp`. After a successful write, the user is shown an information message with an optional action to open the config file directly.
+The MCP Registration Helper writes a `specguard-mcp` server entry into the Cursor MCP configuration file located at `.cursor/mcp.json` within the active workspace folder. It is invoked either by the `specguard.registerMcp` command or automatically on first activation inside a Cursor environment. The operation is idempotent: if a `specguard-mcp` entry already exists in the config, it is overwritten in place with the current resolved values. The helper resolves the MCP binary from the local workspace `node_modules/.bin/specguard-mcp` when available, falling back to `npx -y -p specguard-ai specguard-mcp`. After a successful write, the user is shown an information message with an optional action to open the config file directly.
 
 ## Acceptance Criteria
 

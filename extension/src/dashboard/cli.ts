@@ -19,7 +19,7 @@ export function setExtensionPath(extPath: string): void {
  *  3. `{workspace}/src/cli/index.ts` (dev: the workspace IS the specguard source repo)
  *  4. `{extensionPath}/dist/cli.js` (bundled CLI baked into every extension build — always available)
  *
- * NOTE: bare `npx specguard` is intentionally NOT used as a fallback. There is an
+ * NOTE: the bare, unqualified npx form is intentionally NOT used as a fallback. There is an
  * unrelated npm package named `specguard@0.2.1` that it would fetch instead,
  * causing "unknown command" errors for import, status, reverse, etc. The
  * terminal commands in commands.ts use `npx -p specguard-ai specguard`, which

@@ -165,7 +165,7 @@ This module provides the CLI resolution and process-spawning infrastructure for 
 
 - The `.specguard/.env` file may contain sensitive credentials such as API keys. Its contents must never be logged, echoed to the `onLine` callback, or included in error messages. The spec redacts all such values.
 - `process.env` values always take precedence over `.env` file values, preventing a malicious or misconfigured `.env` file from overriding inherited shell credentials.
-- The bare `npx specguard` fallback is intentionally omitted to prevent resolution of an unrelated third-party npm package (`specguard@0.2.1`) that could execute arbitrary code.
+- A bare unqualified `npx` fallback is intentionally omitted to prevent resolution of an unrelated third-party npm package (`specguard@0.2.1`) that could execute arbitrary code.
 - The explicit `specguard.cliPath` setting should be validated by the caller to ensure it does not point to an untrusted executable.
 
 ## Dependencies
