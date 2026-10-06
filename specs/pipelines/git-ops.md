@@ -21,6 +21,8 @@ The Git-Ops pipeline stages and commits SpecGuard-generated files to a Git repos
 11. The safe root set can be overridden via `opts.scope`; the override fully replaces the default roots.
 13. After a successful commit an entry (short SHA, message, pipeline, files, timestamp) is appended to `.specguard/changelog.md`, creating the file and its directory when missing; the write uses ESM imports, never `require`. <!-- claim: changelog-written -->
 14. The default safe roots are extended with every app `specDir`, `testOutput`, string `docs` path, and the `paths.*` directories the config names. <!-- claim: safe-roots-from-config -->
+15. `opts.changeScope` stages per change type: `dependency` stages only the listed manifest and lockfile paths, `code-fix` only the files named by the finding, and both override the safe roots. <!-- claim: change-scope -->
+16. Changed paths come from `git status --porcelain -z`: renames yield both paths, names with spaces are not quoted, and a path such as `tests/../src/x.ts` is normalized before the safe-root check so it cannot be staged. <!-- claim: porcelain-parse -->
 12. When more than 10 files are skipped, the log shows the first 10 skipped paths and a trailing count of the remainder.
 
 ## Scenarios

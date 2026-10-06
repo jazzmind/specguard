@@ -36,6 +36,8 @@ export interface GitOpsOpts {
   app?: string;
   /** Override the default set of safe root prefixes. Relative to workspaceRoot. */
   scope?: string[];
+  /** Per change type scope. Takes precedence over `scope`: a dependency bump or code fix stages only its own files. */
+  changeScope?: ChangeScope;
   /**
    * Context from the originating pipeline, used to produce a descriptive
    * conventional-commit message and a changelog entry.
@@ -93,17 +95,69 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
 }
 
 function isSafeToStage(rel: string, safeRoots: string[]): boolean {
-  const normalized = rel.replace(/\\/g, '/');
+  // Normalize so `tests/../src/x.ts` cannot slip past a prefix check.
+  const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
+  if (normalized.startsWith('../') || path.posix.isAbsolute(normalized)) return false;
   return safeRoots.some((root) => normalized.startsWith(root));
 }
 
+/**
+ * Paths from `git status --porcelain -z`. Handles renames (both paths), spaces and non-ASCII names,
+ * which the newline format quotes. Also accepts newline-separated text for stubs.
+ */
+export function parsePorcelain(out: string): string[] {
+  if (!out.includes('\0')) {
+    return out
+      .split('\n')
+      .map((line) => line.slice(3).trim().replace(/^"|"$/g, ''))
+      .map((p) => (p.includes(' -> ') ? p.split(' -> ')[1] : p))
+      .filter(Boolean);
+  }
+  const parts = out.split('\0').filter(Boolean);
+  const files: string[] = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const entry = parts[i];
+    const code = entry.slice(0, 2);
+    files.push(entry.slice(3));
+    if (code[0] === 'R' || code[0] === 'C') {
+      i += 1; // the original name follows as its own field
+      if (parts[i]) files.push(parts[i]);
+    }
+  }
+  return files;
+}
+
 function getChangedFiles(cwd: string): string[] {
-  const res = gitRunner.exec(['status', '--porcelain'], cwd);
+  const res = gitRunner.exec(['status', '--porcelain', '-z', '--untracked-files=all'], cwd);
   if (res.status !== 0) return [];
-  return res.stdout
-    .split('\n')
-    .map((line) => line.slice(3).trim()) // remove XY status prefix
-    .filter(Boolean);
+  return parsePorcelain(res.stdout);
+}
+
+// ---------------------------------------------------------------------------
+// Change-type scopes (used by `specguard remediate`)
+// ---------------------------------------------------------------------------
+
+export type ChangeScope =
+  | { type: 'generated' }
+  /** A dependency bump may only stage these manifest and lockfile paths (repo-relative POSIX). */
+  | { type: 'dependency'; files: string[] }
+  /** A code fix may only stage the files the finding names. */
+  | { type: 'code-fix'; files: string[] };
+
+/** Is `rel` inside the scope? */
+export function inScope(rel: string, scope: ChangeScope, safeRoots: string[] = DEFAULT_SAFE_ROOTS): boolean {
+  const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
+  if (normalized.startsWith('../') || path.posix.isAbsolute(normalized)) return false;
+  if (scope.type === 'generated') return isSafeToStage(normalized, safeRoots);
+  return scope.files.some((f) => path.posix.normalize(f) === normalized);
+}
+
+/** Split changed paths into the ones the scope allows and the rest. */
+export function partitionByScope(changed: string[], scope: ChangeScope, safeRoots?: string[]): { stage: string[]; skipped: string[] } {
+  const stage: string[] = [];
+  const skipped: string[] = [];
+  for (const f of changed) (inScope(f, scope, safeRoots) ? stage : skipped).push(f);
+  return { stage, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -137,8 +191,9 @@ export async function runGitOps(
   }
 
   // Filter to safe roots
-  const toStage = changed.filter((f) => isSafeToStage(f, safeRoots));
-  const skipped = changed.filter((f) => !isSafeToStage(f, safeRoots));
+  const part = opts.changeScope ? partitionByScope(changed, opts.changeScope) : undefined;
+  const toStage = part ? part.stage : changed.filter((f) => isSafeToStage(f, safeRoots));
+  const skipped = part ? part.skipped : changed.filter((f) => !isSafeToStage(f, safeRoots));
 
   if (skipped.length > 0) {
     log(`[git-ops] skipped ${skipped.length} file(s) outside safe scope:`);
