@@ -16,7 +16,7 @@ One normalized shape for a known vulnerability, whatever tool reported it (npm a
 - [ ] Severities order critical > high > moderate > low > unknown, and `meetsThreshold` is true when an advisory is at or above the threshold <!-- claim: severity-order -->
 - [ ] Advisories that share any id or alias for the same ecosystem and package are merged into one; the merged row keeps the highest severity and the union of aliases and fixed versions <!-- claim: dedupe-merge -->
 - [ ] The ignore file lists id, reason and expires; an entry matches an advisory by its id or any alias <!-- claim: ignore-match -->
-- [ ] An expired entry stops suppressing, and an entry with no `expires` or an unparseable one never suppresses nothing silently: it suppresses only when `expires` is a valid future date <!-- claim: ignore-expiry -->
+- [ ] An entry suppresses only while `expires` is a valid future date: an expired, missing or unparseable `expires` stops suppressing <!-- claim: ignore-expiry -->
 - [ ] A missing ignore file yields no suppression and a malformed one is an error that names the file <!-- claim: ignore-malformed -->
 - [ ] Advisories sort by severity (highest first) then package then id, deterministically <!-- claim: advisory-sort -->
 
