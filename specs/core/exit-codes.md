@@ -15,6 +15,8 @@ This module defines the canonical, typed process exit codes used throughout Spec
 - AC5: The numeric values of all named constants must not change between releases (stability guarantee for CI and MCP consumers).
 - AC6: The `ExitCode` type is a union of the literal numeric values, preventing assignment of arbitrary numbers where the type is required.
 
+- AC7: `RemediateExit` holds the command-scoped codes of `specguard remediate`: `Preserved` (8), `Changed` (9), `Inconclusive` (10), `SetupError` (11). They are separate from `ExitCode` because 8 is also `ExitCode.BudgetExceeded` for the other commands. `remediateExitLabel` labels them and falls back to `exitCodeLabel`. <!-- claim: remediate-exit -->
+
 ## Scenarios
 
 ### Scenario 1: Retrieving a known exit code value
