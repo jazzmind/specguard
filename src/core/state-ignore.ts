@@ -24,6 +24,9 @@ export const GENERATED_STATE_PATHS = [
   '.specguard/auth/',
   '.specguard/evidence/',
   '.specguard/runs/',
+  '.specguard/reports/',
+  '.specguard/validation-history.json',
+  '.specguard/ci/',
 ];
 
 export const IGNORE_START = '# specguard:generated-state:start';
