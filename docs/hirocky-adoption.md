@@ -9,7 +9,7 @@ npm i -D specguard-ai          # binaries: specguard, specguard-mcp
 npx specguard --version --json # {"name":"specguard-ai","version":...}
 ```
 
-Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx specguard` resolves to an unrelated package and must not be used.
+Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx specguard` resolves to an unrelated package and must not be used. `specguard init` wires MCP and the hook to a local binary when one exists (see `--runner`), and only falls back to `npx -p specguard-ai specguard`, which can hang offline or under load.
 
 ## 2. `.specguard/config.json`
 
@@ -18,21 +18,23 @@ Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx spe
   "apps": [
     {
       "name": "api", "repo": "apps/api", "language": "typescript", "framework": "vitest",
-      "specDir": "specs/api", "testOutput": "apps/api/test/",
-      "sources": { "api": ["apps/api/src/**/*.ts"], "tests": ["apps/api/test/**/*.test.ts"] },
+      "specDir": "specs/api", "testOutput": "apps/api/test/", "stripPrefix": "src/",
+      "sources": { "api": ["src/**/*.ts"], "tests": ["test/**/*.test.ts"] },
+      "exclude": ["src/**/*.test.ts"],
       "test": { "command": "npm run test --workspace @bm/api", "reporter": "vitest" }
     },
     {
       "name": "web", "repo": "apps/web", "language": "typescript", "framework": "vitest",
-      "specDir": "specs/web", "testOutput": "apps/web/src/",
-      "sources": { "api": ["apps/web/src/**/*.{ts,tsx}"], "tests": ["apps/web/src/**/*.test.{ts,tsx}"] },
-      "exclude": ["apps/web/src/**/*.test.{ts,tsx}"],
+      "specDir": "specs/web", "testOutput": "apps/web/src/", "stripPrefix": "src/",
+      "sources": { "api": ["src/**/*.{ts,tsx}"], "tests": ["src/**/*.test.{ts,tsx}"] },
+      "exclude": ["src/**/*.test.{ts,tsx}"],
       "test": { "command": "npm run test --workspace @bm/web", "reporter": "vitest" }
     },
     {
-      "name": "e2e", "repo": "e2e", "language": "typescript", "framework": "playwright",
+      "name": "e2e", "repo": ".", "language": "typescript", "framework": "playwright",
       "specDir": "specs/e2e", "testOutput": "e2e/journeys/",
-      "sources": { "api": ["e2e/journeys/**/*.ts"], "tests": ["e2e/journeys/**/*.spec.ts"] },
+      "sources": { "api": [], "tests": ["e2e/journeys/**/*.spec.ts"] },
+      "extraTestSources": ["e2e/journeys/**/*.spec.ts"],
       "test": { "command": "npx playwright test --reporter=list,json", "reporter": "playwright" }
     }
   ],
@@ -55,6 +57,10 @@ Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx spe
 ```
 
 Notes that follow from the code:
+
+- **Path bases.** `sources` / `exclude` / `collapse` globs, and the `sources:` globs in a spec header, are resolved relative to the app's `repo` (not the config root). A pattern that matches nothing under `repo` but matches from the config root (for example `apps/api/src/**/*.ts` with `repo: "apps/api"`) is still accepted, with one stderr warning per pattern; write repo-relative globs to avoid it. `stripPrefix` (`src/`) keeps the feature key from dropping a path segment.
+- **One spec key.** The spec key is the path under `paths.specsRoot` without extension, whichever app owns it: `specs/api/services/messaging.md` is `api/services/messaging` in claim refs, tags, the drift registry, `matrix`, `align`, `status` and the ledger. Old registry keys (`<app>/<key>`) migrate on the next `drift`/`results ingest`.
+- **Source hashes come from the spec.** `results ingest` hashes the files a spec lists in its `sources:` header (else `module:`) into each ledger row, so a source edit stales the claims of exactly the specs that list it. No registry seeding script is needed.
 
 - The `test` blocks are for `heal`: with no `resultsFile`, SpecGuard adds the reporter flags itself (`--reporter=json --outputFile=<tmp>`, Playwright `PLAYWRIGHT_JSON_OUTPUT_NAME`) and reads that file. If you set `resultsFile`, the command runs verbatim and must write it. In CI you run the tests yourself (step 4) and ingest the files; Vitest resolves `--outputFile` relative to the workspace directory.
 - Do not commit `.specguard/auth/`, `.specguard/evidence/`, `.specguard/reports/`; the first `validate` run writes a `.gitignore` in each. `.specguard/proofs.json` is meant to be committed.
@@ -88,12 +94,14 @@ npm run test --workspace @bm/web -- --reporter=json --outputFile=../../reports/v
 PLAYWRIGHT_JSON_OUTPUT_NAME=reports/playwright.json npx playwright test --reporter=list,json
 
 npx specguard results ingest reports/vitest-api.json reports/vitest-web.json reports/playwright.json \
-  --run-id "$(git rev-parse --short HEAD)" --unexercised
+  --run-id "$(git rev-parse --short HEAD)" --sweep --full-run   # sweep only on a run covering every app
 npx specguard proof status          # exits 2 on a failed or stale claim
 npx specguard status                # spec coverage plus the proofs summary
 ```
 
 A verdict file from another tool goes in with `specguard proof ingest verdicts.json` (`{"runId": "...", "verdicts": [{"claim": "api/auth#token-expiry", "verdict": "proven", "exercised": 3}]}`).
+
+Ingest semantics: a partial ingest (some suites only) updates just the claims present in the files; other rows are untouched. `--unexercised` (alias `--sweep`) additionally stores `unexercised` for claims absent from every ingested file, but only with `--full-run` (or when the files already cover every app that has claims); otherwise it is ignored with a warning. A sweep never downgrades a `proven` claim whose spec and sources still match.
 
 Verdict rules: any failing tagged test gives `failed` (counterexamples = failing titles); one pass and no failure gives `proven`; skipped only gives `unexercised`. A proof goes stale when its spec, a recorded source file, or the lockfiles change. `results ingest` exits 2 on a failed claim or an unreadable report.
 

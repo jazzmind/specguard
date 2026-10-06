@@ -35,6 +35,7 @@ import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists, expandGlobs } from '../core/reader.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { writeFile } from '../core/writer.js';
 import { llmGenerateText } from '../core/llm.js';
 import { resolveProfile, featureFromPath } from '../core/language-profiles.js';
@@ -182,14 +183,14 @@ export async function runReverseGenerate(
     for (const group of Object.values(app.sources)) {
       if (Array.isArray(group)) patterns.push(...group);
     }
-    allFiles = await expandGlobs(patterns, repoDir);
+    allFiles = await expandAppGlobs(config, app, patterns);
   }
 
   // Apply `exclude` patterns — filter out any file matched by an exclude glob.
   const excludePatterns = app.exclude ?? [];
   let files = allFiles;
   if (excludePatterns.length > 0) {
-    const excluded = new Set(await expandGlobs(excludePatterns, repoDir));
+    const excluded = new Set(await expandAppGlobs(config, app, excludePatterns));
     files = allFiles.filter((f) => !excluded.has(f));
     const removedCount = allFiles.length - files.length;
     if (removedCount > 0) {
