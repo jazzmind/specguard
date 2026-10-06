@@ -1,0 +1,5 @@
+{"config":{},"suites":[{"title":"checkout.spec.ts","file":"checkout.spec.ts","specs":[],"suites":[{"title":"Checkout","file":"checkout.spec.ts","specs":[
+{"title":"pays with card","file":"checkout.spec.ts","tags":["claim:web/checkout#pay-card","smoke"],"tests":[{"projectName":"chromium","expectedStatus":"passed","status":"expected","annotations":[{"type":"externalId","description":"PROJ-T12"}],"results":[{"status":"passed","duration":1200}]}]},
+{"title":"rejects bad card","file":"checkout.spec.ts","tags":[],"tests":[{"projectName":"chromium","expectedStatus":"passed","status":"unexpected","annotations":[{"type":"claim","description":"web/checkout#bad-card"}],"results":[{"status":"failed","duration":900,"error":{"message":"expected visible"}}]}]},
+{"title":"skipped one @claim:web/checkout#skipped-one","file":"checkout.spec.ts","tags":[],"tests":[{"projectName":"chromium","expectedStatus":"skipped","status":"skipped","annotations":[],"results":[{"status":"skipped","duration":0}]}]}
+],"suites":[]}]}]}

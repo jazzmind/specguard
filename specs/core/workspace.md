@@ -22,13 +22,15 @@ The workspace manifest enables workspace-level pipelines (`contracts`, `impact`,
 - [ ] `hasWorkspace(cwd)` returns boolean without throwing
 - [ ] Unknown fields in manifest are preserved (passthrough schema)
 - [ ] An optional `catalog` path, relative to the workspace root, names the shared feature catalog directory
+- [ ] `workspaceRepoKey(dirName)` derives a repo key from the directory name alone: lowercase, non-alphanumeric runs become `-`, with no platform prefix stripped <!-- claim: generic-repo-key -->
+- [ ] `guessRepoRole(dir)` derives `test`, `docs`, `provider`, or `consumer` from the repo's contents (its SpecGuard config frameworks, `package.json` dependencies, OpenAPI/GraphQL schema files, language markers), never from the directory name <!-- claim: role-from-content -->
 
 ## Scenarios
 
 ### Scenario 1: Load workspace manifest
 **Steps:**
 1. `.specguard/workspace.json` exists at workspace root
-2. Call `loadWorkspace('/workspace/practera-admin-app')` (starting from a child repo)
+2. Call `loadWorkspace('/workspace/admin-app')` (starting from a child repo)
 **Expected Results:**
 - Walks up and finds the manifest at the workspace root
 - `manifest.rootDir` is set to the workspace root

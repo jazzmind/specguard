@@ -36,14 +36,52 @@ export function registryPath(rootDir: string): string {
   return path.join(rootDir, '.specguard', 'drift-registry.json');
 }
 
+/** Repo-relative POSIX key for a file. Keys never contain machine-specific prefixes. */
+export function toRegistryKey(rootDir: string, absPath: string): string {
+  const rel = path.relative(rootDir, absPath);
+  return rel.split(path.sep).join('/');
+}
+
+/** Resolve a registry key back to an absolute path under `rootDir`. */
+export function fromRegistryKey(rootDir: string, key: string): string {
+  return path.isAbsolute(key) ? key : path.resolve(rootDir, ...key.split('/'));
+}
+
+function isAbsoluteKey(key: string): boolean {
+  return path.isAbsolute(key) || /^[A-Za-z]:[\\/]/.test(key);
+}
+
+/**
+ * Rewrite absolute keys as relative keys. Returns true when anything changed.
+ * Absolute keys that are not under `rootDir` are still made relative (they
+ * begin with `../`) so the file is portable.
+ */
+export function migrateRegistryKeys(rootDir: string, registry: DriftRegistry): boolean {
+  let changed = false;
+  for (const entry of Object.values(registry)) {
+    if (!entry || typeof entry !== 'object' || !entry.files) continue;
+    for (const key of Object.keys(entry.files)) {
+      if (!isAbsoluteKey(key)) continue;
+      const rel = toRegistryKey(rootDir, key);
+      if (!(rel in entry.files)) entry.files[rel] = entry.files[key];
+      delete entry.files[key];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function loadRegistry(rootDir: string): DriftRegistry {
   const p = registryPath(rootDir);
   if (!fs.existsSync(p)) return {};
+  let registry: DriftRegistry;
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf-8')) as DriftRegistry;
+    registry = JSON.parse(fs.readFileSync(p, 'utf-8')) as DriftRegistry;
   } catch {
     return {};
   }
+  if (migrateRegistryKeys(rootDir, registry)) saveRegistry(rootDir, registry);
+  return registry;
 }
 
 export function saveRegistry(rootDir: string, registry: DriftRegistry): void {
@@ -84,11 +122,11 @@ export function getOrCreateSpecEntry(registry: DriftRegistry, specKey: string, s
 
 export function updateFileEntry(
   specEntry: DriftSpecEntry,
-  absPath: string,
+  key: string,
   hash: string,
   verdict: DriftFileEntry['lastVerdict'],
 ): void {
-  specEntry.files[absPath] = {
+  specEntry.files[key] = {
     hash,
     lastChecked: new Date().toISOString(),
     lastVerdict: verdict,

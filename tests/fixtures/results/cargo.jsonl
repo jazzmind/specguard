@@ -1,0 +1,5 @@
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "awards::tests::award_once" }
+{ "type": "test", "name": "awards::tests::award_once", "event": "ok" }
+{ "type": "test", "name": "awards::tests::boom", "event": "failed", "stdout": "panicked" }
+{ "type": "suite", "event": "failed", "passed": 1, "failed": 1 }

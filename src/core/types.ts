@@ -83,6 +83,8 @@ export interface ParsedSpec {
   title: string;
   /** Stable key derived from path relative to specs root, e.g. `core/spec-parser`. */
   specKey: string;
+  /** Key relative to the owning app's `specDir`; set by `loadCanonicalSpecs` (equals `specKey` in single-app layouts). */
+  localKey?: string;
   /** Absolute or repo-relative path the spec was loaded from. */
   filePath: string;
   /** Parsed metadata comment block. */
@@ -173,7 +175,7 @@ export interface AppConfig {
    * directory — e.g. cross-repo regression suites. Resolved relative to the
    * directory containing `.specguard/config.json`. Used by `align` and `matrix`.
    *
-   * Example: `["../practera-test-suite/suites/regression/specs/auth/*.spec.ts"]`
+   * Example: `["../e2e-suite/specs/auth/*.spec.ts"]`
    */
   extraTestSources?: string[];
   /**
@@ -197,22 +199,93 @@ export interface AppConfig {
    * Example (Angular): `["src/app/pages/**\/*.ts"]`
    */
   collapse?: string[];
+  /** How to run this app's tests. Absent: the shared `heal.testCommand` or the language default. */
+  test?: AppTestConfig;
+  /**
+   * Repo-relative POSIX prefix (or prefixes) removed from a source path when it
+   * is turned into a feature key, e.g. `src/features/`. When set, it replaces
+   * the legacy heuristic that drops a leading `src/`/`tests/` segment and the
+   * next (area) segment. The first matching prefix wins.
+   */
+  stripPrefix?: string | string[];
+  /**
+   * Files (paths or globs relative to `repo`) that declare the app's routes or
+   * endpoints. Used by `index`. Absent: the framework profile's defaults.
+   */
+  entryPoints?: string[];
+}
+
+/** Per-app test invocation. */
+export interface AppTestConfig {
+  /** Shell command, e.g. `npx vitest run` or `pnpm test`. */
+  command?: string;
+  /** Working directory, relative to the config root. Default: the config root. */
+  cwd?: string;
+  /** Test-runner adapter: vitest | jest | playwright | pytest | junit | go | cargo. Default: from the language profile. */
+  reporter?: string;
+  /** Reporter output file or glob (relative to `cwd`). When set the command runs verbatim. */
+  resultsFile?: string;
+  /** Kill the run after this many milliseconds. Default 600000. */
+  timeoutMs?: number;
+  /** Docker image for `runners.testRunner: "docker"`. */
+  image?: string;
 }
 
 /** Runner placement: where each external tool executes. */
 export interface RunnersConfig {
   playwright?: 'local' | 'docker' | string;
   semgrep?: 'local' | 'docker' | 'auto' | string;
-  bandit?: 'local' | 'docker' | 'auto' | string;
   testRunner?: 'local' | 'docker' | string;
+}
+
+/** One place a call can go: provider, model, and the env var holding its key. */
+export interface LlmTarget {
+  provider: string;
+  model: string;
+  apiKeyEnv?: string;
+}
+
+/** Hard cap on LLM spend for one process run. Any field that is set is enforced. */
+export interface LlmBudget {
+  maxUsd?: number;
+  maxTokens?: number;
+  maxCalls?: number;
+}
+
+/** Per-million-token prices used for the cost estimate. */
+export interface LlmPrice {
+  inputPerMTok: number;
+  outputPerMTok: number;
 }
 
 /** LLM provider configuration. */
 export interface LlmConfig {
-  provider: 'anthropic' | 'openai' | string;
+  /** anthropic | openai | litellm | replay (serve recordings) | none (deterministic only). */
+  provider: 'anthropic' | 'openai' | 'litellm' | 'replay' | 'none' | string;
   model: string;
   /** Name of the env var holding the API key. */
   apiKeyEnv: string;
+  /** Per-pipeline overrides keyed by pipeline name (reverse, align, drift, heal, ...). */
+  pipelines?: Record<string, Partial<LlmTarget> & { fallback?: LlmTarget[] }>;
+  /** Tried in order after the primary target has failed all its attempts. */
+  fallback?: LlmTarget[];
+  /** Per-attempt timeout. Default 120000. */
+  timeoutMs?: number;
+  /** Retries after the first attempt for retryable failures. Default 2. */
+  retries?: number;
+  /** First backoff delay; doubles per retry with jitter. Default 1000. */
+  backoffMs?: number;
+  budget?: LlmBudget;
+  /** Overrides for the built-in price table, keyed by model name. */
+  pricing?: Record<string, LlmPrice>;
+  /** When false, a call that carries images is rejected and `validate` sends none. Default true. */
+  allowImages?: boolean;
+  replay?: {
+    /** Directory for recordings, relative to the config root. Default `.specguard/replay`. */
+    dir?: string;
+    /** Record every real response (also set by `--record`). */
+    record?: boolean;
+  };
 }
 
 /** Automation triggers. */
@@ -235,22 +308,55 @@ export interface MatrixConfig {
   output: string;
 }
 
-/** A named authentication profile for the validate pipeline. */
+/** How a profile gets the browser logged in. */
+export type AuthStrategy = 'form' | 'storageState' | 'header' | 'token' | 'script';
+
+/**
+ * A named authentication profile for the validate pipeline. Each profile gets
+ * its own browser context. Credentials are only ever read from environment
+ * variables named here, never stored in config and never sent to the LLM.
+ */
 export interface AuthProfile {
   /** Profile name, referenced by spec `auth:` metadata. */
   name: string;
+  /** Default `form`. */
+  strategy?: AuthStrategy;
+
+  // --- form (also used by storageState to create the state file) -----------
   /** URL of the login page. */
-  loginUrl: string;
+  loginUrl?: string;
   /** Name of env var holding the username. */
-  usernameEnvVar: string;
+  usernameEnvVar?: string;
   /** Name of env var holding the password. */
-  passwordEnvVar: string;
+  passwordEnvVar?: string;
   /** Optional selector for the username input (default: [name="username"], [type="email"]). */
   usernameSelector?: string;
   /** Optional selector for the password input (default: [type="password"]). */
   passwordSelector?: string;
   /** Optional selector for the submit button (default: [type="submit"]). */
   submitSelector?: string;
+  /** URL (or `/regex/`) the browser must reach after login. Default: any URL other than the login page. */
+  successUrl?: string;
+  /** Selector that must be visible after login. */
+  successSelector?: string;
+
+  // --- storageState ----------------------------------------------------------
+  /** Saved browser state. Default `.specguard/auth/<name>.json`. */
+  storageStatePath?: string;
+
+  // --- header / token --------------------------------------------------------
+  /** Header name -> name of the env var that holds its value. */
+  headers?: Record<string, string>;
+  /** Env var holding a bearer token (sent as `Authorization: Bearer <token>`). */
+  tokenEnvVar?: string;
+  /** Header for the token. Default `Authorization`. */
+  tokenHeader?: string;
+  /** Prefix before the token. Default `Bearer `. Use an empty string for a bare token. */
+  tokenPrefix?: string;
+
+  // --- script ----------------------------------------------------------------
+  /** Module (relative to the config root) whose default export is `async ({ page, context, profile }) => void`. */
+  scriptPath?: string;
 }
 
 /** Authentication configuration block. */
@@ -258,8 +364,97 @@ export interface AuthConfig {
   profiles: AuthProfile[];
 }
 
+/**
+ * Locations that used to be hard-coded. Every path is relative to the
+ * directory containing `.specguard/` unless absolute.
+ */
+export interface PathsConfig {
+  /** Root of the spec tree for single-repo layouts. Default `specs`. */
+  specsRoot?: string;
+  /** Where `docs` writes user documentation. Default `docs/user`. */
+  docsOut?: string;
+  /** Where `security` writes generated tests. Default `tests/security`. */
+  securityTests?: string;
+  /** Proof ledger file. Default `.specguard/proofs.json`. */
+  proofLedger?: string;
+}
+
+/** Feature-state (`specguard features --state`) settings. */
+export interface FeatureStateConfig {
+  /** Feature catalog directory (versioned YAML), relative to the config/workspace root. */
+  catalog?: string;
+  /** Directories of normalized FeatureCase JSON. */
+  resultsDirs?: string[];
+  /** Reporter output files (or globs) read as test results. */
+  reporters?: Array<{ path: string; kind?: string; format?: string }>;
+  /** Spec `type:` -> channel (ui | api | mcp). */
+  channelByType?: Record<string, string>;
+  /** Repo key -> channel its specs implement. */
+  repoChannels?: Record<string, string>;
+  /** External-id adapters to apply: generic, zephyr, jira. */
+  externalIds?: string[];
+}
+
+/** Settings for `specguard validate`. */
+export interface ValidateConfig {
+  /** Run the browser headless. Default true. `--headed` overrides. */
+  headless?: boolean;
+  guardrails?: {
+    /** Words or phrases that always block. */
+    deny?: string[];
+    /** Words or phrases that are always safe. */
+    allow?: string[];
+    /** Let outbound actions run (staging). `--allow-outbound` overrides. */
+    allowOutbound?: boolean;
+  };
+  redaction?: {
+    builtin?: boolean;
+    patterns?: string[];
+    blankSelectors?: string[];
+    hookPath?: string;
+  };
+}
+
+/** Settings for `specguard remediate`. Every field is optional. */
+export interface RemediateConfig {
+  /** Lowest severity to remediate: critical | high | moderate | low. Default high. */
+  minSeverity?: string;
+  allowMajor?: boolean;
+  /** Most advisories handled in one run. Default 5. */
+  maxAdvisories?: number;
+  /** Abort when a change touches more files than this. Default 20. */
+  maxFilesChanged?: number;
+  /** Abort when a change touches more lines than this. Default 2000 (lockfiles included). */
+  maxLinesChanged?: number;
+  /** Command run after install. Absent: the `build` script of package.json when there is one. */
+  buildCommand?: string;
+  typecheckCommand?: string;
+  /** Overrides the ecosystem install command. */
+  installCommand?: string;
+  /** Per-step timeout in milliseconds. Default 600000. */
+  stepTimeoutMs?: number;
+  /** Branch the PR targets. Default: the current branch. */
+  baseBranch?: string;
+  /** Branch name prefix. Default `specguard/remediate/`. */
+  branchPrefix?: string;
+  /** Run tests in docker (uses each app's test.image). Default: follows `runners.testRunner`. */
+  sandbox?: 'local' | 'docker';
+  /** Use OSV-Scanner when available. Default true. */
+  osv?: boolean;
+  semgrep?: boolean;
+  gitleaks?: boolean;
+  /** Treat claims with no exercising test in the baseline as INCONCLUSIVE. Default true. */
+  strictUnexercised?: boolean;
+}
+
 /** The fully parsed `.specguard/config.json`. */
 export interface SpecGuardConfig {
+  /** Built-in plugins to enable: directory names under `src/plugins/`. Empty means none. */
+  plugins?: string[];
+  featureState?: FeatureStateConfig;
+  /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
+  extends?: string;
+  paths?: PathsConfig;
   apps: AppConfig[];
   runners?: RunnersConfig;
   llm: LlmConfig;
@@ -267,6 +462,8 @@ export interface SpecGuardConfig {
   heal?: HealConfig;
   matrix?: MatrixConfig;
   auth?: AuthConfig;
+  validate?: ValidateConfig;
+  remediate?: RemediateConfig;
   /** Directory the config was loaded from (the dir containing `.specguard/`). */
   rootDir?: string;
 }

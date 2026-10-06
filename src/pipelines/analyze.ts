@@ -24,7 +24,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 
-import type { SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { runStatus } from './status.js';
@@ -32,11 +32,19 @@ import { runDrift } from './drift.js';
 import { runCodeQuality } from './code-quality.js';
 import { runDepCheck } from './dep-check.js';
 import { runGapAnalysis } from './gap-analysis.js';
+import { runMatrix } from './matrix.js';
 
 export interface AnalyzeOpts {
-  /** Run the recommended pipelines automatically after analysis. */
+  /**
+   * Run the recommended pipelines that are safe to run unattended (`quality` with
+   * lint auto-fix, and `matrix`). Pipelines that call an LLM or rewrite specs,
+   * tests or docs stay recommendations.
+   */
   autoFix?: boolean;
 }
+
+/** Recommended pipelines `--auto-fix` is allowed to run. */
+export const AUTO_FIX_SAFE = ['quality', 'matrix'] as const;
 
 export interface AnalysisRecommendation {
   pipeline: string;
@@ -234,6 +242,27 @@ export async function runAnalyze(
 
   result.analysisReport = report;
   result.exitCode = dedupedRecs.length > 0 ? ExitCode.MissingSpecs : ExitCode.Success;
+
+  if (opts.autoFix && dedupedRecs.length > 0) {
+    const ran: string[] = [];
+    for (const rec of dedupedRecs) {
+      if (!(AUTO_FIX_SAFE as readonly string[]).includes(rec.pipeline)) {
+        log(`[auto-fix] ${rec.pipeline}: not run automatically (needs review) — run \`specguard ${rec.pipeline}\``);
+        continue;
+      }
+      try {
+        const run = rec.pipeline === 'quality' ? await runCodeQuality(config, { fix: true }) : await runMatrix(config, {});
+        ran.push(rec.pipeline);
+        log(`[auto-fix] ${rec.pipeline}: ran (exit ${run.exitCode})`);
+        for (const line of run.messages.slice(-2)) log(`  ${line}`);
+        result.items.push({ key: `auto-fix:${rec.pipeline}`, status: 'updated', message: `exit ${run.exitCode}` });
+      } catch (err) {
+        log(`[auto-fix] ${rec.pipeline}: failed — ${(err as Error).message}`);
+        result.items.push({ key: `auto-fix:${rec.pipeline}`, status: 'failed', message: (err as Error).message });
+      }
+    }
+    if (ran.length === 0) log('[auto-fix] nothing safe to run automatically');
+  }
 
   return result;
 }

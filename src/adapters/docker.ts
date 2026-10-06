@@ -144,3 +144,53 @@ export async function runContainer(opts: DockerRunOpts): Promise<ContainerResult
     return { stdout: '', stderr: message, exitCode: -1, ok: false };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Long-lived containers (a Playwright server the host connects to)
+// ---------------------------------------------------------------------------
+
+export interface StartContainerOpts {
+  image: string;
+  tag?: string;
+  /** Publish `container` on 127.0.0.1:`host`. */
+  ports?: Array<{ host: number; container: number }>;
+  env?: EnvVar[];
+  /** Command and arguments after the image. */
+  args?: string[];
+  /** Make `host.docker.internal` resolve to the host on Linux too. */
+  addHostGateway?: boolean;
+  timeoutMs?: number;
+}
+
+export interface StartedContainer {
+  ok: boolean;
+  id?: string;
+  stderr: string;
+}
+
+/** `docker run -d --rm`. Never throws; `ok` is false when Docker refused or is missing. */
+export async function startContainer(opts: StartContainerOpts): Promise<StartedContainer> {
+  const dockerArgs: string[] = ['run', '-d', '--rm'];
+  for (const p of opts.ports ?? []) dockerArgs.push('-p', `127.0.0.1:${p.host}:${p.container}`);
+  for (const e of opts.env ?? []) dockerArgs.push('-e', `${e.name}=${e.value}`);
+  if (opts.addHostGateway) dockerArgs.push('--add-host', 'host.docker.internal:host-gateway');
+  dockerArgs.push(`${opts.image}:${opts.tag ?? 'latest'}`, ...(opts.args ?? []));
+  try {
+    const res = dockerRunner.spawn(dockerArgs, opts.timeoutMs ?? 120_000);
+    if (res.error) return { ok: false, stderr: res.error.message };
+    const id = (res.stdout ?? '').trim().split('\n').pop()?.trim();
+    if (res.status !== 0 || !id) return { ok: false, stderr: res.stderr ?? '' };
+    return { ok: true, id, stderr: res.stderr ?? '' };
+  } catch (err) {
+    return { ok: false, stderr: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** `docker stop` (the container was started with --rm). Never throws. */
+export async function stopContainer(id: string): Promise<void> {
+  try {
+    dockerRunner.spawn(['stop', '-t', '2', id], 30_000);
+  } catch {
+    /* best-effort cleanup */
+  }
+}

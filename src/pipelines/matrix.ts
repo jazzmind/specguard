@@ -12,10 +12,13 @@ import type { SpecGuardConfig, AppConfig, PipelineResult } from '../core/types.j
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
 import { resolveProfile } from '../core/language-profiles.js';
+import { buildAppPrepass, collectTestFiles, prepassSpec, type ResultRow } from '../core/claim-prepass.js';
+import { parseResults } from '../core/test-results.js';
+import { readFile } from '../core/reader.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +31,22 @@ export interface MatrixOpts {
   format?: 'json' | 'csv';
   /** Override the output file path. */
   out?: string;
+  /** Result files (reporter output) whose claim-tagged tests also link claims to tests. */
+  results?: string[];
+}
+
+export interface MatrixClaimTest {
+  file: string;
+  line?: number;
+  title?: string;
+  origin: 'source' | 'result';
+  status?: 'pass' | 'fail' | 'skip';
+}
+
+export interface MatrixClaim {
+  id: string;
+  text: string;
+  tests: MatrixClaimTest[];
 }
 
 export interface MatrixEntry {
@@ -40,6 +59,8 @@ export interface MatrixEntry {
   docs: string[];
   /** Source module declared in spec metadata (if any). */
   sourceModule: string | null;
+  /** Anchored acceptance claims with the tests that carry their claim tag. */
+  claims: MatrixClaim[];
 }
 
 export interface TraceabilityMatrix {
@@ -60,23 +81,20 @@ function slugFromKey(specKey: string): string {
   return path.basename(specKey);
 }
 
-/** Find test files matching a spec key by basename convention. */
+/** Find test files matching a spec key by basename convention within the app's test pool. */
 async function findMatchingTests(
   config: SpecGuardConfig,
   app: AppConfig,
   specKey: string,
+  pool: string[],
 ): Promise<string[]> {
   const slug = slugFromKey(specKey);
   const profile = resolveProfile(app);
-  const testBase = resolveFromRoot(config, app.testOutput);
-  const patterns = profile.testFileCandidates(slug).map((name) => `${testBase}/**/${name}`);
-  const found: string[] = [];
-  for (const pat of patterns) {
-    const matches = await expandGlobs([pat], path.dirname(pat)).catch(() => []);
-    found.push(...matches);
-  }
+  const names = new Set(profile.testFileCandidates(slug));
+  const found = pool.filter((file) => names.has(path.basename(file)));
   // Also check security tests.
-  const securityPat = resolveFromRoot(config, `tests/security/${slug}${profile.testExt}`);
+  const securityDir = config.paths?.securityTests ?? 'tests/security';
+  const securityPat = resolveFromRoot(config, `${securityDir}/${slug}${profile.testExt}`);
   if (await fileExists(securityPat)) found.push(securityPat);
   return [...new Set(found)];
 }
@@ -91,7 +109,7 @@ async function findMatchingDocs(
   const docsDir =
     typeof app.docs === 'string'
       ? resolveFromRoot(config, app.docs)
-      : resolveFromRoot(config, 'docs/user');
+      : resolveFromRoot(config, config.paths?.docsOut ?? 'docs/user');
 
   const patterns = [`${docsDir}/**/${slug}.md`, `${docsDir}/**/${slug}.mdx`];
   const found: string[] = [];
@@ -107,7 +125,7 @@ async function findMatchingDocs(
 // ---------------------------------------------------------------------------
 
 function toCsv(entries: MatrixEntry[]): string {
-  const header = 'specKey,title,appName,testCount,docCount,sourceModule';
+  const header = 'specKey,title,appName,testCount,docCount,sourceModule,claimCount,claimsWithTests';
   const rows = entries.map((e) =>
     [
       e.specKey,
@@ -116,6 +134,8 @@ function toCsv(entries: MatrixEntry[]): string {
       e.tests.length,
       e.docs.length,
       e.sourceModule ?? '',
+      e.claims.length,
+      e.claims.filter((c) => c.tests.length > 0).length,
     ].join(','),
   );
   return [header, ...rows].join('\n') + '\n';
@@ -145,18 +165,35 @@ export async function runMatrix(
 
   const entries: MatrixEntry[] = [];
 
+  const rootDir = config.rootDir ?? process.cwd();
+  const resultRows: ResultRow[] = [];
+  for (const file of opts.results ?? []) {
+    try {
+      for (const row of parseResults(await readFile(resolveFromRoot(config, file)))) {
+        resultRows.push({ file: path.relative(rootDir, resolveFromRoot(config, file)).split(path.sep).join('/'), title: row.title, status: row.status, claims: row.claims });
+      }
+    } catch (err) {
+      log(`[warn] results file ${file}: ${(err as Error).message}`);
+    }
+  }
+
   for (const app of appsInScope) {
     const specDirAbs = resolveFromRoot(config, app.specDir);
     let specs;
     try {
-      specs = loadAllSpecs(specDirAbs);
+      specs = loadCanonicalSpecs(config, specDirAbs);
     } catch {
       log(`[warn] Could not load specs from ${specDirAbs}`);
       continue;
     }
 
+    const pool = await collectTestFiles(config, app);
+    const pre = buildAppPrepass(config, pool, resultRows);
+
     for (const spec of specs) {
-      const tests = await findMatchingTests(config, app, spec.specKey);
+      const settled = prepassSpec(spec, pre);
+      const named = await findMatchingTests(config, app, spec.specKey, pool);
+      const tests = [...new Set([...named, ...settled.taggedFiles.map((rel) => path.resolve(rootDir, rel))])];
       const docs = await findMatchingDocs(config, app, spec.specKey);
       const entry: MatrixEntry = {
         specKey: spec.specKey,
@@ -165,10 +202,16 @@ export async function runMatrix(
         tests,
         docs,
         sourceModule: spec.meta.module ?? null,
+        claims: spec.claims
+          .filter((c) => c.id)
+          .map((c) => {
+            const hit = settled.coveredClaims.find((x) => x.id === c.id);
+            return { id: c.id as string, text: c.text, tests: hit ? hit.tests : [] };
+          }),
       };
       entries.push(entry);
       log(
-        `[matrix] ${spec.specKey} — tests:${tests.length} docs:${docs.length}${spec.meta.module ? ` src:${spec.meta.module}` : ''}`,
+        `[matrix] ${spec.specKey} — tests:${tests.length} docs:${docs.length}${entry.claims.length ? ` claims:${settled.coveredClaims.length}/${entry.claims.length}` : ''}${spec.meta.module ? ` src:${spec.meta.module}` : ''}`,
       );
     }
   }

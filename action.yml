@@ -1,0 +1,179 @@
+name: 'SpecGuard'
+description: 'Run SpecGuard spec-driven QA gates (status, drift, proofs, alignment, test-result ingestion, optional validate) and upload the evidence.'
+author: 'jazzmind'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  mode:
+    description: >-
+      "gates" (default) runs the QA gates. "remediate" runs `specguard remediate`: it patches vulnerable
+      dependencies in a throwaway worktree, proves behavior is preserved, and opens a PR (draft unless PRESERVED).
+      It never merges. See docs/ci-remediate.md.
+    required: false
+    default: 'gates'
+  remediate-args:
+    description: 'Extra arguments for `specguard remediate` (for example "--min-severity critical --allow-major"). Used when mode is remediate.'
+    required: false
+    default: ''
+  open-pr:
+    description: 'Pass --pr so the branch is pushed and a PR is opened. Needs contents: write and pull-requests: write. Used when mode is remediate.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token for git push and `gh pr create` in remediate mode. Pass secrets.GITHUB_TOKEN (or a PAT when workflows must run on the PR).'
+    required: false
+    default: ''
+  version:
+    description: >-
+      Version of specguard-ai to install: an exact version such as 0.2.0, a dist-tag, or "latest".
+      Use "local" to build and use the repository that is checked out (SpecGuard's own CI does this).
+    required: false
+    default: 'latest'
+  node-version:
+    description: 'Node.js version.'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Directory containing .specguard/config.json.'
+    required: false
+    default: '.'
+  gates:
+    description: >-
+      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps.
+    required: false
+    default: 'status,proof'
+  fail-on:
+    description: >-
+      Comma-separated thresholds that fail the job: missing-specs, drift, proof-failed, proof-stale,
+      proof-unexercised, proof-unproven, align-below:<percent>, results, validate, security, deps, none.
+    required: false
+    default: 'missing-specs,drift,proof-failed,proof-stale,results'
+  results:
+    description: 'Reporter output files or globs (Vitest/Jest JSON, Playwright JSON, JUnit XML, pytest-json-report, go test -json) for `results ingest`. Comma or newline separated. Used by the "results" gate.'
+    required: false
+    default: ''
+  run-id:
+    description: 'Run id recorded in the proof ledger by `results ingest`.'
+    required: false
+    default: '${{ github.run_id }}-${{ github.run_attempt }}'
+  drift-since:
+    description: 'Git ref `drift` compares against (for example origin/main). Default: HEAD~1.'
+    required: false
+    default: ''
+  validate-url:
+    description: 'Base URL of the running app for the "validate" gate.'
+    required: false
+    default: ''
+  install-playwright:
+    description: 'Install Playwright browsers (needed by the "validate" gate).'
+    required: false
+    default: 'false'
+  upload-evidence:
+    description: 'Upload .specguard/ (without secrets) as an artifact.'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Name of the evidence artifact.'
+    required: false
+    default: 'specguard-evidence'
+
+outputs:
+  remediate-exit:
+    description: 'Exit code of `specguard remediate`: 0 nothing to do, 5 findings present, 8 PRESERVED, 9 CHANGED, 10 INCONCLUSIVE, 11 baseline not green or setup error.'
+    value: ${{ steps.remediate.outputs.exit }}
+  failed:
+    description: '"true" when any fail-on threshold tripped.'
+    value: ${{ steps.gates.outputs.failed }}
+  tripped:
+    description: 'Comma-separated thresholds that tripped.'
+    value: ${{ steps.gates.outputs.tripped }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install SpecGuard
+      shell: bash
+      env:
+        SG_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ "$SG_VERSION" = "local" ]; then
+          npm ci
+          npm run build
+          npm link
+        elif [ "$SG_VERSION" = "latest" ] || [ -z "$SG_VERSION" ]; then
+          npm install -g specguard-ai
+        else
+          npm install -g "specguard-ai@${SG_VERSION}"
+        fi
+        specguard --version
+
+    - name: Install Playwright browsers
+      if: ${{ inputs.install-playwright == 'true' }}
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: Install OSV-Scanner (remediate)
+      if: ${{ inputs.mode == 'remediate' }}
+      shell: bash
+      run: |
+        # OSV-Scanner is the universal detector. Without it SpecGuard falls back to native audits (npm audit, pip-audit, ...).
+        if ! command -v osv-scanner >/dev/null 2>&1; then
+          (go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest && echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH") \
+            || echo "osv-scanner not installed; falling back to native audits"
+        fi
+
+    - name: Run specguard remediate
+      id: remediate
+      if: ${{ inputs.mode == 'remediate' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SG_ARGS: ${{ inputs.remediate-args }}
+        SG_OPEN_PR: ${{ inputs.open-pr }}
+      run: |
+        set -uo pipefail
+        args="$SG_ARGS"
+        if [ "$SG_OPEN_PR" = "true" ]; then args="$args --pr"; fi
+        # shellcheck disable=SC2086
+        specguard remediate $args
+        code=$?
+        echo "exit=$code" >> "$GITHUB_OUTPUT"
+        echo "specguard remediate exited $code (8 preserved, 9 changed, 10 inconclusive, 11 setup error)"
+        # A draft PR for CHANGED / INCONCLUSIVE is a successful run: the humans decide. Only setup errors fail the job.
+        if [ "$code" = "1" ] || [ "$code" = "11" ]; then exit "$code"; fi
+        exit 0
+
+    - name: Run SpecGuard gates
+      id: gates
+      if: ${{ inputs.mode != 'remediate' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SG_GATES: ${{ inputs.gates }}
+        SG_FAIL_ON: ${{ inputs.fail-on }}
+        SG_RESULTS: ${{ inputs.results }}
+        SG_RUN_ID: ${{ inputs.run-id }}
+        SG_DRIFT_SINCE: ${{ inputs.drift-since }}
+        SG_VALIDATE_URL: ${{ inputs.validate-url }}
+      run: node "${{ github.action_path }}/action/run-gates.mjs"
+
+    - name: Upload SpecGuard evidence
+      if: ${{ always() && inputs.upload-evidence == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.working-directory }}/.specguard/
+          !${{ inputs.working-directory }}/.specguard/.env
+          !${{ inputs.working-directory }}/.specguard/auth/
+        if-no-files-found: ignore
+        retention-days: 30

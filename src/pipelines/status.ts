@@ -35,11 +35,13 @@ import {
 } from '../core/language-profiles.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { expandAppGlobs } from '../core/spec-key.js';
+import { buildAppPrepass, collectTestFiles, prepassSpec } from '../core/claim-prepass.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
+import { loadPlugins } from '../plugins/index.js';
 
-const UNFEATURED_TYPES = new Set(['page', 'feature', 'mutation', 'query']);
 /** Options for the status pipeline (reserved for forward-compat). */
-export interface StatusOpts {}
+export type StatusOpts = Record<string, never>;
 
 /** Resolve a possibly-relative path against the config root dir. */
 function resolveFromRoot(config: SpecGuardConfig, p: string): string {
@@ -65,6 +67,29 @@ function pct(part: number, total: number): number {
 }
 
 /**
+ * `<app>\0<app-local key>` of specs that have at least one test carrying one of their
+ * claim tags (claim-tag prepass over every app's test files). Filename
+ * matching stays as the fallback in `runStatus`.
+ */
+async function taggedSpecKeys(config: SpecGuardConfig): Promise<Set<string>> {
+  const keys = new Set<string>();
+  try {
+    const files = new Set<string>();
+    for (const app of config.apps) for (const f of await collectTestFiles(config, app)) files.add(f);
+    if (files.size === 0) return keys;
+    const pre = buildAppPrepass(config, [...files].sort());
+    for (const app of config.apps) {
+      for (const spec of loadCanonicalSpecs(config, resolveFromRoot(config, app.specDir))) {
+        if (prepassSpec(spec, pre).coveredClaims.length > 0) keys.add(`${app.name}\0${spec.localKey ?? spec.specKey}`);
+      }
+    }
+  } catch {
+    /* no prepass: filename matching only */
+  }
+  return keys;
+}
+
+/**
  * Report spec/test coverage for every app in the config.
  */
 export async function runStatus(
@@ -76,6 +101,8 @@ export async function runStatus(
   const log = (line: string): void => {
     result.messages.push(line);
   };
+
+  const taggedKeys = await taggedSpecKeys(config);
 
   let totalFiles = 0;
   let totalSpecs = 0;
@@ -95,13 +122,13 @@ export async function runStatus(
       if (group === 'tests') continue;
       if (Array.isArray(globs)) patterns.push(...globs);
     }
-    const allFiles = await expandGlobs(patterns, repoDir);
+    const allFiles = await expandAppGlobs(config, app, patterns);
 
     // Apply `exclude` patterns — same filtering as reverse-generate.
     const excludePatterns = app.exclude ?? [];
     let files = allFiles;
     if (excludePatterns.length > 0) {
-      const excluded = new Set(await expandGlobs(excludePatterns, repoDir));
+      const excluded = new Set(await expandAppGlobs(config, app, excludePatterns));
       files = allFiles.filter((f) => !excluded.has(f));
     }
 
@@ -119,7 +146,7 @@ export async function runStatus(
 
     for (const absFile of files) {
       if (collapseSet.has(absFile)) {
-        const fileFeature = featureFromPath(absFile, repoDir, profile);
+        const fileFeature = featureFromPath(absFile, repoDir, profile, app);
         const dirFeature = path.posix.dirname(fileFeature);
         if (dirFeature === '.') {
           individualFiles.push(absFile);
@@ -144,15 +171,16 @@ export async function runStatus(
 
     // --- Individual files (1 file → 1 spec) ---
     for (const absFile of individualFiles) {
-      const feature = featureFromPath(absFile, repoDir, profile);
+      const feature = featureFromPath(absFile, repoDir, profile, app);
       const key = `${app.name}/${feature}`;
 
       const specPath = path.join(specDirAbs, `${feature}.md`);
       const hasSpec = await fileExists(specPath);
 
       const candidates = testCandidates(testOutputAbs, feature, profile);
-      let hasTest = false;
+      let hasTest = taggedKeys.has(`${app.name}\0${feature}`);
       for (const c of candidates) {
+        if (hasTest) break;
         if (await fileExists(c)) { hasTest = true; break; }
       }
 
@@ -181,8 +209,9 @@ export async function runStatus(
 
       // Test: check using the directory-level feature key
       const candidates = testCandidates(testOutputAbs, dirFeature, profile);
-      let hasTest = false;
+      let hasTest = taggedKeys.has(`${app.name}\0${dirFeature}`);
       for (const c of candidates) {
+        if (hasTest) break;
         if (await fileExists(c)) { hasTest = true; break; }
       }
 
@@ -218,8 +247,9 @@ export async function runStatus(
           specFileCount += 1;
 
           const candidates = testCandidates(testOutputAbs, feature, profile);
-          let hasTest = false;
+          let hasTest = taggedKeys.has(`${app.name}\0${feature}`);
           for (const c of candidates) {
+            if (hasTest) break;
             if (await fileExists(c)) { hasTest = true; break; }
           }
           if (hasTest) specTestCount += 1;
@@ -287,20 +317,33 @@ export async function runStatus(
 
   await appendProofCoverage(config, log);
 
+  // UNFEATURED only makes sense against a feature catalog: report it only when one is configured.
+  const plugins = await loadPlugins(config.plugins);
+  const catalogConfigured =
+    Boolean(config.featureState?.catalog) ||
+    plugins.some((plugin) => plugin.catalogProviders?.some((provider) => provider.defaultDir));
+  if (!catalogConfigured) return result;
+
+  // Spec types that must carry a `feature:` tag: `feature`, plus every type the config or a plugin maps to a channel.
+  const featureTypes = new Set<string>([
+    'feature',
+    ...plugins.flatMap((plugin) => Object.keys(plugin.featureState?.channelByType ?? {})),
+    ...Object.keys(config.featureState?.channelByType ?? {}),
+  ]);
   const unfeatured: string[] = [];
   for (const app of config.apps) {
     const specDirAbs = resolveFromRoot(config, app.specDir);
     let specs;
     try {
-      specs = loadAllSpecs(specDirAbs);
+      specs = loadCanonicalSpecs(config, specDirAbs);
     } catch {
       continue;
     }
     for (const spec of specs) {
       const kind = spec.meta.type ?? '';
-      if (!UNFEATURED_TYPES.has(kind)) continue;
+      if (!featureTypes.has(kind)) continue;
       const tagged = (spec.meta.feature ?? '').split(',').map((part) => part.trim()).filter(Boolean);
-      if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.specKey}`);
+      if (tagged.length === 0) unfeatured.push(`${app.name}:${spec.localKey ?? spec.specKey}`);
     }
   }
   log(`UNFEATURED: ${unfeatured.length}`);

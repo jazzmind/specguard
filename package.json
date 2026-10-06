@@ -31,8 +31,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "tsx src/cli/index.ts",
-    "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint .",
+    "prepublishOnly": "npm run typecheck && npm run build",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.71",
@@ -40,13 +42,23 @@
     "@modelcontextprotocol/sdk": "^1",
     "ai": "^7.0.127",
     "commander": "^13",
+    "fast-xml-parser": "^5.11.2",
     "tinyglobby": "^0.2.17",
+    "yaml": "^2.9.1",
     "zod": "^3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
     "tsx": "^4",
     "typescript": "^5.7",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^4.1.11"
+  },
+  "homepage": "https://github.com/jazzmind/specguard#readme",
+  "bugs": {
+    "url": "https://github.com/jazzmind/specguard/issues"
   }
 }

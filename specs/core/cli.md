@@ -13,8 +13,10 @@ The `specguard` CLI binary. Parses arguments, loads config from `.specguard/conf
 ## Acceptance Criteria
 
 - [ ] `specguard --help` prints usage and lists all subcommands
-- [ ] `specguard --version` prints the current package version
-- [ ] Unknown subcommand exits with code 1 and a clear error message
+- [ ] `specguard --version` prints the current package version, and `specguard --version --json` prints one JSON line `{ name, version, node }` <!-- claim: version-json -->
+- [ ] `--record` is a global option that turns on LLM response recording for the run <!-- claim: record-flag -->
+- [ ] The running command names the LLM pipeline (for example `align`, `proof-ingest`), so `llm.pipelines.<name>` overrides apply <!-- claim: pipeline-name -->
+- [ ] When an LLM call was refused for budget, the process exits with code 8 whatever the pipeline returned <!-- claim: budget-exit-code -->- [ ] Unknown subcommand exits with code 1 and a clear error message
 - [ ] Config is loaded from `.specguard/config.json` relative to cwd, or from `--config <path>`
 - [ ] Missing config file exits with code 1 and actionable message ("Run `specguard init` to create a config")
 - [ ] All subcommands accept `--help` for subcommand-specific usage
@@ -29,7 +31,7 @@ The `specguard` CLI binary. Parses arguments, loads config from `.specguard/conf
 | `import <file>` | import | `--app`, `--format` |
 | `reverse` | reverse-generate | `--app`, `--file`, `--force` |
 | `generate` | forward-generate | `--spec`, `--all`, `--framework` |
-| `heal` | heal | `--spec`, `--all`, `--max-retries` |
+| `heal` | heal | `--spec`, `--all`, `--app`, `--max-retries`, `--classify-only`, `--lenient` |
 | `validate` | validate | `--spec`, `--all`, `--url`, `--auth`, `--out` |
 | `security` | security | `--spec`, `--all`, `--with-sast` |
 | `docs` | doc-generate | `--spec`, `--all`, `--out` |
@@ -37,6 +39,9 @@ The `specguard` CLI binary. Parses arguments, loads config from `.specguard/conf
 | `matrix` | matrix | `--out`, `--format` |
 | `status` | status | (none) |
 | `align` | align | `--app`, `--spec`, `--all` |
+| `results ingest <files...>` | results | `--format`, `--run-id`, `--unexercised`, `--ledger` |
+| `proof ingest <file>` / `proof status` | proof | `--ledger` |
+| `claims assign` / `claims list` | claims | `--dir`, `--dry-run`, `--workspace` |
 | `features` | features | `--state`, `--cases` |
 
 ## Exit Codes
@@ -48,7 +53,8 @@ The `specguard` CLI binary. Parses arguments, loads config from `.specguard/conf
 3  Drift detected (specs are stale)
 4  Missing specs (uncovered features found by status)
 5  Security issues found
-7  Heal failed (tests still broken after max retries)
+7  Heal failed (tests still broken after max retries, or a test report could not be read)
+8  LLM budget exceeded (llm.budget)
 ```
 
 ## Scenarios

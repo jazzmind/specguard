@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="3">
+    <testcase classname="tests.test_awards" name="test_award_once @claim:core/awards#award-once" time="0.012" file="tests/test_awards.py">
+      <properties><property name="externalId" value="PROJ-T99"/><property name="tag" value="slow"/></properties>
+    </testcase>
+    <testcase classname="tests.test_awards" name="test_no_dupes" time="0.5">
+      <properties><property name="claim" value="core/awards#no-dupes"/></properties>
+      <failure message="assert 2 == 1">trace</failure>
+    </testcase>
+    <testcase classname="tests.test_awards" name="test_skip" time="0"><skipped/></testcase>
+  </testsuite>
+</testsuites>

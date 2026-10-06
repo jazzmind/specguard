@@ -6,7 +6,6 @@
  * to a pipeline. No business logic lives here — each subcommand delegates to a
  * handler in `./commands/` which in turn calls a pipeline.
  */
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { join, resolve, parse } from 'node:path';
@@ -85,16 +84,13 @@ import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
 import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
+import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
+import { resultsIngestCommand } from './commands/results.js';
+import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
+import { cliVersion, versionInfo } from '../core/version.js';
 
-// Resolve version from package.json. Falls back gracefully when the CLI is
-// bundled into the extension (installed at a path where ../../package.json
-// doesn't exist).
-let _cliVersion = '0.1.0';
-try {
-  const require = createRequire(import.meta.url);
-  const pkg = require('../../package.json') as { version: string };
-  _cliVersion = pkg.version;
-} catch { /* bundled deployment — version unavailable */ }
+// One version source: package.json, or the value injected at bundle time (src/core/version.ts).
+const _cliVersion = cliVersion();
 
 /** Merge a subcommand's own options with the global options (`--config`, `--json`). */
 function withGlobals<T extends object>(cmd: Command, local: T): T & GlobalOpts {
@@ -110,9 +106,31 @@ program
   .version(_cliVersion, '-v, --version', 'print the SpecGuard version')
   .option('--config <path>', 'path to .specguard/config.json')
   .option('--json', 'emit machine-readable JSON result to stdout (suppresses human-readable output)')
+  .option('--record', 'record every real LLM response into the replay directory (see llm.replay)')
   .showHelpAfterError('(add --help for usage)')
   // Throw instead of calling process.exit directly so we control exit codes.
   .exitOverride();
+
+// The running command names the pipeline for per-pipeline LLM overrides and the usage log,
+// and --record turns on recording for the whole run.
+program.hook('preAction', (thisCommand, actionCommand) => {
+  const names: string[] = [];
+  for (let c: Command | null = actionCommand; c && c.parent; c = c.parent) names.unshift(c.name());
+  setDefaultPipeline(names.join('-') || undefined);
+  if (thisCommand.opts<{ record?: boolean }>().record) setRecordMode(true);
+});
+
+// A refused LLM call (spend cap) must surface as exit code 8 even when the pipeline
+// swallowed the error and went on to print its own summary.
+process.on('exit', (code) => {
+  const message = budgetExceededMessage();
+  if (message) {
+    process.stderr.write(`${message}\n`);
+    process.exitCode = ExitCode.BudgetExceeded;
+  } else {
+    void code;
+  }
+});
 
 // --- init -----------------------------------------------------------------
 program
@@ -121,11 +139,19 @@ program
   .option('--with-playwright', 'configure Playwright as the test framework')
   .option('--language <id>', 'target language (typescript|python|go|rust|java); auto-detected when omitted')
   .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string }) => {
+  .option('--single', 'treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected')
+  .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
+  .option('--runner-path <file>', 'specguard CLI entry for --runner path')
+  .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
       harness: opts.harness,
+      single: opts.single,
+      runner: opts.runner,
+      runnerPath: opts.runnerPath,
+      updateHooks: opts.updateHooks,
     });
   });
 
@@ -134,8 +160,11 @@ program
   .command('scaffold')
   .description('regenerate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal) for an existing project')
   .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
-  .action(async (opts: { harness?: string }) => {
-    await scaffoldCommand({ harness: opts.harness });
+  .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
+  .option('--runner-path <file>', 'specguard CLI entry for --runner path')
+  .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
+  .action(async (opts: { harness?: string; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
+    await scaffoldCommand({ harness: opts.harness, runner: opts.runner, runnerPath: opts.runnerPath, updateHooks: opts.updateHooks });
   });
 
 // --- import <file> --------------------------------------------------------
@@ -191,11 +220,17 @@ program
 program
   .command('heal')
   .description('self-heal failing generated tests')
-  .option('--spec <key>', 'target a single spec')
-  .option('--all', 'process all specs')
+  .option('--spec <key>', 'run only the app that owns this spec, and only its tests')
+  .option('--all', 'heal every app (the default)')
+  .option('--app <name>', 'heal a single app')
   .option('--max-retries <n>', 'maximum heal attempts')
+  .option('--classify-only', 'classify failures and report them; never rewrite a test or re-run')
+  .option('--lenient', 'treat an unreadable test report as passing when the runner exited 0 (default: failure)')
   .action(
-    async (opts: { spec?: string; all?: boolean; maxRetries?: string }, cmd: Command) => {
+    async (
+      opts: { spec?: string; all?: boolean; app?: string; maxRetries?: string; classifyOnly?: boolean; lenient?: boolean },
+      cmd: Command,
+    ) => {
       await healCommand(withGlobals(cmd, opts));
     },
   );
@@ -209,12 +244,23 @@ program
   .option('--url <url>', 'base URL of the running app')
   .option('--app <name>', 'limit to a single app')
   .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
+  .option('--headed', 'show the browser window (default: headless, or validate.headless)')
+  .option('--allow-outbound', 'let outbound actions (send, invite, pay, ...) run; for staging. Destructive actions stay blocked')
   .action(
     async (
-      opts: { spec?: string; all?: boolean; url?: string; app?: string; noReview?: boolean },
+      opts: {
+        spec?: string;
+        all?: boolean;
+        url?: string;
+        app?: string;
+        review?: boolean;
+        headed?: boolean;
+        allowOutbound?: boolean;
+      },
       cmd: Command,
     ) => {
-      await validateCommand(withGlobals(cmd, opts));
+      // commander turns --no-review into review:false
+      await validateCommand(withGlobals(cmd, { ...opts, noReview: opts.review === false }));
     },
   );
 
@@ -224,7 +270,7 @@ program
   .description('run security analysis for specs')
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
-  .option('--with-sast', 'include static analysis (Semgrep/Bandit)')
+  .option('--with-sast', 'include static analysis (Semgrep) and the dependency audit for the app language')
   .option('--app <name>', 'limit to a single app')
   .option('--force', 'overwrite existing security tests')
   .action(
@@ -310,7 +356,7 @@ program
 program
   .command('analyze')
   .description('run all diagnostic checks and return recommendations')
-  .option('--auto-fix', 'automatically run recommended pipelines after analysis')
+  .option('--auto-fix', 'run the recommended pipelines that are safe unattended (quality --fix, matrix); the rest stay recommendations')
   .action(async (opts: { autoFix?: boolean }, cmd: Command) => {
     await analyzeCommand(withGlobals(cmd, opts));
   });
@@ -419,15 +465,61 @@ proofCmd
   .command('ingest')
   .description('merge a verdicts file into .specguard/proofs.json')
   .argument('<verdicts>', 'path to verdicts.json')
-  .action(async (verdicts: string, _opts: Record<string, never>, cmd: Command) => {
-    await proofIngestCommand(verdicts, withGlobals(cmd, {}));
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(async (verdicts: string, opts: { ledger?: string }, cmd: Command) => {
+    await proofIngestCommand(verdicts, withGlobals(cmd, opts));
   });
 
 proofCmd
   .command('status')
   .description('report proven, failed, unexercised, stale, and unproven claims')
-  .action(async (_opts: Record<string, never>, cmd: Command) => {
-    await proofStatusCommand(withGlobals(cmd, {}));
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(async (opts: { ledger?: string }, cmd: Command) => {
+    await proofStatusCommand(withGlobals(cmd, opts));
+  });
+
+// --- results --------------------------------------------------------------
+const resultsCmd = program
+  .command('results')
+  .description('ingest test-runner reports as proof verdicts');
+
+resultsCmd
+  .command('ingest')
+  .description('map test results to claims by @claim tags and write proof verdicts')
+  .argument('<files...>', 'reporter output files (globs allowed): vitest/jest JSON, playwright JSON, JUnit XML, pytest-json-report, go test -json, cargo JSON')
+  .option('--format <fmt>', 'auto|vitest|jest|playwright|junit|pytest|go|cargo', 'auto')
+  .option('--run-id <id>', 'ledger run id (default: timestamped)')
+  .option('--unexercised', 'also store unexercised for claims absent from every ingested file (only on a full run; see --full-run)')
+  .option('--sweep', 'alias of --unexercised')
+  .option('--full-run', 'the ingested files are the complete run; lets --unexercised/--sweep apply')
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .action(
+    async (
+      files: string[],
+      opts: { format?: string; runId?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string },
+      cmd: Command,
+    ) => {
+      await resultsIngestCommand(files, withGlobals(cmd, opts));
+    },
+  );
+
+// --- remediate --------------------------------------------------------------
+program
+  .command('remediate')
+  .description('patch vulnerable dependencies or code in a temp worktree, prove behavior is preserved, then propose the change (never merges)')
+  .option('--scan-only', 'detect and report only; exit 5 when findings remain')
+  .option('--advisory <id>', 'remediate one advisory (GHSA/CVE/OSV id)')
+  .option('--min-severity <level>', 'critical | high | moderate | low (default: high)')
+  .option('--allow-major', 'allow a major version bump when it is the only fix')
+  .option('--ledger <file>', 'proof ledger the baseline starts from (default: paths.proofLedger or .specguard/proofs.json)')
+  .option('--pr', 'push the branch and open a PR with gh (draft unless the verdict is PRESERVED)')
+  .option('--no-pr', 'leave the committed branch, do not push (default)')
+  .option('--dry-run', 'run the whole loop but change nothing outside the temp worktree')
+  .option('--no-llm', 'skip the LLM breaking-change analysis and code fixes')
+  .option('--app <name>', 'restrict to one app')
+  .option('--force', 'ignore a fresh .specguard/remediate.lock')
+  .action(async (opts: Omit<RemediateCliOpts, 'config' | 'json'>, cmd: Command) => {
+    await remediateCommand(withGlobals(cmd, opts));
   });
 
 // --- contracts ------------------------------------------------------------
@@ -511,6 +603,12 @@ workspaceCmd
   });
 
 export async function main(): Promise<void> {
+  // `specguard --version --json` is machine-readable: the extension uses it to detect a CLI/extension mismatch.
+  const argv = process.argv.slice(2);
+  if ((argv.includes('--version') || argv.includes('-v')) && argv.includes('--json')) {
+    process.stdout.write(`${JSON.stringify(versionInfo())}\n`);
+    process.exit(0);
+  }
   try {
     await program.parseAsync(process.argv);
   } catch (err) {

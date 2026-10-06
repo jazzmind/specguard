@@ -23,21 +23,23 @@
  *
  * Spec: specs/pipelines/drift.md
  */
+import { loadCanonicalSpecs, migrateRegistrySpecKeys, specFileOf } from '../core/spec-key.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { stat } from 'node:fs/promises';
 
 import { z } from 'zod';
-import type { SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import type { AppConfig, SpecGuardConfig, PipelineResult, PipelineItem } from '../core/types.js';
+import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { fileExists, expandGlobs } from '../core/reader.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { fileExists } from '../core/reader.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { noteStaleProofs } from './proof.js';
 import {
-  loadRegistry, saveRegistry, hashFile, hashString,
+  loadRegistry, saveRegistry, hashFile, hashString, toRegistryKey,
   getOrCreateSpecEntry, updateFileEntry,
 } from '../core/drift-registry.js';
 import { writePlan } from '../core/plan-writer.js';
@@ -84,15 +86,8 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   return path.resolve(config.rootDir ?? process.cwd(), p);
 }
 
-function deriveFeature(absFile: string, repoDir: string): string {
-  let rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-  const segments = rel.split('/');
-  if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) segments.shift();
-  if (segments.length > 1) segments.shift();
-  rel = segments.join('/');
-  rel = rel.replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '');
-  rel = rel.replace(/\.[cm]?[jt]sx?$/i, '');
-  return rel;
+function deriveFeature(absFile: string, repoDir: string, app: AppConfig): string {
+  return featureFromPath(absFile, repoDir, resolveProfile(app), app);
 }
 
 async function mtimeMs(absPath: string): Promise<number | null> {
@@ -186,11 +181,11 @@ async function runMtimeDrift(
     }
     if (!patterns.length) continue;
 
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
     const inScope = changedAbs ? allSources.filter((abs) => changedAbs.has(abs)) : allSources;
 
     for (const absFile of inScope) {
-      const feature = deriveFeature(absFile, repoDir);
+      const feature = deriveFeature(absFile, repoDir, app);
       const key = `${app.name}/${feature}`;
       if (opts.spec && opts.spec !== key) continue;
 
@@ -277,6 +272,10 @@ export async function runDrift(
 
   // Load registry.
   const registry = loadRegistry(cwd);
+  if (migrateRegistrySpecKeys(config, registry)) {
+    saveRegistry(cwd, registry);
+    log('[drift] migrated legacy registry keys to canonical spec keys');
+  }
   const hasRegistry = Object.keys(registry).length > 0;
 
   if (!hasRegistry) {
@@ -304,12 +303,13 @@ export async function runDrift(
     const repoDir = resolveFromRoot(config, app.repo);
     const specDirAbs = resolveFromRoot(config, app.specDir);
 
-    let specFiles: { key: string; specPath: string; criteria: string }[] = [];
+    let specFiles: { key: string; local: string; specPath: string; criteria: string }[] = [];
     try {
-      const specs = loadAllSpecs(specDirAbs);
+      const specs = loadCanonicalSpecs(config, specDirAbs);
       specFiles = specs.map((s) => ({
-        key: `${app.name}/${s.specKey}`,
-        specPath: path.join(specDirAbs, `${s.specKey}.md`),
+        key: s.specKey,
+        local: s.localKey ?? s.specKey,
+        specPath: specFileOf(s, specDirAbs),
         criteria: s.acceptanceCriteria || s.overview,
       }));
     } catch { continue; }
@@ -321,15 +321,15 @@ export async function runDrift(
       if (Array.isArray(globs)) patterns.push(...globs);
     }
     if (!patterns.length) continue;
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
 
-    for (const { key, specPath, criteria } of specFiles) {
-      if (opts.spec && opts.spec !== key) continue;
+    for (const { key, local, specPath, criteria } of specFiles) {
+      if (opts.spec && opts.spec !== key && opts.spec !== `${app.name}/${local}`) continue;
 
-      const feature = key.split('/').slice(1).join('/');
+      const feature = local;
       // Files that plausibly relate to this spec (same feature key in their path).
       const relatedSources = allSources.filter((abs) => {
-        const f = deriveFeature(abs, repoDir);
+        const f = deriveFeature(abs, repoDir, app);
         return f === feature;
       });
 
@@ -339,10 +339,11 @@ export async function runDrift(
 
       // Also seed any source file that isn't registered yet.
       for (const absFile of relatedSources) {
-        if (!specEntry.files[absFile]) {
+        const regKey = toRegistryKey(cwd, absFile);
+        if (!specEntry.files[regKey]) {
           const h = hashFile(absFile);
           if (h) {
-            updateFileEntry(specEntry, absFile, h, 'new-file');
+            updateFileEntry(specEntry, regKey, h, 'new-file');
           }
         }
       }
@@ -356,7 +357,8 @@ export async function runDrift(
         const currentHash = hashFile(absFile);
         if (!currentHash) continue;
 
-        const prev = specEntry.files[absFile];
+        const regKey = toRegistryKey(cwd, absFile);
+        const prev = specEntry.files[regKey];
         const hashChanged = !prev || prev.hash !== currentHash;
 
         if (!hashChanged && !opts.force) {
@@ -370,7 +372,7 @@ export async function runDrift(
         try {
           const diff = getFileDiff(absFile, cwd, range);
           const { drifted, reason } = await llmSemanticDrift(config, diff, criteria, key);
-          updateFileEntry(specEntry, absFile, currentHash, drifted ? 'drifted' : 'no-drift');
+          updateFileEntry(specEntry, regKey, currentHash, drifted ? 'drifted' : 'no-drift');
           if (drifted) {
             specDrifted = true;
             log(`[drift] ${key} — semantic drift detected: ${reason}`);
@@ -388,7 +390,7 @@ export async function runDrift(
         } catch (err) {
           // LLM failed — fall back to flagging the hash change as drift.
           log(`[drift] ${key}: LLM check failed (${(err as Error).message}) — flagging as possible drift`);
-          updateFileEntry(specEntry, absFile, currentHash, 'drifted');
+          updateFileEntry(specEntry, regKey, currentHash, 'drifted');
           specDrifted = true;
           result.items.push({ key, status: 'failed', path: specPath, message: `hash changed, LLM unavailable` });
           result.failed += 1;
@@ -493,7 +495,7 @@ export interface OrphanResult {
  */
 export async function detectOrphans(
   config: SpecGuardConfig,
-  cwd: string,
+  _cwd?: string,
 ): Promise<OrphanResult> {
   const items: PipelineItem[] = [];
   let orphanCount = 0;
@@ -512,8 +514,8 @@ export async function detectOrphans(
 
     // Build the feature set AND the "domain" (set of first-path-segment prefixes this app covers)
     let allSources: string[] = [];
-    try { allSources = await expandGlobs(patterns, repoDir); } catch { continue; }
-    const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir)));
+    try { allSources = await expandAppGlobs(config, app, patterns); } catch { continue; }
+    const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir, app)));
 
     // Domain filtering: only flag orphans for specs whose first-segment prefix
     // matches what this app's sources can produce. This prevents apps with a
@@ -526,10 +528,10 @@ export async function detectOrphans(
 
     // Load all specs from the specDir
     let specs: import('../core/types.js').ParsedSpec[] = [];
-    try { specs = loadAllSpecs(specDirAbs); } catch { continue; }
+    try { specs = loadCanonicalSpecs(config, specDirAbs); } catch { continue; }
 
     for (const spec of specs) {
-      const specKey = spec.specKey;
+      const specKey = spec.localKey ?? spec.specKey;
       if (isOrphanExempt(specKey)) continue;
 
       // Only flag orphans for specs within this app's feature domain
@@ -542,7 +544,7 @@ export async function detectOrphans(
         : specKey;
 
       if (!featureSet.has(featureToMatch)) {
-        const key = `${app.name}/${specKey}`;
+        const key = spec.specKey;
         const specPath = path.join(specDirAbs, `${specKey}.md`);
         items.push({
           key,
@@ -578,22 +580,22 @@ async function _buildInitialRegistry(
     }
     if (!patterns.length) continue;
 
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
     let specs: import('../core/types.js').ParsedSpec[] = [];
-    try { specs = loadAllSpecs(specDirAbs); } catch { continue; }
+    try { specs = loadCanonicalSpecs(config, specDirAbs); } catch { continue; }
 
     for (const spec of specs) {
-      const key = `${app.name}/${spec.specKey}`;
-      const specPath = path.join(specDirAbs, `${spec.specKey}.md`);
+      const key = spec.specKey;
+      const specPath = specFileOf(spec, specDirAbs);
       const specContent = fs.existsSync(specPath) ? fs.readFileSync(specPath, 'utf-8') : '';
       const specHash = hashString(specContent);
       const specEntry = getOrCreateSpecEntry(registry, key, specHash);
 
-      const feature = spec.specKey;
-      const related = allSources.filter((abs) => deriveFeature(abs, repoDir) === feature);
+      const feature = spec.localKey ?? spec.specKey;
+      const related = allSources.filter((abs) => deriveFeature(abs, repoDir, app) === feature);
       for (const absFile of related) {
         const h = hashFile(absFile);
-        if (h) updateFileEntry(specEntry, absFile, h, 'no-drift');
+        if (h) updateFileEntry(specEntry, toRegistryKey(cwd, absFile), h, 'no-drift');
       }
     }
   }

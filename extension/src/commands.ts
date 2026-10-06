@@ -376,7 +376,7 @@ async function resolveCliPath(workspaceRoot: string): Promise<string> {
   const custom = config.get<string>('cliPath', '');
   if (custom) return custom;
   const local = path.join(workspaceRoot, 'node_modules', '.bin', 'specguard');
-  return fs.existsSync(local) ? local : 'npx specguard';
+  return fs.existsSync(local) ? local : 'npx -p specguard-ai specguard';
 }
 
 function deriveSpecKey(workspaceRoot: string, filePath: string): string | undefined {

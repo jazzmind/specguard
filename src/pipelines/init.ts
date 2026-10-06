@@ -1,14 +1,15 @@
 /**
  * Init pipeline.
  *
- * Scaffolds `.specguard/config.json`, `specs/README.md`, `.specguard/.env`,
- * and `.specguard/drift-registry.json` in the target directory when they are
- * missing. Never overwrites existing files. Returns a `PipelineResult`
+ * Scaffolds `.specguard/config.json`, `specs/README.md`, and `.specguard/.env`
+ * in the target directory when they are missing, and git-ignores generated run
+ * state. Never overwrites existing files. Returns a `PipelineResult`
  * describing what was created and what was skipped.
  *
  * This is the pure-logic counterpart to `cli/commands/init.ts`, which wraps
  * this function with stdout messages and `process.exit`.
  */
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 import type { PipelineResult } from '../core/types.js';
@@ -23,6 +24,8 @@ import {
   type LanguageProfile,
 } from '../core/language-profiles.js';
 import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
+import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
+import { appNameFor, detectMonorepo, testCommandFor, type MonorepoInfo } from '../core/monorepo.js';
 
 export interface InitOpts {
   /** Test framework override; defaults to the language profile's framework. */
@@ -33,6 +36,13 @@ export interface InitOpts {
   harness?: Harness;
   /** Override the target directory (default: process.cwd()). */
   cwd?: string;
+  /** Treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected. */
+  single?: boolean;
+  /** How generated MCP/hook commands invoke SpecGuard: node|npx|path (default: local binary, else npx). */
+  runner?: 'node' | 'npx' | 'path';
+  runnerPath?: string;
+  /** Apply differing existing MCP entries/hooks instead of printing a diff. */
+  updateHooks?: boolean;
 }
 
 export interface InitResult extends PipelineResult {
@@ -44,30 +54,56 @@ export interface InitResult extends PipelineResult {
   skippedFiles: string[];
 }
 
-/** Build a config template from the resolved language profile. */
-function defaultConfig(profile: LanguageProfile, framework: string): string {
-  const config = {
-    apps: [
-      {
-        name: 'app',
-        repo: '.',
-        language: profile.id,
-        specDir: 'specs',
-        sources: {
-          routes: profile.sourceGlobs.routes,
-          api: profile.sourceGlobs.api,
-          tests: profile.sourceGlobs.tests,
-        },
-        framework,
-        testOutput: profile.testOutput,
-        security: { enabled: false },
-        docs: false,
+/** One app per workspace package, each with the command that runs only its tests. */
+function monorepoApps(info: MonorepoInfo, profile: LanguageProfile): Array<Record<string, unknown>> {
+  return info.packages.map((pkg) => {
+    const name = appNameFor(pkg);
+    return {
+      name,
+      repo: pkg.dir,
+      language: profile.id,
+      specDir: `specs/${name}`,
+      sources: {
+        routes: profile.sourceGlobs.routes,
+        api: profile.sourceGlobs.api,
+        tests: profile.sourceGlobs.tests,
       },
-    ],
+      framework: pkg.framework,
+      testOutput: `${pkg.dir}/${profile.testOutput}`,
+      test: { command: testCommandFor(info, pkg), reporter: pkg.framework },
+      security: { enabled: false },
+      docs: false,
+    };
+  });
+}
+
+/** Build a config template from the resolved language profile. */
+function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: MonorepoInfo | null): string {
+  const apps =
+    monorepo && monorepo.packages.length > 0
+      ? monorepoApps(monorepo, profile)
+      : [
+          {
+            name: 'app',
+            repo: '.',
+            language: profile.id,
+            specDir: 'specs',
+            sources: {
+              routes: profile.sourceGlobs.routes,
+              api: profile.sourceGlobs.api,
+              tests: profile.sourceGlobs.tests,
+            },
+            framework,
+            testOutput: profile.testOutput,
+            security: { enabled: false },
+            docs: false,
+          },
+        ];
+  const config = {
+    apps,
     runners: {
       playwright: 'local',
       semgrep: 'auto',
-      bandit: 'auto',
       testRunner: 'local',
     },
     llm: {
@@ -134,6 +170,20 @@ ANTHROPIC_API_KEY=your-key-here
 # LITELLM_BASE_URL=http://localhost:4000
 `;
 
+/** Generated-state files that git already tracks (so ignoring them is not enough). */
+function trackedGeneratedState(cwd: string): string[] {
+  try {
+    const out = execFileSync('git', ['ls-files', '--', ...GENERATED_STATE_PATHS], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.split('\n').map((l) => l.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Scaffold the SpecGuard configuration and supporting files in `cwd`.
  * Never overwrites existing files.
@@ -151,7 +201,6 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   const configPath = path.join(cwd, '.specguard', 'config.json');
   const specsReadmePath = path.join(cwd, 'specs', 'README.md');
   const dotEnvPath = path.join(cwd, '.specguard', '.env');
-  const driftRegistryPath = path.join(cwd, '.specguard', 'drift-registry.json');
   const gitignorePath = path.join(cwd, '.gitignore');
 
   const tryCreate = async (filePath: string, content: string): Promise<void> => {
@@ -168,25 +217,42 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   };
 
-  await tryCreate(configPath, defaultConfig(profile, framework));
+  const monorepo = opts.single || profile.id !== 'typescript' ? null : await detectMonorepo(cwd);
+  if (monorepo && monorepo.packages.length > 0) {
+    result.messages.push(
+      `  detected ${monorepo.tools.join(' + ')} workspace: ${monorepo.packages.length} package(s), one app each`,
+    );
+  }
+  await tryCreate(configPath, defaultConfig(profile, framework, monorepo));
   await tryCreate(specsReadmePath, SPECS_README);
   await tryCreate(dotEnvPath, DOT_ENV_TEMPLATE);
-  await tryCreate(driftRegistryPath, '{}\n');
 
-  // Best-effort: ensure .gitignore lists .specguard/.env
+  // Best-effort: keep generated run state (and the .env secrets file) out of version control.
   try {
-    let gitignoreContent = (await fileExists(gitignorePath))
-      ? await readFile(gitignorePath)
-      : '';
-    if (!gitignoreContent.includes('.specguard/.env')) {
-      gitignoreContent += (gitignoreContent.endsWith('\n') ? '' : '\n') + '.specguard/.env\n';
-      await writeFile(gitignorePath, gitignoreContent);
-      result.messages.push('  updated  .gitignore (.specguard/.env added)');
+    const before = (await fileExists(gitignorePath)) ? await readFile(gitignorePath) : '';
+    const after = applyIgnoreBlock(before);
+    if (after !== before) {
+      await writeFile(gitignorePath, after);
+      result.messages.push('  updated  .gitignore (generated SpecGuard state ignored)');
+    }
+    const tracked = trackedGeneratedState(cwd);
+    if (tracked.length > 0) {
+      result.messages.push(
+        `  note     ${tracked.length} generated file(s) are already tracked by git; untrack with:`,
+        `           git rm --cached ${tracked.join(' ')}`,
+      );
     }
   } catch { /* best-effort */ }
 
   // Generate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
-  const scaffold = await scaffoldHarnessFiles({ cwd, profile, harness: opts.harness });
+  const scaffold = await scaffoldHarnessFiles({
+    cwd,
+    profile,
+    harness: opts.harness,
+    runner: opts.runner,
+    runnerPath: opts.runnerPath,
+    updateHooks: opts.updateHooks,
+  });
   result.createdFiles.push(...scaffold.created);
   result.skippedFiles.push(...scaffold.skipped);
   result.created += scaffold.created.length;

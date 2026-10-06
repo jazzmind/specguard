@@ -10,15 +10,19 @@
 
 Runs the project's test suite, and for each failing test asks the LLM to attribute the failure: is the **test** wrong (stale assertion, drifted selector, bad setup) or is the **application** wrong (a real bug the test correctly caught)? When the test is at fault, the pipeline rewrites the test code, re-runs the suite, and repeats up to `maxRetries`. When the application is at fault, it reports the bug and **never touches application source code**. The result is a heal report counting fixed, still-broken, and app-bug tests, with exit code 7 (`HealFailed`) when any test remains broken after retries.
 
-The test command and retry budget come from `config.heal` (`{ maxRetries, testCommand }`), overridable per-invocation. The raw test-runner invocation is isolated behind an exported `healRunner` seam so it can be mocked in hermetic unit tests.
+Heal runs every distinct test job: one per app `test` block (`command`, `cwd`, `reporter`, `resultsFile`, `timeoutMs`), and for apps without one the shared `config.heal.testCommand` (default: the language profile's command) at the config root, once. Each job runs through a test-runner adapter (`src/adapters/test-runners.ts`) that reads the reporter's OUTPUT FILE. Output that cannot be parsed is a failure, never a pass. The retry budget comes from `config.heal.maxRetries`, overridable per invocation. The raw invocation is isolated behind an exported `healRunner` seam so it can be mocked in hermetic unit tests.
 
 ## Acceptance Criteria
 
 - [ ] Resolves `maxRetries` from `opts.maxRetries ?? config.heal.maxRetries ?? 2`
-- [ ] Resolves `testCommand` from `config.heal.testCommand ?? 'npm test'`
-- [ ] Runs the test command requesting vitest's JSON reporter and captures stdout + exit code without throwing on a non-zero exit
-- [ ] Parses the JSON output to extract failing tests: file path, test name, and failure message
-- [ ] Malformed or empty JSON is treated as "could not parse" — reported, never crashes the pipeline
+- [ ] Runs one job per app with a `test` block and one shared job for the apps without one, using `config.heal.testCommand` or the language profile's command; identical (command, cwd) jobs run once <!-- claim: per-app-jobs -->
+- [ ] The reporter flags come from the app's test-runner adapter, not from a blanket ` -- --reporter=json` suffix; a configured `resultsFile` means the command runs verbatim <!-- claim: adapter-flags -->
+- [ ] Failing tests (file, name, message) are read from the reporter output file through the adapter, without throwing on a non-zero exit <!-- claim: failures-from-file -->
+- [ ] A missing or unparseable results file is a FAILURE (exit 7) even when the runner exited zero; `--lenient` restores the old fail-open behaviour <!-- claim: unparseable-is-failure -->
+- [ ] `--spec <key>` runs only the app that owns the spec, and only that spec's tests <!-- claim: spec-flag -->
+- [ ] `--all` runs every app (the default), `--app <name>` runs one <!-- claim: all-flag -->
+- [ ] `--classify-only` classifies every failure and reports it but never writes a test file and never re-runs <!-- claim: classify-only -->
+- [ ] A failing test is matched to its spec through the language profile's `featureExtRegex`, not a TypeScript-only pattern <!-- claim: profile-feature-regex -->
 - [ ] When there are no failing tests, returns a clean result (`exitCode 0`, message "all tests passing") and makes no LLM calls
 - [ ] For each failing test file, reads the test source and (best-effort) the corresponding spec, then asks the LLM to classify the failure as `test-bug` or `app-bug` with a reason
 - [ ] `test-bug`: writes the LLM's `fixedTestCode` via the writer abstraction, then re-runs the suite; the run -> classify -> rewrite loop repeats up to `maxRetries` total re-runs
@@ -27,11 +31,15 @@ The test command and retry budget come from `config.heal` (`{ maxRetries, testCo
 - [ ] Sets `result.exitCode = ExitCode.HealFailed` (7) if any tests remain broken after retries, including app-bugs (the suite is still red)
 - [ ] All LLM access routes through `src/core/llm.ts`; all file I/O routes through `src/core/reader.ts` / `writer.ts`; the only direct process spawn is inside the `healRunner` seam
 
+## Test-runner results (legacy note)
+
+The sections below describe the Vitest/Jest JSON document. It is now read from a reporter output file by the adapter; the shape is unchanged.
+
 ## Test-runner JSON parsing
 
-The pipeline invokes the test command with vitest's JSON reporter appended
-(`<testCommand> -- --reporter=json`). Vitest emits a Jest-compatible JSON
-document on stdout:
+The adapter invokes the test command with vitest's JSON reporter and an output
+file (`--reporter=json --outputFile=<file>`). Vitest writes a Jest-compatible JSON
+document to that file:
 
 ```jsonc
 {
@@ -50,8 +58,7 @@ document on stdout:
 ```
 
 Parsing rules:
-- stdout may contain non-JSON noise before/after the document; the parser
-  extracts the first balanced `{...}` JSON object and parses that.
+- The document is read from the results file. The legacy stdout parser (`parseVitestJson`) remains exported and tolerates noise around the object.
 - A failing test = an `assertionResults` entry with `status === 'failed'`.
   Its file is `testResults[].name`, name is `title` (or `fullName`), message
   is the joined `failureMessages`.
@@ -127,7 +134,7 @@ Parsing rules:
 **Expected Results:**
 - The pipeline does not throw
 - `result.messages` includes a "could not parse test output" line
-- `result.exitCode` is 7 (a non-zero runner exit with unparseable output means the suite is not known-green)
+- `result.exitCode` is 7, and stays 7 when the runner exited zero (unparseable output is never a pass)
 
 ## Security Notes
 

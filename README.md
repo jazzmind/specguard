@@ -65,7 +65,12 @@ specguard docs [--spec <key>]              # specs → user documentation
 specguard drift                             # detect code changes that outpace specs
 specguard matrix                            # export requirement-to-test traceability
 specguard status                            # show spec coverage across the codebase
+specguard align --all                       # map existing tests to spec scenarios and claims
+specguard results ingest <files...>         # test-runner reports -> proof verdicts (no LLM)
+specguard proof status                      # proven / failed / stale / unproven claims
 ```
+
+Install the CLI with `npm install -g specguard-ai` (the package is `specguard-ai`, the binary is `specguard`), or run any command without installing: `npx -p specguard-ai specguard <command>` (npx can hang offline or under load). `specguard init`/`scaffold` wire the MCP server and the hook to a local binary (`SPECGUARD_CLI`, `node_modules/.bin/specguard`, or a global install) and fall back to npx only when none exists; choose with `--runner node|npx|path` (`--runner-path <file>`). An existing differing MCP entry or hook is never rewritten silently: a diff is printed and `--update-hooks` applies it.
 
 ### MCP Server (`specguard-mcp`)
 
@@ -85,6 +90,9 @@ Available tools:
 | `specguard_drift` | Check for spec drift after a code change |
 | `specguard_matrix` | Export requirement-to-test traceability matrix |
 | `specguard_status` | List spec coverage across the project |
+| `specguard_results_ingest` | Ingest test-runner reports as proof verdicts |
+| `specguard_proof_ingest` | Merge a verdicts file into the proof ledger |
+| `specguard_proof_status` | Proven / failed / stale / unproven claims |
 | `specguard_read_spec` | Read a spec file by key (e.g. `auth/login`) |
 | `specguard_write_spec` | Write or update a spec file |
 
@@ -103,7 +111,7 @@ The parallel agent companion. Placed in `.cursor/skills/specguard/SKILL.md`, it 
 One-click installation that:
 
 1. Runs `specguard init` to scaffold `.specguard/config.json` in the workspace
-2. Installs the CLI binary (via `npm install -g specguard` or binary download)
+2. Uses the bundled CLI, or the one you install with `npm install -g specguard-ai` (it warns when an installed CLI is not the version the extension was built for)
 3. Registers `specguard-mcp` in `.cursor/mcp.json` and VSCode MCP settings
 4. Copies `SKILL.md` into `.cursor/skills/specguard/`
 5. Adds a sidebar panel for spec coverage, drift status, and recent validation reports
@@ -299,7 +307,7 @@ Hybrid analysis combining LLM-powered reasoning with optional SAST (Static Appli
 ```bash
 specguard security --spec auth/login
 specguard security --all
-specguard security --all --with-sast       # enable Semgrep/Bandit integration
+specguard security --all --with-sast       # enable Semgrep + the language's dependency audit
 ```
 
 **LLM-driven analysis:**
@@ -310,11 +318,11 @@ specguard security --all --with-sast       # enable Semgrep/Bandit integration
 - CSRF and XSS surface area from form-based scenarios
 
 **SAST integration (opt-in via `--with-sast` or config):**
-- Runs Semgrep (polyglot) or Bandit (Python) against source files referenced by the spec
+- Runs Semgrep (polyglot) plus the language's dependency audit (`npm audit` or `pip-audit`)
 - Feeds SAST findings into the LLM for contextual analysis against the spec
 - Produces annotated security test stubs that address both LLM-inferred and SAST-detected issues
 
-**Output:** Security test stubs annotated with OWASP category and severity, plus a structured JSON report.
+**Output:** Security test stubs annotated with OWASP category and severity, plus a structured JSON report at `.specguard/security.json`.
 
 ---
 
@@ -538,9 +546,9 @@ Install the **SpecGuard** extension from the VS Code marketplace or Cursor exten
 **Install the CLI:**
 
 ```bash
-npm install -g specguard
-# or
-brew install specguard
+npm install -g specguard-ai        # installs the `specguard` and `specguard-mcp` binaries
+# or run without installing:
+npx -p specguard-ai specguard --help
 ```
 
 **Scaffold config in your repo:**
@@ -572,13 +580,15 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "specguard": {
-      "command": "specguard-mcp",
-      "args": ["--workspace", "${workspaceFolder}"]
+    "specguard-mcp": {
+      "command": "npx",
+      "args": ["-y", "-p", "specguard-ai", "specguard-mcp"]
     }
   }
 }
 ```
+
+(With a global install, `"command": "specguard-mcp"` with no args works too.)
 
 ---
 
@@ -614,7 +624,6 @@ Add to `.cursor/mcp.json`:
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "zap": "docker",
     "testRunner": "local"
   },
@@ -654,18 +663,33 @@ Add to `.cursor/mcp.json`:
 
 ### LLM Provider Options
 
-SpecGuard supports multiple LLM providers. Set the active provider in `llm`, or override per-run:
-
-```bash
-specguard reverse --app my-app --llm ollama    # use local model
-specguard generate --spec auth/login           # uses default (anthropic)
-```
+Set the provider in `llm`. The API key is read from the env var named by `apiKeyEnv`; its value is never logged.
 
 | Provider | Best For | Notes |
 |---|---|---|
 | `anthropic` | Production quality, structured output | Recommended default. Requires API key. |
-| `openai` | Alternative cloud provider | GPT-4o or later. |
-| `ollama` | Local/offline, cost-free iteration | Qwen Coder, DeepSeek Coder, Code Llama. Quality varies. |
+| `openai` | Alternative cloud provider | GPT-4o or later. `OPENAI_BASE_URL` points it at any OpenAI-compatible server. |
+| `litellm` | Local proxy, local models | Talks to `LITELLM_BASE_URL` (default `http://localhost:4000`); a key is optional. |
+| `replay` | CI and tests | Serves recorded responses, offline and deterministic (see below). |
+| `none` | Deterministic-only runs | Every LLM call is refused; `align` runs on claim tags and titles alone. |
+
+```jsonc
+"llm": {
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "apiKeyEnv": "ANTHROPIC_API_KEY",
+  "pipelines": { "align": { "model": "claude-haiku-4-5" } },      // per-pipeline override
+  "fallback": [{ "provider": "openai", "model": "gpt-4o", "apiKeyEnv": "OPENAI_API_KEY" }],
+  "timeoutMs": 120000, "retries": 2, "backoffMs": 1000,           // retries only timeouts, 429, 5xx, resets
+  "budget": { "maxUsd": 5, "maxCalls": 200 },                     // hard cap per run: exit code 8
+  "allowImages": true,                                            // false: validate sends no screenshots
+  "replay": { "dir": ".specguard/replay" }
+}
+```
+
+- **Usage log:** every real call adds tokens, calls and an estimated cost to `.specguard/llm-usage.json` (total, per pipeline, per model). Prices come from a built-in table; override with `llm.pricing`.
+- **Budget:** when `llm.budget` is reached, later calls throw and the command exits with code 8 and says why.
+- **Record and replay:** run once with a real provider and `--record` (for example `specguard align --all --record`); commit `.specguard/replay/`. In CI set `"provider": "replay"` and the same prompts are answered from the recordings. A prompt with no recording fails with its hash instead of calling out.
 
 ### Multi-repo / Monorepo
 
@@ -678,7 +702,7 @@ specguard generate --spec auth/login           # uses default (anthropic)
       "specDir": "specs/web",
       "sources": { "pages": ["src/pages/**/*.tsx"] },
       "framework": "playwright",
-      "baseUrl": "http://localhost:3000"
+      "testOutput": "packages/web/tests/"
     },
     {
       "name": "api",
@@ -693,12 +717,76 @@ specguard generate --spec auth/login           # uses default (anthropic)
       "repo": "services/core",
       "specDir": "specs/core",
       "sources": { "api": ["app/routes/**/*.py"] },
+      "language": "python",
       "framework": "pytest",
       "testOutput": "services/core/tests/"
     }
   ]
 }
 ```
+
+---
+
+## Test Results and Proofs
+
+A spec claim is an acceptance-criteria bullet with a stable id: `- Award is skipped when already earned <!-- claim: award-once -->`. A *proof* is the recorded result of running the tests that cover a claim. No LLM is involved in producing one.
+
+1. **Tag the tests.** Put `@claim:<specKey>#<claimId>` in the test title (or a Playwright tag or annotation). `specguard generate` puts the tag in every test it writes.
+
+   ```ts
+   it('awards once @claim:core/awards#award-once', () => { /* ... */ });
+   test('pays by card', { tag: '@claim:web/checkout#pay-card' }, async ({ page }) => { /* ... */ });
+   ```
+
+2. **Run your tests with a machine-readable reporter** and ingest the files:
+
+   ```bash
+   npx vitest run --reporter=json --outputFile=reports/vitest.json
+   specguard results ingest reports/vitest.json reports/playwright.json reports/junit.xml
+   ```
+
+   Formats: Vitest/Jest JSON, Playwright JSON, JUnit XML (also pytest `--junitxml`, `go-junit-report`, Maven Surefire), pytest-json-report, `go test -json`, `cargo test` JSON. `--format` overrides detection.
+
+3. **Read the verdicts.** Per claim: any failing test gives `failed` (with the failing titles as counterexamples); at least one pass and no failure gives `proven`; only skipped or no tests gives `unexercised`. `specguard proof status` lists them and exits 2 when a claim is failed or stale. A proof goes stale when its spec, a recorded source file, or the lockfiles change.
+
+**Spec keys.** A claim ref is `<specKey>#<claimId>`, where `<specKey>` is the spec's path under `paths.specsRoot` without extension (`specs/api/services/messaging.md` is `api/services/messaging`), whichever app owns it. The ledger, drift registry, `matrix`, `align` and `status` all use that key; old `<app>/<key>` registry entries migrate automatically. At ingest each row records the hashes of the files the spec lists in its `sources:` header (else `module:`), so editing one of them makes exactly those claims stale. `sources` globs (config and header) resolve relative to the app's `repo`; a root-relative pattern is accepted with a one-time warning.
+
+**Partial vs full runs.** A partial ingest only updates the claims present in the files. `--unexercised` (alias `--sweep`) stores `unexercised` for claims absent from every ingested file only with `--full-run` (or when the files already touch every app that has claims), and never downgrades a `proven` claim whose spec and sources still match.
+
+`results ingest` options: `--run-id <id>`, `--unexercised`/`--sweep` and `--full-run` (see above), `--ledger <file>` (default `paths.proofLedger` or `.specguard/proofs.json`; keep a baseline and a patched ledger side by side). `specguard matrix` shows, per claim, the tests that carry its tag.
+
+### Running tests from SpecGuard
+
+Per-app `test` blocks tell `heal` (and your scripts) how to run each app's tests and where the report goes:
+
+```jsonc
+"apps": [{
+  "name": "web", "repo": "packages/web", "framework": "vitest", "specDir": "specs/web", "testOutput": "packages/web/tests/",
+  "test": { "command": "pnpm --filter web test", "reporter": "vitest", "timeoutMs": 300000 }
+}, {
+  "name": "api", "repo": "services/api", "language": "python", "framework": "pytest", "specDir": "specs/api", "testOutput": "services/api/tests/",
+  "test": { "command": "pytest", "cwd": "services/api", "reporter": "pytest" }
+}]
+```
+
+Reporters: `vitest`, `jest`, `playwright`, `pytest` (JUnit XML), `junit` (set `resultsFile` to a glob such as `target/surefire-reports/TEST-*.xml`), `go`, `cargo`. SpecGuard adds the right flags (`--reporter=json --outputFile`, `PLAYWRIGHT_JSON_OUTPUT_NAME`, `--junitxml`) and reads the report file, never stdout. If `resultsFile` is set the command runs exactly as written. With `runners.testRunner: "docker"` and `test.image`, tests run in that image with the repo mounted. `specguard init` writes one app per workspace package in pnpm, Yarn, npm, Nx, Turbo and Lerna monorepos.
+
+`specguard heal` treats a report it cannot read as a failure, runs every app (`--app <name>` for one, `--spec <key>` for one spec's tests), and `--classify-only` classifies failures without ever rewriting a test.
+
+### Plugins and layout
+
+Core SpecGuard is platform-neutral. Platform conventions are plugins named in `config.plugins`; `"plugins": ["practera"]` is the one that ships (see [docs/migration-from-practera.md](docs/migration-from-practera.md)). Layout is configured, not assumed:
+
+```jsonc
+{
+  "plugins": [],
+  "paths": { "specsRoot": "specs", "docsOut": "docs/user", "securityTests": "tests/security", "proofLedger": ".specguard/proofs.json" },
+  "featureState": { "catalog": "catalog", "reporters": [{ "path": "reports/vitest.json" }], "repoChannels": { "web": "ui", "api": "api" } },
+  "apps": [{ "name": "web", "stripPrefix": "src/features/", "entryPoints": ["src/routes.tsx"] /* ... */ }]
+}
+```
+
+A repo never inherits a parent repo's config: the search stops at the repository root. Use `"extends": "../.specguard/config.json"` to inherit on purpose. `.specguard/` run state (activity log, analysis, drift registry, traceability, LLM usage, auth state, evidence) is git-ignored by `specguard init`.
 
 ---
 
@@ -741,7 +829,7 @@ SpecGuard Status — my-app
 
 ## CI Integration
 
-Add to your CI pipeline to gate PRs on spec health:
+The GitHub Action (`jazzmind/specguard`, defined in [`action.yml`](action.yml)) installs `specguard-ai`, runs the gates you choose, writes a job summary, uploads `.specguard/` (without `.env` or saved auth state) as an artifact, and fails the job on the thresholds you set.
 
 ```yaml
 # .github/workflows/specguard.yml
@@ -753,28 +841,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm install -g specguard
+        with: { fetch-depth: 0 }
 
-      - name: Check for spec drift
-        run: specguard drift --since origin/main
+      - run: npm ci && npx vitest run --reporter=json --outputFile=reports/vitest.json || true
 
-      - name: Run security analysis
-        run: specguard security --all --with-sast
-
-      - name: Validate against staging
-        run: specguard validate --all --url ${{ vars.STAGING_URL }}
-
-      - name: Export traceability matrix
-        run: specguard matrix --out traceability.json
-
-      - name: Upload traceability artifact
-        uses: actions/upload-artifact@v4
+      - uses: jazzmind/specguard@v0
         with:
-          name: traceability-matrix
-          path: traceability.json
+          version: latest                     # or an exact version
+          gates: status,drift,proof,results   # also: align, validate, security, deps
+          results: reports/vitest.json        # Vitest/Jest/Playwright JSON, JUnit XML, ...
+          drift-since: origin/${{ github.base_ref }}
+          fail-on: missing-specs,drift,proof-failed,proof-stale,results
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # only drift/align/validate need it
+```
 
-    env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+`fail-on` thresholds: `missing-specs`, `drift`, `proof-failed`, `proof-stale`, `proof-unexercised`, `proof-unproven`, `align-below:<percent>`, `results`, `validate`, `security`, `deps`, `none`. The full reference, a Playwright and a JUnit example, and the replay setup for key-free CI are in [docs/ci.md](docs/ci.md).
+
+Without the action, the same gates are plain commands:
+
+```yaml
+      - run: npx -p specguard-ai specguard results ingest reports/vitest.json --run-id ${{ github.run_id }}
+      - run: npx -p specguard-ai specguard proof status     # exits 2 on failed or stale proofs
+      - run: npx -p specguard-ai specguard drift --since origin/main
 ```
 
 Exit codes follow the [PrintingPress typed-exit convention](https://github.com/mvanhorn/cli-printing-press):
@@ -787,33 +876,25 @@ Exit codes follow the [PrintingPress typed-exit convention](https://github.com/m
 | 3 | Drift detected (specs are stale) |
 | 4 | Missing specs (uncovered features) |
 | 5 | Security issues found |
-| 7 | Heal failed (tests still broken after max retries) |
+| 7 | Heal failed (tests still broken after max retries, or a test report could not be read) |
+| 8 | LLM budget exceeded (`llm.budget`) |
+
+`specguard remediate` has its own exit codes (command-scoped: 8 is also "budget exceeded" for every other command):
+
+| Code | Meaning under `remediate` |
+|---|---|
+| 0 | Nothing to remediate, or every advisory already has a branch/PR |
+| 5 | Security findings present (`--scan-only`, or nothing could be planned automatically) |
+| 8 | Branch/PR produced and the behavior verdict is PRESERVED |
+| 9 | Verdict CHANGED (draft PR, or branch left for review) |
+| 10 | Verdict INCONCLUSIVE |
+| 11 | Baseline not green, or a tool/setup error |
 
 ---
 
-## Relationship to Practera Test Suite
+## Migrating from the original prototype
 
-SpecGuard generalises the approach proven in [practera-test-suite](https://github.com/nickengineer/practera-test-suite):
-
-| Practera Implementation | SpecGuard |
-|---|---|
-| `packages/spec-tools/src/spec-parser.ts` | Core spec parser (same format) |
-| `packages/spec-tools/src/validate.ts` | `specguard validate` |
-| `packages/spec-tools/src/reverse-generate.ts` | `specguard reverse` |
-| `packages/spec-tools/src/doc-generate.ts` | `specguard docs` |
-| `.claude/agents/playwright-test-planner.md` | `specguard generate` (Playwright mode) |
-| `.claude/agents/playwright-test-generator.md` | `specguard generate` (code output) |
-| `.claude/agents/playwright-test-healer.md` | `specguard heal` |
-| Hard-coded `APP_CONFIGS` in reverse-generate.ts | `.specguard/config.json` |
-| Practera-specific `SPECS_DIR` paths | Config-driven `specDir` per app |
-| No external requirements import | `specguard import` |
-| No security pipeline | `specguard security` (LLM + SAST) |
-| No drift detection | `specguard drift` |
-| No traceability export | `specguard matrix` |
-| Manual CLI only | Parallel agent via Cursor Skill |
-| Anthropic-only | Pluggable LLM (Anthropic, OpenAI, Ollama) |
-
-The spec format is **fully compatible**. Any `specs/` directory from the Practera test suite works with SpecGuard out of the box.
+See [docs/migration-from-practera.md](docs/migration-from-practera.md).
 
 ### Patterns Adopted from QA-Agent
 
@@ -857,7 +938,6 @@ SpecGuard separates what it **owns** (brain) from what it **delegates to** (runn
 | Playwright browsers | User runs `npx playwright install` | 400MB+ binary, project-specific version |
 | Test frameworks (Jest, Vitest, pytest) | User's project `devDependencies` | Already in their project |
 | Semgrep binary | Docker container (`semgrep/semgrep:1.78.0`) | Avoid Python dep on host |
-| Bandit | Docker container (`python:3.12-slim` + pip) | Python-only projects |
 | OWASP ZAP | Docker container (`zaproxy/zap-stable`) | Java runtime, heavy |
 | Python itself | Not required unless using native SAST mode | Keep Node-only for most users |
 
@@ -878,7 +958,6 @@ Config controls the strategy per tool:
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "zap": "docker",
     "testRunner": "local"
   }
@@ -958,22 +1037,13 @@ When SpecGuard drives a browser (validation, heal), every action is classified b
 | **Destructive** | Delete, archive, purge, drop, remove | Block, log, flag in report |
 | **Outbound** | Send, invite, share, publish, pay, submit payment | Block, log, flag in report |
 
-Classification is keyword-based on the action's description/label (not LLM-driven — deterministic and fast). This is a safety net, not a permission system: it prevents the most common destructive mistakes without adding latency.
+Classification is deterministic (not LLM-driven): whole-word matching, so `postcode` does not match `post`, and when the target element is known its role and accessible name decide (typing in a text field is safe; a button or link is judged by its own name). Add words with `validate.guardrails.deny` / `allow`; `--allow-outbound` (or `validate.guardrails.allowOutbound`) lets outbound actions run on staging, and destructive actions stay blocked. This is a safety net, not a permission system: it prevents the most common destructive mistakes without adding latency.
 
 Blocked actions appear in the validation/heal report as `BLOCKED` verdicts with the reason.
 
 ### CI / GitHub Actions
 
-A GitHub Action (`specguard/action@v1`) handles environment setup:
-
-```yaml
-- uses: specguard/action@v1
-  with:
-    scanners: semgrep,bandit    # pulls Docker images, caches layers
-    playwright: true             # installs browsers
-```
-
-This avoids every CI workflow needing to manually configure Docker pulls and Playwright installs.
+The action in this repository (`jazzmind/specguard`) sets up Node, installs the CLI, runs the gates and uploads the evidence; see [CI Integration](#ci-integration) and [docs/ci.md](docs/ci.md). Docker and Playwright are only needed for the SAST and `validate` gates; set `install-playwright: true` for `validate`.
 
 ### Environment Requirements Summary
 
@@ -993,11 +1063,22 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 
 **No agent framework middleware.** No LangGraph, CrewAI, or AutoGen. Direct LLM calls via ai-sdk (Vercel AI SDK) with `generateObject`/`generateText`. The orchestration happens in the Cursor Skill, not in a framework. Keeps the dependency tree minimal and the code debuggable.
 
-**No git/PR management built in.** SpecGuard generates artifacts (specs, tests, docs, reports). It does not create branches or raise PRs — that's the coding agent's job. Clean separation of concerns.
+**No git/PR management built in, with one opt-in exception.** SpecGuard generates artifacts (specs, tests, docs, reports). It does not create branches or raise PRs — that's the coding agent's job. The single exception is `specguard remediate`: it patches a vulnerable dependency or code issue in a temporary git worktree, runs your tests before and after, and commits on a `specguard/remediate/<id>` branch. It pushes and opens a PR (via `gh`) only when you pass `--pr`, and it never merges: humans always merge. See [docs/ci-remediate.md](docs/ci-remediate.md).
+
+### `specguard remediate`
+
+```bash
+specguard remediate --scan-only --json          # detect only (ecosystem audit + OSV, Semgrep, gitleaks); exit 5 if findings
+specguard remediate --dry-run                   # whole loop in a throwaway worktree, nothing left behind
+specguard remediate --pr                        # branch + push + gh pr create (draft unless PRESERVED)
+specguard remediate --advisory GHSA-xxxx --min-severity critical --allow-major --ledger .specguard/proofs.json
+```
+
+The verdict is PRESERVED only when no baseline-passing test fails or disappears, no proven claim drops, claim and test counts do not fall, the advisory is gone, nothing new at or above the threshold appeared, build and typecheck are green, and (for dependency bumps) the proofs went stale through the dependency fingerprint and were re-proven. Otherwise CHANGED (with the exact differing tests and claims) or INCONCLUSIVE (flaky tests, unparseable output, coverage gaps). `heal` never rewrites a test during remediation. Evidence lands in `.specguard/remediation/<runId>.json` plus baseline and patched proof ledgers. Suppress known advisories in `.specguard/vuln-ignore.json` (entries expire). Over MCP only `scan-only` and `dry-run` are available.
 
 **Hybrid security: LLM + SAST.** Pure LLM security analysis misses things scanners catch (regex-based CVE patterns, known-vulnerable dependency versions). Pure SAST misses semantic issues (is this auth check actually protecting the right resource?). The hybrid feeds SAST findings into the LLM for contextual reasoning against the spec.
 
-**Native brain, containerised scanners.** The CLI itself is pure TypeScript/Node — zero Python, Java, or Go required on the host. Heavyweight tools (Semgrep, Bandit, ZAP) run in pinned Docker containers with SpecGuard's custom rules mounted as volumes. This gives reproducibility without polluting the host environment. Playwright is the exception — it's Node-native and runs locally for speed.
+**Native brain, containerised scanners.** The CLI itself is pure TypeScript/Node — zero Python, Java, or Go required on the host. Heavyweight tools (Semgrep, ZAP) run in pinned Docker containers with SpecGuard's custom rules mounted as volumes. This gives reproducibility without polluting the host environment. Playwright is the exception — it's Node-native and runs locally for speed.
 
 **Security rules as portable data.** SpecGuard ships custom Semgrep rulesets as YAML files, not as scanner binaries. The rules are spec-aware (they reference spec metadata like `auth:` scopes and scenario inputs). This means the security intelligence is in the rules + LLM reasoning, not in a proprietary scanner.
 
@@ -1039,7 +1120,6 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 - [ ] Custom Semgrep rulesets: data-exposure
 - [ ] Custom Semgrep rulesets: xss-surface
 - [ ] OWASP Top 10 → spec section mapping (JSON)
-- [ ] SAST: Bandit adapter (Python projects)
 - [ ] SAST: npm audit adapter (Node projects)
 - [ ] SAST: OWASP ZAP adapter (dynamic scanning)
 
@@ -1057,7 +1137,7 @@ This avoids every CI workflow needing to manually configure Docker pulls and Pla
 
 ## Contributing
 
-This project is in active development. The core pipelines are extracted from production use in the Practera test suite and are being generalised here. PRs welcome — especially:
+This project is in active development. The core pipelines were extracted from production use and generalised. PRs welcome — especially:
 
 - Framework adapters for test generation (pytest, JUnit, Cypress)
 - SAST tool integrations beyond Semgrep

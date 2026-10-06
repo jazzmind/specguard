@@ -24,6 +24,15 @@ the provider from config, and resolves the API key from the environment.
 - [ ] An unknown provider throws `SpecGuardError`
 - [ ] `resolveModel(provider, model, apiKeyEnv)` is exported so the missing-key path is unit-testable
 - [ ] No `console.log` (or any logger) ever receives the resolved API key value
+- [ ] `llm.pipelines.<name>` overrides provider, model, key env and fallback for one pipeline; the pipeline name comes from the CLI command or MCP tool that is running <!-- claim: per-pipeline-override -->
+- [ ] `llm.fallback` is an ordered chain tried after the primary target has failed all its attempts; a budget or disabled-LLM error never triggers it <!-- claim: fallback-chain -->
+- [ ] Each attempt has a timeout (`llm.timeoutMs`, default 120000); retryable failures (timeouts, 429, 5xx, network resets) are retried `llm.retries` times (default 2) with exponential backoff and jitter; auth, validation and missing-key errors are not retried <!-- claim: timeout-retry -->
+- [ ] Every real call adds tokens, call count and an estimated cost to `.specguard/llm-usage.json`, in total, per pipeline and per model; pricing comes from a built-in table and `llm.pricing` overrides it <!-- claim: usage-log -->
+- [ ] `llm.budget` (`maxUsd`, `maxTokens`, `maxCalls`) is a hard cap on one process run: once spent or projected spend crosses it, every later call throws `LlmBudgetExceededError`, and the CLI exits with code 8 and says why <!-- claim: budget-cap -->
+- [ ] `provider: "replay"` serves recorded responses keyed by a hash of the prompt, system text and image bytes, makes no network call, and a miss throws an error that names the hash and says how to record <!-- claim: replay-provider -->
+- [ ] `--record` (or `llm.replay.record`) writes every real response to the replay directory (default `.specguard/replay`) so a later `provider: "replay"` run reproduces it <!-- claim: record-mode -->
+- [ ] `provider: "none"` makes every call throw `LlmDisabledError` without touching the network, and `align` runs deterministic-only under it <!-- claim: provider-none -->
+- [ ] `llm.allowImages: false` rejects a call that carries images <!-- claim: allow-images -->
 
 ## Scenarios
 

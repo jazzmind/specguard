@@ -7,7 +7,6 @@
  *
  * Replaces the manual "run drift in both repos" workflow from AGENTS.md.
  */
-import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';

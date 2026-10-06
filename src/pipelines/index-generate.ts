@@ -1,8 +1,8 @@
 /**
  * Index pipeline — generates/updates `specs/index.md` from the source tree.
  *
- * On first run, scans `App.tsx` (or equivalent routing entry point) for route
- * definitions, then walks the spec tree to produce an architecture overview.
+ * On first run, scans the routing entry points of the app's framework (or its
+ * `entryPoints`) for route or endpoint definitions, then walks the spec tree to produce an architecture overview.
  * On subsequent runs it rebuilds the route map and spec tree links while
  * preserving the manually-authored overview sections.
  *
@@ -15,6 +15,7 @@ import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { llmGenerateObject } from '../core/llm.js';
+import { detectFramework, readEntryPoints, type FrameworkProfile } from '../core/framework-profiles.js';
 
 export interface IndexOpts {
   /** App name to generate the index for (defaults to first app or inferred from directory). */
@@ -51,35 +52,20 @@ function collectSpecFiles(
   return results;
 }
 
-/** Read source file for routing info (best effort) */
-function readRoutingSource(repoDir: string): string {
-  const candidates = [
-    'src/App.tsx', 'src/App.ts', 'src/app.tsx', 'src/app.ts',
-    'src/router.tsx', 'src/router.ts',
-    'src/main.tsx', 'src/main.ts',
-    'pages/_app.tsx', 'app/layout.tsx',
-  ];
-  for (const c of candidates) {
-    const full = path.join(repoDir, c);
-    if (fs.existsSync(full)) return fs.readFileSync(full, 'utf-8');
-  }
-  return '';
-}
-
 const IndexSchema = z.object({
-  title: z.string().describe('Short title for the system (e.g. "Practera Admin App")'),
+  title: z.string().describe('Short title for the system (e.g. "Acme Admin App")'),
   overview: z.string().describe('2-4 sentences describing what the app does, its tech stack, and main users'),
   dataFlow: z.string().describe('1-3 sentence description of the data flow (auth, API calls, integrations)'),
-  contextTree: z.string().optional().describe('If the source shows React context providers, describe the provider tree in a code block'),
+  contextTree: z.string().optional().describe('If the source shows a provider, middleware, or dependency-injection tree, describe it in a code block'),
   routeGroups: z.array(z.object({
-    name: z.string().describe('Group name (e.g. Core, Deliver, Setup, Public)'),
+    name: z.string().describe('Group name (e.g. Core, Admin, Public)'),
     description: z.string().describe('One sentence describing what this group covers'),
     routes: z.array(z.object({
       path: z.string(),
       component: z.string(),
       note: z.string().optional(),
     })),
-  })).describe('Routes grouped by functional area'),
+  })).describe('Routes or endpoints grouped by functional area'),
   redirects: z.array(z.object({
     from: z.string(),
     to: z.string(),
@@ -121,7 +107,7 @@ export async function runIndex(
   const allSpecDirs = [...new Set(config.apps.map((a) => resolveFromRoot(config, a.specDir)))];
   const rootSpecDir = allSpecDirs.length === 1
     ? allSpecDirs[0]
-    : path.join(repoDir, 'specs');
+    : path.join(repoDir, config.paths?.specsRoot ?? 'specs');
   const indexPath = path.join(rootSpecDir, 'index.md');
 
   if (fs.existsSync(indexPath) && !opts.force) {
@@ -136,8 +122,9 @@ export async function runIndex(
   log(`[index] found ${specFiles.length} spec files`);
 
   // Read routing source
-  log('[index] reading routing source…');
-  const routingSource = readRoutingSource(repoDir);
+  const framework = detectFramework(repoDir, primaryApp);
+  log(`[index] reading ${framework.surface} source (${framework.label})…`);
+  const entries = await readEntryPoints(repoDir, framework, primaryApp);
 
   // Read package.json for metadata
   let pkgName = path.basename(repoDir);
@@ -150,23 +137,7 @@ export async function runIndex(
 
   // LLM-generate the architecture overview
   log('[index] generating architecture overview with LLM…');
-  const prompt = [
-    `You are analysing a frontend application codebase to produce an architecture index.`,
-    '',
-    `Package: ${pkgName}`,
-    pkgDescription ? `Description: ${pkgDescription}` : '',
-    '',
-    `Spec tree (first 80 files):`,
-    specFiles.slice(0, 80).map((f) => `  ${f}`).join('\n'),
-    '',
-    routingSource
-      ? `Routing source (${path.basename(repoDir)}/src/App.tsx excerpt):\n\`\`\`tsx\n${routingSource.slice(0, 4000)}\n\`\`\``
-      : '',
-    '',
-    `Extract the route groups, individual routes, redirects, and architecture overview.`,
-    `Group routes by functional area (e.g. "Core", "Deliver", "Setup", "Public").`,
-    `For each route, extract the path and component name from the source.`,
-  ].filter(Boolean).join('\n');
+  const prompt = buildIndexPrompt(pkgName, pkgDescription, specFiles, entries, framework);
 
   let analysis: z.infer<typeof IndexSchema>;
   try {
@@ -190,12 +161,41 @@ export async function runIndex(
   }
 
   // Render the index.md
-  const rendered = renderIndex(analysis, specFiles, config, repoDir, rootSpecDir);
+  const rendered = renderIndex(analysis, specFiles, config, repoDir);
   fs.mkdirSync(path.dirname(indexPath), { recursive: true });
   fs.writeFileSync(indexPath, rendered, 'utf-8');
   log(`[index] wrote ${path.relative(cwd, indexPath)}`);
   result.exitCode = ExitCode.Success;
   return result;
+}
+
+/** The index prompt. Names the surface and fence language from the framework profile; assumes no frontend. */
+export function buildIndexPrompt(
+  pkgName: string,
+  pkgDescription: string,
+  specFiles: string[],
+  entries: Array<{ file: string; source: string }>,
+  framework: FrameworkProfile,
+): string {
+  const noun = framework.surface === 'routes' ? 'routes' : 'endpoints';
+  const source = entries
+    .map((e) => `Entry point ${e.file}:\n\`\`\`${framework.fence}\n${e.source}\n\`\`\``)
+    .join('\n\n');
+  return [
+    `You are analysing a ${framework.label} codebase to produce an architecture index.`,
+    '',
+    `Package: ${pkgName}`,
+    pkgDescription ? `Description: ${pkgDescription}` : '',
+    '',
+    `Spec tree (first 80 files):`,
+    specFiles.slice(0, 80).map((f) => `  ${f}`).join('\n'),
+    '',
+    source,
+    '',
+    `Extract the ${noun}, redirects or aliases, and an architecture overview. ${framework.hint}`,
+    `Group the ${noun} by functional area (for example by domain or module).`,
+    `For each one, extract the path and the handler or component name from the source.`,
+  ].filter(Boolean).join('\n');
 }
 
 function buildSkeletonIndex(
@@ -228,7 +228,6 @@ function renderIndex(
   specFiles: string[],
   config: SpecGuardConfig,
   repoDir: string,
-  rootSpecDir: string,
 ): string {
   const now = new Date().toISOString().slice(0, 10);
   const lines: string[] = [
@@ -277,7 +276,7 @@ function renderIndex(
   for (const app of config.apps) {
     const specDirRel = path.relative(repoDir, resolveFromRoot(config, app.specDir)).split(path.sep).join('/');
     const count = specFiles.filter((f) => {
-      const specDirBase = specDirRel.replace(/^specs\//, '');
+      const specDirBase = specDirRel.replace(new RegExp(`^${(config.paths?.specsRoot ?? 'specs').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`), '');
       return specDirBase === '.'
         ? !f.includes('/')
         : f.startsWith(specDirBase + '/') || f.startsWith(specDirBase + '\\');

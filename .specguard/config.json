@@ -1,101 +1,152 @@
 {
-  "_comment": "SpecGuard configured to build SpecGuard — metacircular bootstrap",
+  "_comment": "SpecGuard configured to build SpecGuard \u2014 metacircular bootstrap",
   "apps": [
     {
       "name": "specguard-core",
       "repo": ".",
       "specDir": "specs/core",
       "sources": {
-        "api": ["src/core/**/*.ts"],
-        "tests": ["tests/core/**/*.test.ts"]
+        "api": [
+          "src/core/**/*.ts"
+        ],
+        "tests": [
+          "tests/core/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "tests/core/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "reporter": "vitest"
+      }
     },
     {
       "name": "specguard-pipelines",
       "repo": ".",
       "specDir": "specs/pipelines",
       "sources": {
-        "api": ["src/pipelines/**/*.ts"],
-        "tests": ["tests/pipelines/**/*.test.ts"]
+        "api": [
+          "src/pipelines/**/*.ts"
+        ],
+        "tests": [
+          "tests/pipelines/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "tests/pipelines/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "reporter": "vitest"
+      }
     },
     {
       "name": "specguard-adapters",
       "repo": ".",
       "specDir": "specs/adapters",
       "sources": {
-        "api": ["src/adapters/**/*.ts"],
-        "tests": ["tests/adapters/**/*.test.ts"]
+        "api": [
+          "src/adapters/**/*.ts"
+        ],
+        "tests": [
+          "tests/adapters/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "tests/adapters/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "reporter": "vitest"
+      }
     },
     {
       "name": "specguard-cli",
       "repo": ".",
       "specDir": "specs/cli",
       "sources": {
-        "api": ["src/cli/**/*.ts"],
-        "tests": ["tests/cli/**/*.test.ts"]
+        "api": [
+          "src/cli/**/*.ts"
+        ],
+        "tests": [
+          "tests/cli/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "tests/cli/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "reporter": "vitest"
+      }
     },
     {
       "name": "specguard-mcp",
       "repo": ".",
       "specDir": "specs/mcp",
       "sources": {
-        "api": ["src/mcp/**/*.ts"],
-        "tests": ["tests/mcp/**/*.test.ts"]
+        "api": [
+          "src/mcp/**/*.ts"
+        ],
+        "tests": [
+          "tests/mcp/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "tests/mcp/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "reporter": "vitest"
+      }
     },
     {
       "name": "specguard-extension",
       "repo": ".",
       "specDir": "specs/extension",
       "sources": {
-        "api": ["extension/src/**/*.ts"],
-        "tests": ["extension/src/**/*.test.ts"]
+        "api": [
+          "extension/src/**/*.ts"
+        ],
+        "tests": [
+          "extension/src/**/*.test.ts"
+        ]
       },
       "framework": "vitest",
       "testOutput": "extension/src/",
       "security": {
         "enabled": false
       },
-      "docs": false
+      "docs": false,
+      "test": {
+        "command": "node ../node_modules/vitest/vitest.mjs run",
+        "cwd": "extension",
+        "reporter": "vitest"
+      },
+      "exclude": [
+        "extension/src/**/*.test.ts"
+      ]
     }
   ],
   "runners": {
     "playwright": "local",
     "semgrep": "docker",
-    "bandit": "auto",
     "testRunner": "local"
   },
   "llm": {
@@ -105,7 +156,10 @@
   },
   "triggers": {
     "onPlanPhase": true,
-    "onSecurityFiles": ["**/auth/**", "**/middleware/**"],
+    "onSecurityFiles": [
+      "**/auth/**",
+      "**/middleware/**"
+    ],
     "onPR": true,
     "healAfterGenerate": false
   },

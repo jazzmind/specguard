@@ -140,13 +140,14 @@ export async function runCodeQuality(
       continue;
     }
 
+    if (opts.fix && canLint) log(`[quality] ${app.name}: --fix applies ${lintRunner} auto-fixes in place; remaining findings follow`);
     log(`[quality] ${app.name}: running ${canLint ? lintRunner : ''}${canLint && canKnip ? ' + ' : ''}${canKnip ? 'knip' : ''} in ${repoAbs}`);
 
     const [eslintResult, knipResult] = await Promise.all([
       lintRunner === 'eslint'
-        ? runEslint(repoAbs)
+        ? runEslint(repoAbs, { fix: opts.fix })
         : lintRunner === 'ruff'
-          ? runRuff(repoAbs)
+          ? runRuff(repoAbs, { fix: opts.fix })
           : Promise.resolve({ ok: false, errorCount: 0, warningCount: 0, findings: [] as EslintFinding[] }),
       canKnip ? runKnip(repoAbs) : Promise.resolve({ ok: false, findings: [] as KnipFinding[] }),
     ]);
@@ -194,6 +195,8 @@ export async function runCodeQuality(
   result.messages.push(`[quality] total: ${totalErrors} error(s), ${totalWarnings} warning(s), ${allFindings.length} finding(s)`);
 
   result.created = allFindings.length;
+  // `analyze` reads `failed` as the issue count; without this its quality recommendation could never fire.
+  result.failed = allFindings.length;
 
   // Fail gate: non-zero exit if there are ESLint errors
   if (totalErrors > 0) {

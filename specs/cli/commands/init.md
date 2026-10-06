@@ -4,18 +4,22 @@
 
 ## Overview
 
-The `specguard init` command bootstraps a new SpecGuard workspace by creating the `.specguard/config.json` configuration file, a `specs/README.md` living-specification directory, a `.specguard/.env` placeholder for the LLM API key, and a `.specguard/drift-registry.json` registry file. It never overwrites files that already exist, reporting each path as either `created` or `skipped`. The command auto-detects the test framework (`playwright` > `jest` > `vitest`) from the nearest `package.json` dependencies, with an explicit `--withPlaywright` flag available to force Playwright regardless of detection. After scaffolding, it appends `.specguard/.env` to `.gitignore` on a best-effort basis to prevent accidental credential commits, then prints next-step instructions and exits.
+The `specguard init` command bootstraps a new SpecGuard workspace by creating the `.specguard/config.json` configuration file, a `specs/README.md` living-specification directory, and a `.specguard/.env` placeholder for the LLM API key. It never overwrites files that already exist, reporting each path as either `created` or `skipped`. The command auto-detects the test framework (`playwright` > `jest` > `vitest`) from the nearest `package.json` dependencies, with an explicit `--withPlaywright` flag available to force Playwright regardless of detection. After scaffolding, it writes a managed block to `.gitignore` that ignores the `.env` file and generated run state (activity log, analysis, code quality, dependency check, gaps, alignment, traceability, contracts, drift registry, LLM usage, auth state, evidence) on a best-effort basis, and tells the user how to untrack any of those files git already tracks, then prints next-step instructions and exits.
 
 ## Acceptance Criteria
 
-- AC-1: Running `specguard init` in a clean directory creates `.specguard/config.json`, `specs/README.md`, `.specguard/.env`, and `.specguard/drift-registry.json`.
-- AC-2: Re-running `specguard init` in a directory where those files already exist skips all four files without modifying them.
+- AC-1: Running `specguard init` in a clean directory creates `.specguard/config.json`, `specs/README.md`, and `.specguard/.env`.
+- AC-2: Re-running `specguard init` in a directory where those files already exist skips all three files without modifying them.
 - AC-3: The detected framework is reflected in `config.json` (`framework` field and `heal.testCommand`).
 - AC-4: When `opts.withPlaywright` is `true`, the framework is forced to `playwright` regardless of `package.json` contents.
 - AC-5: Framework detection priority is: `@playwright/test` or `playwright` → `jest` → `vitest`; falls back to `vitest` when `package.json` is absent or malformed.
 - AC-6: `.specguard/.env` contains only a placeholder value for `ANTHROPIC_API_KEY`; no real secret is written.
-- AC-7: `.specguard/.env` is appended to `.gitignore` if the entry is not already present; the existing `.gitignore` content is preserved.
-- AC-8: `drift-registry.json` is initialised with the content `{}\n`.
+- AC-7: `.gitignore` gets a managed block (`# specguard:generated-state:start` … `end`) listing `.specguard/.env` and the generated run state; existing `.gitignore` content outside the block is preserved and a second run changes nothing. <!-- claim: ignore-block -->
+- AC-8: `init` does not create `drift-registry.json` (the drift pipeline owns it, and it is git-ignored). Config, rules, plans, replay recordings, and the proof ledger are not ignored. <!-- claim: no-registry-seed -->
+- AC-12: In a pnpm, Yarn, npm, Nx, or Turbo workspace `init` writes one app per package (see `specs/core/monorepo.md`); `--single` writes one app for the whole repo. <!-- claim: workspace-apps -->
+- AC-11: When git already tracks generated state files, `init` prints the `git rm --cached` command that untracks them. <!-- claim: untrack-hint -->
+- AC-13: `init --runner node|npx|path` chooses how the generated MCP command and hook invoke SpecGuard. With no flag it uses a resolved local binary (`SPECGUARD_CLI`, then `node_modules/.bin/specguard`, then a global `specguard` on PATH) and falls back to `npx -p specguard-ai specguard` only when none exists, with a comment saying why. `--runner path` takes `--runner-path <file>`. <!-- claim: runner-resolution -->
+- AC-14: `init` never rewrites an existing user hook or MCP entry silently: when the generated command differs it prints a diff and leaves the file alone unless `--update-hooks` is given. <!-- claim: no-silent-hook-rewrite -->
 - AC-9: stdout reports the detected framework, each `created` path, each `skipped` path, and next-step instructions.
 - AC-10: The process exits with code `0` after successful execution.
 
@@ -31,9 +35,8 @@ The `specguard init` command bootstraps a new SpecGuard workspace by creating th
 - `.specguard/config.json` is created with `framework` set to `"vitest"` and `heal.testCommand` set to `"npm test"`.
 - `specs/README.md` is created and contains the heading `# Living Specifications`.
 - `.specguard/.env` is created and contains the line `ANTHROPIC_API_KEY=your-api-key-here` (placeholder only — no real key).
-- `.specguard/drift-registry.json` is created with content `{}\n`.
 - `.gitignore` is created and contains `.specguard/.env`.
-- stdout includes `framework: vitest`, four `created` lines, and the next-steps block.
+- stdout includes `framework: vitest`, three `created` lines, and the next-steps block.
 - Process exits with code `0`.
 
 ### Scenario 2: Framework auto-detection — Playwright wins
@@ -72,14 +75,14 @@ The `specguard init` command bootstraps a new SpecGuard workspace by creating th
 ### Scenario 5: All files already exist — nothing overwritten
 
 **Steps:**
-1. Set `cwd` to a temporary directory that already contains `.specguard/config.json`, `specs/README.md`, `.specguard/.env`, and `.specguard/drift-registry.json`, each with distinct sentinel content.
+1. Set `cwd` to a temporary directory that already contains `.specguard/config.json`, `specs/README.md`, and `.specguard/.env`, each with distinct sentinel content.
 2. Record the content of each file before calling `initCommand({})`.
 3. Call `initCommand({})`.
 4. Read the content of each file after the call.
 
 **Expected Results:**
 - The content of each file is identical to the sentinel content recorded in step 2 (no overwrite occurred).
-- stdout contains four `skipped` lines, one for each file path.
+- stdout contains three `skipped` lines, one for each file path.
 - No `created` lines appear in stdout.
 - Process exits with code `0`.
 

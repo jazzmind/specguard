@@ -32,7 +32,7 @@ The primary use case is: before or after changing a provider spec (e.g. a GraphQ
 **Expected Results:**
 - Output lists all admin-app specs that depend on the designer mutation spec
 - Surface items (mutation names) are shown for each edge
-- Suggested actions include `cd practera-admin-app && specguard drift --spec setup/designer`
+- Suggested actions include `cd admin-app && specguard drift --spec setup/designer`
 
 ### Scenario 2: No consumers
 **Steps:**

@@ -8,10 +8,12 @@ on:
 
 jobs:
   cli:
-    name: CLI — lint + test
+    name: CLI — typecheck, lint, test, build, dogfood
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -21,17 +23,30 @@ jobs:
       - run: npm ci
 
       - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (ESLint)
         run: npm run lint
 
       - name: Tests
         run: npm test
 
+      - name: Build
+        run: npm run build
+
+      # SpecGuard checks itself with the action in this repository.
+      - name: Dogfood — SpecGuard on SpecGuard
+        uses: ./
+        with:
+          version: local
+          gates: status,proof
+          # `missing-specs` stays off until every source file has a spec; proofs must never be failed or stale.
+          fail-on: proof-failed,proof-stale
+          artifact-name: specguard-self-check
+
   extension:
-    name: Extension — lint + build
+    name: Extension — typecheck, lint, test, build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: extension
     steps:
       - uses: actions/checkout@v4
 
@@ -39,15 +54,35 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: extension/package-lock.json
 
-      - run: npm ci
+      - name: CLI dependencies (the extension bundles the CLI source)
+        run: npm ci
 
-      - name: Install webview deps
-        run: npm --prefix webview install
-
-      - name: Typecheck host
+      - name: Lint (ESLint, repo-wide config)
         run: npm run lint
 
-      - name: Build (verifies everything compiles)
+      - name: Extension dependencies
+        working-directory: extension
+        run: |
+          npm ci
+          npm --prefix webview install
+
+      - name: Typecheck host
+        working-directory: extension
+        run: npm run lint
+
+      - name: Tests
+        working-directory: extension
+        run: npm test
+
+      - name: Build (verifies everything bundles)
+        working-directory: extension
         run: npm run build
+
+      - name: The bundled CLI reports the CLI version
+        working-directory: extension
+        run: |
+          EXPECTED=$(node -p "require('../package.json').version")
+          ACTUAL=$(node dist/cli.js --version)
+          test "$ACTUAL" = "$EXPECTED" || { echo "::error::bundled CLI reports $ACTUAL, expected $EXPECTED"; exit 1; }
+          node dist/cli.js --version --json

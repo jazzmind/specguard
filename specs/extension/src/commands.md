@@ -4,7 +4,7 @@
 
 ## Overview
 
-This module registers all VS Code command handlers for the SpecGuard extension. Commands cover the full SpecGuard workflow: initialising a project, checking coverage status, detecting spec drift, generating tests, running security scans, switching the active workspace project, refreshing the coverage sidebar, registering the MCP integration for Cursor, and opening the dashboard panel. Each command resolves the active workspace root before acting and surfaces results either through VS Code information/error messages or by spawning a terminal. The CLI path used by commands is resolved from a user-configurable setting, a local `node_modules/.bin/specguard` binary, or falls back to `npx specguard`.
+This module registers all VS Code command handlers for the SpecGuard extension. Commands cover the full SpecGuard workflow: initialising a project, checking coverage status, detecting spec drift, generating tests, running security scans, switching the active workspace project, refreshing the coverage sidebar, registering the MCP integration for Cursor, and opening the dashboard panel. Each command resolves the active workspace root before acting and surfaces results either through VS Code information/error messages or by spawning a terminal. The CLI path used by commands is resolved from a user-configurable setting, a local `node_modules/.bin/specguard` binary, or falls back to `npx -p specguard-ai specguard`.
 
 ## Acceptance Criteria
 
@@ -15,7 +15,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 5. `specguard.generateTests` accepts an optional URI; when a URI is provided the spec key is derived from the file path relative to the workspace `specs/` directory; when no URI is provided the user is prompted for a spec key or may leave it blank to generate for all specs.
 6. `specguard.securityScan` accepts an optional URI and derives the spec key the same way as `generateTests`; omitting a URI runs the scan across all specs.
 7. `specguard.switchProject` prompts the user to pick a workspace root, sets it as active, refreshes coverage, shows a confirmation message with the folder name, and reopens the dashboard panel.
-8. CLI path resolution honours the `specguard.cliPath` configuration setting; if unset it prefers a local `node_modules/.bin/specguard` binary and falls back to `npx specguard`.
+8. CLI path resolution honours the `specguard.cliPath` configuration setting; if unset it prefers a local `node_modules/.bin/specguard` binary and falls back to `npx -p specguard-ai specguard`.
 9. No secret values (API keys, tokens, credentials) are passed through or logged by any command.
 
 ## Scenarios
@@ -101,7 +101,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Drift` is created with its working directory set to the active workspace root.
-- The command `npx specguard drift` is sent to the terminal.
+- The command `npx -p specguard-ai specguard drift` is sent to the terminal.
 - The terminal is shown.
 
 ### Scenario 8: Generate tests with a URI (spec file selected)
@@ -114,7 +114,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 **Expected Results:**
 - No input box is shown.
 - A terminal named `SpecGuard Generate` is created.
-- The command `npx specguard generate --spec core/parser` is sent to the terminal.
+- The command `npx -p specguard-ai specguard generate --spec core/parser` is sent to the terminal.
 
 ### Scenario 9: Generate tests without URI – user enters spec key
 
@@ -126,7 +126,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Generate` is created.
-- The command `npx specguard generate --spec auth/login` is sent to the terminal.
+- The command `npx -p specguard-ai specguard generate --spec auth/login` is sent to the terminal.
 
 ### Scenario 10: Generate tests without URI – user leaves input blank
 
@@ -138,7 +138,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Generate` is created.
-- The command `npx specguard generate --all` is sent to the terminal.
+- The command `npx -p specguard-ai specguard generate --all` is sent to the terminal.
 
 ### Scenario 11: Security scan with a URI
 
@@ -149,7 +149,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Security` is created.
-- The command `npx specguard security --spec payments/checkout` is sent to the terminal.
+- The command `npx -p specguard-ai specguard security --spec payments/checkout` is sent to the terminal.
 
 ### Scenario 12: Security scan without URI runs across all specs
 
@@ -160,7 +160,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Security` is created.
-- The command `npx specguard security --all` is sent to the terminal.
+- The command `npx -p specguard-ai specguard security --all` is sent to the terminal.
 
 ### Scenario 13: Refresh coverage command
 
@@ -187,7 +187,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 3. Observe the command sent to the terminal.
 
 **Expected Results:**
-- The terminal receives the custom path value followed by ` init`, not `npx specguard init`.
+- The terminal receives the custom path value followed by ` init`, not `npx -p specguard-ai specguard init`.
 
 ### Scenario 16: CLI path resolution – falls back to npx when local binary absent
 
@@ -197,7 +197,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 3. Observe the command sent to the terminal.
 
 **Expected Results:**
-- The terminal receives `npx specguard init`.
+- The terminal receives `npx -p specguard-ai specguard init`.
 
 ### Scenario 17: URI outside specs directory yields no spec key
 
@@ -208,7 +208,7 @@ This module registers all VS Code command handlers for the SpecGuard extension. 
 
 **Expected Results:**
 - A terminal named `SpecGuard Generate` is created.
-- The command `npx specguard generate --all` is sent to the terminal (spec key is undefined, so `--all` is used).
+- The command `npx -p specguard-ai specguard generate --all` is sent to the terminal (spec key is undefined, so `--all` is used).
 
 ## Security Notes
 

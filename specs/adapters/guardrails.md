@@ -27,6 +27,10 @@ Blocked actions appear in pipeline reports as `BLOCKED` verdicts with the reason
 - When no keywords match, returns `'safe'`.
 - `isBlocked(classification)` returns `true` for `destructive` and `outbound`, `false` for `safe`.
 - `makeBlockedAction(description, classification)` returns a `BlockedAction` with the description, classification, and reason string.
+- [ ] Matching is by whole word with simple inflections, so `postcode` and `poster` do not match `post` while `deleted` matches `delete` <!-- claim: word-boundary -->
+- [ ] When the action target is known, a text-entry field is safe and an activating control (button, link, menu item, submit input) is judged by its accessible name instead of the free-text description <!-- claim: target-role-name -->
+- [ ] `policy.deny` always blocks as destructive and `policy.allow` always permits, overriding the built-in lists <!-- claim: policy-lists -->
+- [ ] `isBlocked` does not block outbound actions when `policy.allowOutbound` is true, and always blocks destructive ones <!-- claim: allow-outbound-policy -->
 
 ## Scenarios
 
