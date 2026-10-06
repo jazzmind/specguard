@@ -35,6 +35,7 @@ import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { fileExists, expandGlobs } from '../core/reader.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { noteStaleProofs } from './proof.js';
 import {
@@ -180,7 +181,7 @@ async function runMtimeDrift(
     }
     if (!patterns.length) continue;
 
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
     const inScope = changedAbs ? allSources.filter((abs) => changedAbs.has(abs)) : allSources;
 
     for (const absFile of inScope) {
@@ -320,7 +321,7 @@ export async function runDrift(
       if (Array.isArray(globs)) patterns.push(...globs);
     }
     if (!patterns.length) continue;
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
 
     for (const { key, local, specPath, criteria } of specFiles) {
       if (opts.spec && opts.spec !== key && opts.spec !== `${app.name}/${local}`) continue;
@@ -513,7 +514,7 @@ export async function detectOrphans(
 
     // Build the feature set AND the "domain" (set of first-path-segment prefixes this app covers)
     let allSources: string[] = [];
-    try { allSources = await expandGlobs(patterns, repoDir); } catch { continue; }
+    try { allSources = await expandAppGlobs(config, app, patterns); } catch { continue; }
     const featureSet = new Set(allSources.map((abs) => deriveFeature(abs, repoDir, app)));
 
     // Domain filtering: only flag orphans for specs whose first-segment prefix
@@ -579,7 +580,7 @@ async function _buildInitialRegistry(
     }
     if (!patterns.length) continue;
 
-    const allSources = await expandGlobs(patterns, repoDir);
+    const allSources = await expandAppGlobs(config, app, patterns);
     let specs: import('../core/types.js').ParsedSpec[] = [];
     try { specs = loadCanonicalSpecs(config, specDirAbs); } catch { continue; }
 

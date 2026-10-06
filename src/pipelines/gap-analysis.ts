@@ -24,6 +24,7 @@ import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { expandGlobs } from '../core/reader.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { writeFile } from '../core/writer.js';
 import { resolveProfile, featureFromPath, type LanguageProfile } from '../core/language-profiles.js';
@@ -124,7 +125,7 @@ export async function runGapAnalysis(
       if (group === 'tests') continue;
       if (Array.isArray(globs)) patterns.push(...globs);
     }
-    const sourceFiles = await expandGlobs(patterns, repoDir);
+    const sourceFiles = await expandAppGlobs(config, app, patterns);
     // Build a set of feature keys that actually have source files.
     const profile = resolveProfile(app);
     const implementedFeatures = new Set<string>();

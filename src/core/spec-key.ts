@@ -161,3 +161,18 @@ export function migrateRegistrySpecKeys(config: SpecGuardConfig, registry: Drift
   }
   return changed;
 }
+
+/**
+ * Expand an app's config globs (`sources`, `exclude`, `collapse`) relative to
+ * its `repo`. When nothing matches there but the patterns match from the
+ * config root (the HiRocky mistake: `apps/api/src/**`), accept them and warn
+ * once per pattern on stderr.
+ */
+export async function expandAppGlobs(
+  config: SpecGuardConfig,
+  app: AppConfig,
+  patterns: string[],
+  warn: (msg: string) => void = (m) => process.stderr.write(`${m}\n`),
+): Promise<string[]> {
+  return resolveDeclaredSources(config, app, patterns, warn);
+}

@@ -6,6 +6,7 @@ import type { DriftRegistry } from '../../src/core/drift-registry.js';
 import {
   canonicalSpecKey,
   declaredSources,
+  expandAppGlobs,
   loadCanonicalSpecs,
   migrateRegistrySpecKeys,
   resetSourceWarnings,
@@ -71,5 +72,18 @@ describe('spec-key', () => {
     expect(Object.keys(registry)).toEqual(['api/services/messaging']);
     expect(Object.keys(registry['api/services/messaging'].files).sort()).toEqual(['a.ts', 'b.ts']);
     expect(migrateRegistrySpecKeys(config, registry)).toBe(false);
+  });
+
+  it('config globs are repo-relative, with a warned root-relative fallback [sources-relative-to-repo]', async () => {
+    const fx = makeHiRockyRepo();
+    const config = await loadConfig(fx.dir);
+    const api = config.apps.find((a) => a.name === 'api')!;
+    resetSourceWarnings();
+    const warnings: string[] = [];
+    const repoRel = await expandAppGlobs(config, api, ['src/**/*.ts'], (m) => warnings.push(m));
+    const rootRel = await expandAppGlobs(config, api, ['apps/api/src/**/*.ts'], (m) => warnings.push(m));
+    expect(rootRel).toEqual(repoRel);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('apps/api/src/**/*.ts');
   });
 });

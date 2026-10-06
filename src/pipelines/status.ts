@@ -35,6 +35,7 @@ import {
 } from '../core/language-profiles.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { buildAppPrepass, collectTestFiles, prepassSpec } from '../core/claim-prepass.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { loadPlugins } from '../plugins/index.js';
@@ -121,13 +122,13 @@ export async function runStatus(
       if (group === 'tests') continue;
       if (Array.isArray(globs)) patterns.push(...globs);
     }
-    const allFiles = await expandGlobs(patterns, repoDir);
+    const allFiles = await expandAppGlobs(config, app, patterns);
 
     // Apply `exclude` patterns — same filtering as reverse-generate.
     const excludePatterns = app.exclude ?? [];
     let files = allFiles;
     if (excludePatterns.length > 0) {
-      const excluded = new Set(await expandGlobs(excludePatterns, repoDir));
+      const excluded = new Set(await expandAppGlobs(config, app, excludePatterns));
       files = allFiles.filter((f) => !excluded.has(f));
     }
 
