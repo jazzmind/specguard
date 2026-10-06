@@ -86,6 +86,7 @@ import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
 import { resultsIngestCommand } from './commands/results.js';
+import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
 import { cliVersion, versionInfo } from '../core/version.js';
 
 // One version source: package.json, or the value injected at bundle time (src/core/version.ts).
@@ -490,6 +491,25 @@ resultsCmd
       await resultsIngestCommand(files, withGlobals(cmd, opts));
     },
   );
+
+// --- remediate --------------------------------------------------------------
+program
+  .command('remediate')
+  .description('patch vulnerable dependencies or code in a temp worktree, prove behavior is preserved, then propose the change (never merges)')
+  .option('--scan-only', 'detect and report only; exit 5 when findings remain')
+  .option('--advisory <id>', 'remediate one advisory (GHSA/CVE/OSV id)')
+  .option('--min-severity <level>', 'critical | high | moderate | low (default: high)')
+  .option('--allow-major', 'allow a major version bump when it is the only fix')
+  .option('--ledger <file>', 'proof ledger the baseline starts from (default: paths.proofLedger or .specguard/proofs.json)')
+  .option('--pr', 'push the branch and open a PR with gh (draft unless the verdict is PRESERVED)')
+  .option('--no-pr', 'leave the committed branch, do not push (default)')
+  .option('--dry-run', 'run the whole loop but change nothing outside the temp worktree')
+  .option('--no-llm', 'skip the LLM breaking-change analysis and code fixes')
+  .option('--app <name>', 'restrict to one app')
+  .option('--force', 'ignore a fresh .specguard/remediate.lock')
+  .action(async (opts: Omit<RemediateCliOpts, 'config' | 'json'>, cmd: Command) => {
+    await remediateCommand(withGlobals(cmd, opts));
+  });
 
 // --- contracts ------------------------------------------------------------
 program

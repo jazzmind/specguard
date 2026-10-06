@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { EcosystemAdapter } from '../../core/ecosystems/index.js';
-import { partitionByScope, parsePorcelain, type ChangeScope } from '../git-ops.js';
+import { partitionByScope, type ChangeScope } from '../git-ops.js';
 import { RemediateSetupError } from './git.js';
 import type { ChangeType, Exec, FileChange, PlanItem, SastIssue } from './types.js';
 
@@ -46,20 +46,32 @@ export interface ChangeSet {
   totalLines: number;
 }
 
-/** Changed paths since `before` (a snapshot from `snapshotTree`). */
-export function snapshotTree(git: Exec, wt: string): Map<string, string> {
+/** Status entries of the worktree: path plus whether git tracks it. Untracked directories are noise and omitted. */
+function statusEntries(git: Exec, wt: string): Array<{ path: string; untracked: boolean }> {
   const r = git(['status', '--porcelain', '-z', '--untracked-files=normal'], wt);
-  const map = new Map<string, string>();
-  for (const p of parsePorcelain(r.stdout)) {
-    // Untracked directories (installed packages, caches) are noise, not changes.
+  const parts = r.stdout.split('\0').filter(Boolean);
+  const out: Array<{ path: string; untracked: boolean }> = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const code = parts[i].slice(0, 2);
+    const p = parts[i].slice(3);
+    if (code[0] === 'R' || code[0] === 'C') i += 1;
     if (p.endsWith('/')) continue;
+    out.push({ path: p, untracked: code === '??' });
+  }
+  return out;
+}
+
+/** Snapshot of changed paths and their content hashes (take it before applying). */
+export function snapshotTree(git: Exec, wt: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const e of statusEntries(git, wt)) {
     let sig: string;
     try {
-      sig = createHash('sha1').update(readFileSync(path.join(wt, p))).digest('hex');
+      sig = createHash('sha1').update(readFileSync(path.join(wt, e.path))).digest('hex');
     } catch {
       sig = 'gone';
     }
-    map.set(p, sig);
+    map.set(e.path, `${e.untracked ? 'u' : 't'}:${sig}`);
   }
   return map;
 }
@@ -67,10 +79,14 @@ export function snapshotTree(git: Exec, wt: string): Map<string, string> {
 /**
  * Compare the tree now with `before`. A path counts when it is new or its content changed.
  * Untracked directories are ignored (installed packages, caches); they are never staged either.
+ * `trackedOnly` also ignores new untracked files (test runs leave coverage and temp files behind,
+ * which are never staged); modified tracked files are always a violation.
  */
-export function collectChanges(git: Exec, wt: string, before: Map<string, string>, scope: ChangeScope): ChangeSet {
+export function collectChanges(git: Exec, wt: string, before: Map<string, string>, scope: ChangeScope, trackedOnly = false): ChangeSet {
   const now = snapshotTree(git, wt);
-  const changed = [...now.entries()].filter(([p, sig]) => before.get(p) !== sig).map(([p]) => p);
+  const changed = [...now.entries()]
+    .filter(([p, sig]) => before.get(p) !== sig && !(trackedOnly && sig.startsWith('u:')))
+    .map(([p]) => p);
   const { stage, skipped } = partitionByScope(changed, scope);
   const files: FileChange[] = [];
   let totalLines = 0;

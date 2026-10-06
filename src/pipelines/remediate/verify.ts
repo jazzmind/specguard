@@ -17,7 +17,7 @@ import type { RemediateConfig, SpecGuardConfig } from '../../core/types.js';
 import type { BaselineResult } from './baseline.js';
 import { ingestRun, readLedgerFile, reprovenClaims, seedLedger, staleClaims, type IngestOutcome } from './ledger.js';
 import { selectionByJob, type Selection } from './select-tests.js';
-import { buildAndTypecheck, runJobs, type JobsRun, type StepResult } from './steps.js';
+import { buildAndTypecheck, runJobs, testJobs, type JobsRun, type StepResult } from './steps.js';
 import type { ChangeType, TestSummary } from './types.js';
 
 export interface VerifyArgs {
@@ -59,11 +59,13 @@ export async function verifyPatched(a: VerifyArgs): Promise<VerifyOutcome> {
 
   // 1. Selected tests first, for a fast signal. Runners that cannot take a selection are skipped here.
   let selectedRun: JobsRun | undefined;
-  const sel = selectionByJob(a.baseline.jobs, a.root, a.selection.files);
-  if (sel.size > 0) selectedRun = await runJobs(a.baseline.jobs, a.root, sel);
+  // Jobs are rebuilt for THIS worktree: the baseline jobs point at the baseline worktree.
+  const jobs = await testJobs(a.config, a.root, a.cfg);
+  const sel = selectionByJob(jobs, a.root, a.selection.files);
+  if (sel.size > 0) selectedRun = await runJobs(jobs, a.root, sel);
 
   // 2. Then ALWAYS the full suite.
-  const fullRun = await runJobs(a.baseline.jobs, a.root);
+  const fullRun = await runJobs(jobs, a.root);
 
   // 3. Patched ledger: start from the baseline snapshot, ingest the patched run.
   const patchedLedgerPath = path.join(a.evidenceDir, 'patched-proofs.json');

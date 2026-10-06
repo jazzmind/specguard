@@ -5,7 +5,7 @@
  *
  * Spec: specs/pipelines/remediate.md
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -163,7 +163,7 @@ export async function runRemediate(config: SpecGuardConfig, opts: RemediateOpts 
   const evidenceRoot = opts.dryRun ? mkdtempSync(path.join(tmpRoot, 'sg-remediation-')) : path.join(root, '.specguard', 'remediation');
   const evidenceDir = path.join(evidenceRoot, opts.dryRun ? '' : runId);
   mkdirSync(evidenceDir, { recursive: true });
-  const relRoot = path.relative(gitTop, root);
+  const relRoot = path.relative(realpathSync(gitTop), realpathSync(root));
   const prefix = cfg.branchPrefix ?? 'specguard/remediate/';
   const worktrees: Worktree[] = [];
 
@@ -298,7 +298,7 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
     const scope = scopeFor(item.changeType, ecos, wt.dir, item.issue ? [item.issue] : []);
     const limits = { maxFiles: cfg.maxFilesChanged ?? DEFAULT_LIMITS.maxFiles, maxLines: cfg.maxLinesChanged ?? DEFAULT_LIMITS.maxLines };
     const before = snapshotTree(deps.git, wt.dir);
-    const check = () => enforce(collectChanges(deps.git, wt!.dir, before, scope), limits);
+    const check = () => enforce(collectChanges(deps.git, wt!.dir, before, scope, true), limits);
 
     // apply
     c.log(`[apply] ${item.branch}`);
@@ -352,7 +352,7 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
       afterBuild: check,
     });
     // Tests must not have rewritten anything: re-check the allowlist after the run.
-    cs = collectChanges(deps.git, wt.dir, before, scope);
+    cs = collectChanges(deps.git, wt.dir, before, scope, true);
     enforce(cs, limits);
 
     rep.verdict = out.verdict.verdict;

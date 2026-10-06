@@ -3,7 +3,7 @@
  *
  * Spec: specs/pipelines/remediate.md
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { createHash } from 'node:crypto';
@@ -135,7 +135,21 @@ export interface JobsRun {
 
 function normalize(report: TestRunReport, job: TestJob, root: string): TestCaseResult[] {
   const prefix = path.relative(root, job.cwd).split(path.sep).join('/');
-  return report.tests.map((t) => (prefix ? { ...t, file: `${prefix}/${t.file}` } : t));
+  return report.tests.map((t) => {
+    // Reporters may emit absolute paths that contain the worktree directory; ids must be stable across worktrees.
+    let file = t.file;
+    if (path.isAbsolute(file)) {
+      const real = (p: string) => {
+        try {
+          return realpathSync(p);
+        } catch {
+          return p;
+        }
+      };
+      file = path.relative(real(job.cwd), real(file)).split(path.sep).join('/');
+    }
+    return { ...t, file: prefix ? `${prefix}/${file}` : file };
+  });
 }
 
 /** Run every job. Unparseable output, a timeout, or a non-zero exit without a failing test is "not parsed". */

@@ -109,6 +109,13 @@ const AnalysisSchema = z.object({
   confidence: z.enum(['low', 'medium', 'high']),
 });
 
+export const BREAKING_SYSTEM =
+  'You review dependency release notes for breaking changes. Be conservative and factual: only report what the notes say. Answer in the requested JSON shape.';
+
+export function breakingPrompt(c: Candidate, changelog: string): string {
+  return `Package ${c.package} (${c.ecosystem}) is being updated from ${c.fromVersion} to ${c.toVersion} to fix a security advisory.\nRelease notes between these versions:\n\n${changelog}\n\nWhich changes could break callers of this package? Set breaking=true only when the notes describe an incompatible API or behavior change.`;
+}
+
 export async function analyzeBreaking(
   config: SpecGuardConfig,
   c: Candidate,
@@ -125,9 +132,8 @@ export async function analyzeBreaking(
       pipeline: 'remediate',
       maxTokens: 800,
       temperature: 0,
-      system:
-        'You review dependency release notes for breaking changes. Be conservative and factual: only report what the notes say. Answer in the requested JSON shape.',
-      prompt: `Package ${c.package} (${c.ecosystem}) is being updated from ${c.fromVersion} to ${c.toVersion} to fix a security advisory.\nRelease notes between these versions:\n\n${changelog}\n\nWhich changes could break callers of this package? Set breaking=true only when the notes describe an incompatible API or behavior change.`,
+      system: BREAKING_SYSTEM,
+      prompt: breakingPrompt(c, changelog),
       schema: AnalysisSchema,
     });
     return { ...out, items: out.items ?? [], source: 'llm' };
