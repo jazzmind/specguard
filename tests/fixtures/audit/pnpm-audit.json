@@ -1,0 +1,30 @@
+{
+  "advisories": {
+    "1106913": {
+      "id": 1106913,
+      "module_name": "lodash",
+      "title": "Command Injection in lodash",
+      "severity": "high",
+      "url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+      "github_advisory_id": "GHSA-35jh-r3h4-6jhm",
+      "cves": ["CVE-2021-23337"],
+      "vulnerable_versions": "<4.17.21",
+      "patched_versions": ">=4.17.21",
+      "cvss": { "score": 7.2 },
+      "findings": [{ "version": "4.17.20", "paths": [".>lodash"] }]
+    },
+    "1179": {
+      "id": 1179,
+      "module_name": "minimist",
+      "title": "Prototype Pollution in minimist",
+      "severity": "critical",
+      "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+      "github_advisory_id": "GHSA-xvch-5gv4-984h",
+      "cves": ["CVE-2021-44906"],
+      "vulnerable_versions": "<1.2.6",
+      "patched_versions": ">=1.2.6",
+      "findings": [{ "version": "1.2.5", "paths": [".>mkdirp>minimist"] }]
+    }
+  },
+  "metadata": { "vulnerabilities": { "high": 1, "critical": 1 } }
+}
