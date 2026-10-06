@@ -17,8 +17,11 @@
 - [ ] The ingest writes `evidencePath` as a repo-relative POSIX path to the results file that exercised the claim <!-- claim: evidence-path -->
 - [ ] `--run-id` sets the ledger `runId` and defaults to a timestamped id <!-- claim: run-id -->
 - [ ] A tag that points at a claim whose spec cannot be found is reported failed and not stored <!-- claim: unknown-claim -->
-- [ ] `--unexercised` also stores an `unexercised` verdict for every claim id in the specs that no test tagged <!-- claim: unexercised-flag -->
+- [ ] By default a partial ingest only writes verdicts for the claims present in the results; claims absent from the files keep their stored rows <!-- claim: partial-ingest -->
+- [ ] `--unexercised` (alias `--sweep`) stores `unexercised` for claims absent from every ingested file only when `--full-run` is also given or when the ingested files cover all configured apps; otherwise it is ignored with a warning and nothing is overwritten <!-- claim: unexercised-flag -->
+- [ ] A sweep never downgrades a `proven` claim whose spec and source hashes still match; only a claim explicitly present in the results can change a `proven` row <!-- claim: sweep-keeps-proven -->
 - [ ] The command exits 2 when any claim verdict is failed or a results file cannot be parsed <!-- claim: exit-code -->
+- [ ] After ingest each row's `fileHashes` are populated from the spec's declared `sources:` (see `proof.md`), so a source edit makes the claim stale <!-- claim: records-source-hashes -->
 - [ ] The ledger path honours `--ledger` and `paths.proofLedger` <!-- claim: ledger-path -->
 
 ## Scenarios
