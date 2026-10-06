@@ -54,5 +54,5 @@ describe('analyze --auto-fix', () => {
     eslint.mockClear();
     const plain = await runAnalyze(cfg, {});
     expect(plain.messages.some((m) => m.startsWith('[auto-fix]'))).toBe(false);
-  });
+  }, 30_000); // runs the real (unmocked) analyze pipelines twice, which spawn git; the 5s default is too tight on loaded CI runners
 });
