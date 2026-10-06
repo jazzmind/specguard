@@ -3,6 +3,7 @@
  *
  * Spec: specs/pipelines/remediate.md
  */
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -50,13 +51,13 @@ export function snapshotTree(git: Exec, wt: string): Map<string, string> {
   const r = git(['status', '--porcelain', '-z', '--untracked-files=normal'], wt);
   const map = new Map<string, string>();
   for (const p of parsePorcelain(r.stdout)) {
-    let sig = 'dir';
-    if (!p.endsWith('/')) {
-      try {
-        sig = String(readFileSync(path.join(wt, p)).length) + ':' + readFileSync(path.join(wt, p)).toString('base64').slice(0, 64);
-      } catch {
-        sig = 'gone';
-      }
+    // Untracked directories (installed packages, caches) are noise, not changes.
+    if (p.endsWith('/')) continue;
+    let sig: string;
+    try {
+      sig = createHash('sha1').update(readFileSync(path.join(wt, p))).digest('hex');
+    } catch {
+      sig = 'gone';
     }
     map.set(p, sig);
   }
@@ -65,7 +66,7 @@ export function snapshotTree(git: Exec, wt: string): Map<string, string> {
 
 /**
  * Compare the tree now with `before`. A path counts when it is new or its content changed.
- * Untracked directories that already existed (installed packages, caches) are ignored.
+ * Untracked directories are ignored (installed packages, caches); they are never staged either.
  */
 export function collectChanges(git: Exec, wt: string, before: Map<string, string>, scope: ChangeScope): ChangeSet {
   const now = snapshotTree(git, wt);
