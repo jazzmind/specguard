@@ -47,18 +47,22 @@ import { runAnalyze } from '../pipelines/analyze.js';
 import { runPlanFix } from '../pipelines/plan-fix.js';
 import { runContracts } from '../pipelines/contracts.js';
 import { runImpact } from '../pipelines/impact.js';
+import { runRemediate } from '../pipelines/remediate/index.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
 import { runClaimsAssign, runClaimsList } from '../pipelines/claims.js';
-import { appendProofCoverage } from '../pipelines/proof.js';
+import { appendProofCoverage, runProofIngest } from '../pipelines/proof.js';
+import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
 import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
+import { runWithPipeline } from '../core/llm-runtime.js';
+import { cliVersion } from '../core/version.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
 
 const SERVER_NAME = 'specguard-mcp';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = cliVersion();
 
 /** Resolve the working directory a tool should load config from. */
 function resolveCwd(cwd?: string): string {
@@ -79,7 +83,7 @@ async function withActivityLog(
   const startMs = Date.now();
   appendActivityLogEntry(cwd, { pipeline, status: 'running', source: 'mcp' });
   try {
-    const result = await fn();
+    const result = await runWithPipeline(pipeline, fn);
     appendActivityLogEntry(cwd, {
       pipeline,
       status: result.isError ? 'fail' : 'pass',
@@ -157,16 +161,19 @@ export function buildServer(): McpServer {
       description:
         'Run the self-healing test loop (CLI: specguard heal).',
       inputSchema: {
-        spec: z.string().optional().describe('Target a single spec\'s tests (best-effort).'),
-        all: z.boolean().optional().describe('Heal across all apps.'),
+        spec: z.string().optional().describe('Run only the app that owns this spec, and only its tests.'),
+        all: z.boolean().optional().describe('Heal every app (the default).'),
+        app: z.string().optional().describe('Heal a single app by name.'),
         maxRetries: z.number().optional().describe('Override the retry budget from config.'),
+        classifyOnly: z.boolean().optional().describe('Classify failures only: never rewrite a test or re-run.'),
+        lenient: z.boolean().optional().describe('Treat an unreadable report as passing when the runner exited 0.'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
-    ({ spec, all, maxRetries, cwd }): Promise<ToolResult> =>
+    ({ spec, all, app, maxRetries, classifyOnly, lenient, cwd }): Promise<ToolResult> =>
       withActivityLog('heal', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runHeal(config, { spec, all, maxRetries });
+        const result = await runHeal(config, { spec, all, app, maxRetries, classifyOnly, lenient });
         return toolResult(result);
       }).catch(errorResult),
   );
@@ -212,7 +219,7 @@ export function buildServer(): McpServer {
       inputSchema: {
         spec: z.string().optional().describe('Spec key or path to a .md spec.'),
         all: z.boolean().optional().describe('Analyze every spec.'),
-        withSast: z.boolean().optional().describe('Also run SAST (semgrep/bandit).'),
+        withSast: z.boolean().optional().describe('Also run SAST (Semgrep) and the dependency audit for the app language.'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
@@ -255,13 +262,15 @@ export function buildServer(): McpServer {
         all: z.boolean().optional().describe('Validate all specs with url: metadata.'),
         baseUrl: z.string().optional().describe('Base URL of the running app.'),
         app: z.string().optional().describe('Limit to a single app.'),
+        allowOutbound: z.boolean().optional().describe('Let outbound actions run (staging). Destructive actions stay blocked.'),
+        headed: z.boolean().optional().describe('Show the browser window.'),
         cwd: z.string().optional(),
       },
     },
-    ({ spec, all, baseUrl, app, cwd }): Promise<ToolResult> =>
+    ({ spec, all, baseUrl, app, allowOutbound, headed, cwd }): Promise<ToolResult> =>
       withActivityLog('validate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runValidate(config, { spec, all, baseUrl, app });
+        const result = await runValidate(config, { spec, all, baseUrl, app, allowOutbound, headed });
         return toolResult(result);
       }).catch(errorResult),
   );
@@ -383,7 +392,7 @@ export function buildServer(): McpServer {
       description:
         'Run all diagnostic checks (status, drift, quality, deps) and return prioritised recommendations for which pipelines to run next. Call this first when you are unsure what needs to be done.',
       inputSchema: {
-        autoFix: z.boolean().optional().describe('Automatically run recommended pipelines after analysis.'),
+        autoFix: z.boolean().optional().describe('Run the recommended pipelines that are safe unattended (quality --fix, matrix).'),
         cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
       },
     },
@@ -619,7 +628,7 @@ export function buildServer(): McpServer {
           .string()
           .describe(
             'Spec to analyze. Can be a node ID (e.g. graphql-api::specs/mutations/designer.md), ' +
-            'a path relative to workspace root (e.g. practera-graphql-api/specs/mutations/designer.md), ' +
+            'a path relative to workspace root (e.g. provider-api/specs/mutations/designer.md), ' +
             'or an absolute path.',
           ),
         maxDepth: z.number().optional().describe('Maximum traversal depth (default: 6).'),
@@ -784,19 +793,104 @@ export function buildServer(): McpServer {
         'Report proof coverage for the claims in this repo: proven, failed, unexercised, stale, unproven. ' +
         '(CLI: specguard proof status)',
       inputSchema: {
+        ledger: z.string().optional().describe('Proof ledger file override.'),
         cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
       },
     },
-    ({ cwd }): Promise<ToolResult> =>
+    ({ cwd, ledger }): Promise<ToolResult> =>
       withActivityLog('proof-status', resolveCwd(cwd), async () => {
         try {
           const config = await loadConfig(resolveCwd(cwd));
           const lines: string[] = [];
-          await appendProofCoverage(config, (line) => lines.push(line));
+          await appendProofCoverage(config, (line) => lines.push(line), { ledger });
           return textResult(lines.join('\n'));
         } catch (err) {
           return errorResult(err);
         }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_results_ingest',
+    {
+      description:
+        'Ingest test-runner reports (Vitest/Jest JSON, Playwright JSON, JUnit XML, pytest-json-report, go test -json, ' +
+        'cargo JSON) as proof verdicts. Tests map to claims by @claim:<specKey>#<claimId> tags. ' +
+        '(CLI: specguard results ingest)',
+      inputSchema: {
+        files: z.array(z.string()).min(1).describe('Result file paths or globs, relative to cwd.'),
+        format: z.string().optional().describe('auto (default), vitest, jest, playwright, junit, pytest, go, cargo.'),
+        runId: z.string().optional().describe('Ledger run id.'),
+        unexercised: z.boolean().optional().describe('Also store unexercised for claims absent from all files; only on a full run.'),
+        fullRun: z.boolean().optional().describe('The files are the complete run; lets unexercised apply.'),
+        ledger: z.string().optional().describe('Proof ledger file override.'),
+        cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
+      },
+    },
+    ({ files, format, runId, unexercised, fullRun, ledger, cwd }): Promise<ToolResult> =>
+      withActivityLog('results-ingest', resolveCwd(cwd), async () => {
+        try {
+          const fmt = format ?? 'auto';
+          if (!isResultFormat(fmt)) return errorResult(new Error(`unknown format '${fmt}'`));
+          return toolResult(
+            await runResultsIngest(files, resolveCwd(cwd), { format: fmt, runId, unexercised, fullRun, ledger }),
+          );
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_proof_ingest',
+    {
+      description:
+        'Merge a verdicts file ({runId, verdicts:[{claim, verdict, exercised?, counterexamples?, evidencePath?}]}) ' +
+        'into the proof ledger. (CLI: specguard proof ingest)',
+      inputSchema: {
+        verdicts: z.string().describe('Path to verdicts.json, relative to cwd.'),
+        ledger: z.string().optional().describe('Proof ledger file override.'),
+        cwd: z.string().optional().describe('Repo directory containing .specguard/config.json.'),
+      },
+    },
+    ({ verdicts, ledger, cwd }): Promise<ToolResult> =>
+      withActivityLog('proof-ingest', resolveCwd(cwd), async () => {
+        try {
+          return toolResult(await runProofIngest(verdicts, resolveCwd(cwd), { ledger }));
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  // Remediation is deliberately read-only over MCP: an agent may scan and dry-run, never branch,
+  // push or open a PR. Those side effects need a human running the CLI (or the CI workflow).
+  server.registerTool(
+    'specguard_remediate',
+    {
+      description:
+        'Scan for vulnerabilities (scan-only) or run the whole remediation loop in a throwaway worktree without committing, ' +
+        'pushing or opening a PR (dry-run). Creating branches and PRs is only available from the CLI. (CLI: specguard remediate)',
+      inputSchema: {
+        mode: z.enum(['scan-only', 'dry-run']).optional().describe('scan-only (default) or dry-run. Nothing else is allowed over MCP.'),
+        minSeverity: z.enum(['critical', 'high', 'moderate', 'low']).optional().describe('Lowest severity to report. Default high.'),
+        advisory: z.string().optional().describe('Limit to one advisory id (GHSA/CVE/OSV).'),
+        allowMajor: z.boolean().optional().describe('Allow a major version bump.'),
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ mode, minSeverity, advisory, allowMajor, cwd }): Promise<ToolResult> =>
+      withActivityLog('remediate', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const result = await runRemediate(config, {
+          scanOnly: (mode ?? 'scan-only') === 'scan-only',
+          dryRun: mode === 'dry-run',
+          pr: false,
+          minSeverity,
+          advisory,
+          allowMajor,
+        });
+        return toolResult(result);
       }).catch(errorResult),
   );
 
@@ -823,7 +917,6 @@ function isMainModule(): boolean {
 
 if (isMainModule()) {
   main().catch((err) => {
-    // eslint-disable-next-line no-console
     console.error('[specguard-mcp] fatal:', err);
     process.exit(1);
   });

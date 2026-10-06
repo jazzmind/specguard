@@ -15,6 +15,7 @@ import type { LanguageProfile } from './language-profiles.js';
 import { readFile, fileExists } from './reader.js';
 import { writeFile } from './writer.js';
 import { applyTargetSections } from './sentinels.js';
+import { NPX_CLI, NPX_RUNNER, resolveRunner, type ResolvedRunner, type RunnerChoice } from './runner.js';
 
 export type Harness = 'claude' | 'cursor' | 'both';
 
@@ -22,6 +23,11 @@ export interface ScaffoldOpts {
   cwd: string;
   profile: LanguageProfile;
   harness?: Harness;
+  /** How generated MCP/hook commands invoke SpecGuard (default: local binary, else npx). */
+  runner?: RunnerChoice['runner'];
+  runnerPath?: string;
+  /** Apply a differing existing MCP entry/hook instead of printing its diff. */
+  updateHooks?: boolean;
 }
 
 export interface ScaffoldResult {
@@ -52,6 +58,8 @@ const COMMAND_TABLE = (p: LanguageProfile): string =>
     '| `specguard drift` | Detect specs out of sync with code |',
     '| `specguard security --all` | OWASP security test stubs |',
     `| (tests run via) | \`${p.testCommand}\` |`,
+    '',
+    'Without a global install, run any command as `npx -p specguard-ai specguard <command>`.',
   ].join('\n');
 
 /** AGENTS.md — harness-agnostic agent guide. */
@@ -104,7 +112,8 @@ ${MANAGED_MARKER}
 # SpecGuard Skill (${profile.id})
 
 The \`specguard\` CLI and MCP server run every QA pipeline. Prefer the MCP tools
-(\`specguard_*\`) when available; otherwise use \`npx specguard <command>\`.
+(\`specguard_*\`) when available; otherwise use \`npx -p specguard-ai specguard <command>\`
+(or just \`specguard <command>\` when the CLI is installed with \`npm install -g specguard-ai\`).
 
 ## When to Run
 
@@ -195,38 +204,116 @@ interface JsonObject {
   [key: string]: unknown;
 }
 
+export { NPX_CLI };
+
 /** The specguard-mcp server entry (shared by Claude + Cursor configs). */
-function mcpServerEntry(): JsonObject {
-  return { command: 'npx', args: ['specguard-mcp'] };
+export function mcpServerEntry(runner: ResolvedRunner = NPX_RUNNER): JsonObject {
+  return { command: runner.mcp.command, args: [...runner.mcp.args] };
+}
+
+/** How `init`/`scaffold` wire MCP and hooks; existing user entries change only with `update`. */
+export interface WireContext {
+  runner: ResolvedRunner;
+  /** Replace an existing, differing MCP entry or hook (the `--update-hooks` confirm flag). */
+  update: boolean;
+  /** Receives a diff for every existing entry left alone. */
+  notes: string[];
+}
+
+function defaultWire(): WireContext {
+  return { runner: NPX_RUNNER, update: false, notes: [] };
+}
+
+/**
+ * `npx specguard-mcp` resolves to an unrelated or missing package. Entries that
+ * older SpecGuard versions wrote that way are repaired; anything else the user
+ * wrote is left alone.
+ */
+function isBrokenMcpEntry(entry: unknown): boolean {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const e = entry as { command?: unknown; args?: unknown };
+  return e.command === 'npx' && Array.isArray(e.args) && e.args.length === 1 && e.args[0] === 'specguard-mcp';
+}
+
+/** Add the MCP entry, repair a known-broken one, and never silently rewrite a differing one. */
+function wireMcp(mcpServers: JsonObject, where: string, ctx: WireContext): void {
+  const wanted = mcpServerEntry(ctx.runner);
+  const current = mcpServers['specguard-mcp'];
+  if (!current || isBrokenMcpEntry(current)) {
+    mcpServers['specguard-mcp'] = wanted;
+    return;
+  }
+  if (JSON.stringify(current) === JSON.stringify(wanted)) return;
+  if (ctx.update) {
+    mcpServers['specguard-mcp'] = wanted;
+    return;
+  }
+  ctx.notes.push(
+    `  differs  ${where} specguard-mcp (left unchanged; re-run with --update-hooks to apply, ${ctx.runner.comment}):`,
+    `    - ${JSON.stringify(current)}`,
+    `    + ${JSON.stringify(wanted)}`,
+  );
+}
+
+const SANITIZE = /["$`\\]/g;
+
+/** The PostToolUse shell command. A leading no-op string records which runner was chosen and why. */
+export function hookCommand(runner: ResolvedRunner): string {
+  return (
+    `: "specguard runner: ${runner.comment.replace(SANITIZE, '')}"; ` +
+    'f="$(cat | sed -n \'s/.*"file_path"[: ]*"\\([^"]*\\)".*/\\1/p\')"; ' +
+    'case "$f" in *"/specs/"*|*"/tests/"*|*"/.specguard/"*) exit 0;; esac; ' +
+    `${runner.cli} status 2>/dev/null | tail -3 || true`
+  );
+}
+
+/** Strip the leading runner comment so comment-only differences are not diffs. */
+function withoutRunnerComment(command: string): string {
+  return command.replace(/^: "specguard runner: [^"]*"; /, '');
 }
 
 /** Merge the specguard-mcp server + run-alongside hook into Claude settings. */
-export function mergeClaudeSettings(existing: JsonObject): JsonObject {
+export function mergeClaudeSettings(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
   const next: JsonObject = { ...existing };
 
   const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  if (!mcpServers['specguard-mcp']) mcpServers['specguard-mcp'] = mcpServerEntry();
+  wireMcp(mcpServers, '.claude/settings.json', ctx);
   next.mcpServers = mcpServers;
 
   // PostToolUse hook: read-only `specguard status` after edits. The script
-  // itself (scaffolded separately as a guard) skips spec/test/.specguard paths.
+  // itself skips spec/test/.specguard paths.
   const hooks = { ...(next.hooks as JsonObject | undefined) };
   const postToolUse = Array.isArray(hooks.PostToolUse) ? [...(hooks.PostToolUse as unknown[])] : [];
-  const alreadyWired = postToolUse.some(
-    (h) => typeof h === 'object' && h !== null && JSON.stringify(h).includes('specguard status'),
-  );
+  const wanted = hookCommand(ctx.runner);
+  let alreadyWired = false;
+  for (let i = 0; i < postToolUse.length; i += 1) {
+    let text = JSON.stringify(postToolUse[i]);
+    if (!text.includes('specguard status')) continue;
+    alreadyWired = true;
+    // Repair a hook an older version wrote as `npx specguard status`.
+    if (text.includes('npx specguard status')) {
+      text = text.split('npx specguard status').join(`${NPX_CLI} status`);
+      postToolUse[i] = JSON.parse(text);
+    }
+    const entry = postToolUse[i] as { hooks?: Array<{ command?: string }> };
+    for (const h of entry.hooks ?? []) {
+      if (typeof h.command !== 'string' || !h.command.includes('specguard status')) continue;
+      if (withoutRunnerComment(h.command) === withoutRunnerComment(wanted)) continue;
+      if (ctx.update) {
+        h.command = wanted;
+      } else {
+        ctx.notes.push(
+          `  differs  .claude/settings.json PostToolUse hook (left unchanged; re-run with --update-hooks to apply, ${ctx.runner.comment}):`,
+          `    - ${withoutRunnerComment(h.command)}`,
+          `    + ${withoutRunnerComment(wanted)}`,
+        );
+      }
+    }
+  }
   if (!alreadyWired) {
     postToolUse.push({
       matcher: 'Edit|Write|MultiEdit',
-      hooks: [
-        {
-          type: 'command',
-          command:
-            'f="$(cat | sed -n \'s/.*"file_path"[: ]*"\\([^"]*\\)".*/\\1/p\')"; ' +
-            'case "$f" in *"/specs/"*|*"/tests/"*|*"/.specguard/"*) exit 0;; esac; ' +
-            'npx specguard status 2>/dev/null | tail -3 || true',
-        },
-      ],
+      hooks: [{ type: 'command', command: wanted }],
     });
   }
   hooks.PostToolUse = postToolUse;
@@ -273,10 +360,10 @@ If a directory has many small files that form one logical unit (e.g.,
 }
 
 /** Merge the specguard-mcp server into a Cursor mcp.json. */
-export function mergeCursorMcpJson(existing: JsonObject): JsonObject {
+export function mergeCursorMcpJson(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
   const next: JsonObject = { ...existing };
   const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  if (!mcpServers['specguard-mcp']) mcpServers['specguard-mcp'] = mcpServerEntry();
+  wireMcp(mcpServers, '.cursor/mcp.json', ctx);
   next.mcpServers = mcpServers;
   return next;
 }
@@ -371,6 +458,16 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
   const harness: Harness = opts.harness ?? 'both';
   const result: ScaffoldResult = { created: [], updated: [], skipped: [], messages: [] };
 
+  let runner: ResolvedRunner;
+  try {
+    runner = resolveRunner(cwd, { runner: opts.runner, runnerPath: opts.runnerPath });
+  } catch (err) {
+    result.messages.push(`  [warn] ${err instanceof Error ? err.message : String(err)}; using the npx fallback`);
+    runner = NPX_RUNNER;
+  }
+  const wire: WireContext = { runner, update: opts.updateHooks === true, notes: [] };
+  result.messages.push(`  runner   ${runner.comment}`);
+
   const wantClaude = harness === 'claude' || harness === 'both';
   const wantCursor = harness === 'cursor' || harness === 'both';
 
@@ -393,7 +490,7 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
     );
     await mergeJsonFile(
       path.join(cwd, '.claude', 'settings.json'),
-      mergeClaudeSettings,
+      (existing) => mergeClaudeSettings(existing, wire),
       result,
       cwd,
     );
@@ -414,7 +511,7 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
     );
     await mergeJsonFile(
       path.join(cwd, '.cursor', 'mcp.json'),
-      mergeCursorMcpJson,
+      (existing) => mergeCursorMcpJson(existing, wire),
       result,
       cwd,
     );
@@ -426,5 +523,6 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
     );
   }
 
+  result.messages.push(...wire.notes);
   return result;
 }

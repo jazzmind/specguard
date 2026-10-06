@@ -6,7 +6,8 @@
 npm install        # install dependencies
 npm run build      # compile TypeScript → dist/
 npm test           # run vitest suite
-npm run lint       # eslint check
+npm run lint       # eslint
+npm run typecheck  # tsc --noEmit
 ```
 
 ## Architecture
@@ -95,4 +96,6 @@ the whole project from its specs.
 | `specguard drift` | Detect specs out of sync with code |
 | `specguard security --all` | OWASP security test stubs |
 | (tests run via) | `npm test` |
+
+Without a global install, run any command as `npx -p specguard-ai specguard <command>`.
 <!-- specguard:specguard-commands:end -->

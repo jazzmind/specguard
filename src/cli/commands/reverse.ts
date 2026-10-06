@@ -2,7 +2,7 @@
  * `specguard reverse` — generate specs from source via the reverse pipeline.
  */
 import { runReverseGenerate } from '../../pipelines/reverse-generate.js';
-import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
+import { loadCliConfig, type GlobalOpts } from './helpers.js';
 import { ExitCode } from '../../core/exit-codes.js';
 import { emptyResult } from '../../core/types.js';
 

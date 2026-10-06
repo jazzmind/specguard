@@ -25,15 +25,14 @@ and `zod` raw-shape input schemas via `server.registerTool`. The bin entry
 - [ ] Server starts on a `StdioServerTransport` when run as the main module
 - [ ] Importing `src/mcp/server.ts` does NOT start the transport (no hang) —
       startup is guarded behind a main-module check
-- [ ] Exactly one tool is registered per pipeline plus two utility tools and
-      two not-yet-implemented stubs (see Tools)
+- [ ] Exactly one tool is registered per pipeline plus utility tools (see Tools) <!-- claim: tool-per-pipeline -->
 - [ ] Each pipeline tool loads config via `loadConfig` (cwd = `process.cwd()` or
       an optional `cwd` argument) and calls the matching pipeline function
 - [ ] Each tool returns `{ content: [{ type: 'text', text }] }` where text
       includes the pipeline messages and counts (created/updated/skipped/failed)
 - [ ] On error a tool returns `{ content: [...], isError: true }` instead of throwing
-- [ ] `specguard_validate` and `specguard_matrix` return a "not yet implemented"
-      text result (mirrors the CLI stubs) so the tool surface is complete
+- [ ] `specguard_validate` and `specguard_matrix` run the real pipelines, like the CLI
+- [ ] `specguard_results_ingest` and `specguard_proof_ingest` write the proof ledger through `runResultsIngest` / `runProofIngest`, and an unknown `format` returns `isError` <!-- claim: ingest-tools -->
 - [ ] A shared helper formats a `PipelineResult` into the text summary
 
 ## Tools
@@ -47,12 +46,14 @@ and `zod` raw-shape input schemas via `server.registerTool`. The bin entry
 | `specguard_drift` | `runDrift` | `since?`, `spec?`, `cwd?` |
 | `specguard_security` | `runSecurity` | `spec?`, `all?`, `withSast?`, `cwd?` |
 | `specguard_docs` | `runDocGenerate` | `spec?`, `all?`, `out?`, `cwd?` |
-| `specguard_validate` | (stub) | — returns "not yet implemented" |
-| `specguard_matrix` | (stub) | — returns "not yet implemented" |
+| `specguard_validate` | `runValidate` | `spec?`, `all?`, `baseUrl?`, `app?`, `allowOutbound?`, `headed?`, `cwd?` |
+| `specguard_matrix` | `runMatrix` | see `specguard_matrix` schema |
 | `specguard_read_spec` | utility | `specKey?` or `path?`, `cwd?` |
 | `specguard_write_spec` | utility | `path`, `content` |
 | `specguard_claims` | `runClaimsAssign` / `runClaimsList` | `action`, `workspace?`, `dir?`, `dryRun?`, `cwd?` |
 | `specguard_proof_status` | `appendProofCoverage` | `cwd?` |
+| `specguard_results_ingest` | `runResultsIngest` | `files`, `format?`, `runId?`, `unexercised?`, `ledger?`, `cwd?` |
+| `specguard_proof_ingest` | `runProofIngest` | `verdicts`, `ledger?`, `cwd?` |
 | `specguard_feature_state` | `runFeatureState` | `cwd?`, `cases?` |
 
 Each backing function is the identical export the CLI subcommand dispatches to

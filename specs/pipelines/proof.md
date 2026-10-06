@@ -15,13 +15,20 @@ Stores the result of a proof run against claim ids. `specguard proof ingest` mer
 ## Acceptance Criteria
 
 - [ ] Ingest rejects a verdicts file that is missing `runId` or `verdicts` <!-- claim: ingest-schema -->
-- [ ] A verdict whose claim ref does not parse, or whose spec file cannot be found, is failed and not stored <!-- claim: ingest-unknown-claim -->
+- [ ] A verdict whose claim ref does not parse, whose spec file cannot be found, or whose claim id has no `<!-- claim: id -->` anchor in that spec, is failed and not stored <!-- claim: ingest-unknown-claim -->
 - [ ] A later ingest for the same claim ref replaces the stored row <!-- claim: ingest-replaces -->
 - [ ] `effectiveVerdict` returns `stale` when the spec hash differs or a recorded file hash differs, and `unproven` when there is no row <!-- claim: stale-rule -->
 - [ ] A file hash that is no longer in the drift registry does not by itself make the proof stale <!-- claim: missing-file-not-stale -->
 - [ ] `specguard proof status` lists failed and stale claims and exits 2 when either is present <!-- claim: proof-status-exit -->
 - [ ] `specguard status` appends a PROOFS line and does not change its exit code because of it <!-- claim: status-informational -->
 - [ ] `specguard drift` adds a failed item for each stale proof <!-- claim: drift-stale-fails -->
+- [ ] Proof `fileHashes` keys are repo-relative POSIX paths, and a ledger written with absolute keys is migrated when it is read <!-- claim: portable-hashes -->
+- [ ] The current hash of a recorded file is read from disk, so editing a source file marks the proof stale even before `drift` runs <!-- claim: live-file-hashes -->
+- [ ] A claim's file hashes come from the files its spec declares in `sources:` (else `module:`) merged with the drift-registry entry stored under the canonical spec key (`specs/core/spec-key.md`); legacy `<app>/<key>` registry keys are still read; two specs do not share hashes <!-- claim: file-hash-key -->
+- [ ] After `results ingest` the `fileHashes` of each stored row are populated from the spec's declared sources with no drift run or seeding step, so editing one source file makes exactly the claims of the specs that declare it stale <!-- claim: ingest-records-sources -->
+- [ ] Each stored row records a `dependencyFingerprint` (hash of the repo's lockfiles, or its dependency manifests when no lockfile exists) and `effectiveVerdict` returns `stale` when the fingerprint no longer matches; a row with no fingerprint is never stale for that reason <!-- claim: dependency-stale -->
+- [ ] The ledger path comes from `--ledger`, then `paths.proofLedger`, then `.specguard/proofs.json`, so two ledgers can sit side by side <!-- claim: ledger-path -->
+- [ ] `proof ingest` and `results ingest` share one `ingestVerdicts` function and write identical rows for the same verdicts <!-- claim: shared-ingest -->
 
 ## Scenarios
 

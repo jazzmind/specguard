@@ -20,11 +20,45 @@ export const ExitCode = {
   SecurityIssues: 5,
   /** Heal failed (tests still broken after max retries). */
   HealFailed: 7,
+  /** The LLM spend cap (`llm.budget`) was reached. */
+  BudgetExceeded: 8,
+} as const;
+
+/**
+ * Exit codes of `specguard remediate`. These are command-scoped: 8 is also
+ * `ExitCode.BudgetExceeded` for the other commands, so under `remediate` a reached
+ * LLM budget is reported as `RemediateExit.SetupError` (11) instead.
+ * 5 (`ExitCode.SecurityIssues`) stays "findings present" for `--scan-only`.
+ */
+export const RemediateExit = {
+  /** Branch/PR produced and behavior verdict PRESERVED. */
+  Preserved: 8,
+  /** Verdict CHANGED: draft PR opened or the change rolled back. */
+  Changed: 9,
+  /** Verdict INCONCLUSIVE (flaky tests, unparseable output, coverage gaps). */
+  Inconclusive: 10,
+  /** Baseline not green, or a tool/setup error. */
+  SetupError: 11,
 } as const;
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
 /** Human-readable label for an exit code (for logging). */
+export function remediateExitLabel(code: number): string {
+  switch (code) {
+    case RemediateExit.Preserved:
+      return 'preserved';
+    case RemediateExit.Changed:
+      return 'changed';
+    case RemediateExit.Inconclusive:
+      return 'inconclusive';
+    case RemediateExit.SetupError:
+      return 'baseline not green or setup error';
+    default:
+      return exitCodeLabel(code);
+  }
+}
+
 export function exitCodeLabel(code: number): string {
   switch (code) {
     case ExitCode.Success:
@@ -41,6 +75,8 @@ export function exitCodeLabel(code: number): string {
       return 'security issues';
     case ExitCode.HealFailed:
       return 'heal failed';
+    case ExitCode.BudgetExceeded:
+      return 'llm budget exceeded';
     default:
       return `unknown (${code})`;
   }

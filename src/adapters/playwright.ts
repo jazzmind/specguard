@@ -16,8 +16,12 @@
  * The `playwrightRunner` export allows unit tests to stub browser interactions
  * without launching a real browser.
  */
+import { createServer } from 'node:net';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { ensureDir, writeFile } from '../core/writer.js';
+import { ensureDir } from '../core/writer.js';
+import { isDockerAvailable, startContainer, stopContainer } from './docker.js';
+import type { Redactor } from '../core/redact.js';
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -56,6 +60,14 @@ export interface BrowserHandle {
   _page: unknown;
   /** Console errors collected since launch. */
   _consoleErrors: string[];
+  /** This handle's browser context (one per auth profile). */
+  _context?: unknown;
+  /** True when closing this handle should close the whole browser. */
+  _ownsBrowser?: boolean;
+  /** Docker container running the Playwright server, when `runner` is docker. */
+  _container?: { id: string };
+  /** Rewrites a URL so the remote browser can reach it (localhost to host.docker.internal). */
+  _rewriteUrl?: (url: string) => string;
 }
 
 /** Options for launching a browser. */
@@ -65,6 +77,19 @@ export interface BrowserOpts {
   /** Viewport width in pixels. Default: 1280. */
   width?: number;
   /** Viewport height in pixels. Default: 720. */
+  height?: number;
+  /** `docker` runs the browser in a Playwright container (runners.playwright). Default `local`. */
+  runner?: 'local' | 'docker';
+  /** Image for the docker runner. Default: the official image matching the installed Playwright. */
+  dockerImage?: string;
+}
+
+/** Per-context options: a saved login, or headers every request carries. */
+export interface ContextOpts {
+  /** Path to a Playwright storage-state file. */
+  storageState?: string;
+  extraHTTPHeaders?: Record<string, string>;
+  width?: number;
   height?: number;
 }
 
@@ -76,12 +101,19 @@ export interface BrowserOpts {
  * Playwright runner seam. All internal calls route through this object so
  * tests can stub methods with vi.spyOn without a real browser.
  */
-export const playwrightRunner = {
+export const playwrightRunner: {
+  tryImport(): Promise<{ chromium: unknown } | null>;
+  version(): string | undefined;
+  freePort(): Promise<number>;
+  sleep(ms: number): Promise<void>;
+} = {
+  version: () => undefined,
+  freePort: async () => 0,
+  sleep: async () => undefined,
   async tryImport(): Promise<{ chromium: unknown } | null> {
     try {
       // Dynamic import via Function constructor avoids TypeScript resolving the
       // optional peer dep at compile time. This is intentional.
-      // eslint-disable-next-line no-new-func
       const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<unknown>;
       const pw = await dynamicImport('@playwright/test');
       return pw as { chromium: unknown };
@@ -103,44 +135,165 @@ export async function isPlaywrightAvailable(): Promise<boolean> {
   return pw !== null;
 }
 
+/** Installed Playwright version, or undefined. Seam for tests. */
+playwrightRunner.version = function version(): string | undefined {
+  try {
+    const require = createRequire(import.meta.url);
+    return (require('@playwright/test/package.json') as { version?: string }).version;
+  } catch {
+    return undefined;
+  }
+};
+
+/** A free TCP port on 127.0.0.1. Seam for tests. */
+playwrightRunner.freePort = function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      server.close(() => resolve(port));
+    });
+  });
+};
+
+/** Sleep seam: tests replace it to avoid waiting. */
+playwrightRunner.sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The URL as a browser inside a container must reach it: localhost means the host, not the container. */
+export function containerUrl(url: string): string {
+  return url.replace(/^(https?:\/\/)(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?=[:/]|$)/i, '$1host.docker.internal');
+}
+
+async function newPage(
+  browser: unknown,
+  ctxOpts: ContextOpts,
+): Promise<{ context: unknown; page: unknown; consoleErrors: string[] }> {
+  const context = await (browser as { newContext: (o: unknown) => Promise<unknown> }).newContext({
+    viewport: { width: ctxOpts.width ?? 1280, height: ctxOpts.height ?? 720 },
+    ...(ctxOpts.storageState ? { storageState: ctxOpts.storageState } : {}),
+    ...(ctxOpts.extraHTTPHeaders ? { extraHTTPHeaders: ctxOpts.extraHTTPHeaders } : {}),
+  });
+  const page = await (context as { newPage: () => Promise<unknown> }).newPage();
+  const consoleErrors: string[] = [];
+  (page as { on: (ev: string, cb: (msg: unknown) => void) => void }).on('console', (msg) => {
+    const m = msg as { type: () => string; text: () => string };
+    if (m.type() === 'error') consoleErrors.push(m.text());
+  });
+  return { context, page, consoleErrors };
+}
+
+/** Start the Playwright server in a container and connect to it. */
+async function connectDocker(
+  chromium: { connect?: (ws: string) => Promise<unknown> },
+  opts: BrowserOpts,
+): Promise<{ browser: unknown; container: { id: string } }> {
+  if (!chromium.connect) throw new Error('This Playwright version cannot connect to a remote browser server.');
+  if (!(await isDockerAvailable())) {
+    throw new Error('runners.playwright is "docker" but Docker is not available. Start Docker or set runners.playwright to "local".');
+  }
+  const version = playwrightRunner.version();
+  const image = opts.dockerImage ?? `mcr.microsoft.com/playwright:v${version ?? 'latest'}-noble`;
+  const [name, ...tagParts] = image.split(':');
+  const hostPort = await playwrightRunner.freePort();
+  const started = await startContainer({
+    image: name,
+    tag: tagParts.join(':') || 'latest',
+    ports: [{ host: hostPort, container: 3000 }],
+    addHostGateway: true,
+    args: ['npx', '-y', `playwright@${version ?? 'latest'}`, 'run-server', '--port', '3000', '--host', '0.0.0.0'],
+  });
+  if (!started.ok || !started.id) {
+    throw new Error(`Could not start the Playwright container ${image}: ${started.stderr.trim() || 'docker run failed'}`);
+  }
+  const container = { id: started.id };
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      const browser = await chromium.connect(`ws://127.0.0.1:${hostPort}/`);
+      return { browser, container };
+    } catch (err) {
+      lastError = err;
+      await playwrightRunner.sleep(1000);
+    }
+  }
+  await stopContainer(container.id);
+  throw new Error(`The Playwright container did not accept connections: ${(lastError as Error)?.message ?? 'timeout'}`);
+}
+
 /**
- * Launch a headless Chromium browser and return a handle.
+ * Launch Chromium and return a handle with its first context and page.
+ * `runner: 'docker'` runs the browser in a Playwright container instead.
  * Throws `PlaywrightUnavailableError` when @playwright/test is not installed.
  */
 export async function launchBrowser(opts: BrowserOpts = {}): Promise<BrowserHandle> {
   const pw = await playwrightRunner.tryImport();
   if (!pw) throw new PlaywrightUnavailableError();
 
-  const { headless = true, width = 1280, height = 720 } = opts;
+  const { headless = true } = opts;
 
   // Type the chromium launcher narrowly via unknown to avoid hard dep.
-  const chromium = (pw as { chromium: { launch: (o: unknown) => Promise<unknown> } }).chromium;
-  const browser = await chromium.launch({ headless });
+  const chromium = (pw as { chromium: { launch: (o: unknown) => Promise<unknown>; connect?: (ws: string) => Promise<unknown> } }).chromium;
+  let browser: unknown;
+  let container: { id: string } | undefined;
+  if (opts.runner === 'docker') {
+    ({ browser, container } = await connectDocker(chromium, opts));
+  } else {
+    browser = await chromium.launch({ headless });
+  }
 
-  const ctx = await (
-    browser as { newContext: (o: unknown) => Promise<unknown> }
-  ).newContext({ viewport: { width, height } });
-
-  const page = await (ctx as { newPage: () => Promise<unknown> }).newPage();
-  const consoleErrors: string[] = [];
-
-  (page as { on: (ev: string, cb: (msg: unknown) => void) => void }).on('console', (msg) => {
-    const m = msg as { type: () => string; text: () => string };
-    if (m.type() === 'error') consoleErrors.push(m.text());
-  });
-
-  return { _browser: browser, _page: page, _consoleErrors: consoleErrors };
+  const { context, page, consoleErrors } = await newPage(browser, { width: opts.width, height: opts.height });
+  return {
+    _browser: browser,
+    _page: page,
+    _context: context,
+    _consoleErrors: consoleErrors,
+    _ownsBrowser: true,
+    ...(container ? { _container: container, _rewriteUrl: containerUrl } : {}),
+  };
 }
 
 /**
- * Close the browser and release resources.
+ * Open another context (and page) on the same browser. Each auth profile gets
+ * its own, so one login never leaks into another. Closing the returned handle
+ * closes only that context.
+ */
+export async function openSession(handle: BrowserHandle, ctxOpts: ContextOpts = {}): Promise<BrowserHandle> {
+  const { context, page, consoleErrors } = await newPage(handle._browser, ctxOpts);
+  return {
+    _browser: handle._browser,
+    _page: page,
+    _context: context,
+    _consoleErrors: consoleErrors,
+    _ownsBrowser: false,
+    _rewriteUrl: handle._rewriteUrl,
+  };
+}
+
+/** Save the context's cookies and local storage so a later run can skip the login. */
+export async function saveStorageState(handle: BrowserHandle, file: string): Promise<void> {
+  await ensureDir(path.dirname(file));
+  const ctx = handle._context as { storageState?: (o: { path: string }) => Promise<unknown> } | undefined;
+  if (!ctx?.storageState) throw new Error('This browser context cannot save its state.');
+  await ctx.storageState({ path: file });
+}
+
+/**
+ * Close the handle. A session closes only its context; the handle that launched
+ * the browser closes the browser (and a Docker container, if any).
  */
 export async function closeBrowser(handle: BrowserHandle): Promise<void> {
   try {
-    await (handle._browser as { close: () => Promise<void> }).close();
+    if (handle._ownsBrowser === false) {
+      await (handle._context as { close: () => Promise<void> }).close();
+    } else {
+      await (handle._browser as { close: () => Promise<void> }).close();
+    }
   } catch {
     // Best-effort cleanup — never throw.
   }
+  if (handle._container) await stopContainer(handle._container.id);
 }
 
 /**
@@ -158,7 +311,8 @@ export async function navigateTo(handle: BrowserHandle, url: string): Promise<Pa
 
   let statusCode = 0;
   try {
-    const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
+    const target = handle._rewriteUrl ? handle._rewriteUrl(url) : url;
+    const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 30_000 });
     if (response) statusCode = response.status();
   } catch (err) {
     // Navigation timeout or network error — capture but don't throw.
@@ -184,6 +338,7 @@ export async function takeScreenshot(
   handle: BrowserHandle,
   label: string,
   evidenceDir: string,
+  opts: { maskSelectors?: string[] } = {},
 ): Promise<string> {
   await ensureDir(evidenceDir);
   const filename = `${label.replace(/[^a-z0-9_-]/gi, '_')}.png`;
@@ -191,9 +346,17 @@ export async function takeScreenshot(
 
   const page = handle._page as {
     screenshot: (opts: unknown) => Promise<Buffer>;
+    locator?: (selector: string) => unknown;
   };
 
-  const buffer = await page.screenshot({ path: filePath, fullPage: false });
+  // Blank-selector elements are painted over in the image itself (Playwright `mask`),
+  // so the file on disk and the image sent to the LLM never show them.
+  const mask = page.locator ? (opts.maskSelectors ?? []).map((selector) => page.locator!(selector)) : [];
+  const buffer = await page.screenshot({
+    path: filePath,
+    fullPage: false,
+    ...(mask.length > 0 ? { mask, maskColor: '#000000' } : {}),
+  });
 
   // writeFile from writer expects string content — use Node fs directly for binary.
   const { writeFile: fsWriteFile } = await import('node:fs/promises');
@@ -211,7 +374,15 @@ export async function takeScreenshot(
  *
  * Returns an empty string when neither API is available or both fail.
  */
-export async function getAccessibilitySnapshot(handle: BrowserHandle): Promise<string> {
+export async function getAccessibilitySnapshot(
+  handle: BrowserHandle,
+  redactor?: Redactor,
+): Promise<string> {
+  const raw = await withBlanked(handle, redactor?.blankSelectors ?? [], () => readAccessibilitySnapshot(handle));
+  return redactor ? redactor.text(raw, 'a11y') : raw;
+}
+
+async function readAccessibilitySnapshot(handle: BrowserHandle): Promise<string> {
   const page = handle._page as {
     locator?: (selector: string) => { ariaSnapshot: () => Promise<string> };
     accessibility?: { snapshot: () => Promise<unknown> };
@@ -244,15 +415,98 @@ export async function getAccessibilitySnapshot(handle: BrowserHandle): Promise<s
  * incorrect ARIA attributes).
  * Returns an empty string when the page cannot be serialised.
  */
-export async function getPageHtml(handle: BrowserHandle, maxChars = 40_000): Promise<string> {
+export async function getPageHtml(
+  handle: BrowserHandle,
+  maxChars = 40_000,
+  redactor?: Redactor,
+): Promise<string> {
   const page = handle._page as {
     content?: () => Promise<string>;
   };
   try {
     if (!page.content) return '';
-    const html = await page.content();
-    return html.length > maxChars ? html.slice(0, maxChars) + '\n<!-- truncated -->' : html;
+    const html = await withBlanked(handle, redactor?.blankSelectors ?? [], () => page.content!());
+    const masked = redactor ? redactor.text(html, 'dom') : html;
+    return masked.length > maxChars ? masked.slice(0, maxChars) + '\n<!-- truncated -->' : masked;
   } catch {
     return '';
   }
 }
+
+// Page scripts are strings: this package has no DOM typings, and they run in the browser.
+const BLANK_SCRIPT = `(sels) => {
+  const saved = [];
+  for (const sel of sels) {
+    let nodes;
+    try { nodes = document.querySelectorAll(sel); } catch (e) { continue; }
+    nodes.forEach((el) => {
+      if (typeof el.value === 'string' && el.value) { saved.push([el, 'value', el.value]); el.value = '[REDACTED]'; }
+      saved.push([el, 'html', el.innerHTML]);
+      if (!('value' in el)) el.textContent = '[REDACTED]';
+    });
+  }
+  window.__sgSaved = saved;
+}`;
+
+const RESTORE_SCRIPT = `() => {
+  for (const [el, kind, value] of (window.__sgSaved || [])) {
+    if (kind === 'value') el.value = value; else el.innerHTML = value;
+  }
+  window.__sgSaved = [];
+}`;
+
+/**
+ * Blank the elements matching `selectors` (text and form values), run `fn`, then put
+ * everything back, so the page the next action sees is unchanged.
+ */
+export async function withBlanked<T>(handle: BrowserHandle, selectors: string[], fn: () => Promise<T>): Promise<T> {
+  const page = handle._page as { evaluate?: (fn: unknown, arg?: unknown) => Promise<unknown> };
+  if (selectors.length === 0 || !page.evaluate) return fn();
+  await page.evaluate(BLANK_SCRIPT, selectors);
+  try {
+    return await fn();
+  } finally {
+    await page.evaluate(RESTORE_SCRIPT);
+  }
+}
+
+
+/**
+ * What the guardrails need to know about the element an action will touch: its
+ * role, accessible name, tag and input type. Returns null when the selector
+ * matches nothing or the page cannot be inspected.
+ */
+export async function inspectTarget(
+  handle: BrowserHandle,
+  selector: string,
+): Promise<{ role?: string; name?: string; tag?: string; type?: string } | null> {
+  const page = handle._page as { evaluate?: (fn: unknown, arg?: unknown) => Promise<unknown> };
+  if (!page.evaluate) return null;
+  try {
+    const found = await page.evaluate(INSPECT_SCRIPT, selector);
+    return (found as { role?: string; name?: string; tag?: string; type?: string } | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const INSPECT_SCRIPT = `(sel) => {
+  let el;
+  try { el = document.querySelector(sel); } catch (e) { return null; }
+  if (!el) return null;
+  const tag = el.tagName.toLowerCase();
+  const type = (el.getAttribute('type') || '').toLowerCase();
+  const implicit = { a: 'link', button: 'button', textarea: 'textbox', select: 'combobox', summary: 'button' };
+  let role = el.getAttribute('role') || implicit[tag] || '';
+  if (tag === 'input') {
+    if (['submit', 'button', 'reset', 'image'].includes(type)) role = 'button';
+    else if (['checkbox'].includes(type)) role = 'checkbox';
+    else if (['radio'].includes(type)) role = 'radio';
+    else role = 'textbox';
+  }
+  const labelled = el.getAttribute('aria-labelledby');
+  const byIds = labelled ? labelled.split(/\\s+/).map((id) => (document.getElementById(id) || {}).textContent || '').join(' ') : '';
+  const label = el.labels && el.labels[0] ? el.labels[0].textContent : '';
+  const name = (el.getAttribute('aria-label') || byIds || label || (tag === 'input' ? el.value : '') || el.innerText || el.textContent || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('alt') || '').replace(/\\s+/g, ' ').trim().slice(0, 200);
+  return { role, name, tag, type };
+}`;

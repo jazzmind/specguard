@@ -11,6 +11,7 @@ import { z } from 'zod';
 import type { SpecGuardConfig } from './types.js';
 import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
+import { configureLlm } from './llm-runtime.js';
 
 // ---------------------------------------------------------------------------
 // Zod schema — mirrors the types in ./types.ts, permissive on unknown keys so
@@ -47,6 +48,19 @@ const appConfigSchema = z
     extraTestSources: z.array(z.string()).optional(),
     exclude: z.array(z.string()).optional(),
     collapse: z.array(z.string()).optional(),
+    test: z
+      .object({
+        command: z.string().optional(),
+        cwd: z.string().optional(),
+        reporter: z.string().optional(),
+        resultsFile: z.string().optional(),
+        timeoutMs: z.number().int().positive().optional(),
+        image: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    stripPrefix: z.union([z.string(), z.array(z.string())]).optional(),
+    entryPoints: z.array(z.string()).optional(),
   })
   .passthrough();
 
@@ -54,8 +68,15 @@ const runnersSchema = z
   .object({
     playwright: z.string().optional(),
     semgrep: z.string().optional(),
-    bandit: z.string().optional(),
     testRunner: z.string().optional(),
+  })
+  .passthrough();
+
+const llmTargetSchema = z
+  .object({
+    provider: z.string(),
+    model: z.string(),
+    apiKeyEnv: z.string().optional(),
   })
   .passthrough();
 
@@ -64,6 +85,34 @@ const llmSchema = z
     provider: z.string(),
     model: z.string(),
     apiKeyEnv: z.string(),
+    pipelines: z
+      .record(
+        z.string(),
+        z
+          .object({
+            provider: z.string().optional(),
+            model: z.string().optional(),
+            apiKeyEnv: z.string().optional(),
+            fallback: z.array(llmTargetSchema).optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
+    fallback: z.array(llmTargetSchema).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    retries: z.number().int().min(0).max(10).optional(),
+    backoffMs: z.number().int().min(0).optional(),
+    budget: z
+      .object({
+        maxUsd: z.number().positive().optional(),
+        maxTokens: z.number().int().positive().optional(),
+        maxCalls: z.number().int().positive().optional(),
+      })
+      .passthrough()
+      .optional(),
+    pricing: z.record(z.string(), z.object({ inputPerMTok: z.number().min(0), outputPerMTok: z.number().min(0) })).optional(),
+    allowImages: z.boolean().optional(),
+    replay: z.object({ dir: z.string().optional(), record: z.boolean().optional() }).passthrough().optional(),
   })
   .passthrough();
 
@@ -90,14 +139,125 @@ const matrixSchema = z
   })
   .passthrough();
 
+const authProfileSchema = z
+  .object({
+    name: z.string().min(1),
+    strategy: z.enum(['form', 'storageState', 'header', 'token', 'script']).optional(),
+    loginUrl: z.string().optional(),
+    usernameEnvVar: z.string().optional(),
+    passwordEnvVar: z.string().optional(),
+    usernameSelector: z.string().optional(),
+    passwordSelector: z.string().optional(),
+    submitSelector: z.string().optional(),
+    successUrl: z.string().optional(),
+    successSelector: z.string().optional(),
+    storageStatePath: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    tokenEnvVar: z.string().optional(),
+    tokenHeader: z.string().optional(),
+    tokenPrefix: z.string().optional(),
+    scriptPath: z.string().optional(),
+  })
+  .passthrough()
+  .superRefine((profile, ctx) => {
+    const strategy = profile.strategy ?? 'form';
+    const need = (ok: boolean, message: string) => {
+      if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `auth profile '${profile.name}': ${message}` });
+    };
+    if (strategy === 'form') {
+      need(Boolean(profile.loginUrl && profile.usernameEnvVar && profile.passwordEnvVar), 'strategy form needs loginUrl, usernameEnvVar and passwordEnvVar');
+    } else if (strategy === 'storageState') {
+      // A saved state file is enough; a form login is optional and creates the file when it is missing.
+    } else if (strategy === 'header') {
+      need(Boolean(profile.headers && Object.keys(profile.headers).length > 0), 'strategy header needs headers (header name -> env var name)');
+    } else if (strategy === 'token') {
+      need(Boolean(profile.tokenEnvVar), 'strategy token needs tokenEnvVar');
+    } else if (strategy === 'script') {
+      need(Boolean(profile.scriptPath), 'strategy script needs scriptPath');
+    }
+  });
+
+const validateSchema = z
+  .object({
+    headless: z.boolean().optional(),
+    guardrails: z
+      .object({
+        deny: z.array(z.string()).optional(),
+        allow: z.array(z.string()).optional(),
+        allowOutbound: z.boolean().optional(),
+      })
+      .passthrough()
+      .optional(),
+    redaction: z
+      .object({
+        builtin: z.boolean().optional(),
+        patterns: z.array(z.string()).optional(),
+        blankSelectors: z.array(z.string()).optional(),
+        hookPath: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+const pathsSchema = z
+  .object({
+    specsRoot: z.string().optional(),
+    docsOut: z.string().optional(),
+    securityTests: z.string().optional(),
+    proofLedger: z.string().optional(),
+  })
+  .passthrough();
+
+const featureStateSchema = z
+  .object({
+    catalog: z.string().optional(),
+    resultsDirs: z.array(z.string()).optional(),
+    reporters: z
+      .array(z.object({ path: z.string(), kind: z.string().optional(), format: z.string().optional() }))
+      .optional(),
+    channelByType: z.record(z.string(), z.string()).optional(),
+    repoChannels: z.record(z.string(), z.string()).optional(),
+    externalIds: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+const remediateSchema = z
+  .object({
+    minSeverity: z.enum(['critical', 'high', 'moderate', 'low']).optional(),
+    allowMajor: z.boolean().optional(),
+    maxAdvisories: z.number().int().positive().optional(),
+    maxFilesChanged: z.number().int().positive().optional(),
+    maxLinesChanged: z.number().int().positive().optional(),
+    buildCommand: z.string().optional(),
+    typecheckCommand: z.string().optional(),
+    installCommand: z.string().optional(),
+    stepTimeoutMs: z.number().int().positive().optional(),
+    baseBranch: z.string().optional(),
+    branchPrefix: z.string().optional(),
+    sandbox: z.enum(['local', 'docker']).optional(),
+    osv: z.boolean().optional(),
+    semgrep: z.boolean().optional(),
+    gitleaks: z.boolean().optional(),
+    strictUnexercised: z.boolean().optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
+    plugins: z.array(z.string()).optional(),
+    featureState: featureStateSchema.optional(),
+    auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
+    validate: validateSchema.optional(),
+    extends: z.string().optional(),
+    paths: pathsSchema.optional(),
     apps: z.array(appConfigSchema).min(1),
     runners: runnersSchema.optional(),
     llm: llmSchema,
     triggers: triggersSchema.optional(),
     heal: healSchema.optional(),
     matrix: matrixSchema.optional(),
+    remediate: remediateSchema.optional(),
   })
   .passthrough();
 
@@ -106,16 +266,19 @@ const CONFIG_REL = path.join('.specguard', 'config.json');
 
 /**
  * Walk up from `start` (inclusive) looking for `.specguard/config.json`.
+ * The search stops at the repository boundary: the first directory that
+ * contains `.git`. A repo with no config of its own therefore never picks up a
+ * parent repo's config; use `extends` to inherit one on purpose.
  * Returns the directory containing `.specguard/`, or null if none found.
  */
 async function findConfigDir(start: string): Promise<string | null> {
   let dir = path.resolve(start);
   // Walk until the filesystem root (parent === dir).
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (await fileExists(path.join(dir, CONFIG_REL))) {
       return dir;
     }
+    if (await fileExists(path.join(dir, '.git'))) return null;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -132,11 +295,51 @@ function formatZodError(err: z.ZodError): string {
     .join('; ');
 }
 
+type Json = Record<string, unknown>;
+
+function isPlainObject(value: unknown): value is Json {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Merge a child over a parent: objects merge one level deep, everything else (arrays, apps, scalars) is replaced. */
+function mergeConfigs(parent: Json, child: Json): Json {
+  const out: Json = { ...parent };
+  for (const [key, value] of Object.entries(child)) {
+    if (key === 'extends') continue;
+    const base = out[key];
+    out[key] = isPlainObject(value) && isPlainObject(base) ? { ...base, ...value } : value;
+  }
+  return out;
+}
+
+async function resolveExtends(configPath: string, raw: Json, seen: Set<string>): Promise<Json> {
+  const target = raw.extends;
+  if (target === undefined) return raw;
+  if (typeof target !== 'string' || target.length === 0) {
+    throw new ConfigInvalidError('extends must be a path to a config file or a directory containing .specguard/config.json');
+  }
+  let parentPath = path.resolve(path.dirname(path.dirname(configPath)), target);
+  if (!parentPath.endsWith('.json')) parentPath = path.join(parentPath, CONFIG_REL);
+  if (seen.has(parentPath)) throw new ConfigInvalidError(`extends cycle through ${parentPath}`);
+  seen.add(parentPath);
+  if (!(await fileExists(parentPath))) throw new ConfigInvalidError(`extends target not found: ${parentPath}`);
+  let parentRaw: unknown;
+  try {
+    parentRaw = JSON.parse(await readFile(parentPath));
+  } catch (err) {
+    throw new ConfigInvalidError(`extended config ${parentPath} is not valid JSON (${(err as Error).message})`, err);
+  }
+  if (!isPlainObject(parentRaw)) throw new ConfigInvalidError(`extended config ${parentPath} is not an object`);
+  const resolvedParent = await resolveExtends(parentPath, parentRaw, seen);
+  return mergeConfigs(resolvedParent, raw);
+}
+
 /**
- * Load and validate `.specguard/config.json`, searching from `cwd` upward.
+ * Load and validate `.specguard/config.json`, searching from `cwd` upward to the
+ * repository boundary.
  *
- * @throws {ConfigNotFoundError} when no config file is found in any ancestor.
- * @throws {ConfigInvalidError} when the file is not valid JSON or fails schema validation.
+ * @throws {ConfigNotFoundError} when no config file is found before the repo boundary.
+ * @throws {ConfigInvalidError} when the file is not valid JSON, fails schema validation, or `extends` is broken.
  */
 export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuardConfig> {
   const rootDir = await findConfigDir(cwd);
@@ -156,6 +359,9 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
       err,
     );
   }
+  if (isPlainObject(parsed)) {
+    parsed = await resolveExtends(configPath, parsed, new Set([configPath]));
+  }
 
   const result = configSchema.safeParse(parsed);
   if (!result.success) {
@@ -166,5 +372,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
   // canonical type and stamp the resolved root directory.
   const config = result.data as unknown as SpecGuardConfig;
   config.rootDir = rootDir;
+  // The LLM layer is configured once per process from the config it was given.
+  configureLlm({ rootDir, llm: config.llm });
   return config;
 }

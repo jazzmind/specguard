@@ -10,6 +10,7 @@ describe("Exit Codes", () => {
     expect(ExitCode.MissingSpecs).toBe(4);
     expect(ExitCode.SecurityIssues).toBe(5);
     expect(ExitCode.HealFailed).toBe(7);
+    expect(ExitCode.BudgetExceeded).toBe(8);
   });
 
   it("Obtaining a label for each defined exit code", () => {
@@ -20,6 +21,7 @@ describe("Exit Codes", () => {
     expect(exitCodeLabel(4)).toBe("missing specs");
     expect(exitCodeLabel(5)).toBe("security issues");
     expect(exitCodeLabel(7)).toBe("heal failed");
+    expect(exitCodeLabel(8)).toBe("llm budget exceeded");
   });
 
   it("Obtaining a label for an unknown exit code", () => {
@@ -31,8 +33,8 @@ describe("Exit Codes", () => {
   it("Verifying no duplicate numeric values exist", () => {
     const values = Object.values(ExitCode);
     const uniqueValues = new Set(values);
-    expect(values).toHaveLength(7);
-    expect(uniqueValues.size).toBe(7);
+    expect(values).toHaveLength(8);
+    expect(uniqueValues.size).toBe(8);
   });
 
   it("Type safety prevents arbitrary number assignment", () => {

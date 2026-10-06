@@ -1,0 +1,43 @@
+# Example: scheduled SpecGuard remediation. Copy to .github/workflows/specguard-remediate.yml.
+# It opens one PR per advisory group. A PR is a normal PR only when behavior was PROVEN preserved;
+# otherwise it is a draft that lists the differences. Nothing is merged automatically.
+name: specguard-remediate
+
+on:
+  schedule:
+    - cron: '17 5 * * 1-5'   # weekdays, 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      args:
+        description: 'Extra specguard remediate arguments, e.g. --advisory GHSA-xxxx --allow-major'
+        required: false
+        default: ''
+
+# One remediation at a time per repository: a second run would race on branches and the lock file.
+concurrency:
+  group: specguard-remediate-${{ github.repository }}
+  cancel-in-progress: false
+
+# Minimal token permissions: push the remediation branch and open the PR.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # worktrees and branch checks need history
+      - uses: jazzmind/specguard@main   # pin a release tag in real use
+        with:
+          mode: remediate
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          remediate-args: ${{ github.event.inputs.args || '--min-severity high' }}
+          open-pr: 'true'
+          # Evidence (.specguard/remediation/*) is uploaded by the action's artifact step.
+          # Add an LLM key to enable the breaking-change analysis (optional):
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

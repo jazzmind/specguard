@@ -126,7 +126,8 @@ describe('runStatus UNFEATURED report', () => {
     await writeRel('specs/core/q.md', page(' / feature: design.q'));
     await writeRel('specs/core/r.md', page(' / feature: platform'));
 
-    const res = await runStatus(makeConfig());
+    const config = { ...makeConfig(), featureState: { catalog: 'catalog', channelByType: { page: 'ui' } } };
+    const res = await runStatus(config);
 
     expect(res.messages).toContain('UNFEATURED: 1');
     expect(res.messages.some((m) => m.includes('[unfeatured] core:p'))).toBe(true);
@@ -134,3 +135,31 @@ describe('runStatus UNFEATURED report', () => {
     expect(res.messages.some((m) => m.includes('[unfeatured] core:r'))).toBe(false);
   });
 });
+
+describe('runStatus UNFEATURED', () => {
+  const SPEC = '# P\n\n<!-- type: page -->\n\n## Overview\nA page.\n';
+
+  it('emits nothing about features when no catalog is configured', async () => {
+    await writeRel('src/core/a.ts');
+    await writeRel('specs/core/a.md', SPEC);
+    const res = await runStatus({ ...makeConfig(), plugins: undefined });
+    expect(res.messages.some((m) => m.includes('UNFEATURED'))).toBe(false);
+  });
+
+  it('lists untagged feature-bearing specs when a catalog is configured', async () => {
+    await writeRel('src/core/a.ts');
+    await writeRel('specs/core/a.md', SPEC);
+    const config = { ...makeConfig(), featureState: { catalog: 'catalog', channelByType: { page: 'ui' } } };
+    const res = await runStatus(config);
+    expect(res.messages).toContain('UNFEATURED: 1');
+    expect(res.messages.some((m) => m.includes('[unfeatured] core:a'))).toBe(true);
+  });
+
+  it('a plugin with a default catalog enables the report and supplies the types', async () => {
+    await writeRel('src/core/a.ts');
+    await writeRel('specs/core/a.md', SPEC);
+    const res = await runStatus({ ...makeConfig(), plugins: ['practera'] });
+    expect(res.messages).toContain('UNFEATURED: 1');
+  });
+});
+

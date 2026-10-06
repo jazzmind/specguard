@@ -424,26 +424,38 @@ export function resolveProfile(app: { language?: string }): LanguageProfile {
 /**
  * Derive the feature path (no extension) for a source file relative to its
  * repo. Centralizes the logic previously duplicated in reverse/status/gap:
- *   1. Drop a leading `src/` or `tests/` segment.
- *   2. Drop the next (area) segment — already encoded by `specDir`.
- *   3. Apply each `featureExtRegex` entry in order.
+ *   1. When the app sets `stripPrefix`, remove the first matching prefix.
+ *      Otherwise: drop a leading `src/` or `tests/` segment, then drop the next
+ *      (area) segment, which `specDir` already encodes.
+ *   2. Apply each `featureExtRegex` entry in order.
  */
 export function featureFromPath(
   absFile: string,
   repoDir: string,
   profile: LanguageProfile,
+  app?: { stripPrefix?: string | string[] },
 ): string {
   let rel = path.relative(repoDir, absFile).split(path.sep).join('/');
-  const segments = rel.split('/');
 
-  if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) {
-    segments.shift();
-  }
-  if (segments.length > 1) {
-    segments.shift();
+  const prefixes = app?.stripPrefix === undefined ? [] : Array.isArray(app.stripPrefix) ? app.stripPrefix : [app.stripPrefix];
+  const normalized = prefixes
+    .map((prefix) => prefix.split('\\').join('/').replace(/^\.\//, ''))
+    .filter(Boolean)
+    .map((prefix) => (prefix.endsWith('/') ? prefix : `${prefix}/`));
+  if (normalized.length > 0) {
+    const hit = normalized.find((prefix) => rel.startsWith(prefix));
+    if (hit) rel = rel.slice(hit.length);
+  } else {
+    const segments = rel.split('/');
+    if (segments.length > 1 && (segments[0] === 'src' || segments[0] === 'tests')) {
+      segments.shift();
+    }
+    if (segments.length > 1) {
+      segments.shift();
+    }
+    rel = segments.join('/');
   }
 
-  rel = segments.join('/');
   for (const re of profile.featureExtRegex) {
     rel = rel.replace(re, '');
   }

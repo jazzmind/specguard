@@ -1,0 +1,23 @@
+{
+  "database": { "advisory-count": 700 },
+  "lockfile": { "dependency-count": 120 },
+  "vulnerabilities": {
+    "found": true,
+    "count": 1,
+    "list": [
+      {
+        "advisory": {
+          "id": "RUSTSEC-2023-0044",
+          "package": "openssl",
+          "title": "`openssl` `X509VerifyParam::set_host` buffer over-read",
+          "aliases": ["CVE-2023-5363", "GHSA-xcf7-rvmh-fmrj"],
+          "cvss": null,
+          "url": "https://rustsec.org/advisories/RUSTSEC-2023-0044"
+        },
+        "versions": { "patched": [">=0.10.60"], "unaffected": [] },
+        "package": { "name": "openssl", "version": "0.10.55" }
+      }
+    ]
+  },
+  "warnings": {}
+}

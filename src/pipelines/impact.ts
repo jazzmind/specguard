@@ -16,19 +16,12 @@ import {
   type ContractGraph,
   type ContractNode,
   type ContractEdge,
-  type TraversalStep,
   loadContractGraph,
   findNode,
   nodeId,
   traverseGraph,
-  parseNodeId,
 } from '../core/contracts.js';
-import {
-  type WorkspaceManifest,
-  type WorkspaceRepoWithConfig,
-  resolveRepoPath,
-} from '../core/workspace.js';
-import { resolveProfile } from '../core/language-profiles.js';
+import type { WorkspaceManifest } from '../core/workspace.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,7 +31,7 @@ export interface ImpactOpts {
   /**
    * File or spec to analyze. Can be:
    * - A node ID like `graphql-api::specs/mutations/designer.md`
-   * - A relative path from workspace root like `practera-graphql-api/specs/mutations/designer.md`
+   * - A relative path from workspace root like `provider-api/specs/mutations/designer.md`
    * - An absolute path to a spec or source file
    */
   target: string;
@@ -207,7 +200,7 @@ export async function runImpact(
     result.messages.push(
       `[impact] Cannot resolve target: ${opts.target}\n` +
         `  Try a node ID like: graphql-api::specs/mutations/designer.md\n` +
-        `  Or a path relative to workspace root like: practera-graphql-api/specs/mutations/designer.md`,
+        `  Or a path relative to workspace root like: provider-api/specs/mutations/designer.md`,
     );
     return { result, impact: null };
   }

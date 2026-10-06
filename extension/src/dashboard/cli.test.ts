@@ -6,7 +6,7 @@
  * ESM note: fs and child_process namespace objects are non-configurable, so
  * vi.spyOn doesn't work. Both modules are fully mocked here.
  */
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'node:events';
 
 // vscode is not available in the test environment — provide a manual mock.

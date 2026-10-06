@@ -1,0 +1,5 @@
+{"created":1,"tests":[
+{"nodeid":"tests/test_awards.py::test_award_once @claim:core/awards#award-once","outcome":"passed","setup":{"duration":0.001},"call":{"duration":0.01},"teardown":{"duration":0.001}},
+{"nodeid":"tests/test_awards.py::TestX::test_boom","outcome":"failed","call":{"duration":0.02,"longrepr":"assert 0"},"metadata":{"claim":"core/awards#no-dupes"}},
+{"nodeid":"tests/test_awards.py::test_skip","outcome":"skipped"}
+]}

@@ -10,6 +10,8 @@ export interface ValidateCliOpts extends GlobalOpts {
   url?: string;
   app?: string;
   noReview?: boolean;
+  headed?: boolean;
+  allowOutbound?: boolean;
 }
 
 export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
@@ -20,6 +22,8 @@ export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
     baseUrl: opts.url,
     app: opts.app,
     noReview: opts.noReview,
+    headed: opts.headed,
+    allowOutbound: opts.allowOutbound,
   });
 
   outputResult(result, opts);

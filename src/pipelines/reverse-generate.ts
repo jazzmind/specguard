@@ -35,6 +35,7 @@ import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists, expandGlobs } from '../core/reader.js';
+import { expandAppGlobs } from '../core/spec-key.js';
 import { writeFile } from '../core/writer.js';
 import { llmGenerateText } from '../core/llm.js';
 import { resolveProfile, featureFromPath } from '../core/language-profiles.js';
@@ -182,14 +183,14 @@ export async function runReverseGenerate(
     for (const group of Object.values(app.sources)) {
       if (Array.isArray(group)) patterns.push(...group);
     }
-    allFiles = await expandGlobs(patterns, repoDir);
+    allFiles = await expandAppGlobs(config, app, patterns);
   }
 
   // Apply `exclude` patterns — filter out any file matched by an exclude glob.
   const excludePatterns = app.exclude ?? [];
   let files = allFiles;
   if (excludePatterns.length > 0) {
-    const excluded = new Set(await expandGlobs(excludePatterns, repoDir));
+    const excluded = new Set(await expandAppGlobs(config, app, excludePatterns));
     files = allFiles.filter((f) => !excluded.has(f));
     const removedCount = allFiles.length - files.length;
     if (removedCount > 0) {
@@ -217,7 +218,7 @@ export async function runReverseGenerate(
     if (collapseSet.has(absFile)) {
       // Derive the directory-level feature key: take the normal feature key
       // and drop the final path segment (the filename).
-      const fileFeature = featureFromPath(absFile, repoDir, profile);
+      const fileFeature = featureFromPath(absFile, repoDir, profile, app);
       const dirFeature = path.posix.dirname(fileFeature);
       // If dirname collapses to '.' the file is at the top of the specDir —
       // treat it as individual to avoid a degenerate '.' spec.
@@ -254,7 +255,7 @@ export async function runReverseGenerate(
 
   // --- Process individual files (unchanged 1:1 behaviour) ---
   await runConcurrent(individualFiles, concurrency, async (absFile) => {
-    const feature = featureFromPath(absFile, repoDir, profile);
+    const feature = featureFromPath(absFile, repoDir, profile, app);
     const key = `${app.name}/${feature}`;
 
     if (!(await fileExists(absFile))) {

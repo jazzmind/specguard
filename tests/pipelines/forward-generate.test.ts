@@ -176,3 +176,30 @@ describe('runForwardGenerate', () => {
     expect(res.exitCode).not.toBe(0);
   });
 });
+
+describe('claim tags in generated tests', () => {
+  const CLAIM_SPEC = SPEC_BODY.replace(
+    '## Scenarios',
+    '## Acceptance Criteria\n\n- [ ] Returns the title <!-- claim: returns-title -->\n- [ ] Rejects empty input <!-- claim: rejects-empty -->\n\n## Scenarios',
+  );
+
+  it('lists claims with exact tags in the prompt and warns about missing tags', async () => {
+    await writeSpec('specs/core/spec-parser.md', CLAIM_SPEC);
+    mockedLlm.mockResolvedValue("it('parses a title @claim:spec-parser#returns-title', () => {});");
+    const result = await runForwardGenerate(makeConfig(), { spec: 'core/spec-parser' });
+    const prompt = mockedLlm.mock.calls[0][0].prompt as string;
+    expect(prompt).toContain('@claim:spec-parser#returns-title');
+    expect(prompt).toContain('@claim:spec-parser#rejects-empty');
+    expect(result.created).toBe(1);
+    const warn = result.messages.find((m) => m.startsWith('[warn]')) ?? '';
+    expect(warn).toContain('@claim:spec-parser#rejects-empty');
+    expect(warn).not.toContain('returns-title');
+  });
+
+  it('does not warn when every tag is present', async () => {
+    await writeSpec('specs/core/spec-parser.md', CLAIM_SPEC);
+    mockedLlm.mockResolvedValue("it('a @claim:spec-parser#returns-title @claim:spec-parser#rejects-empty', () => {});");
+    const result = await runForwardGenerate(makeConfig(), { spec: 'core/spec-parser' });
+    expect(result.messages.some((m) => m.startsWith('[warn]'))).toBe(false);
+  });
+});

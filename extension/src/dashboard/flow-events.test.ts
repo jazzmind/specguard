@@ -19,6 +19,7 @@ describe('artifactEventFor', () => {
 describe('cliArgsFor', () => {
   it('returns the pipeline name plus extras', () => {
     expect(cliArgsFor('drift')).toEqual(['drift']);
-    expect(cliArgsFor('reverse', ['--app', 'specguard-core'])).toEqual(['reverse', '--app', 'specguard-core']);
+    // pipelines that need --spec or --all get --all by default
+    expect(cliArgsFor('reverse', ['--app', 'specguard-core'])).toEqual(['reverse', '--all', '--app', 'specguard-core']);
   });
 });

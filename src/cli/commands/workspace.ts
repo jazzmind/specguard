@@ -15,6 +15,7 @@ import {
   type WorkspaceRepoWithConfig,
 } from '../../core/workspace.js';
 import { loadContractGraph } from '../../core/contracts.js';
+import { guessRepoRole, workspaceRepoKey } from '../../core/workspace-heuristics.js';
 
 // ---------------------------------------------------------------------------
 // workspace init
@@ -67,16 +68,12 @@ export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promis
     if (entry.startsWith('.')) continue;
 
     const hasSpecGuard = await fileExists(path.join(absEntry, '.specguard', 'config.json'));
-    const repoKey = entry
-      .replace(/^practera-/, '')
-      .replace(/-/g, '_')
-      .replace(/_app$/, '-app')
-      .replace(/_api$/, '-api');
+    const repoKey = workspaceRepoKey(entry);
 
     if (hasSpecGuard) {
       repos[repoKey] = {
         path: entry,
-        role: guessRole(entry),
+        role: guessRepoRole(absEntry),
       };
     }
   }
@@ -107,15 +104,6 @@ export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promis
   process.stdout.write('  2. Run `specguard contracts` to build the dependency graph\n');
   process.stdout.write('  3. Run `specguard workspace status` to see the health dashboard\n');
   process.exit(0);
-}
-
-/** Guess a repo's role from its name. */
-function guessRole(dirName: string): string {
-  if (dirName.includes('test') || dirName.includes('suite')) return 'test';
-  if (dirName.includes('docs') || dirName.includes('support-center') || dirName.includes('roadmap')) return 'docs';
-  if (dirName.includes('app') || dirName.includes('frontend') || dirName.includes('login-app')) return 'consumer';
-  if (dirName.includes('api') || dirName.includes('services') || dirName.includes('tusd')) return 'provider';
-  return 'consumer';
 }
 
 // ---------------------------------------------------------------------------

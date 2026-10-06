@@ -15,6 +15,7 @@ The `specguard heal` command invokes the Phase 4 heal pipeline to automatically 
 - AC5: A non-numeric `--maxRetries` value (resulting in `NaN`) is treated as `undefined` and not forwarded to `runHeal`.
 - AC6: Every message in `result.messages` is written to stdout, each followed by a newline.
 - AC7: The process exits with exactly `result.exitCode` as returned by `runHeal`.
+- AC8: `--app <name>`, `--classify-only`, and `--lenient` are forwarded to `runHeal` as `app`, `classifyOnly`, and `lenient`.
 
 ## Scenarios
 

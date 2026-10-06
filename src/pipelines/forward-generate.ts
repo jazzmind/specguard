@@ -43,6 +43,8 @@ import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
 import { resolveProfile, type LanguageProfile } from '../core/language-profiles.js';
+import { claimTag, extractClaimRefs } from '../core/claim-tags.js';
+import { formatClaimRef } from '../core/claims.js';
 
 export type TestType = 'unit' | 'integration' | 'e2e';
 
@@ -76,6 +78,8 @@ const BASE_RULES = [
   '- Create EXACTLY one test block (it() / test()) per scenario, titled with the scenario name.',
   '- Import the module under test from the provided module path.',
   '- Translate each scenario\'s Steps and Expected Results into arrange / act / assert code.',
+  '- When claims are listed, put the exact @claim tag of each claim in the title of the test that verifies it',
+  '  (one test may carry several tags). Do not alter, shorten, or reformat a tag.',
   '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
 ];
 
@@ -197,6 +201,15 @@ function scenariosBlock(spec: ParsedSpec): string {
     .join('\n\n');
 }
 
+/** Claims that carry an anchor, with the exact tag a test title must include. */
+function claimsBlock(spec: ParsedSpec): { text: string; refs: string[] } {
+  const anchored = spec.claims.filter((c) => c.id);
+  if (anchored.length === 0) return { text: '', refs: [] };
+  const refs = anchored.map((c) => formatClaimRef(undefined, spec.specKey, c.id as string));
+  const lines = anchored.map((c, i) => `- ${claimTag(refs[i])} — ${c.text}`);
+  return { text: ['Claims (tag the test that verifies each one):', ...lines].join('\n'), refs };
+}
+
 /**
  * Generate executable tests from Living Specs.
  */
@@ -289,6 +302,7 @@ export async function runForwardGenerate(
     const moduleUnderTest = spec.meta.module ?? '(unknown — infer from spec)';
     const testTypeLabel = opts.type ? ` [${opts.type}]` : '';
 
+    const claims = claimsBlock(spec);
     const prompt = [
       `Generate a ${framework} ${opts.type ?? 'unit'} test file for this Living Specification.`,
       `Spec key: ${key}`,
@@ -303,6 +317,7 @@ export async function runForwardGenerate(
       '',
       'Scenarios (one test block each):',
       scenariosBlock(spec),
+      ...(claims.text ? ['', claims.text] : []),
     ].join('\n');
 
     attempted += 1;
@@ -316,6 +331,11 @@ export async function runForwardGenerate(
       });
       const testCode = stripFences(raw);
       await writeFile(targetTest, testCode);
+      const present = new Set(extractClaimRefs(testCode));
+      const missing = claims.refs.filter((ref) => !present.has(ref));
+      if (missing.length > 0) {
+        log(`[warn] ${key} — generated test is missing claim tag(s): ${missing.map(claimTag).join(', ')}`);
+      }
       log(`[gen] ${key}`);
       result.items.push({ key, status: 'created', path: targetTest });
       result.created += 1;

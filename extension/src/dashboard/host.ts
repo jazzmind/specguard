@@ -860,7 +860,7 @@ export class DashboardHost {
       // First non-empty paragraph after the H1 (or after the metadata comment)
       const lines = content.split(/\r?\n/);
       let inMeta = false;
-      let descLines: string[] = [];
+      const descLines: string[] = [];
       for (const line of lines) {
         if (line.startsWith('<!--')) { inMeta = true; continue; }
         if (inMeta) { if (line.includes('-->')) inMeta = false; continue; }

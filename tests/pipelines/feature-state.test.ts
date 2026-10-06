@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   channelOf,
-  discoverImplementations,
   featureStates,
-  headingSummary,
+  inferRequires,
   unitBelongs,
   type CatalogFeatureInput,
   type FeatureStateInput,
@@ -52,7 +51,7 @@ describe('featureStates', () => {
   it('does not open the agent gate on a regression pass alone', () => {
     const [row] = featureStates(input({
       features: [feature({ tests: { unit: [], regression: ['CORE-T93'], integration: [], proof: [] } })],
-      cases: [{ kind: 'regression', status: 'passed', zephyr: 'CORE-T93' }],
+      cases: [{ kind: 'regression', status: 'passed', externalId: 'CORE-T93' }],
     }));
     expect(row.channels.ui.state).toBe('proven');
     expect(row.agentGate.allowed).toBe(false);
@@ -108,72 +107,49 @@ describe('featureStates', () => {
   });
 });
 
-describe('experiences index', () => {
-  const workspace = '/Users/wessonnenreich/Code/practera';
-  const list: CatalogFeatureInput = {
-    id: 'design.experience.list',
-    title: 'Experiences index',
-    area: 'Experience lifecycle',
-    summary: 'experiences-list — Every experience in this institution.',
-    requires: ['ui'],
-    specs: ['admin-app:core/experiences/index'],
-    tests: { unit: ['experiences/__tests__/switch.test.tsx'], regression: ['CORE-T28', 'CORE-T360'], integration: [], proof: [] },
-    status: 'partial',
-  };
-  const sibling: CatalogFeatureInput = {
-    ...list,
-    id: 'design.experience.switch',
-    title: 'Switch into experience context',
-    summary: 'Switch into an experience.',
-    tests: { unit: [], regression: ['CORE-T361'], integration: [], proof: [] },
-  };
+describe('generic engine rules', () => {
+  it('matches cases by external id, feature externalIds, and @feature tags', () => {
+    const f = feature({ tests: { unit: [], regression: [], integration: [], proof: [] }, externalIds: ['QA-9'] });
+    const [byId] = featureStates(input({ features: [f], cases: [{ kind: 'integration', status: 'passed', externalIds: ['QA-9'] }] }));
+    expect(byId.channels.ui.state).toBe('proven');
+    const [byTag] = featureStates(input({ features: [f], cases: [{ kind: 'e2e', status: 'passed', tags: [`@feature:${f.id}`] }] }));
+    expect(byTag.channels.api.state).toBe('proven');
+    const [none] = featureStates(input({ features: [f], cases: [{ kind: 'e2e', status: 'passed', externalId: 'OTHER-1' }] }));
+    expect(none.channels.ui.state).toBe('stub');
+  });
 
-  it('reads the page, the experiences query, and the learner tool', () => {
-    const specs = [
-      {
-        ref: 'admin-app:core/experiences/index',
-        featureIds: ['design.experience.list', 'design.experience.switch'],
-        channel: 'ui' as const,
-        overview: 'The Experiences Index page is the primary listing view for all learning experiences within the admin application. Users can filter the list.',
-        module: 'admin-app/experiences/index',
-      },
-      {
-        ref: 'graphql-api:queries/experience',
-        featureIds: [],
-        channel: 'api' as const,
-        overview: 'The experiences query returns the experiences in an institution.',
-        module: 'graphql-api/queries/experience',
-      },
-    ];
-    const implementations = discoverImplementations([list, sibling], specs, [
-      { key: 'admin-app', absPath: `${workspace}/practera-admin-app` },
-      { key: 'graphql-api', absPath: `${workspace}/practera-graphql-api` },
-      { key: 'mcp-server', absPath: `${workspace}/practera-mcp-server` },
-    ]);
-    const [row] = featureStates({ features: [list, sibling], specs, cases: [], proofs: [], implementations });
-    expect(headingSummary(list.summary)).toBe(true);
-    expect(unitBelongs(list, 'experiences/__tests__/switch.test.tsx', [list, sibling])).toBe(false);
-    expect(row.summary).toBe('The Experiences Index page is the primary listing view for all learning experiences within the admin application.');
-    expect(row.requires).toEqual(['ui', 'api']);
-    expect(row.channels.ui.state).toBe('built');
-    expect(row.channels.ui.evidence[0]).toContain('experiences/index.tsx');
-    expect(row.channels.api.state).toBe('built');
-    expect(row.channels.api.evidence).toContain('graphql-api:queries/experience');
-    expect(row.channels.mcp.state).toBe('no');
-    expect(row.channels.mcp.evidence).toEqual(['learner list_experiences; no admin tool']);
-    expect(row.agentGate.allowed).toBe(false);
-    expect(row.agentGate.reason).toBe('No unit or integration test linked');
-    expect(row.tests.unit).toEqual([]);
-    expect(row.tests.regression).toEqual(['CORE-T28', 'CORE-T360']);
+  it('assumes no id structure when deciding which sibling owns a unit file', () => {
+    const a = feature({ id: 'checkout', tests: { unit: ['refund-flow.test.ts'], regression: [], integration: [], proof: [] } });
+    const b = feature({ id: 'refund-flow', tests: { unit: [], regression: [], integration: [], proof: [] } });
+    expect(unitBelongs(a, 'refund-flow.test.ts', [a, b])).toBe(false);
+    expect(unitBelongs(b, 'refund-flow.test.ts', [a, b])).toBe(true);
+    // a custom tokenizer replaces the default
+    expect(unitBelongs(a, 'refund-flow.test.ts', [a, b], () => [])).toBe(true);
+  });
+
+  it('infers required channels from repo channels only when configured', () => {
+    const f = feature({ requires: [], specs: ['web:orders'] });
+    expect(inferRequires(f, [])).toEqual([]);
+    expect(inferRequires(f, [], undefined, { repoChannels: { web: 'ui' } })).toEqual(['ui']);
+  });
+
+  it('does not treat a heading-shaped summary as a placeholder unless told to', () => {
+    const f = feature({ summary: 'orders-list — Every order.', requires: ['ui'], specs: ['web:orders'], id: 'orders.list' });
+    const specs = [{ ref: 'web:orders', featureIds: ['orders.list'], channel: 'ui' as const, overview: 'Lists orders. More.' }];
+    expect(featureStates(input({ features: [f], specs }))[0].summary).toBe('orders-list — Every order.');
+    const tuned = featureStates(input({ features: [f], specs, tuning: { isPlaceholderSummary: (x) => x.includes(' — ') } }));
+    expect(tuned[0].summary).toBe('Lists orders.');
   });
 });
 
 describe('channelOf', () => {
-  it('defaults page, mutation, and mcp tool paths', () => {
-    expect(channelOf({ type: 'page' })).toBe('ui');
-    expect(channelOf({ type: 'mutation' })).toBe('api');
-    expect(channelOf({ type: 'core', module: 'src/tools/author/create.ts' })).toBe('mcp');
-    expect(channelOf({ channel: 'api', type: 'page' })).toBe('api');
+  it('uses explicit channel, then the configured type map, module pattern, and repo channel', () => {
+    expect(channelOf({ type: 'page' })).toBeNull();
+    expect(channelOf({ type: 'ui' })).toBe('ui');
+    expect(channelOf({ type: 'page' }, '', { channelByType: { page: 'ui' } })).toBe('ui');
+    expect(channelOf({ channel: 'api', type: 'page' }, '', { channelByType: { page: 'ui' } })).toBe('api');
+    expect(channelOf({ type: 'core', module: 'src/tools/x.ts' }, '', { mcpModulePattern: /\/tools\// })).toBe('mcp');
+    expect(channelOf({ type: 'core' }, '', { repoChannels: { svc: 'api' } }, 'svc')).toBe('api');
     expect(channelOf({ type: 'core', module: 'src/handler.ts' })).toBeNull();
   });
 });

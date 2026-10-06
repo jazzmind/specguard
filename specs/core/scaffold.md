@@ -23,6 +23,10 @@ Generates the agent-harness files that let an AI coding agent run SpecGuard alon
 - [ ] `CLAUDE.md` is created with SpecGuard sentinel sections when missing; when present, only the sentinel sections are updated (surrounding content preserved)
 - [ ] `.claude/settings.json` gains an MCP server entry (`specguard-mcp`) and a `PostToolUse` hook without removing or overwriting unrelated existing keys
 - [ ] `.cursor/mcp.json` gains a `specguard-mcp` server entry without dropping existing servers
+- [ ] When no local SpecGuard binary can be resolved (see `runner-resolution` below), every command SpecGuard writes for a user to run without a global install uses `npx -p specguard-ai specguard ...` (the package is `specguard-ai`, the binary is `specguard`), and the MCP entry is `npx -y -p specguard-ai specguard-mcp`; bare `npx specguard` or `npx specguard-mcp` is never written <!-- claim: correct-npx-forms -->
+- [ ] An existing `specguard-mcp` entry or `PostToolUse` hook written by an older version in the broken `npx specguard...` form is repaired in place; an entry the user customised is left alone <!-- claim: repair-broken-npx -->
+- [ ] The runner for generated MCP and hook commands is resolved by `src/core/runner.ts`: `--runner npx` forces `npx -p specguard-ai specguard`; `--runner node` uses `node_modules/specguard-ai/dist/...`; `--runner path --runner-path <file>` uses that entry; the default tries `SPECGUARD_CLI`, `node_modules/.bin/specguard`, a global `specguard`, and only then falls back to npx. The chosen runner and why is printed and recorded as a no-op string at the start of the hook command <!-- claim: runner-resolution -->
+- [ ] An existing `specguard-mcp` entry or SpecGuard `PostToolUse` hook that differs from the generated one is never rewritten silently: a `- old` / `+ new` diff is printed and the file is left unchanged unless `--update-hooks` is given <!-- claim: no-silent-hook-rewrite -->
 - [ ] Malformed existing JSON in a config file is reported in `messages` and the file is left unchanged (no throw)
 - [ ] All file writes go through `core/writer.ts` / `core/reader.ts`; no direct `fs` writes leak the abstraction
 
