@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "proofs": {
+    "core/claim-tags#build-index": {
+      "claim": "core/claim-tags#build-index",
+      "verdict": "proven",
+      "runId": "results-2026-10-06T16-28-52-625Z",
+      "specHash": "5c281e701d575636ae423f4dd0b107ebf41f4b17a827b31d5fa98dba0c62a697",
+      "repoSha": "b0b130336c64c8d549c110067df3647627454019",
+      "fileHashes": {},
+      "dependencyFingerprint": "c5a954a615e151fc3e75189103027a4dc6567443f647387117135032a7c6e347",
+      "exercised": 1,
+      "counterexamples": 0,
+      "evidencePath": ".specguard/runs/vitest.json",
+      "ingestedAt": "2026-10-06T16:28:52.656Z"
+    },
+    "core/claim-tags#extract-forms": {
+      "claim": "core/claim-tags#extract-forms",
+      "verdict": "proven",
+      "runId": "results-2026-10-06T16-28-52-625Z",
+      "specHash": "5c281e701d575636ae423f4dd0b107ebf41f4b17a827b31d5fa98dba0c62a697",
+      "repoSha": "b0b130336c64c8d549c110067df3647627454019",
+      "fileHashes": {},
+      "dependencyFingerprint": "c5a954a615e151fc3e75189103027a4dc6567443f647387117135032a7c6e347",
+      "exercised": 1,
+      "counterexamples": 0,
+      "evidencePath": ".specguard/runs/vitest.json",
+      "ingestedAt": "2026-10-06T16:28:52.680Z"
+    },
+    "core/claim-tags#scan-source": {
+      "claim": "core/claim-tags#scan-source",
+      "verdict": "proven",
+      "runId": "results-2026-10-06T16-28-52-625Z",
+      "specHash": "5c281e701d575636ae423f4dd0b107ebf41f4b17a827b31d5fa98dba0c62a697",
+      "repoSha": "b0b130336c64c8d549c110067df3647627454019",
+      "fileHashes": {},
+      "dependencyFingerprint": "c5a954a615e151fc3e75189103027a4dc6567443f647387117135032a7c6e347",
+      "exercised": 1,
+      "counterexamples": 0,
+      "evidencePath": ".specguard/runs/vitest.json",
+      "ingestedAt": "2026-10-06T16:28:52.703Z"
+    },
+    "core/claim-tags#spec-key-shape": {
+      "claim": "core/claim-tags#spec-key-shape",
+      "verdict": "proven",
+      "runId": "results-2026-10-06T16-28-52-625Z",
+      "specHash": "5c281e701d575636ae423f4dd0b107ebf41f4b17a827b31d5fa98dba0c62a697",
+      "repoSha": "b0b130336c64c8d549c110067df3647627454019",
+      "fileHashes": {},
+      "dependencyFingerprint": "c5a954a615e151fc3e75189103027a4dc6567443f647387117135032a7c6e347",
+      "exercised": 1,
+      "counterexamples": 0,
+      "evidencePath": ".specguard/runs/vitest.json",
+      "ingestedAt": "2026-10-06T16:28:52.728Z"
+    },
+    "core/claim-tags#tag-roundtrip": {
+      "claim": "core/claim-tags#tag-roundtrip",
+      "verdict": "proven",
+      "runId": "results-2026-10-06T16-28-52-625Z",
+      "specHash": "5c281e701d575636ae423f4dd0b107ebf41f4b17a827b31d5fa98dba0c62a697",
+      "repoSha": "b0b130336c64c8d549c110067df3647627454019",
+      "fileHashes": {},
+      "dependencyFingerprint": "c5a954a615e151fc3e75189103027a4dc6567443f647387117135032a7c6e347",
+      "exercised": 1,
+      "counterexamples": 0,
+      "evidencePath": ".specguard/runs/vitest.json",
+      "ingestedAt": "2026-10-06T16:28:52.753Z"
+    }
+  }
+}

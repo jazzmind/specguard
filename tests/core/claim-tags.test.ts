@@ -11,21 +11,21 @@ import {
 } from '../../src/core/claim-tags.js';
 
 describe('claim tags', () => {
-  it('extracts the three forms', () => {
+  it('extracts the three forms @claim:core/claim-tags#extract-forms', () => {
     const refs = extractClaimRefs('award once @claim:core/awards#award-once [claim: core/awards#no-dupes] [claims: a/b#c-d, repo:e/f#g]');
     expect(refs).toEqual(['core/awards#award-once', 'core/awards#no-dupes', 'a/b#c-d', 'repo:e/f#g']);
   });
 
-  it('keeps slashes and repo prefix, drops trailing period, lowercases the claim id', () => {
+  it('keeps slashes and repo prefix, drops trailing period, lowercases the claim id @claim:core/claim-tags#spec-key-shape', () => {
     expect(extractClaimRefs('see @claim:api:mutations/designer#Create-It.')).toEqual(['api:mutations/designer#create-it']);
     expect(extractClaimRefs('no tag here, issue #12')).toEqual([]);
   });
 
-  it('round-trips claimTag', () => {
+  it('round-trips claimTag @claim:core/claim-tags#tag-roundtrip', () => {
     expect(extractClaimRefs(claimTag('x/y#z'))).toEqual(['x/y#z']);
   });
 
-  it('scans source lines with titles', () => {
+  it('scans source lines with titles @claim:core/claim-tags#scan-source', () => {
     const src = [
       "describe('awards', () => {",
       "  it('awards once @claim:core/awards#award-once', () => {});",
@@ -40,7 +40,7 @@ describe('claim tags', () => {
     ]);
   });
 
-  it('merges sources and results into one index', () => {
+  it('merges sources and results into one index @claim:core/claim-tags#build-index', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-tags-'));
     const file = path.join(dir, 'a.test.ts');
     writeFileSync(file, "it('x @claim:a/b#c', () => {});\n");
