@@ -61,9 +61,14 @@ export function severityRank(s: Severity): number {
   return SEVERITIES.length - SEVERITIES.indexOf(s);
 }
 
-/** True when `s` is at or above `threshold`. Unknown never meets a threshold above unknown. */
+/**
+ * True when `s` is at or above `threshold`. An advisory of unknown severity is
+ * treated as `high` (fail closed): tools such as pip-audit and govulncheck report
+ * no severity, and silently dropping them would hide real vulnerabilities.
+ */
 export function meetsThreshold(s: Severity, threshold: Severity): boolean {
-  return severityRank(s) >= severityRank(threshold);
+  const eff: Severity = s === 'unknown' ? 'high' : s;
+  return severityRank(eff) >= severityRank(threshold);
 }
 
 export function severityFromCvss(score: number): Severity {

@@ -36,7 +36,8 @@ describe('advisory', () => {
     expect(meetsThreshold('critical', 'high')).toBe(true);
     expect(meetsThreshold('high', 'high')).toBe(true);
     expect(meetsThreshold('moderate', 'high')).toBe(false);
-    expect(meetsThreshold('unknown', 'low')).toBe(false);
+    expect(meetsThreshold('unknown', 'high')).toBe(true); // fail closed
+    expect(meetsThreshold('unknown', 'critical')).toBe(false);
     expect(normalizeSeverity('MEDIUM')).toBe('moderate');
     expect(severityFromCvss(9.8)).toBe('critical');
   });
