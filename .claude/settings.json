@@ -10,6 +10,10 @@
       ]
     }
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -22,5 +26,6 @@
         ]
       }
     ]
-  }
+  },
+  "includeCoAuthoredBy": false
 }
