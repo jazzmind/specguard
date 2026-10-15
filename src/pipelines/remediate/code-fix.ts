@@ -2,7 +2,7 @@
  * LLM-backed code fixer for Semgrep findings. Only the file named by the finding is sent and
  * patched; the LLM layer's budget and replay provider apply.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { z } from 'zod';
 

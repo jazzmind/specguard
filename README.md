@@ -24,6 +24,34 @@ Every artifact traces back to a single spec file. The spec is the source of trut
 
 ---
 
+## Functional specs, history and the four pillars
+
+Code is fluid. Specs, and the tests that prove the code conforms to them, are the source of truth. SpecGuard keeps that true in four ways:
+
+1. **Specs and requirement history.** One master spec (`specs/system.md`) states the problem, the users and the value, and links to about 10-15 *capability* specs. A capability describes functionality that delivers user or business value and links to the many code files, tests and docs behind it, not to one file. `specs/history/` records the prompts, approved plans and decisions that shaped them.
+2. **Conformance.** `test run` runs your tests and records the verdicts in one proof ledger; `verify` drives the running app with a browser agent and judges it against each capability's stated problem and value, recording that as proof too.
+3. **Documentation.** `serve` exposes the specs, the traceability matrix and the audit over an HTTP API, and generates user, developer and agent docs on demand with a fast model, cached until the spec changes.
+4. **Security.** `security scan` reviews code, dependencies and secrets, and also reviews each capability spec for flaws that are missing or wrong requirements. It writes a `RemediationPlan` ([schema](schemas/remediation-plan.v1.json)) that other systems can consume and update.
+
+Multi-repo and monorepo workspaces run across all four.
+
+```bash
+specguard spec draft [--yes]            # existing code -> system spec + capability specs (reviewable map first)
+specguard spec consolidate [--yes]      # per-file specs -> capability specs; rekeys tags, proofs and drift state
+specguard spec graph                    # the spec tree, owned files, and rule violations
+specguard spec index                    # refresh the capability map in specs/system.md
+specguard history add|log               # requirement history; `init --history-hooks` records prompts and plans
+specguard check [--gaps|--coverage|--matrix|--drift]   # spec health for the whole system
+specguard test run [--affected]         # run tests, ingest results into the proof ledger
+specguard verify --all --url <base>     # browser-verify each capability against its value
+specguard serve                         # docs and audit API at /api/v1, plus a web UI
+specguard security scan|fix|plan        # one plan of findings, fixes, and status tracking
+```
+
+`status`, `drift`, `matrix` and `gap-analysis` keep working, with the same exit codes, and delegate to the same model in a repo that uses capability specs. Specs are described in [specs/README.md](specs/README.md).
+
+---
+
 ## Architecture
 
 ```
@@ -769,17 +797,26 @@ Per-app `test` blocks tell `heal` (and your scripts) how to run each app's tests
 }]
 ```
 
-Reporters: `vitest`, `jest`, `playwright`, `pytest` (JUnit XML), `junit` (set `resultsFile` to a glob such as `target/surefire-reports/TEST-*.xml`), `go`, `cargo`. SpecGuard adds the right flags (`--reporter=json --outputFile`, `PLAYWRIGHT_JSON_OUTPUT_NAME`, `--junitxml`) and reads the report file, never stdout. If `resultsFile` is set the command runs exactly as written. With `runners.testRunner: "docker"` and `test.image`, tests run in that image with the repo mounted. `specguard init` writes one app per workspace package in pnpm, Yarn, npm, Nx, Turbo and Lerna monorepos.
+Reporters: `vitest`, `jest`, `playwright`, `pytest` (JUnit XML), `junit` (set `resultsFile` to a glob such as `target/surefire-reports/TEST-*.xml`), `go`, `cargo`. SpecGuard adds the right flags (`--reporter=json --outputFile`, `PLAYWRIGHT_JSON_OUTPUT_NAME`, `--junitxml`) and reads the report file, never stdout. If `resultsFile` is set the command runs exactly as written. With `runners.testRunner: "docker"` and `test.image`, tests run in that image with the repo mounted. `specguard init` detects monorepos (pnpm, Yarn, npm, Nx, Turbo, Lerna, Go `go.work`, Cargo and uv workspaces) and writes one app per ecosystem over every package's sources plus `.specguard/workspace.json` listing each package as a unit with its own test command. Capabilities cut across packages, so specs follow functionality, not package layout. `specguard test run --affected` runs only the changed units and the units that depend on them.
 
 `specguard heal` treats a report it cannot read as a failure, runs every app (`--app <name>` for one, `--spec <key>` for one spec's tests), and `--classify-only` classifies failures without ever rewriting a test.
 
 ### Plugins and layout
 
-Core SpecGuard is platform-neutral. Platform conventions are plugins named in `config.plugins`; `"plugins": ["practera"]` is the one that ships (see [docs/migration-from-practera.md](docs/migration-from-practera.md)). Layout is configured, not assumed:
+Core SpecGuard is platform-neutral. Optional functionality is a plugin named in `config.plugins`. A plugin can add CLI commands (also exposed as MCP tools), contract importers, catalog providers and discoverers. Built in:
+
+| Plugin | Adds |
+|---|---|
+| `quality` | `specguard quality`: ESLint, Knip and Ruff findings in `.specguard/code-quality.json` |
+| `git` | `specguard commit`: stage and commit only generated files, with a changelog |
+| `feature-catalog` | `specguard features [--state]`: a feature catalog and its state across UI, API and agent-tool channels ([docs/feature-catalog.md](docs/feature-catalog.md)) |
+| `contract-mappings` | contract edges from a JSON mappings file whose location and keys are config |
+
+`specguard init` enables `quality` and `git` for new projects. A plugin that cannot be loaded is reported once and its commands are skipped; core commands win a name clash. Layout is configured, not assumed:
 
 ```jsonc
 {
-  "plugins": [],
+  "plugins": ["quality", "git"],
   "paths": { "specsRoot": "specs", "docsOut": "docs/user", "securityTests": "tests/security", "proofLedger": ".specguard/proofs.json" },
   "featureState": { "catalog": "catalog", "reporters": [{ "path": "reports/vitest.json" }], "repoChannels": { "web": "ui", "api": "api" } },
   "apps": [{ "name": "web", "stripPrefix": "src/features/", "entryPoints": ["src/routes.tsx"] /* ... */ }]
@@ -892,9 +929,9 @@ Exit codes follow the [PrintingPress typed-exit convention](https://github.com/m
 
 ---
 
-## Migrating from the original prototype
+## Migrating to functional specs
 
-See [docs/migration-from-practera.md](docs/migration-from-practera.md).
+A repo with one spec per source file moves to capability specs with `specguard spec consolidate`. It clusters the existing specs into capabilities and shows the proposed map in `.specguard/spec-map.md` to review (edit `.specguard/spec-map.json`, then rerun with `--from-map`). It then merges their requirements, rewrites claim tags in your tests, rekeys the proof ledger and drift registry, archives the old specs under `specs/_archive/v1/`, and writes `.specguard/claim-migration.json` so results that still carry old tags are accepted for one release. A repo with no specs yet uses `specguard spec draft`. Specs in either format are read side by side during the move.
 
 ### Patterns Adopted from QA-Agent
 

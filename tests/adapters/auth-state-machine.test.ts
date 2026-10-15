@@ -42,6 +42,7 @@ beforeEach(() => {
 });
 
 describe('authenticate', () => {
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('scenario 1: successful login caches and returns success', async () => {
     process.env['TEST_ADMIN_USER'] = 'admin@example.com';
     process.env['TEST_ADMIN_PASS'] = 'secret123';
@@ -62,6 +63,7 @@ describe('authenticate', () => {
     expect(authRunner.fillAndSubmit).toHaveBeenCalledOnce();
   });
 
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('scenario 2: missing password env var returns error without throwing', async () => {
     process.env['TEST_ADMIN_USER'] = 'admin@example.com';
     // TEST_ADMIN_PASS not set
@@ -74,6 +76,7 @@ describe('authenticate', () => {
     expect(result.error).toContain('Missing credentials env var');
   });
 
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('scenario 3: unknown profile returns error', async () => {
     const handle = makeHandle();
     const result = await authenticate(handle, 'nonexistent', makeConfig());
@@ -82,6 +85,7 @@ describe('authenticate', () => {
     expect(result.error).toContain('Profile not found: nonexistent');
   });
 
+  // [claims: capabilities/agentic-verification#credentials-never-leak]
   it('redacts credentials from login failure error messages', async () => {
     process.env['TEST_ADMIN_USER'] = 'admin@example.com';
     process.env['TEST_ADMIN_PASS'] = 'supersecret';
@@ -100,6 +104,7 @@ describe('authenticate', () => {
     expect(result.error).toContain('[REDACTED]');
   });
 
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('failed login is not cached', async () => {
     process.env['TEST_ADMIN_USER'] = 'admin@example.com';
     process.env['TEST_ADMIN_PASS'] = 'wrongpassword';
@@ -119,6 +124,7 @@ describe('authenticate', () => {
 });
 
 describe('redact', () => {
+  // [claims: capabilities/agentic-verification#credentials-never-leak]
   it('scenario 4: replaces credential values with [REDACTED]', () => {
     process.env['TEST_ADMIN_USER'] = 'admin@example.com';
     process.env['TEST_ADMIN_PASS'] = 'secretABC';
@@ -141,6 +147,7 @@ describe('redact', () => {
 });
 
 describe('clearSessionCache', () => {
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('removes cached sessions so authenticate runs again', async () => {
     process.env['TEST_ADMIN_USER'] = 'u';
     process.env['TEST_ADMIN_PASS'] = 'p';

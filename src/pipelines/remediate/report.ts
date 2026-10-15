@@ -1,7 +1,7 @@
 /**
  * PR body and evidence rendering.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import type { VerdictResult } from '../../core/behavior-verdict.js';
 import type { FileChange, ItemReport, PlanItem, TestSummary } from './types.js';

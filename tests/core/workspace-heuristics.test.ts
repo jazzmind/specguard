@@ -17,12 +17,14 @@ const pkg = (deps: Record<string, string>) => JSON.stringify({ dependencies: dep
 const cfg = (app: Record<string, unknown>) => JSON.stringify({ apps: [{ name: 'a', repo: '.', specDir: 'specs', sources: {}, testOutput: 't', framework: 'vitest', ...app }], llm: {} });
 
 describe('workspace heuristics', () => {
+  // [claims: capabilities/workspaces#workspace-init-heuristics]
   it('derives repo keys from the directory name only', () => {
     expect(workspaceRepoKey('Acme_Admin App')).toBe('acme-admin-app');
-    expect(workspaceRepoKey('practera-admin-app')).toBe('practera-admin-app');
+    expect(workspaceRepoKey('acme-admin-app')).toBe('acme-admin-app');
     expect(workspaceRepoKey('--x--')).toBe('x');
   });
 
+  // [claims: capabilities/workspaces#workspace-init-heuristics]
   it('classifies by content, not by name', () => {
     expect(guessRepoRole(repo({ 'package.json': pkg({ react: '18' }) }))).toBe('consumer');
     expect(guessRepoRole(repo({ 'package.json': pkg({ next: '15', express: '4' }) }))).toBe('consumer');

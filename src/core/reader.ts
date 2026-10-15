@@ -75,16 +75,76 @@ export async function fileExists(filePath: string): Promise<boolean> {
 }
 
 /**
- * Expand an array of glob patterns relative to `baseDir`.
+ * Directories no glob ever descends into: dependencies, build output and VCS
+ * data. Without this a `**\/*.test.ts` pattern walks into `node_modules` and
+ * `reverse` writes specs for third-party packages.
+ */
+export const DEFAULT_GLOB_IGNORES = [
+  '**/node_modules/**',
+  '**/.git/**',
+  '**/.next/**',
+  '**/dist/**',
+  '**/coverage/**',
+  'build/**',
+];
+
+/** True when the group opened at `open` contains a `|` at its own level, which makes it an alternation. */
+function groupHasAlternation(pattern: string, open: number): boolean {
+  let depth = 0;
+  for (let i = open; i < pattern.length; i += 1) {
+    const c = pattern[i];
+    if (c === '\\') i += 1;
+    else if (c === '(') depth += 1;
+    else if (c === ')') {
+      depth -= 1;
+      if (depth === 0) return false;
+    } else if (c === '|' && depth === 1) return true;
+  }
+  return false;
+}
+
+/**
+ * Escape parentheses that are part of a path, so `app/(authenticated)/page.tsx`
+ * names the Next.js route-group folder `(authenticated)` instead of being read
+ * as a glob group. Extglob forms (`!(a|b)`, `@(a|b)`, `+(a)`, `*(a)`, `?(a)`),
+ * alternations such as `*.(ts|tsx)` (a group holding a `|`) and
+ * already-escaped characters are left alone.
+ */
+export function escapeLiteralParens(pattern: string): string {
+  let out = '';
+  const groups: boolean[] = [];
+  for (let i = 0; i < pattern.length; i += 1) {
+    const c = pattern[i];
+    if (c === '\\') {
+      out += c + (pattern[i + 1] ?? '');
+      i += 1;
+    } else if (c === '(') {
+      const extglob = (i > 0 && '!@+*?'.includes(pattern[i - 1])) || groupHasAlternation(pattern, i);
+      groups.push(extglob);
+      out += extglob ? '(' : '\\(';
+    } else if (c === ')') {
+      out += groups.pop() ? ')' : '\\)';
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+/**
+ * Expand an array of glob patterns relative to `baseDir`, skipping
+ * `DEFAULT_GLOB_IGNORES`. A pattern that names an ignored directory
+ * explicitly (a `!` negation aside) matches nothing.
  * Returns absolute paths, sorted and deduplicated.
  */
 export async function expandGlobs(patterns: string[], baseDir: string): Promise<string[]> {
   if (patterns.length === 0) return [];
-  const matches = await glob(patterns, {
+  const matches = await glob(patterns.map(escapeLiteralParens), {
     cwd: baseDir,
     absolute: true,
     dot: false,
     onlyFiles: true,
+    ignore: DEFAULT_GLOB_IGNORES,
   });
   // Normalize, dedupe, sort for stable output.
   const normalized = matches.map((m) => path.resolve(m));

@@ -2,7 +2,7 @@
  * Replay store: recorded LLM responses keyed by a hash of the request, so CI and
  * tests run deterministically and offline.
  *
- * Spec: specs/core/llm.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

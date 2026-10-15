@@ -6,7 +6,7 @@
  * global install, or a path from `specguard.cliPath`) reports another version
  * through `specguard --version --json`, warn once per session.
  *
- * Spec: specs/core/version.md
+ * Spec: specs/capabilities/integration-surfaces.md
  */
 import { spawn } from 'child_process';
 

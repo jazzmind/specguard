@@ -1,88 +1,81 @@
-# SpecGuard Living Specifications
+# SpecGuard Specifications
 
-This directory is the **single source of truth** for SpecGuard's own modules and pipelines. Every `src/` file has a corresponding spec here. This is SpecGuard eating its own dogfood — we use the spec format to define the system that parses and generates from that format.
+This directory is the **source of truth** for SpecGuard itself. Code is fluid; these specs, and the tests that prove the code conforms to them, are what stay put.
 
-## Directory Structure
+Specs describe *functionality that delivers user or business value*, not source files. One spec links to many code files, tests and docs.
+
+## Layout
 
 ```
 specs/
-  core/
-    spec-parser.md        # src/core/spec-parser.ts — parses .md spec files
-    cli.md                # src/cli/*.ts — the specguard CLI entrypoint
-    config.md             # src/core/config.ts — loads .specguard/config.json
-    llm.md                # src/core/llm.ts — LLM adapter (ai-sdk wrapper)
-    writer.md             # src/core/writer.ts — file write abstraction
-    exit-codes.md         # src/core/exit-codes.ts — typed exit codes
-  pipelines/
-    reverse-generate.md   # specguard reverse
-    forward-generate.md   # specguard generate
-    validate.md           # specguard validate
-    heal.md               # specguard heal
-    security.md           # specguard security
-    docs.md               # specguard docs
-    drift.md              # specguard drift
-    matrix.md             # specguard matrix
-    import.md             # specguard import
-  adapters/
-    playwright.md         # Playwright browser runner adapter
-    docker.md             # Docker container runner adapter
-    semgrep.md            # Semgrep SAST adapter
-    auth-state-machine.md # Deterministic login state machine
-  README.md               # This file
+  system.md              # the master spec: problem, users, value, pillars, capability map
+  capabilities/          # one spec per functional capability (~10)
+    spec-authoring.md
+    requirement-history.md
+    traceability-and-drift.md
+    conformance-testing.md
+    agentic-verification.md
+    documentation-api.md
+    security-and-remediation.md
+    workspaces.md
+    integration-surfaces.md
+    platform-foundation.md
+  history/               # committed requirement history: prompts, approved plans, decisions
+  README.md              # this file
 ```
 
-## Spec Format
+Specs from the earlier per-file layout (`core/`, `pipelines/`, `cli/`, `adapters/`, `mcp/`, `extension/`, `plugins/`, `ci/`) still exist during the migration. They are archived under `_archive/v1/` when `specguard check` replaces the file-name-based `status` and `drift`. SpecGuard reads both formats.
 
-Every spec file follows this structure:
+## The v2 format
+
+A spec starts with YAML frontmatter. Lists are block lists and every glob is quoted: a flow list such as `[a/{b,c}/**]` or an unquoted glob starting with `*` is invalid YAML, and the parser says so.
 
 ```markdown
-# Module Title
+---
+id: spec-authoring            # must equal the file name
+kind: capability              # system | capability | component | journey
+title: Spec Authoring
+parent: system                # a component's parent is a capability
+value: One sentence: the user or business value this delivers.
+status: active
+sources:                      # code this spec owns; may overlap with other specs
+  - "src/core/spec-parser.ts"
+tests:
+  - "tests/core/spec-parser.test.ts"
+docs:
+  - "README.md"
+history:                      # ids of specs/history entries behind this spec
+  - 2026-10-15-functional-specs-and-four-pillars
+---
 
-<!--
-  module: src/path/to/module.ts
-  type: core | pipeline | adapter | cli
-  status: draft | stable
--->
+# Spec Authoring
 
-## Overview
-What this module does and why it exists. 2-4 sentences.
-
-## Acceptance Criteria
-Testable bullets that define "done" for this module. Each bullet must be
-verifiable by reading the code or running a test.
-
-- [ ] ...
-
+## Problem & Value
+## Users & Journeys
+## Requirements
+- [ ] A testable statement about behaviour <!-- claim: stable-claim-id -->
 ## Scenarios
-
-### Scenario 1: <concise name>
+### Scenario 1: name
 **Steps:**
 1. ...
 
 **Expected Results:**
 - ...
-
----
-
-### Scenario 2: <concise name>
-...
-
-## Security Notes
-Constraints this module must enforce. Omit section if not applicable.
-
-## Dependencies
-Other specs/modules this module depends on. Omit if none.
+## Security & Data Considerations
+## Interfaces
+## Out of Scope
 ```
 
-Claim anchors sit on acceptance-criteria bullets (`<!-- claim: award-once -->`). A journey spec uses `type: journey` and the sections World, Actors and Goals, Invariants, Budget, and Evidence. Each invariant is an H3 with a `verifies:` line of `repo:specKey#claimId` refs.
+- `## Problem & Value` is required on capabilities and components. Agentic verification judges the running system against it.
+- `## Requirements` replaces `## Acceptance Criteria`; bullets carry claim ids, `<!-- claim: id -->`, that tests cite with `@claim:<specKey>#<id>`.
+- A claim's proof goes stale only when that claim's text or the spec's Problem & Value changes, or when the code it covers drifts. Editing another claim, a scenario, `sources` or `history` does not stale it.
+- `system.md` is the one master spec (`kind: system`). Capabilities hang off it; a component refines a capability, for example its frontend and backend halves.
+- A file may be owned by several specs. A source file owned by none is reported as unowned.
+
+`specguard spec graph` prints the tree with owned-file counts and fails on rule violations: no or several system specs, an id that differs from the file name, an unknown parent, a capability without Problem & Value, a repeated claim id.
 
 ## Rules
 
-- Specs are written **before or alongside** the code — not after
-- If the code changes in a way that invalidates a spec scenario, **update the spec first**
-- `status: draft` means the module is being designed; `status: stable` means the module matches the spec
-- The SpecGuard Cursor Skill (`/.cursor/skills/specguard/SKILL.md`) checks this directory after each plan phase
-
-## Coverage
-
-Run `specguard status` (once built) to see which source files lack specs. Until then, the SpecGuard skill performs this check manually after each plan phase.
+- Write or update the spec **before** changing behaviour; the spec is the contract.
+- Keep granularity at the capability level. If a spec only describes one file, merge it into the capability that file serves.
+- Record why requirements changed in `specs/history/` (`specguard history add` once it exists; by hand until then).

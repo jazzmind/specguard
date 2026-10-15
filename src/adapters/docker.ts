@@ -5,7 +5,7 @@
  * spawnSync('docker', ...) directly. Handles availability probing, volume
  * mounts, env vars, and graceful degradation when Docker is unavailable.
  *
- * Spec: specs/adapters/docker.md
+ * Spec: specs/capabilities/security-and-remediation.md
  *
  * Testability seam
  * ----------------

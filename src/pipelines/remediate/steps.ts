@@ -1,7 +1,7 @@
 /**
  * Shared steps: install, build, typecheck, test jobs, environment fingerprint.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';

@@ -7,6 +7,7 @@ import { parseSpecContent } from '../../src/core/spec-parser.js';
 import { makeRepo, SPEC_AWARDS } from '../helpers/repo.js';
 
 describe('claim prepass', () => {
+  // [claims: capabilities/traceability-and-drift#align-prepass-first]
   it('collects the union of testOutput, sources.tests, extraTestSources and extra globs', async () => {
     const repo = makeRepo();
     repo.write('tests/a.test.ts', '');
@@ -22,6 +23,7 @@ describe('claim prepass', () => {
     expect(files.map((f) => path.relative(repo.dir, f))).toEqual(['cli/d.test.ts', 'e2e/b.spec.ts', 'other/c.test.ts', 'tests/a.test.ts']);
   });
 
+  // [claims: capabilities/traceability-and-drift#align-prepass-first]
   it('settles claims by tag (with or without repo prefix) and scenarios by title', async () => {
     const repo = makeRepo();
     const a = repo.write('tests/a.test.ts', "it('Award @claim:myrepo:core/awards#award-once', () => {});\nit('award', () => {});\n");

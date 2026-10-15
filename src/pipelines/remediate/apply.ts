@@ -1,14 +1,14 @@
 /**
  * Apply a plan item in the worktree and enforce the write allowlist and size limits.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { EcosystemAdapter } from '../../core/ecosystems/index.js';
-import { partitionByScope, type ChangeScope } from '../git-ops.js';
+import { partitionByScope, type ChangeScope } from '../../core/git-scope.js';
 import { RemediateSetupError } from './git.js';
 import type { ChangeType, Exec, FileChange, PlanItem, SastIssue } from './types.js';
 

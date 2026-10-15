@@ -17,6 +17,7 @@ const EMPTY_ENV = { PATH: '/nonexistent' } as NodeJS.ProcessEnv;
 const settings = (cwd: string) => JSON.parse(readFileSync(path.join(cwd, '.claude/settings.json'), 'utf8'));
 
 describe('resolveRunner [runner-resolution]', () => {
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('prefers node_modules/.bin/specguard and its MCP sibling', () => {
     const cwd = tmp();
     touch(path.join(cwd, 'node_modules/.bin/specguard'));
@@ -26,6 +27,7 @@ describe('resolveRunner [runner-resolution]', () => {
     expect(r.mcp).toEqual({ command: 'node_modules/.bin/specguard-mcp', args: [] });
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('SPECGUARD_CLI wins over the local bin', () => {
     const cwd = tmp();
     touch(path.join(cwd, 'node_modules/.bin/specguard'));
@@ -38,6 +40,7 @@ describe('resolveRunner [runner-resolution]', () => {
     expect(r.mcp.args[0]).toMatch(/mcp\/server\.js$/);
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('falls back to npx only when nothing local exists, and --runner npx forces it', () => {
     const cwd = tmp();
     expect(resolveRunner(cwd, {}, EMPTY_ENV).cli).toBe(NPX_CLI);
@@ -45,6 +48,7 @@ describe('resolveRunner [runner-resolution]', () => {
     expect(resolveRunner(cwd, { runner: 'npx' }, EMPTY_ENV).cli).toBe(NPX_CLI);
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('--runner path needs an existing file', () => {
     const cwd = tmp();
     expect(() => resolveRunner(cwd, { runner: 'path' }, EMPTY_ENV)).toThrow(/runner-path/);
@@ -52,6 +56,7 @@ describe('resolveRunner [runner-resolution]', () => {
     expect(resolveRunner(cwd, { runner: 'path', runnerPath: 'bin/sg' }, EMPTY_ENV).cli).toBe('bin/sg');
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('--runner node uses node_modules/specguard-ai', () => {
     const cwd = tmp();
     touch(path.join(cwd, 'node_modules/specguard-ai/dist/cli/index.js'));
@@ -60,6 +65,7 @@ describe('resolveRunner [runner-resolution]', () => {
 });
 
 describe('scaffold wiring [no-silent-hook-rewrite]', () => {
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('wires the local binary and records why in the hook', async () => {
     const cwd = tmp();
     touch(path.join(cwd, 'node_modules/.bin/specguard'));
@@ -71,6 +77,7 @@ describe('scaffold wiring [no-silent-hook-rewrite]', () => {
     expect(cmd).not.toContain('npx -p');
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('prints a diff and leaves a differing hook alone; --update-hooks applies it', async () => {
     const cwd = tmp();
     await scaffoldHarnessFiles({ cwd, profile: getProfile('typescript'), harness: 'claude', runner: 'npx' });
@@ -91,6 +98,7 @@ describe('scaffold wiring [no-silent-hook-rewrite]', () => {
     expect(s.hooks.PostToolUse[0].hooks[0].command).toContain('node_modules/.bin/specguard status');
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('is quiet when the generated wiring already matches', async () => {
     const cwd = tmp();
     await scaffoldHarnessFiles({ cwd, profile: getProfile('typescript'), harness: 'claude', runner: 'npx' });

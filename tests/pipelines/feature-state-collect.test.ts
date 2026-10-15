@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { collectFeatureState, runFeatureState, featureStates } from '../../src/pipelines/feature-state.js';
+import { collectFeatureState, runFeatureState, featureStates } from '../../src/plugins/feature-catalog/feature-state.js';
 import { makeRepo } from '../helpers/repo.js';
 
 const CATALOG = `version: 1
@@ -21,6 +21,7 @@ const REPORT = JSON.stringify({
 });
 
 describe('collectFeatureState (single repo, no plugins)', () => {
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('reads a versioned catalog and reporter output named in config', async () => {
     const repo = makeRepo({
       featureState: { catalog: 'catalog', reporters: [{ path: 'reports/vitest.json' }] },
@@ -36,6 +37,7 @@ describe('collectFeatureState (single repo, no plugins)', () => {
     expect(row.agentGate.allowed).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('matches external ids from normalized cases via configured adapters', async () => {
     const repo = makeRepo({
       featureState: { catalog: 'catalog', resultsDirs: ['cases'], externalIds: ['zephyr'] },
@@ -46,6 +48,7 @@ describe('collectFeatureState (single repo, no plugins)', () => {
     expect(row.channels.api.state).toBe('proven');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('reports a note, not an error, when no catalog is configured', async () => {
     const repo = makeRepo();
     const result = await runFeatureState(repo.dir);
@@ -53,17 +56,30 @@ describe('collectFeatureState (single repo, no plugins)', () => {
     expect(result.messages[1]).toMatch(/no feature catalog/);
   });
 
+  // [claims: capabilities/integration-surfaces#plugin-contract]
   it('rejects an unknown plugin name', async () => {
     const repo = makeRepo({ plugins: ['nope'] });
     await expect(collectFeatureState(repo.dir)).rejects.toThrow(/unknown plugin/);
   });
 
-  it('the practera plugin supplies its default catalog and results directories', async () => {
-    const repo = makeRepo({ plugins: ['practera'] });
-    repo.write('practera-test-suite/catalog/a.yaml', '- id: a.b.c\n  requires: [ui]\n  tests:\n    regression: [CORE-T1]\n');
-    repo.write('practera-test-suite/.results/cases/r.json', JSON.stringify([{ kind: 'regression', status: 'passed', zephyr: 'CORE-T1' }]));
+  // [claims: capabilities/integration-surfaces#catalog-layout-config, capabilities/integration-surfaces#feature-catalog]
+  it('reads a bare-list catalog and results from the directories config names [config-layout]', async () => {
+    const repo = makeRepo({
+      featureState: { catalog: 'qa/catalog', catalogFormat: 'list', resultsDirs: ['qa/.results/cases'], externalIds: ['zephyr'] },
+    });
+    repo.write('qa/catalog/a.yaml', '- id: a.b.c\n  requires: [ui]\n  tests:\n    regression: [CORE-T1]\n');
+    repo.write('qa/.results/cases/r.json', JSON.stringify([{ kind: 'regression', status: 'passed', zephyr: 'CORE-T1' }]));
     const [row] = featureStates(await collectFeatureState(repo.dir));
     expect(row.id).toBe('a.b.c');
     expect(row.channels.ui.state).toBe('proven');
+  });
+
+  // [claims: capabilities/integration-surfaces#catalog-layout-config]
+  it('without that config the same files are not found: no layout is built in [no-defaults]', async () => {
+    const repo = makeRepo({});
+    repo.write('qa/catalog/a.yaml', '- id: a.b.c\n  requires: [ui]\n');
+    const input = await collectFeatureState(repo.dir);
+    expect(input.features).toEqual([]);
+    expect(input.notes.join(' ')).toContain('no feature catalog found');
   });
 });

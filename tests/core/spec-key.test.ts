@@ -17,18 +17,21 @@ import { makeHiRockyRepo } from '../helpers/hirocky-fixture.js';
 import { makeRepo } from '../helpers/repo.js';
 
 describe('spec-key', () => {
+  // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('canonical key is specs-root relative regardless of the owning app [root-relative-key]', async () => {
     const fx = makeHiRockyRepo();
     const config = await loadConfig(fx.dir);
     expect(canonicalSpecKey(config, path.join(fx.dir, 'specs/api/services/messaging.md'), path.join(fx.dir, 'specs/api'))).toBe('api/services/messaging');
   });
 
+  // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('falls back to the specDir-relative key without a specs root [legacy-fallback]', async () => {
     const repo = makeRepo({ paths: { specsRoot: 'nope' } });
     const config = await loadConfig(repo.dir);
     expect(canonicalSpecKey(config, path.join(repo.dir, 'specs/core/awards.md'), path.join(repo.dir, 'specs'))).toBe('core/awards');
   });
 
+  // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('loadCanonicalSpecs sets specKey and localKey [load-canonical]', async () => {
     const fx = makeHiRockyRepo();
     const config = await loadConfig(fx.dir);
@@ -37,6 +40,7 @@ describe('spec-key', () => {
     expect(m?.specKey).toBe('api/services/messaging');
   });
 
+  // [claims: capabilities/spec-authoring#declared-sources]
   it('declaredSources reads sources: then module: [declared-sources]', () => {
     const a = parseSpecContent('# A\n\n<!-- module: x.ts\n sources: a.ts, b/*.ts -->\n', '/s/a.md', '/s');
     expect(declaredSources(a)).toEqual(['a.ts', 'b/*.ts']);
@@ -44,6 +48,7 @@ describe('spec-key', () => {
     expect(declaredSources(b)).toEqual(['only.ts']);
   });
 
+  // [claims: capabilities/spec-authoring#declared-sources]
   it('resolves app-relative globs and warns once for root-relative ones [sources-root-fallback]', async () => {
     const fx = makeHiRockyRepo();
     const config = await loadConfig(fx.dir);
@@ -60,6 +65,7 @@ describe('spec-key', () => {
     expect(warnings).toHaveLength(1);
   });
 
+  // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('migrates legacy registry keys to the canonical key [migrate-registry]', async () => {
     const fx = makeHiRockyRepo();
     const config = await loadConfig(fx.dir);
@@ -74,6 +80,7 @@ describe('spec-key', () => {
     expect(migrateRegistrySpecKeys(config, registry)).toBe(false);
   });
 
+  // [claims: capabilities/spec-authoring#declared-sources]
   it('config globs are repo-relative, with a warned root-relative fallback [sources-relative-to-repo]', async () => {
     const fx = makeHiRockyRepo();
     const config = await loadConfig(fx.dir);

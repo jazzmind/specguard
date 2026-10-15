@@ -1,7 +1,7 @@
 /**
  * `specguard results ingest <file...>`.
  *
- * Spec: specs/pipelines/results.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { ExitCode } from '../../core/exit-codes.js';
 import { isResultFormat, runResultsIngest } from '../../pipelines/results.js';

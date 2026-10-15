@@ -2,7 +2,7 @@
  * Language profiles — the single source of truth for everything
  * language-specific in SpecGuard.
  *
- * Spec: specs/core/language-profiles.md
+ * Spec: specs/capabilities/platform-foundation.md
  *
  * A `LanguageProfile` is a pure data+function record. Pipelines never hardcode
  * `.test.ts`, `npm test`, `vitest`, or `.ts` regexes; they call

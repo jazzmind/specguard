@@ -6,7 +6,7 @@
  * files for features that do not yet have a spec (or overwrites them when
  * `--force` is set).
  *
- * Spec: specs/pipelines/reverse-generate.md
+ * Spec: specs/capabilities/spec-authoring.md
  *
  * Source-file -> spec-key mapping
  * -------------------------------
@@ -15,9 +15,10 @@
  *
  *   1. Take the path relative to the app repo, normalised to POSIX separators.
  *   2. Drop a leading `src/` or `tests/` segment if present.
- *   3. Drop the next segment if it duplicates the spec directory's basename
- *      (e.g. specDir `specs/core` + source `src/core/foo.ts` -> `foo`, not
- *      `core/foo`), so the spec subpath is not redundant with `specDir`.
+ *   3. Drop the next segment, which `specDir` already encodes (e.g. specDir
+ *      `specs/core` + source `src/core/foo.ts` -> `foo`, not `core/foo`). This
+ *      happens whether or not the segment matches the `specDir` name; set the
+ *      app's `stripPrefix` to control it exactly.
  *   4. Strip a `.test`/`.spec` qualifier and the file extension.
  *
  * Examples (specDir = `specs/core`, repo = `.`):
@@ -180,7 +181,9 @@ export async function runReverseGenerate(
     allFiles = [path.resolve(repoDir, opts.file)];
   } else {
     const patterns: string[] = [];
-    for (const group of Object.values(app.sources)) {
+    for (const [name, group] of Object.entries(app.sources)) {
+      // Test files are evidence for specs, not a source of them.
+      if (name === 'tests') continue;
       if (Array.isArray(group)) patterns.push(...group);
     }
     allFiles = await expandAppGlobs(config, app, patterns);

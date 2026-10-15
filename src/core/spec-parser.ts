@@ -11,8 +11,11 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 
+import { parse as parseYaml } from 'yaml';
+
 import { parseClaims, parseJourney } from './claims.js';
-import type { ParsedSpec, SpecMeta, SpecScenario } from './types.js';
+import { SpecFrontmatterError } from './errors.js';
+import { SPEC_KINDS, type ParsedSpec, type SpecKind, type SpecMeta, type SpecScenario } from './types.js';
 
 /** Metadata keys that map to typed fields on `SpecMeta`. */
 const KNOWN_META_KEYS = new Set([
@@ -26,17 +29,25 @@ const KNOWN_META_KEYS = new Set([
   'channel',
 ]);
 
+/** A comment that only anchors a claim (`<!-- claim: slug -->`) is not a metadata block. */
+const CLAIM_ONLY_COMMENT = /^\s*claim:\s*[a-z0-9]+(?:-[a-z0-9]+)*\s*$/i;
+
 /**
- * Parse the first `<!-- ... -->` HTML comment containing `key: value` lines
- * into a typed `SpecMeta`. Unknown keys are preserved in `meta.extra`.
+ * Parse the first metadata `<!-- ... -->` HTML comment containing `key: value`
+ * lines into a typed `SpecMeta`. Claim anchors are skipped. Unknown keys are
+ * preserved in `meta.extra`.
  */
 export function parseMetaComment(content: string): SpecMeta {
   const meta: SpecMeta = { extra: {} };
 
-  const match = content.match(/<!--([\s\S]*?)-->/);
-  if (!match) return meta;
+  let body: string | undefined;
+  for (const match of content.matchAll(/<!--([\s\S]*?)-->/g)) {
+    if (CLAIM_ONLY_COMMENT.test(match[1])) continue;
+    body = match[1];
+    break;
+  }
+  if (body === undefined) return meta;
 
-  const body = match[1];
   for (const rawLine of body.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -58,6 +69,66 @@ export function parseMetaComment(content: string): SpecMeta {
   }
 
   return meta;
+}
+
+const FRONTMATTER = /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+const LIST_KEYS = ['sources', 'tests', 'docs', 'history'] as const;
+const YAML_HINT =
+  'Lists must be block lists with quoted globs; a flow list such as [a/{b,c}/**] or an unquoted glob starting with * is not valid YAML.';
+
+function stringList(value: unknown, key: string, file: string): string[] {
+  const items = Array.isArray(value) ? value : [value];
+  return items.map((item) => {
+    if (typeof item !== 'string' || !item.trim()) {
+      throw new SpecFrontmatterError(file, `'${key}' must be a list of non-empty strings`);
+    }
+    return item.trim();
+  });
+}
+
+/**
+ * Split a v2 spec into its YAML frontmatter metadata and the markdown body.
+ * Returns null when the content does not start with a frontmatter block, so v1
+ * specs (metadata in an HTML comment) keep their old path. Throws
+ * `SpecFrontmatterError` on invalid YAML or an invalid field.
+ */
+export function parseFrontmatter(content: string, file = '(spec)'): { meta: SpecMeta; body: string } | null {
+  const match = content.match(FRONTMATTER);
+  if (!match) return null;
+
+  let doc: unknown;
+  try {
+    doc = parseYaml(match[1]);
+  } catch (err) {
+    throw new SpecFrontmatterError(file, `${(err as Error).message.split('\n')[0]}. ${YAML_HINT}`, err);
+  }
+  if (doc === null || doc === undefined) doc = {};
+  if (typeof doc !== 'object' || Array.isArray(doc)) {
+    throw new SpecFrontmatterError(file, 'frontmatter must be a YAML mapping');
+  }
+
+  const meta: SpecMeta = { extra: {} };
+  for (const [key, value] of Object.entries(doc as Record<string, unknown>)) {
+    if (value === null || value === undefined) continue;
+    if ((LIST_KEYS as readonly string[]).includes(key)) {
+      (meta as unknown as Record<string, string[]>)[key] = stringList(value, key, file);
+    } else if (key === 'kind') {
+      if (typeof value !== 'string' || !(SPEC_KINDS as readonly string[]).includes(value)) {
+        throw new SpecFrontmatterError(file, `'kind' must be one of ${SPEC_KINDS.join(', ')}`);
+      }
+      meta.kind = value as SpecKind;
+    } else if (key === 'id' || key === 'parent' || key === 'value' || KNOWN_META_KEYS.has(key)) {
+      if (typeof value !== 'string' && typeof value !== 'number') {
+        throw new SpecFrontmatterError(file, `'${key}' must be a string`);
+      }
+      (meta as unknown as Record<string, string>)[key] = String(value).trim();
+    } else {
+      meta.extra[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    }
+  }
+  // A frontmatter journey keeps working with the journey parser, which keys off `type`.
+  if (meta.kind === 'journey') meta.type ??= 'journey';
+  return { meta, body: content.slice(match[0].length) };
 }
 
 /**
@@ -213,20 +284,24 @@ export function parseSpecContent(
   filePath: string,
   specsRoot: string,
 ): ParsedSpec {
-  const meta = parseMetaComment(content);
-  const acceptanceCriteria = extractSection(content, 'Acceptance Criteria');
+  const front = parseFrontmatter(content, filePath);
+  const body = front ? front.body : content;
+  content = body;
+  const meta = front ? front.meta : parseMetaComment(content);
+  // v2 names first-class; the v1 names stay readable.
+  const acceptanceCriteria = extractSection(content, 'Requirements') || extractSection(content, 'Acceptance Criteria');
   const sections = parseAllSections(content);
   return {
-    title: parseTitle(content),
+    title: parseTitle(content) || meta.extra.title || '',
     specKey: computeSpecKey(filePath, specsRoot),
     filePath,
     meta,
-    overview: extractSection(content, 'Overview'),
+    overview: extractSection(content, 'Overview') || extractSection(content, 'Problem & Value'),
     acceptanceCriteria,
     claims: parseClaims(acceptanceCriteria),
     journey: parseJourney(meta, sections),
     scenarios: parseScenarios(content),
-    securityNotes: extractSection(content, 'Security Notes'),
+    securityNotes: extractSection(content, 'Security Notes') || extractSection(content, 'Security & Data Considerations'),
     dependencies: extractSection(content, 'Dependencies'),
     visualExpectations: extractSection(content, 'Visual Expectations'),
     accessibilityRequirements: extractSection(content, 'Accessibility Requirements'),
@@ -234,6 +309,9 @@ export function parseSpecContent(
     sections,
   };
 }
+
+/** Top-level directories of a specs root that hold something other than specs. */
+const NON_SPEC_DIRS = new Set(['history', '_archive']);
 
 /**
  * Recursively find all `.md` files under `dir` (excluding any `README.md`),
@@ -259,6 +337,8 @@ export function loadAllSpecs(dir: string): ParsedSpec[] {
         continue;
       }
       if (isDir) {
+        // Requirement history and archived v1 specs are not specs.
+        if (current === dir && NON_SPEC_DIRS.has(entry)) continue;
         walk(full);
       } else if (
         entry.toLowerCase().endsWith('.md') &&

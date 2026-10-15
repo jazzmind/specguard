@@ -33,6 +33,7 @@ Plain prose is ignored
 `;
 
 describe('parseClaims', () => {
+  // [claims: capabilities/spec-authoring#claim-anchors]
   it('reads anchors, checkboxes, and unanchored bullets', () => {
     const claims = parseClaims(ANCHORED.split('## Acceptance Criteria')[1]);
     expect(claims).toEqual([
@@ -43,6 +44,7 @@ describe('parseClaims', () => {
 });
 
 describe('assignClaimIds', () => {
+  // [claims: capabilities/spec-authoring#claim-anchors, capabilities/spec-authoring#claims-assign]
   it('adds one id and leaves an existing anchor unchanged on a second pass', () => {
     const first = assignClaimIds(ANCHORED);
     expect(first.assigned.map((row) => row.id)).toEqual(['drivers-finish-early']);
@@ -53,6 +55,7 @@ describe('assignClaimIds', () => {
     expect(second.content).toBe(first.content);
   });
 
+  // [claims: capabilities/spec-authoring#claims-assign]
   it('suffixes a slug that would collide', () => {
     const content = `# T
 
@@ -68,6 +71,7 @@ describe('assignClaimIds', () => {
 });
 
 describe('parseClaimRef', () => {
+  // [claims: capabilities/spec-authoring#journey-specs, capabilities/workspaces#cross-repo-claim-refs]
   it('accepts a repo-qualified ref and a bare ref, and rejects a string with no hash', () => {
     expect(parseClaimRef('services:automation/index#award-once')).toEqual({
       repo: 'services',
@@ -80,6 +84,7 @@ describe('parseClaimRef', () => {
 });
 
 describe('journey invariants', () => {
+  // [claims: capabilities/spec-authoring#claims-list-gate]
   it('reports a verifies ref that is missing from the catalog', () => {
     const spec = parseSpecContent(
       `# Journey
@@ -126,6 +131,7 @@ verdicts.json
 });
 
 describe('claims assign and list', () => {
+  // [claims: capabilities/spec-authoring#claims-assign, capabilities/spec-authoring#claims-list-gate]
   it('writes anchors into a spec directory and list fails on a dangling journey ref', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'sg-claims-'));
     const specs = path.join(dir, 'specs');
@@ -238,5 +244,13 @@ describe('proof ingest', () => {
     const row = ledger.proofs['widget#does-the-thing'];
     expect(row.verdict).toBe('error');
     expect(effectiveVerdict(row, { specHash: row.specHash, fileHashes: {} })).toBe('error');
+  });
+});
+
+describe('wrapped claims [claims-wrapped]', () => {
+  // [claims: capabilities/spec-authoring#claim-anchors]
+  it('joins an indented continuation line into the claim and reads an anchor placed on it', () => {
+    const claims = parseClaims('- [ ] First line of the rule\n  continues here <!-- claim: wrapped -->\n- [ ] Next <!-- claim: next -->\n');
+    expect(claims).toEqual([{ text: 'First line of the rule continues here', id: 'wrapped', checked: false }, { text: 'Next', id: 'next', checked: false }]);
   });
 });

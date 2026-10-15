@@ -10,6 +10,7 @@ import { applyIgnoreBlock, GENERATED_STATE_PATHS, IGNORE_END, IGNORE_START } fro
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'sg-init-'));
 
 describe('generated state ignore', () => {
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
   it('applyIgnoreBlock is idempotent and preserves surrounding lines', () => {
     const once = applyIgnoreBlock('node_modules/\ndist/');
     expect(once.startsWith('node_modules/\ndist/\n')).toBe(true);
@@ -21,12 +22,14 @@ describe('generated state ignore', () => {
     expect(edited.trimEnd().endsWith('b')).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
   it('never ignores config, rules, plans, or the proof ledger', () => {
     for (const keep of ['.specguard/config.json', '.specguard/plans/', '.specguard/rules/', '.specguard/proofs.json', '.specguard/replay/']) {
       expect(GENERATED_STATE_PATHS).not.toContain(keep);
     }
   });
 
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
   it('init writes the block, does not seed a drift registry, and is stable on re-run', async () => {
     const dir = tmp();
     writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
@@ -40,6 +43,7 @@ describe('generated state ignore', () => {
     expect(readFileSync(path.join(dir, '.gitignore'), 'utf8')).toBe(gi);
   });
 
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
   it('prints the untrack command for generated files git already tracks', async () => {
     const dir = tmp();
     execFileSync('git', ['init', '-q'], { cwd: dir });

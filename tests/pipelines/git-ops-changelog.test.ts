@@ -3,9 +3,10 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { _appendChangelog } from '../../src/pipelines/git-ops.js';
+import { _appendChangelog } from '../../src/plugins/git/git-ops.js';
 
 describe('git-ops changelog', () => {
+  // [claims: capabilities/integration-surfaces#git-helpers]
   it('writes the changelog under ESM (no require) and appends on later commits', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-cl-'));
     _appendChangelog(dir, { hash: 'abc1234', message: 'specguard: generated', pipeline: 'generate', files: ['tests/a.test.ts'], timestamp: '2026-01-01T00:00:00Z' });

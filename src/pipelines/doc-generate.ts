@@ -7,7 +7,7 @@
  * LLM to rewrite as friendly end-user docs, prepend YAML frontmatter, and write
  * the page to a docs output directory (default `docs/user/`).
  *
- * Spec: specs/pipelines/doc-generate.md
+ * Spec: specs/capabilities/documentation-api.md
  *
  * Spec -> app -> output-path mapping
  * ----------------------------------

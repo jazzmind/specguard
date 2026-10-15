@@ -4,7 +4,7 @@
  * Also resolves a spec's declared `sources:` files and migrates legacy
  * drift-registry keys.
  *
- * Spec: specs/core/spec-key.md
+ * Spec: specs/capabilities/spec-authoring.md
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,8 +72,12 @@ export function appForSpecFile(config: SpecGuardConfig, absFile: string): AppCon
   return best;
 }
 
-/** Patterns from a spec's `sources:` header, else its `module:` header. */
+/**
+ * Patterns a spec owns: the v2 frontmatter `sources` list, else the v1
+ * comma-separated `sources:` header, else its `module:` header.
+ */
 export function declaredSources(spec: Pick<ParsedSpec, 'meta'>): string[] {
+  if (spec.meta.sources?.length) return [...spec.meta.sources];
   const raw = spec.meta.extra?.sources ?? spec.meta.module ?? '';
   return raw
     .split(',')

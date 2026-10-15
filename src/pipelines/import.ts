@@ -4,7 +4,7 @@
  * Transforms unstructured external requirement documents (Markdown, plain
  * text, URLs) into Living Specification format via LLM.
  *
- * Spec: specs/pipelines/import.md
+ * Spec: specs/capabilities/spec-authoring.md
  */
 import path from 'node:path';
 import https from 'node:https';

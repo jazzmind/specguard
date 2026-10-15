@@ -24,6 +24,7 @@ afterAll(() => {
 });
 
 describe('scaffoldHarnessFiles', () => {
+  // [claims: capabilities/integration-surfaces#harness-files]
   it('greenfield Claude scaffold writes the expected files, language-aware', async () => {
     const cwd = makeTempDir();
     const res = await scaffoldHarnessFiles({ cwd, profile: getProfile('python'), harness: 'claude' });
@@ -44,12 +45,14 @@ describe('scaffoldHarnessFiles', () => {
     expect(res.created.length).toBeGreaterThan(0);
   });
 
+  // [claims: capabilities/integration-surfaces#harness-files]
   it('does not generate Cursor files for harness: claude', async () => {
     const cwd = makeTempDir();
     await scaffoldHarnessFiles({ cwd, profile: getProfile('typescript'), harness: 'claude' });
     expect(existsSync(path.join(cwd, '.cursor'))).toBe(false);
   });
 
+  // [claims: capabilities/integration-surfaces#harness-files]
   it('is idempotent and preserves user content', async () => {
     const cwd = makeTempDir();
     await scaffoldHarnessFiles({ cwd, profile: getProfile('typescript'), harness: 'claude' });
@@ -70,6 +73,7 @@ describe('scaffoldHarnessFiles', () => {
     expect(readFileSync(claudePath, 'utf8')).toContain('## My own notes');
   });
 
+  // [claims: capabilities/integration-surfaces#harness-files]
   it('skips a user-authored AGENTS.md lacking the managed marker', async () => {
     const cwd = makeTempDir();
     writeFileSync(path.join(cwd, 'AGENTS.md'), '# My agents\nhand written\n');
@@ -78,6 +82,7 @@ describe('scaffoldHarnessFiles', () => {
     expect(res.skipped.some((p) => p.endsWith('AGENTS.md'))).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('leaves malformed JSON config unchanged', async () => {
     const cwd = makeTempDir();
     mkdirSync(path.join(cwd, '.cursor'), { recursive: true });
@@ -89,6 +94,7 @@ describe('scaffoldHarnessFiles', () => {
 });
 
 describe('npx forms', () => {
+  // [claims: capabilities/integration-surfaces#harness-files]
   it('writes the package-qualified npx commands', async () => {
     const { mergeClaudeSettings, mergeCursorMcpJson, NPX_CLI, mcpServerEntry } = await import('../../src/core/scaffold.js');
     const claude = mergeClaudeSettings({}) as { mcpServers: Record<string, { command: string; args: string[] }>; hooks: unknown };
@@ -98,6 +104,7 @@ describe('npx forms', () => {
     expect(mergeCursorMcpJson({}).mcpServers).toEqual({ 'specguard-mcp': mcpServerEntry() });
   });
 
+  // [claims: capabilities/integration-surfaces#agent-wiring-and-runner]
   it('repairs the broken form written by older versions and leaves customised entries alone', async () => {
     const { mergeClaudeSettings, mergeCursorMcpJson, mcpServerEntry } = await import('../../src/core/scaffold.js');
     const broken = {

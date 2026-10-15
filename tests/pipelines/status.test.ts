@@ -41,6 +41,7 @@ beforeEach(async () => {
 });
 
 describe('runStatus', () => {
+  // [claims: capabilities/traceability-and-drift#status-exit-code]
   it('scenario 1: exit 0 when all source files have specs', async () => {
     await writeRel('src/core/a.ts');
     await writeRel('src/core/b.ts');
@@ -56,6 +57,7 @@ describe('runStatus', () => {
     expect(res.messages.some((m) => m.includes('TOTAL: 2 source files, 2 specs (100%)'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#status-exit-code]
   it('scenario 2: exit 4 when a spec is missing', async () => {
     await writeRel('src/core/a.ts');
     await writeRel('src/core/b.ts');
@@ -76,6 +78,7 @@ describe('runStatus', () => {
     expect(res.messages.some((m) => m.includes('1 specs (50%)'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#status-coverage-report]
   it('scenario 3: reports test coverage', async () => {
     await writeRel('src/core/a.ts');
     await writeRel('specs/core/a.md', '# A\n');
@@ -90,6 +93,7 @@ describe('runStatus', () => {
     expect(res.messages.some((m) => m.includes('1 tests (100%)'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#status-coverage-report]
   it('scenario 4: excludes the tests group from the needs-a-spec set', async () => {
     await writeRel('src/core/a.ts');
     await writeRel('specs/core/a.md', '# A\n');
@@ -104,6 +108,7 @@ describe('runStatus', () => {
     expect(res.exitCode).toBe(ExitCode.Success);
   });
 
+  // [claims: capabilities/traceability-and-drift#status-exit-code]
   it('scenario 5: empty repo reports zero and exit 0', async () => {
     const res = await runStatus(makeConfig());
 
@@ -155,11 +160,11 @@ describe('runStatus UNFEATURED', () => {
     expect(res.messages.some((m) => m.includes('[unfeatured] core:a'))).toBe(true);
   });
 
-  it('a plugin with a default catalog enables the report and supplies the types', async () => {
+  it('reports nothing about features until a catalog is configured [no-catalog]', async () => {
     await writeRel('src/core/a.ts');
     await writeRel('specs/core/a.md', SPEC);
-    const res = await runStatus({ ...makeConfig(), plugins: ['practera'] });
-    expect(res.messages).toContain('UNFEATURED: 1');
+    const res = await runStatus(makeConfig());
+    expect(res.messages.some((m) => m.startsWith('UNFEATURED'))).toBe(false);
   });
 });
 

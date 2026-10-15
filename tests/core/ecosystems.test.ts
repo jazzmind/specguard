@@ -47,6 +47,7 @@ function canned(map: Record<string, CommandResult>): { run: CommandRunner; calls
 }
 
 describe('semver helpers', () => {
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('ranks patch before minor before major', () => {
     // claim: smallest-fix
     const r = rankFixes('2.2.0', ['3.0.1', '2.3.0', '2.2.5', '1.0.0']);
@@ -150,6 +151,7 @@ describe('tool availability and the OSV detector', () => {
     await expect(getEcosystem('go', run).audit(dir)).rejects.toThrow(/govulncheck is not installed/);
   });
 
+  // [claims: capabilities/security-and-remediation#unified-detection]
   it('uses OSV when available and merges with the native audit', async () => {
     // claim: osv-universal
     const dir = repo({ 'package.json': PKG, 'package-lock.json': NPM_LOCK });
@@ -165,6 +167,7 @@ describe('tool availability and the OSV detector', () => {
     expect(lodash[0].source).toBe('osv-scanner,npm-audit');
   });
 
+  // [claims: capabilities/security-and-remediation#unified-detection]
   it('falls back to native audits, with a warning, when OSV is missing', async () => {
     const dir = repo({ 'package.json': PKG, 'package-lock.json': NPM_LOCK });
     const { run } = canned({ 'npm audit': ok(fx('npm-audit.json')) });
@@ -189,6 +192,7 @@ const adv = (over: Partial<Advisory>): Advisory => ({
 });
 
 describe('apply', () => {
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('bumps a direct npm dependency keeping the range prefix and formatting', async () => {
     // claim: apply-changed-files
     const dir = repo({ 'package.json': PKG, 'package-lock.json': NPM_LOCK });
@@ -199,6 +203,7 @@ describe('apply', () => {
     expect(readFileSync(path.join(dir, 'package.json'), 'utf8')).toBe(PKG.replace('^4.17.20', '^4.17.21'));
   });
 
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('pins transitive fixes through overrides, pnpm.overrides and resolutions', async () => {
     // claim: transitive-override
     const t = adv({ package: 'minimist', installedVersion: '1.2.5', fixedVersions: ['1.2.6'], direct: false });

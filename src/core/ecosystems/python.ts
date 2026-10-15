@@ -2,7 +2,7 @@
  * pip, poetry and uv adapters. Audits go through pip-audit (the manager exports a
  * requirements file for poetry and uv).
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';

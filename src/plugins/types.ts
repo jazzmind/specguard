@@ -5,9 +5,11 @@
  * depends on a platform's repo layout, id scheme, or tooling is supplied by a
  * plugin through one of these interfaces and enabled by `config.plugins`.
  *
- * Spec: specs/plugins/plugins.md
+ * Spec: specs/capabilities/integration-surfaces.md
  */
-import type { ParsedSpec } from '../core/types.js';
+import type { ZodTypeAny } from 'zod';
+
+import type { ParsedSpec, PipelineResult, SpecGuardConfig } from '../core/types.js';
 
 export const CHANNELS = ['ui', 'api', 'mcp'] as const;
 export type ChannelName = (typeof CHANNELS)[number];
@@ -51,9 +53,9 @@ export interface ChannelImplementation {
   ui?: string;
   api?: string;
   /** An MCP tool (or equivalent agent surface) that counts as the feature's MCP channel. */
-  mcpAdmin?: string;
-  /** A tool that exists but does not count (kept as evidence only). */
-  mcpLearner?: string;
+  mcpTool?: string;
+  /** A tool that exists but does not count (for example one for end users, not operators); kept as evidence only. */
+  mcpExcluded?: string;
 }
 
 /** Normalized test result used by feature-state. */
@@ -146,9 +148,45 @@ export interface FeatureStateTuning {
   mcpModulePattern?: RegExp;
 }
 
+/** What a plugin command receives when it runs. */
+export interface PluginCommandContext {
+  /** The loaded config, or null when the command does not need one and none was found. */
+  config: SpecGuardConfig | null;
+  /** Parsed options, keyed by commander's camel-cased names. */
+  opts: Record<string, unknown>;
+  /** Positional arguments. */
+  args: string[];
+}
+
+/**
+ * A command a plugin adds to the CLI (and, unless `mcp` is false, to the MCP
+ * server as `specguard_<name>`). Core commands always win a name clash.
+ */
+export interface PluginCommand {
+  name: string;
+  description: string;
+  options?: Array<{ flags: string; description: string }>;
+  /** Accept positional arguments, shown in help as `[args...]`. */
+  args?: string;
+  /** False when the command works without a SpecGuard config. Default true. */
+  needsConfig?: boolean;
+  /** `messages`: print only the result's messages (for commands whose output other tools parse), with no summary line. Default `summary`. */
+  output?: 'summary' | 'messages';
+  /** False to keep the command off the MCP server. Default true. */
+  mcp?: boolean;
+  /**
+   * Typed MCP inputs, passed to `run` as `opts`. Without them the MCP tool takes
+   * free-form `args` and `options`. A `cwd` input is always added.
+   */
+  mcpParams?: Record<string, ZodTypeAny>;
+  run(ctx: PluginCommandContext): Promise<PipelineResult>;
+}
+
 /** A plugin bundles any of the interfaces. */
 export interface SpecGuardPlugin {
   id: string;
+  /** Commands added to the CLI and MCP server while the plugin is enabled. */
+  commands?: PluginCommand[];
   catalogProviders?: CatalogProvider[];
   discoverers?: ImplementationDiscoverer[];
   externalIdAdapters?: ExternalIdAdapter[];
@@ -165,12 +203,18 @@ export interface ImportedContractEdge {
   consumerSpec: string;
   providerPath: string;
   docPage: string | null;
+  /** Contract type for the edge (`rest`, `graphql`, `docs`, ...). Default: `docs` for a doc page, else `dependency`. */
+  type?: string;
 }
 
 export interface ContractImporter {
   id: string;
-  /** Edges from one repo. Never throws; returns [] when its input does not exist. */
-  read(repo: { key: string; absPath: string }, manifest: { rootDir: string; repos: Record<string, { path: string }> }): ImportedContractEdge[];
+  /** Edges from one repo. Never throws; returns [] when its input does not exist. `config` is the repo's own SpecGuard config, when it has one. */
+  read(
+    repo: { key: string; absPath: string },
+    manifest: { rootDir: string; repos: Record<string, { path: string }> },
+    config?: SpecGuardConfig | null,
+  ): ImportedContractEdge[];
 }
 
 export type { ParsedSpec };

@@ -24,26 +24,24 @@ The `specguard` CLI and MCP server run every QA pipeline. Prefer the MCP tools
 
 | Command | What it does |
 |---------|-------------|
-| `specguard analyze` | Smart diagnostics — start here when unsure |
-| `specguard gap-analysis` | Find unimplemented specs and generate build plans |
-| `specguard status` | Spec + test coverage report |
-| `specguard reverse --all` | Generate Living Specs from source |
-| `specguard generate --all` | Generate test files from specs |
-| `specguard align --all` | Map existing tests to spec scenarios |
-| `specguard heal --all` | Run tests and auto-fix test bugs |
-| `specguard drift` | Detect specs out of sync with code |
-| `specguard security --all` | OWASP security test stubs |
+| `specguard check` | Spec health for the whole system: ownership, tests, proofs, gaps, drift. Start here |
+| `specguard spec graph` | The spec tree, the files each spec owns, and rule violations |
+| `specguard spec draft` | Write the system spec and functional capability specs from existing code |
+| `specguard history add` | Record why a requirement changed: a prompt, plan or decision |
+| `specguard test run` | Run the tests and record the results as proof |
+| `specguard verify --all --url <base>` | Judge the running app against each capability's problem and value |
+| `specguard security scan` | Code, dependency, secret and spec-level findings as one remediation plan |
+| `specguard serve` | Docs and audit API, with a web UI |
 | (tests run via) | `npm test` |
 
 Without a global install, run any command as `npx -p specguard-ai specguard <command>`.
 
 ## Build-from-specs Loop
 
-1. `specguard gap-analysis` → plans for every unimplemented spec (`.specguard/plans/*`).
-2. Implement one module against its spec + plan.
-3. `specguard status` → confirm the spec flips to covered.
-4. `specguard generate --spec <key>` then `specguard heal --all`.
-5. If the repo has many existing tests, run `specguard align --all` to map them to spec scenarios.
-6. Repeat until `status` reports full coverage.
+1. `specguard check --gaps` → what is unowned, untested, stale or failing.
+2. Implement one capability's requirements against its spec.
+3. Write tests and tag each with the requirement it proves (`// [claims: capabilities/<id>#<claim-id>]`).
+4. `specguard test run` → results become proof; `specguard check` shows what is proven.
+5. Repeat until every requirement is proven.
 
 Tests for this project run with `npm test`.

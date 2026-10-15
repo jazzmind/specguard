@@ -1,7 +1,7 @@
 /**
  * Tests for dashboard/cli.ts — resolveCliPath, loadDotEnv, spawnCli.
  *
- * Spec: specs/extension/src/dashboard/cli.md
+ * Spec: specs/capabilities/integration-surfaces.md
  *
  * ESM note: fs and child_process namespace objects are non-configurable, so
  * vi.spyOn doesn't work. Both modules are fully mocked here.
@@ -65,12 +65,14 @@ function makeProc() {
 // ---------------------------------------------------------------------------
 
 describe('resolveCliPath', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-1: returns explicit cliPath setting without filesystem checks', async () => {
     mockVscodeCfg('/custom/specguard');
     expect(await resolveCliPath('/workspace')).toBe('/custom/specguard');
     expect(fs.existsSync).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-2: falls back to workspace node_modules/.bin/specguard', async () => {
     mockVscodeCfg('');
     vi.mocked(fs.existsSync).mockImplementation((p) =>
@@ -79,6 +81,7 @@ describe('resolveCliPath', () => {
     expect(await resolveCliPath('/workspace')).toBe('/workspace/node_modules/.bin/specguard');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-3: falls back to dev src/cli/index.ts when no local bin', async () => {
     mockVscodeCfg('');
     vi.mocked(fs.existsSync).mockImplementation((p) =>
@@ -87,6 +90,7 @@ describe('resolveCliPath', () => {
     expect(await resolveCliPath('/workspace')).toBe('/workspace/src/cli/index.ts');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-4: falls back to bundled dist/cli.js when extension path is set', async () => {
     mockVscodeCfg('');
     setExtensionPath('/ext');
@@ -96,6 +100,7 @@ describe('resolveCliPath', () => {
     expect(await resolveCliPath('/workspace')).toBe('/ext/dist/cli.js');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-5: returns empty string when no CLI path is resolvable', async () => {
     mockVscodeCfg('');
     vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -108,6 +113,7 @@ describe('resolveCliPath', () => {
 // ---------------------------------------------------------------------------
 
 describe('loadDotEnv', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-10: ignores blank lines and # comment lines', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue('# comment\n\nVALID=ok\n' as unknown as ReturnType<typeof fs.readFileSync>);
@@ -117,6 +123,7 @@ describe('loadDotEnv', () => {
     expect(Object.keys(vars)).not.toContain('# comment');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('strips surrounding single and double quotes from values', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue('A="double"\nB=\'single\'\n' as unknown as ReturnType<typeof fs.readFileSync>);
@@ -125,6 +132,7 @@ describe('loadDotEnv', () => {
     expect(vars.B).toBe('single');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('returns empty object when file does not exist', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     expect(loadDotEnv('/no/such/.env')).toEqual({});
@@ -136,12 +144,14 @@ describe('loadDotEnv', () => {
 // ---------------------------------------------------------------------------
 
 describe('spawnCli', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-6: rejects with actionable error message when cliPath is empty', async () => {
     const handle = spawnCli('', ['status'], '/ws', () => {});
     await expect(handle.promise).rejects.toThrow('SpecGuard CLI not found');
     expect(() => handle.kill()).not.toThrow();
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-7: .js path spawns via node', () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
@@ -153,6 +163,7 @@ describe('spawnCli', () => {
     );
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-7: .ts path spawns via npx tsx', () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
@@ -164,6 +175,7 @@ describe('spawnCli', () => {
     );
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-11: streams stdout lines to onLine callback', async () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
@@ -176,6 +188,7 @@ describe('spawnCli', () => {
     expect(lines).toContain('line2');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('AC-12: kill() sends SIGTERM without throwing', () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);

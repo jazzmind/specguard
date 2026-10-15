@@ -3,6 +3,7 @@ import { SpecGuardError, ConfigNotFoundError, ConfigInvalidError } from "specgua
 import { ExitCode } from "specguard-core/exit-codes";
 
 describe("SpecGuard Core Error Classes", () => {
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes]
   it("Constructing SpecGuardError with default exit code", () => {
     const error = new SpecGuardError("something went wrong");
 
@@ -14,6 +15,7 @@ describe("SpecGuard Core Error Classes", () => {
     expect(error.name).toBe("SpecGuardError");
   });
 
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes]
   it("Constructing SpecGuardError with explicit exit code and cause", () => {
     const rootCause = new TypeError("root cause");
     const error = new SpecGuardError("custom message", 42, rootCause);
@@ -23,6 +25,7 @@ describe("SpecGuard Core Error Classes", () => {
     expect(error.message).toBe("custom message");
   });
 
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes]
   it("ConfigNotFoundError message and prototype chain", () => {
     const error = new ConfigNotFoundError("/home/user/project");
 
@@ -34,6 +37,7 @@ describe("SpecGuard Core Error Classes", () => {
     expect(error.name).toBe("ConfigNotFoundError");
   });
 
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes]
   it("ConfigInvalidError message, cause, and prototype chain", () => {
     const syntaxError = new SyntaxError("parse failure");
     const error = new ConfigInvalidError("missing required field 'rules'", syntaxError);
@@ -47,6 +51,7 @@ describe("SpecGuard Core Error Classes", () => {
     expect(error.name).toBe("ConfigInvalidError");
   });
 
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes]
   it("ConfigInvalidError constructed without a cause", () => {
     const error = new ConfigInvalidError("unknown field 'foo'");
 

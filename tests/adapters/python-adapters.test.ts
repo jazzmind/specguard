@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { runRuff, ruffRunner } from '../../src/adapters/ruff.js';
+import { runRuff, ruffRunner } from '../../src/plugins/quality/ruff.js';
 import { runPipAudit, pipAuditRunner } from '../../src/adapters/pip-audit.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -19,6 +19,7 @@ describe('runRuff', () => {
     expect(res.findings[0]).toMatchObject({ file: 'app/board.py', ruleId: 'F401', line: 3 });
   });
 
+  // [claims: capabilities/security-and-remediation#sast-degrades-gracefully]
   it('returns ok:false when ruff is unavailable', async () => {
     vi.spyOn(ruffRunner, 'run').mockReturnValue({ status: null, stdout: null, error: new Error('ENOENT') });
     const res = await runRuff('/repo');
@@ -45,6 +46,7 @@ describe('runPipAudit', () => {
     expect(res.findings[0].message).toContain('PYSEC-1');
   });
 
+  // [claims: capabilities/security-and-remediation#sast-degrades-gracefully]
   it('returns ok:false when pip-audit is unavailable', async () => {
     vi.spyOn(pipAuditRunner, 'run').mockReturnValue({ status: null, stdout: null, error: new Error('ENOENT') });
     const res = await runPipAudit('/repo');

@@ -3,8 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CatalogError, loadCatalogDir, parseCatalogYaml, parseFeatureList, yamlCatalogProvider } from '../../src/plugins/catalog.js';
-import { practeraCatalogProvider, PRACTERA_CATALOG_DIR } from '../../src/plugins/practera/index.js';
+import { CatalogError, loadCatalogDir, parseCatalogYaml, parseFeatureList, listCatalogProvider, yamlCatalogProvider } from '../../src/plugins/feature-catalog/catalog.js';
 
 const V1 = `
 version: 1
@@ -28,6 +27,7 @@ features:
 `;
 
 describe('catalog', () => {
+  // [claims: capabilities/integration-surfaces#feature-catalog]
   it('parses versioned YAML with a real parser (colons, folded text, nesting)', () => {
     const [a, b] = parseCatalogYaml(V1);
     expect(a).toMatchObject({
@@ -45,6 +45,7 @@ describe('catalog', () => {
     expect(b.status).toBe('planned');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-catalog]
   it('rejects an unversioned or wrong-version file with a CatalogError', () => {
     expect(() => parseCatalogYaml('features: []')).toThrow(CatalogError);
     expect(() => parseCatalogYaml('version: 2\nfeatures: []')).toThrow(/version/);
@@ -52,6 +53,7 @@ describe('catalog', () => {
     expect(() => parseCatalogYaml('version: 1\nfeatures: [\n')).toThrow(CatalogError);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-catalog]
   it('loads a directory and rejects duplicate ids across files', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-cat-'));
     writeFileSync(path.join(dir, 'a.yaml'), 'version: 1\nfeatures:\n  - id: a\n');
@@ -63,18 +65,21 @@ describe('catalog', () => {
     expect(loadCatalogDir(path.join(dir, 'missing'))).toEqual([]);
   });
 
+  // [claims: capabilities/integration-surfaces#catalog-layout-config]
   it('generic provider has no default directory', async () => {
     expect(yamlCatalogProvider.defaultDir).toBeUndefined();
     expect(await yamlCatalogProvider.load({ rootDir: '/nonexistent' })).toEqual([]);
   });
 
-  it('the practera provider reads bare lists from its own default directory', async () => {
-    expect(practeraCatalogProvider.defaultDir).toBe(PRACTERA_CATALOG_DIR);
+  // [claims: capabilities/integration-surfaces#catalog-layout-config, capabilities/integration-surfaces#feature-catalog]
+  it('the list provider reads bare feature lists from the directory config names, and has no default [list-provider]', async () => {
+    expect(listCatalogProvider.defaultDir).toBeUndefined();
+    expect(await listCatalogProvider.load({ rootDir: '/nonexistent' })).toEqual([]);
     const root = mkdtempSync(path.join(os.tmpdir(), 'sg-cat-'));
-    const dir = path.join(root, 'practera-test-suite', 'catalog');
+    const dir = path.join(root, 'qa', 'catalog');
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, 'x.yaml'), '- id: a.b.c\n  title: "T: x"\n  requires: [ui]\n  tests:\n    unit: [x.test.ts]\n  agent:\n    prompt: hi\n');
-    const [f] = await practeraCatalogProvider.load({ rootDir: root });
+    const [f] = await listCatalogProvider.load({ rootDir: root, dir: 'qa/catalog' });
     expect(f).toMatchObject({ id: 'a.b.c', title: 'T: x', requires: ['ui'] });
     expect(parseFeatureList('- id: z\n')[0].id).toBe('z');
   });

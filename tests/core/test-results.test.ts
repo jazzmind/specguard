@@ -12,6 +12,7 @@ import {
 const fx = (name: string) => readFileSync(path.join(__dirname, '..', 'fixtures', 'results', name), 'utf8');
 
 describe('test results', () => {
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('detects every format and rejects unknown content', () => {
     expect(detectResultFormat(fx('vitest.json'))).toBe('vitest');
     expect(detectResultFormat(fx('playwright.json'))).toBe('playwright');
@@ -23,6 +24,7 @@ describe('test results', () => {
     expect(detectResultFormat('plain text')).toBeNull();
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('parses vitest results including pass, fail, skip', () => {
     const rows = parseResults(fx('vitest.json'));
     expect(rows.map((r) => r.status)).toEqual(['pass', 'fail', 'pass', 'skip']);
@@ -31,6 +33,7 @@ describe('test results', () => {
     expect(rows[1].claims).toEqual(['core/awards#no-dupes']);
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('parses playwright suites, tags, annotations', () => {
     const rows = parseResults(fx('playwright.json'));
     expect(rows).toHaveLength(3);
@@ -40,6 +43,7 @@ describe('test results', () => {
     expect(rows[2]).toMatchObject({ status: 'skip', claims: ['web/checkout#skipped-one'] });
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('parses junit xml with properties', () => {
     const rows = parseResults(fx('junit.xml'));
     expect(rows.map((r) => r.status)).toEqual(['pass', 'fail', 'skip']);
@@ -49,6 +53,7 @@ describe('test results', () => {
     expect(rows[1].message).toBe('assert 2 == 1');
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('parses pytest-json-report', () => {
     const rows = parseResults(fx('pytest.json'));
     expect(rows.map((r) => r.status)).toEqual(['pass', 'fail', 'skip']);
@@ -56,6 +61,7 @@ describe('test results', () => {
     expect(rows[1]).toMatchObject({ file: 'tests/test_awards.py', title: 'TestX::test_boom', claims: ['core/awards#no-dupes'] });
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('parses go and cargo json lines', () => {
     const go = parseResults(fx('go.jsonl'));
     expect(go.map((r) => [r.title, r.status])).toEqual([['TestAwardOnce', 'pass'], ['TestNoDupes', 'fail']]);
@@ -63,6 +69,7 @@ describe('test results', () => {
     expect(cargo.map((r) => [r.title, r.status])).toEqual([['award_once', 'pass'], ['boom', 'fail']]);
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('honours an explicit format and throws a typed error on bad input', () => {
     expect(() => parseResults('not json', 'vitest')).toThrow(ResultParseError);
     expect(() => parseResults('{"a":1}', 'auto')).toThrow(/unrecognised/);

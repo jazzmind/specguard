@@ -3,7 +3,7 @@
  * per auth profile (and one for anonymous pages), so a login never leaks into
  * another profile and a spec without `auth:` never runs logged in.
  *
- * Spec: specs/adapters/auth-state-machine.md
+ * Spec: specs/capabilities/agentic-verification.md
  */
 import type { SpecGuardConfig } from '../core/types.js';
 import { authenticate, contextOptionsFor, type AuthResult } from './auth-state-machine.js';

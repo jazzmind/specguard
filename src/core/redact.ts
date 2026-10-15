@@ -4,7 +4,7 @@
  * Social Security numbers, payment card numbers, bearer tokens, JWTs and common
  * API-key shapes. Projects add patterns, CSS selectors to blank, and a hook.
  *
- * Spec: specs/core/redact.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -56,9 +56,18 @@ interface Mask {
 
 export const BUILTIN_MASKS: Mask[] = [
   { name: 'jwt', regex: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, replace: '[TOKEN]' },
-  { name: 'bearer', regex: /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{10,}/gi, replace: '$1 [TOKEN]' },
-  { name: 'api-key', regex: /\b(?:sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abprs]-[A-Za-z0-9-]{10,})\b/g, replace: '[KEY]' },
-  { name: 'email', regex: /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g, replace: '[EMAIL]' },
+  // A credential has a digit or `=` in it; "Basic requirements" and "Bearer tokenization" are prose.
+  { name: 'bearer', regex: /\b(Bearer|Basic)\s+(?=[A-Za-z0-9._~+/=-]{10,})(?=[A-Za-z0-9._~+/=-]*[0-9=])[A-Za-z0-9._~+/=-]+/gi, replace: '$1 [TOKEN]' },
+  { name: 'api-key', regex: /\b(?:sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abprs]-[A-Za-z0-9-]{10,})\b/g, replace: '[KEY]' },
+  { name: 'private-key', regex: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g, replace: '[PRIVATE KEY]' },
+  {
+    name: 'credential',
+    // `password=hunter2`, `secret: "value"`. An unquoted value needs a digit, so `token: string` in a type is left alone.
+    regex: /\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|token)(\s*[:=]\s*)(?:(["'])[^"'\n]{4,}\3|(?=[^\s"',;]*\d)[^\s"',;]{4,})/gi,
+    replace: '$1$2[SECRET]',
+  },
+  // The local part is bounded and must start at a boundary, so a long run with no `@` costs one pass, not one per start.
+  { name: 'email', regex: /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*\.[A-Za-z]{2,}/g, replace: '[EMAIL]' },
   { name: 'ssn', regex: /(?<![\d-])\d{3}[- ]\d{2}[- ]\d{4}(?![\d-])/g, replace: '[SSN]' },
   {
     name: 'card',
@@ -72,6 +81,25 @@ export const BUILTIN_MASKS: Mask[] = [
     replace: '[PHONE]',
   },
 ];
+
+/** Masks for credentials and tokens only: no personal-data masks (email, phone, SSN, card). */
+const SECRET_MASKS = new Set(['jwt', 'bearer', 'api-key', 'private-key', 'credential']);
+
+/**
+ * Redactor for content that leaves the machine through the docs API. It masks
+ * credentials and tokens but not personal data, which specs legitimately name.
+ */
+export function createSecretRedactor(): Redactor {
+  const masks = BUILTIN_MASKS.filter((m) => SECRET_MASKS.has(m.name));
+  return {
+    blankSelectors: [],
+    text(input: string): string {
+      let out = input;
+      for (const mask of masks) out = out.replace(mask.regex, mask.replace as string);
+      return out;
+    },
+  };
+}
 
 const noop: Redactor = { text: (t) => t, blankSelectors: [] };
 

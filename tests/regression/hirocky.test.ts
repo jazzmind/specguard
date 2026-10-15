@@ -31,6 +31,7 @@ beforeEach(() => {
 });
 
 describe('hirocky-shaped repo', () => {
+  // [claims: capabilities/traceability-and-drift#drift-hash-registry]
   it('ingest records source hashes from declared sources (root- and app-relative)', async () => {
     await runResultsIngest(ALL(), fx.dir, { runId: 'r1' });
     const proofs = ledger(fx.dir);
@@ -42,6 +43,7 @@ describe('hirocky-shaped repo', () => {
     expect(Object.keys(proofs[`${INBOX}#lists-cases`].fileHashes)).toEqual(['apps/web/src/pages/inbox.tsx']);
   });
 
+  // [claims: capabilities/traceability-and-drift#claim-scoped-file-staleness]
   it('a source edit stales exactly the claims of the specs that declare it', async () => {
     await runResultsIngest(ALL(), fx.dir, { runId: 'r1' });
     writeFileSync(path.join(fx.dir, 'apps/api/src/services/redaction.ts'), 'export const redact = 2;\n');
@@ -54,6 +56,7 @@ describe('hirocky-shaped repo', () => {
     expect(proven.has(`${JOURNEY}#journey-stop`)).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#canonical-keys, capabilities/traceability-and-drift#matrix-links-all-artifacts, capabilities/traceability-and-drift#per-claim-linkage]
   it('matrix reports claim-level coverage under canonical keys', async () => {
     const out = path.join(fx.dir, 'matrix.json');
     const config = await loadConfig(fx.dir);
@@ -65,6 +68,7 @@ describe('hirocky-shaped repo', () => {
     for (const e of entries) expect(e.claims.every((c) => c.tests.length > 0)).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#align-prepass-first]
   it('align covers claims from tags without an LLM call', async () => {
     const config = await loadConfig(fx.dir);
     const res = await runAlign(config, { app: 'api', fresh: true });
@@ -73,6 +77,7 @@ describe('hirocky-shaped repo', () => {
     expect(entry?.uncoveredClaims ?? []).toEqual([]);
   });
 
+  // [claims: capabilities/traceability-and-drift#no-test-by-claim-tag]
   it('status does not report specs with tagged tests as (no test)', async () => {
     const config = await loadConfig(fx.dir);
     const res = await runStatus(config);
@@ -81,6 +86,7 @@ describe('hirocky-shaped repo', () => {
     expect(text).not.toMatch(/sms\/signature.*\(no test\)/);
   });
 
+  // [claims: capabilities/traceability-and-drift#canonical-keys]
   it('migrates old registry keys (api/api/..., api/...) to the canonical key', async () => {
     const file = { hash: 'h', lastChecked: 'x', lastVerdict: 'no-drift' as const };
     saveRegistry(fx.dir, {

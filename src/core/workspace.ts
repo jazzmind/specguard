@@ -36,12 +36,32 @@ export interface WorkspaceManifest {
   version: string;
   /** Workspace name. */
   name: string;
-  /** Map of short repo key → repo config. */
+  /** Map of short repo key → repo config. Holds the units of kind `repo`, so existing pipelines see them. */
   repos: Record<string, WorkspaceRepo>;
+  /** Every unit, repos and packages, by key. Always present after loading. */
+  units: Record<string, WorkspaceUnit>;
   /** Feature catalog directory, relative to the workspace root. */
   catalog?: string;
   /** Absolute path to the workspace root (the dir containing `.specguard/workspace.json`). */
   rootDir: string;
+}
+
+/** What a unit is: a separate repo, or a package inside a monorepo. */
+export type UnitKind = 'repo' | 'package';
+
+/** A unit of the workspace: the one model behind multi-repo and monorepo. */
+export interface WorkspaceUnit {
+  /** Directory relative to the workspace root, POSIX separators. */
+  path: string;
+  kind: UnitKind;
+  /** consumer | provider | test | docs for repos; `package` for monorepo packages unless set. */
+  role: RepoRole;
+  description?: string;
+  /** The package or module name in its ecosystem, used to find dependencies between units. */
+  packageName?: string;
+  ecosystem?: 'js' | 'python' | 'go' | 'rust';
+  /** How to run just this unit's tests. */
+  test?: { command?: string; framework?: string };
 }
 
 /** A repo entry augmented with its loaded SpecGuard config (when present). */
@@ -65,11 +85,25 @@ const repoSchema = z
   })
   .passthrough();
 
+const unitSchema = z
+  .object({
+    path: z.string(),
+    kind: z.enum(['repo', 'package']).default('package'),
+    role: z.string().optional(),
+    description: z.string().optional(),
+    packageName: z.string().optional(),
+    ecosystem: z.enum(['js', 'python', 'go', 'rust']).optional(),
+    test: z.object({ command: z.string().optional(), framework: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
 const workspaceSchema = z
   .object({
     version: z.string(),
     name: z.string(),
-    repos: z.record(z.string(), repoSchema),
+    // A monorepo-only workspace has no separate repos.
+    repos: z.record(z.string(), repoSchema).default({}),
+    units: z.record(z.string(), unitSchema).default({}),
     catalog: z.string().optional(),
   })
   .passthrough();
@@ -139,7 +173,40 @@ export async function loadWorkspace(cwd: string = process.cwd()): Promise<Worksp
 
   const manifest = result.data as unknown as WorkspaceManifest;
   manifest.rootDir = rootDir;
+  normalizeUnits(manifest);
   return manifest;
+}
+
+/**
+ * Make `repos` and `units` two views of one set. A legacy `repos` entry is a
+ * unit of kind `repo`; a `units` entry of kind `repo` is also a repo, so the
+ * pipelines that walk `repos` keep seeing every separate repo.
+ */
+export function normalizeUnits(manifest: WorkspaceManifest): void {
+  for (const [key, repo] of Object.entries(manifest.repos)) {
+    if (manifest.units[key]) {
+      throw new ConfigInvalidError(`unit "${key}" is listed under both repos and units`);
+    }
+    manifest.units[key] = { path: repo.path, kind: 'repo', role: repo.role, description: repo.description };
+  }
+  for (const [key, unit] of Object.entries(manifest.units)) {
+    unit.role ??= unit.kind === 'repo' ? 'consumer' : 'package';
+    if (unit.kind === 'repo' && !manifest.repos[key]) {
+      manifest.repos[key] = { path: unit.path, role: unit.role, description: unit.description };
+    }
+  }
+}
+
+/** The unit that owns `file` (workspace-root-relative, POSIX): the deepest unit path that contains it. */
+export function unitOfFile(manifest: Pick<WorkspaceManifest, 'units'>, file: string): string | undefined {
+  const f = file.split(path.sep).join('/').replace(/^\.\//, '');
+  let best: { key: string; len: number } | undefined;
+  for (const [key, unit] of Object.entries(manifest.units ?? {})) {
+    const dir = unit.path.split(path.sep).join('/').replace(/^\.\//, '').replace(/\/+$/, '');
+    if (dir === '' || dir === '.') continue;
+    if ((f === dir || f.startsWith(`${dir}/`)) && (!best || dir.length > best.len)) best = { key, len: dir.length };
+  }
+  return best?.key;
 }
 
 /**

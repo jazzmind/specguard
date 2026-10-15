@@ -1,0 +1,12 @@
+{
+  "capabilities/agentic-verification": {},
+  "capabilities/conformance-testing": {},
+  "capabilities/documentation-api": {},
+  "capabilities/integration-surfaces": {},
+  "capabilities/platform-foundation": {},
+  "capabilities/requirement-history": {},
+  "capabilities/security-and-remediation": {},
+  "capabilities/spec-authoring": {},
+  "capabilities/traceability-and-drift": {},
+  "capabilities/workspaces": {}
+}

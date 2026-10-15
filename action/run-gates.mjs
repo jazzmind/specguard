@@ -7,13 +7,14 @@
  * `fail-on`. The decision logic is exported so it can be unit tested.
  *
  * Environment (set by action.yml):
- *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps
+ *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan
  *   SG_FAIL_ON     comma list: missing-specs, drift, proof-failed, proof-stale, proof-unexercised,
- *                  proof-unproven, align-below:<pct>, results, validate, security, deps, none
+ *                  proof-unproven, align-below:<pct>, results, validate, security, deps, check, test, verify, scan, none
  *   SG_RESULTS     reporter files or globs for `results ingest`, comma or newline separated
  *   SG_RUN_ID      ledger run id for `results ingest`
  *   SG_DRIFT_SINCE git ref for `drift --since`
  *   SG_VALIDATE_URL base URL for `validate --all --url`
+ *   SG_AFFECTED    "true": the `test` gate runs only changed workspace units and their dependents
  *   SG_BIN         specguard binary (default: specguard)
  */
 import { spawnSync } from 'node:child_process';
@@ -21,7 +22,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps'];
+export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps', 'check', 'test', 'verify', 'scan'];
 export const DEFAULT_FAIL_ON = 'missing-specs,drift,proof-failed,proof-stale,results';
 
 /** Exit codes the CLI uses (src/core/exit-codes.ts). */
@@ -98,6 +99,12 @@ export function evaluate(runs, failOn) {
       case 'deps':
         if (runs.deps?.ran && runs.deps.exitCode !== 0) tripped.push(rule);
         break;
+      case 'check':
+      case 'test':
+      case 'verify':
+      case 'scan':
+        if (runs[rule]?.ran && runs[rule].exitCode !== 0) tripped.push(rule);
+        break;
       default: {
         const m = /^align-below:(\d+)$/.exec(rule);
         if (m) {
@@ -137,6 +144,14 @@ export function argsFor(gate, env) {
       return ['security', '--all', '--with-sast'];
     case 'deps':
       return ['deps'];
+    case 'check':
+      return ['check'];
+    case 'test':
+      return ['test', 'run', ...(env.SG_AFFECTED === 'true' ? ['--affected'] : []), ...(env.SG_RUN_ID ? ['--run-id', env.SG_RUN_ID] : [])];
+    case 'verify':
+      return ['verify', '--all', ...(env.SG_VALIDATE_URL ? ['--url', env.SG_VALIDATE_URL] : [])];
+    case 'scan':
+      return ['security', 'scan'];
     default:
       return null;
   }

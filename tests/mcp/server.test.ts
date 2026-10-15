@@ -3,6 +3,7 @@ import { formatResult, toolResult, textResult, errorResult } from '../../src/mcp
 import { emptyResult } from '../../src/core/types.js';
 
 describe('mcp format helpers', () => {
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it('formats a PipelineResult with counts, messages and items', () => {
     const result = emptyResult('status');
     result.created = 1;
@@ -21,6 +22,7 @@ describe('mcp format helpers', () => {
     expect(text).toContain('Raw result:');
   });
 
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it('toolResult wraps formatted text in a single text content block', () => {
     const res = toolResult(emptyResult('drift'));
     expect(res.content).toHaveLength(1);
@@ -28,12 +30,14 @@ describe('mcp format helpers', () => {
     expect(res.content[0].text).toContain('[drift]');
   });
 
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it('textResult returns plain text', () => {
     const res = textResult('hello');
     expect(res.content[0].text).toBe('hello');
     expect(res.isError).toBeUndefined();
   });
 
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it('errorResult marks isError and includes the message', () => {
     const res = errorResult(new Error('boom'));
     expect(res.isError).toBe(true);

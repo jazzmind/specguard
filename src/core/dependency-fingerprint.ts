@@ -4,7 +4,7 @@
  * proof ran against. A dependency bump changes the fingerprint and marks
  * stored proofs stale.
  *
- * Spec: specs/pipelines/proof.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';

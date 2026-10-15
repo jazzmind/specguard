@@ -21,7 +21,7 @@
  *
  * CLI: specguard drift [--since <ref>] [--spec <key>] [--force] [--mtime]
  *
- * Spec: specs/pipelines/drift.md
+ * Spec: specs/capabilities/traceability-and-drift.md
  */
 import { loadCanonicalSpecs, migrateRegistrySpecKeys, specFileOf } from '../core/spec-key.js';
 import path from 'node:path';
@@ -34,6 +34,8 @@ import type { AppConfig, SpecGuardConfig, PipelineResult, PipelineItem } from '.
 import { featureFromPath, resolveProfile } from '../core/language-profiles.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
+import { isV2Repo } from './check.js';
+import { runCapabilityDrift } from './drift-capability.js';
 import { fileExists } from '../core/reader.js';
 import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
@@ -262,6 +264,8 @@ export async function runDrift(
 ): Promise<PipelineResult> {
   // Legacy mode requested or --mtime flag.
   if (opts.mtime) return runMtimeDrift(config, opts);
+  // v2 specs: one verdict per capability instead of one per file.
+  if (await isV2Repo(config)) return runCapabilityDrift(config, { since: opts.since, spec: opts.spec, force: opts.force });
 
   const result = emptyResult('drift');
   const log = (line: string) => { result.messages.push(line); };

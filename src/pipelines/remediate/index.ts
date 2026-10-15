@@ -3,7 +3,7 @@
  * prove behavior is preserved with the project's own tests, and only then propose the change.
  * Humans always merge: there is no auto-merge.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -69,11 +69,11 @@ export function defaultDeps(): RemediateDeps {
   return { run: defaultRunner, git: realGit, gh: realGh, http: defaultHttp, now: () => new Date() };
 }
 
-function parseSeverity(s: string | undefined): Severity | undefined {
+export function parseSeverity(s: string | undefined): Severity | undefined {
   return s && (SEVERITIES as readonly string[]).includes(s) ? (s as Severity) : undefined;
 }
 
-function pseudoAdvisory(i: SastIssue): Advisory {
+export function pseudoAdvisory(i: SastIssue): Advisory {
   return {
     id: `semgrep:${i.ruleId}@${i.path}`,
     aliases: [],

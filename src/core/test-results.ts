@@ -4,7 +4,7 @@
  * Parsers read reporter OUTPUT FILES (never stdout scraping) and cover every
  * test, not only failures.
  *
- * Spec: specs/core/test-results.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { XMLParser } from 'fast-xml-parser';
 

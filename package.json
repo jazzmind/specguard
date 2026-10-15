@@ -35,7 +35,8 @@
     "lint": "eslint .",
     "prepublishOnly": "npm run typecheck && npm run build",
     "typecheck": "tsc --noEmit",
-    "ci": "npm run typecheck && npm run lint && npm test && npm run build"
+    "ci": "npm run typecheck && npm run lint && npm test && npm run build",
+    "schemas": "node scripts/export-schemas.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.71",

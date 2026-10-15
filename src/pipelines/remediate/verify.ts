@@ -4,7 +4,7 @@
  *
  * `heal` is never involved: nothing here rewrites a test.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import path from 'node:path';
 

@@ -1,7 +1,7 @@
 /**
  * go (govulncheck), cargo (cargo audit), maven and gradle (via OSV) adapters.
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { normalizeSeverity, type Advisory, type Candidate } from '../advisory.js';
 import { candidatesFor, escapeRegExp, fingerprintFiles, hasFile, readText, writeText } from './common.js';

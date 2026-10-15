@@ -8,6 +8,7 @@ specguard-core: 2 source files, 1 specs (50%), 1 tests
 `;
 
 describe('parseCoverageText', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('parses app name, items and summary percentage', () => {
     const apps = parseCoverageText(sample);
     expect(apps).toHaveLength(1);

@@ -7,7 +7,7 @@
  * and the suite re-run, up to `maxRetries` times. Application bugs are reported
  * and application source is NEVER modified.
  *
- * Spec: specs/pipelines/heal.md
+ * Spec: specs/capabilities/conformance-testing.md
  *
  * Jobs
  * ----

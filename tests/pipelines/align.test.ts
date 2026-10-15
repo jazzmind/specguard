@@ -75,6 +75,7 @@ beforeEach(async () => {
 });
 
 describe('runAlign checkpoint', () => {
+  // [claims: capabilities/traceability-and-drift#align-score-and-checkpoint]
   it('writes alignment.json after a finished run and skips cached specs on the next run', async () => {
     mockedLlm.mockImplementation(async (opts: { prompt: string }) => {
       if (opts.prompt.includes('SPEC KEY: alpha')) return covered('Alpha works', 'tests/alpha.test.ts');
@@ -100,6 +101,7 @@ describe('runAlign checkpoint', () => {
     expect(second.messages.some((line) => line.includes('cached'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#align-score-and-checkpoint]
   it('keeps finished specs when one LLM call fails, and retries only the failure', async () => {
     mockedLlm.mockImplementation(async (opts: { prompt: string }) => {
       if (opts.prompt.includes('SPEC KEY: beta')) throw new Error('rate limit');
@@ -161,6 +163,7 @@ describe('runAlign deterministic prepass', () => {
 - Refused
 `;
 
+  // [claims: capabilities/traceability-and-drift#align-prepass-first, capabilities/traceability-and-drift#align-score-and-checkpoint]
   it('makes no LLM call when claim tags and scenario titles settle everything', async () => {
     await writeFile(path.join(rootDir, 'specs', 'gamma.md'), CLAIM_SPEC);
     await writeFile(
@@ -178,6 +181,7 @@ describe('runAlign deterministic prepass', () => {
     expect(entry.coveredClaims?.map((c) => c.source)).toEqual(['tag', 'tag']);
   });
 
+  // [claims: capabilities/traceability-and-drift#align-prepass-first]
   it('sends only uncovered items and only related test files to the LLM', async () => {
     await writeFile(path.join(rootDir, 'specs', 'gamma.md'), CLAIM_SPEC);
     await writeFile(

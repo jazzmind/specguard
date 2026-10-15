@@ -10,6 +10,7 @@ const raw = {
 };
 
 describe('toMatrixModel', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('maps entries to rows with test/doc coverage flags', () => {
     const m = toMatrixModel(raw);
     expect(m.generatedAt).toBe('2026-06-28T18:24:50.615Z');
@@ -17,6 +18,7 @@ describe('toMatrixModel', () => {
     expect(m.rows[0]).toMatchObject({ specKey: 'cli', hasTests: false, testCount: 0, hasDocs: false });
     expect(m.rows[1]).toMatchObject({ specKey: 'config', hasTests: true, testCount: 1 });
   });
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('returns an empty model for malformed input', () => {
     expect(toMatrixModel(null)).toEqual({ generatedAt: null, rows: [] });
     expect(toMatrixModel({})).toEqual({ generatedAt: null, rows: [] });

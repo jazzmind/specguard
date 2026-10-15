@@ -6,7 +6,7 @@
  * - Transitive consumers (cascading deps)
  * - Suggested drift/sync actions for each affected repo
  *
- * Spec: specs/pipelines/impact.md (to be created)
+ * Spec: specs/capabilities/workspaces.md
  */
 import path from 'node:path';
 import type { PipelineResult } from '../core/types.js';
@@ -21,7 +21,9 @@ import {
   nodeId,
   traverseGraph,
 } from '../core/contracts.js';
-import type { WorkspaceManifest } from '../core/workspace.js';
+import { loadConfig } from '../core/config.js';
+import { buildSpecGraph } from '../core/spec-graph.js';
+import { unitOfFile, type WorkspaceManifest } from '../core/workspace.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +59,8 @@ export interface ImpactResult {
   upstream: ImpactStep[];
   /** Suggested actions (shell commands, etc.). */
   suggestedActions: string[];
+  /** Capabilities that own code in the start unit or any downstream unit. */
+  capabilities: Array<{ id: string; title: string; units: string[] }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +87,17 @@ function resolveTarget(
 
   // Normalize to forward slashes for comparison
   const normalized = target.replace(/\\/g, '/');
+
+  // 1b. A unit key, or a file inside a package unit, resolves to that unit's package node.
+  if (manifest.units?.[target]) {
+    const node = findNode(graph, nodeId(target, 'package'));
+    if (node) return node;
+  }
+  const owningUnit = unitOfFile(manifest, normalized);
+  if (owningUnit) {
+    const node = findNode(graph, nodeId(owningUnit, 'package'));
+    if (node) return node;
+  }
 
   // 2. Match against node specs (fuzzy: target is a suffix of the spec path)
   for (const node of graph.nodes) {
@@ -119,6 +134,33 @@ function resolveTarget(
   }
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Capabilities in the blast radius
+// ---------------------------------------------------------------------------
+
+/**
+ * The capabilities that own code in any of `units`. A change to a package is
+ * a change to the functionality built on it, so impact is reported in
+ * capabilities as well as in units. Empty when the workspace root has no v2 specs.
+ */
+export async function capabilitiesIn(manifest: WorkspaceManifest, units: string[]): Promise<ImpactResult['capabilities']> {
+  let config;
+  try {
+    config = await loadConfig(manifest.rootDir);
+  } catch {
+    return [];
+  }
+  const graph = await buildSpecGraph(config);
+  const wanted = new Set(units);
+  const out: ImpactResult['capabilities'] = [];
+  for (const node of graph.nodes.values()) {
+    if (node.kind !== 'capability' && node.kind !== 'component') continue;
+    const touched = [...new Set(node.ownedFiles.map((f) => unitOfFile(manifest, f)).filter((u): u is string => Boolean(u) && wanted.has(u as string)))].sort();
+    if (touched.length > 0) out.push({ id: node.id, title: node.spec.title || node.id, units: touched });
+  }
+  return out.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +281,14 @@ export async function runImpact(
 
   const suggestedActions = buildSuggestedActions(startNode, downstream, manifest);
 
+  // Package nodes are units: report the capabilities built on them too.
+  const affectedUnitKeys = [startNode, ...downstream.map((d) => d.node)].filter((n) => n.spec === 'package').map((n) => n.repo);
+  const capabilities = affectedUnitKeys.length > 0 ? await capabilitiesIn(manifest, affectedUnitKeys) : [];
+  const downstreamUnits = downstream.filter((d) => d.node.spec === 'package').map((d) => d.node.repo);
+  if (downstreamUnits.length > 0) {
+    suggestedActions.unshift(`specguard test run --unit ${[startNode.repo, ...downstreamUnits].join(' --unit ')}  # or: specguard test run --affected`);
+  }
+
   // Build messages
   log(`Impact analysis for: ${startNode.id}`);
   log(`  Title: ${startNode.title}`);
@@ -266,6 +316,12 @@ export async function runImpact(
     }
   }
 
+  if (capabilities.length > 0) {
+    log('');
+    log(`  Capabilities with code in these units (${capabilities.length}):`);
+    for (const c of capabilities) log(`    ${c.id}  (${c.units.join(', ')})`);
+  }
+
   if (upstream.length > 0) {
     log('');
     log(`  Upstream dependencies (${upstream.length}):`);
@@ -288,6 +344,7 @@ export async function runImpact(
     downstream,
     upstream,
     suggestedActions,
+    capabilities,
   };
 
   return { result, impact };

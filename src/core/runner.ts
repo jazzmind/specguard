@@ -4,7 +4,7 @@
  * `npx -p specguard-ai ...` can hang offline or under load, so a local binary
  * is preferred and npx is the last resort.
  *
- * Spec: specs/cli/commands/init.md (runner-resolution)
+ * Spec: specs/capabilities/integration-surfaces.md (runner-resolution)
  */
 import fs from 'node:fs';
 import path from 'node:path';

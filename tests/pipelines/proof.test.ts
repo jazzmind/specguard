@@ -26,6 +26,7 @@ async function status(dir: string, opts = {}): Promise<string[]> {
 }
 
 describe('proof ledger', () => {
+  // [claims: capabilities/conformance-testing#ingest-validation]
   it('rejects a verdicts file without runId or verdicts', async () => {
     const repo = makeRepo();
     repo.write('v.json', JSON.stringify({ verdicts: [] }));
@@ -34,6 +35,7 @@ describe('proof ledger', () => {
     expect(r.messages[0]).toMatch(/not valid/);
   });
 
+  // [claims: capabilities/conformance-testing#ingest-validation]
   it('fails unknown claims and stores known ones; later ingest replaces the row', async () => {
     const repo = makeRepo();
     repo.write(
@@ -58,6 +60,7 @@ describe('proof ledger', () => {
     expect(row).toMatchObject({ runId: 'r2', verdict: 'failed', counterexamples: 1 });
   });
 
+  // [claims: capabilities/conformance-testing#stale-rule]
   it('marks proofs stale when the spec changes', async () => {
     const repo = makeRepo();
     await ingestVerdicts({ runId: 'r', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven' }] }, repo.dir);
@@ -67,6 +70,7 @@ describe('proof ledger', () => {
     expect(lines.join('\n')).toContain('[proof-stale] core/awards#award-once');
   });
 
+  // [claims: capabilities/conformance-testing#ledger-records-basis, capabilities/conformance-testing#stale-rule]
   it('records the dependency fingerprint and goes stale on a lockfile change', async () => {
     const repo = makeRepo();
     await ingestVerdicts({ runId: 'r', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven' }] }, repo.dir);
@@ -77,6 +81,7 @@ describe('proof ledger', () => {
     expect((await status(repo.dir)).join('\n')).toContain('[proof-stale] core/awards#award-once');
   });
 
+  // [claims: capabilities/conformance-testing#stale-rule]
   it('effectiveVerdict ignores a missing fingerprint on either side', () => {
     const rec: ProofRecord = {
       claim: 'a#b', verdict: 'proven', runId: 'r', specHash: 'h', fileHashes: {}, exercised: 1, counterexamples: 0, ingestedAt: '',
@@ -87,6 +92,7 @@ describe('proof ledger', () => {
     expect(effectiveVerdict(undefined, { specHash: 'h', fileHashes: {} })).toBe('unproven');
   });
 
+  // [claims: capabilities/conformance-testing#ledger-records-basis, capabilities/conformance-testing#stale-rule]
   it('goes stale when a recorded source file changes on disk, even before drift runs', async () => {
     const repo = makeRepo();
     const src = path.join(repo.dir, 'src/core/awards.ts');
@@ -114,6 +120,7 @@ describe('proof ledger', () => {
     expect(Object.keys(fileHashesFor(repo.dir, 'core/awards', ['two']))).toEqual(['b.ts']);
   });
 
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path]
   it('migrates absolute fileHashes keys to relative POSIX keys', () => {
     const root = '/some/machine/repo';
     const l = {
@@ -130,6 +137,7 @@ describe('proof ledger', () => {
     expect(migrateLedgerPaths(l, [root])).toBe(false);
   });
 
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path]
   it('honours --ledger and paths.proofLedger so two ledgers sit side by side', async () => {
     const repo = makeRepo({ paths: { proofLedger: '.specguard/patched.json' } });
     const v = { runId: 'r', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven' as const }] };
@@ -139,5 +147,18 @@ describe('proof ledger', () => {
     expect(ledger(repo.dir, '.specguard/baseline.json').proofs['core/awards#award-once'].verdict).toBe('failed');
     expect((await status(repo.dir)).join('\n')).toContain('1 proven');
     expect((await status(repo.dir, { ledger: '.specguard/baseline.json' })).join('\n')).toContain('1 failed');
+  });
+});
+
+describe('ledger versions [ledger-version]', () => {
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path]
+  it('refuses to read or overwrite a ledger written by a newer SpecGuard', async () => {
+    const repo = makeRepo();
+    const file = path.join(repo.dir, '.specguard', 'proofs.json');
+    repo.write('.specguard/proofs.json', JSON.stringify({ version: 2, proofs: { 'a#b': { claim: 'a#b', verdict: 'proven' } } }));
+    const before = readFileSync(file, 'utf8');
+    repo.write('v.json', JSON.stringify({ runId: 'r', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven' }] }));
+    await expect(runProofIngest('v.json', repo.dir)).rejects.toThrow(/version 2/);
+    expect(readFileSync(file, 'utf8')).toBe(before);
   });
 });

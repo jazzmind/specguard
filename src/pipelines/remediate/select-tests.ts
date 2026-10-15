@@ -2,7 +2,7 @@
  * Test selection: package -> importing files -> specs (inverted drift registry) -> claim-tagged
  * tests. Selected tests run FIRST for fast failure; the full suite always runs afterwards.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

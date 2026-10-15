@@ -65,6 +65,16 @@ export async function loadCliConfig(opts: GlobalOpts): Promise<SpecGuardConfig> 
   }
 }
 
+/** Like {@link loadCliConfig} but returns null when there is no config, instead of exiting. For hooks, which must never fail a session. */
+export async function tryLoadCliConfig(opts: GlobalOpts): Promise<SpecGuardConfig | null> {
+  try {
+    return await loadConfig(resolveSearchDir(opts.config));
+  } catch (err) {
+    if (err instanceof ConfigNotFoundError) return null;
+    throw err;
+  }
+}
+
 /**
  * Translate a `--config` value into a directory to search from.
  * Accepts either the containing directory, or a path ending in

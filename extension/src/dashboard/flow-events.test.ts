@@ -2,21 +2,25 @@ import { describe, it, expect } from 'vitest';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';
 
 describe('artifactEventFor', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('classifies a spec path', () => {
     expect(artifactEventFor('specs/core/parser.md', 'create')).toMatchObject({ type: 'artifact', kind: 'spec', change: 'create' });
   });
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('classifies test and doc paths', () => {
     const testEv = artifactEventFor('tests/core/parser.test.ts', 'update');
     const docEv = artifactEventFor('docs/user/login.md', 'create');
     expect(testEv).toMatchObject({ kind: 'test' });
     expect(docEv).toMatchObject({ kind: 'doc' });
   });
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('ignores unrelated paths', () => {
     expect(artifactEventFor('src/core/parser.ts', 'create')).toBeNull();
   });
 });
 
 describe('cliArgsFor', () => {
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('returns the pipeline name plus extras', () => {
     expect(cliArgsFor('drift')).toEqual(['drift']);
     // pipelines that need --spec or --all get --all by default

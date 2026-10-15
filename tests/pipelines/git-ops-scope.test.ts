@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { inScope, parsePorcelain, partitionByScope } from '../../src/pipelines/git-ops.js';
+import { inScope, parsePorcelain, partitionByScope } from '../../src/core/git-scope.js';
 
 describe('git-ops change scopes', () => {
   it('parses -z porcelain output with renames and spaces', () => {
@@ -10,6 +10,7 @@ describe('git-ops change scopes', () => {
     expect(parsePorcelain(' M a.ts\n?? "b c.ts"\nR  x -> y\n')).toEqual(['a.ts', 'b c.ts', 'y']);
   });
 
+  // [claims: capabilities/integration-surfaces#git-helpers]
   it('dependency scope stages only the listed manifest and lockfiles', () => {
     // claim: change-scope
     const scope = { type: 'dependency' as const, files: ['package.json', 'package-lock.json'] };
@@ -18,6 +19,7 @@ describe('git-ops change scopes', () => {
     expect(skipped).toEqual(['src/a.ts', 'tests/a.test.ts', 'node_modules/x/index.js']);
   });
 
+  // [claims: capabilities/integration-surfaces#git-helpers]
   it('code-fix scope stages only the named files, and traversal never passes', () => {
     const scope = { type: 'code-fix' as const, files: ['src/a.ts'] };
     expect(inScope('src/a.ts', scope)).toBe(true);
@@ -25,5 +27,12 @@ describe('git-ops change scopes', () => {
     expect(inScope('tests/../src/x.ts', { type: 'generated' })).toBe(false);
     expect(inScope('../outside.ts', scope)).toBe(false);
     expect(inScope('tests/a.test.ts', { type: 'generated' })).toBe(true);
+  });
+});
+
+describe('porcelain quoting [porcelain-quotes]', () => {
+  // [claims: capabilities/platform-foundation#filesystem-access]
+  it('strips the quotes git puts around a renamed path with spaces', () => {
+    expect(parsePorcelain('R  "a b.ts" -> "c d.ts"\n M "x y.ts"\n')).toEqual(['c d.ts', 'x y.ts']);
   });
 });

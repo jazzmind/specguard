@@ -23,12 +23,14 @@ function fakeChild(stdout: string, opts: { error?: boolean } = {}) {
 }
 
 describe('cli version check', () => {
+  // [claims: capabilities/integration-surfaces#cli-routing-and-flags]
   it('parses the JSON line, ignoring noise around it', () => {
     expect(parseVersionOutput('warning\n{"name":"specguard-ai","version":"1.2.3","node":"v22"}\n')).toEqual({ name: 'specguard-ai', version: '1.2.3' });
     expect(parseVersionOutput('1.2.3')).toBeNull();
     expect(parseVersionOutput('{ nope')).toBeNull();
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('warns only on a real mismatch', () => {
     expect(mismatchMessage({ name: 'x', version: '1.0.0' }, '1.0.0')).toBeNull();
     expect(mismatchMessage(null, '1.0.0')).toBeNull();
@@ -38,6 +40,7 @@ describe('cli version check', () => {
     expect(msg).toContain('specguard-ai@1.0.0');
   });
 
+  // [claims: capabilities/integration-surfaces#cli-routing-and-flags, capabilities/integration-surfaces#vscode-dashboard]
   it('runs `<cli> --version --json` (node for .js bundles) and reads the answer', async () => {
     vi.mocked(cp.spawn).mockReturnValueOnce(fakeChild('{"name":"specguard-ai","version":"0.1.2"}'));
     expect(await queryCliVersion('/ext/dist/cli.js', '/ws')).toEqual({ name: 'specguard-ai', version: '0.1.2' });
@@ -48,11 +51,13 @@ describe('cli version check', () => {
     expect(vi.mocked(cp.spawn).mock.calls[1][0]).toBe('/ws/node_modules/.bin/specguard');
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('resolves null when the CLI cannot run', async () => {
     vi.mocked(cp.spawn).mockReturnValueOnce(fakeChild('', { error: true }));
     expect(await queryCliVersion('/missing', '/ws')).toBeNull();
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it('has no expected version in an unbundled run', () => {
     expect(expectedCliVersion()).toBeUndefined();
   });

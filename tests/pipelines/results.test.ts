@@ -12,6 +12,7 @@ function ledger(dir: string, rel = '.specguard/proofs.json') {
 }
 
 describe('results ingest', () => {
+  // [claims: capabilities/conformance-testing#results-ingest]
   it('writes aggregated verdicts with a relative evidence path', async () => {
     const repo = makeRepo();
     copyFileSync(fx('vitest.json'), path.join(repo.dir, 'report.json'));
@@ -25,6 +26,7 @@ describe('results ingest', () => {
     expect(r.messages.join('\n')).toContain('counterexamples for core/awards#no-dupes');
   });
 
+  // [claims: capabilities/conformance-testing#results-ingest]
   it('merges several files so one claim is exercised from two suites', async () => {
     const repo = makeRepo();
     repo.write('a.xml', `<testsuites><testsuite name="s"><testcase classname="c" name="t1 @claim:core/awards#award-once" time="0.1"/></testsuite></testsuites>`);
@@ -34,6 +36,7 @@ describe('results ingest', () => {
     expect(ledger(repo.dir)['core/awards#award-once']).toMatchObject({ verdict: 'proven', exercised: 2 });
   });
 
+  // [claims: capabilities/conformance-testing#partial-and-sweep]
   it('stores unexercised for untagged spec claims only with --unexercised', async () => {
     const repo = makeRepo();
     repo.write('a.xml', `<testsuite name="s"><testcase classname="c" name="t1 @claim:core/awards#award-once"/></testsuite>`);
@@ -45,6 +48,7 @@ describe('results ingest', () => {
     expect(proofs['core/awards#untested']).toMatchObject({ verdict: 'unexercised' });
   });
 
+  // [claims: capabilities/conformance-testing#results-ingest]
   it('exits 2 and writes nothing for unparseable input; explicit format overrides detection', async () => {
     const repo = makeRepo();
     repo.write('bad.json', '{"nothing":true}');
@@ -55,6 +59,7 @@ describe('results ingest', () => {
     expect(forced.messages.join(' ')).toContain('pytest');
   });
 
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path]
   it('writes to an alternate ledger', async () => {
     const repo = makeRepo();
     repo.write('a.xml', `<testsuite name="s"><testcase classname="c" name="t1 @claim:core/awards#award-once"/></testsuite>`);
@@ -78,6 +83,7 @@ describe('results ingest sweep semantics', () => {
     return repo;
   }
 
+  // [claims: capabilities/conformance-testing#partial-and-sweep]
   it('a partial ingest only updates claims present; --unexercised is ignored with a warning [partial-ingest]', async () => {
     const repo = twoApps();
     repo.write('a.xml', tag('award-once'));
@@ -87,6 +93,7 @@ describe('results ingest sweep semantics', () => {
     expect(Object.keys(ledger(repo.dir))).toEqual(['core/awards#award-once']);
   });
 
+  // [claims: capabilities/conformance-testing#partial-and-sweep]
   it('--full-run lets the sweep apply (alias --sweep) but keeps proven claims with matching hashes [sweep-keeps-proven]', async () => {
     const repo = twoApps();
     repo.write('both.xml', `<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#award-once"/><testcase classname="c" name="u @claim:core/awards#no-dupes"/></testsuite>`);
@@ -100,10 +107,50 @@ describe('results ingest sweep semantics', () => {
     expect(r.messages.join('\n')).toContain('sweep kept 1 proven');
   });
 
+  // [claims: capabilities/conformance-testing#partial-and-sweep]
   it('a sweep covering every app applies without --full-run [unexercised-flag]', async () => {
     const repo = twoApps();
     repo.write('both.xml', `<testsuite name="s"><testcase classname="c" name="t @claim:core/awards#award-once"/><testcase classname="c" name="u @claim:other/thing#works"/></testsuite>`);
     await runResultsIngest(['both.xml'], repo.dir, { unexercised: true });
     expect(ledger(repo.dir)['core/awards#no-dupes']).toMatchObject({ verdict: 'unexercised' });
+  });
+});
+
+describe('results ingest with tags written in source comments [results-source-tags]', () => {
+  it('proves a claim from a test whose tag is a comment above it, not in its title [comment-tag-proves]', async () => {
+    const repo = makeRepo();
+    const testFile = repo.write('tests/awards.test.ts', "// [claims: core/awards#award-once]\nit('awards once', () => {});\nit('untagged test', () => {});\n");
+    repo.write(
+      'report.json',
+      JSON.stringify({
+        testResults: [
+          {
+            name: testFile,
+            assertionResults: [
+              { title: 'awards once', status: 'passed', ancestorTitles: [], fullName: 'awards once', duration: 1 },
+              { title: 'untagged test', status: 'failed', ancestorTitles: [], fullName: 'untagged test', duration: 1, failureMessages: ['x'] },
+            ],
+          },
+        ],
+      }),
+    );
+    const r = await runResultsIngest(['report.json'], repo.dir, { format: 'vitest' });
+    expect(r.exitCode).toBe(0);
+    const proofs = ledger(repo.dir);
+    expect(proofs['core/awards#award-once']).toMatchObject({ verdict: 'proven', exercised: 1 });
+    // The failing untagged test proves nothing and fails nothing.
+    expect(Object.keys(proofs)).toEqual(['core/awards#award-once']);
+  });
+
+  it('a failing tagged test fails its claim [comment-tag-fails]', async () => {
+    const repo = makeRepo();
+    const testFile = repo.write('tests/awards.test.ts', "// [claims: core/awards#no-dupes]\nit('rejects duplicates', () => {});\n");
+    repo.write(
+      'report.json',
+      JSON.stringify({ testResults: [{ name: testFile, assertionResults: [{ title: 'rejects duplicates', status: 'failed', fullName: 'rejects duplicates', failureMessages: ['boom'] }] }] }),
+    );
+    const r = await runResultsIngest(['report.json'], repo.dir, { format: 'vitest' });
+    expect(r.exitCode).toBe(2);
+    expect(ledger(repo.dir)['core/awards#no-dupes']).toMatchObject({ verdict: 'failed', counterexamples: 1 });
   });
 });

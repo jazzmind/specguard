@@ -3,7 +3,7 @@
  * injectable `Exec`; nothing here touches the user's working tree except the
  * lock file under `.specguard/`.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

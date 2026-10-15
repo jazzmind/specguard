@@ -42,6 +42,7 @@ describe('advisory', () => {
     expect(severityFromCvss(9.8)).toBe('critical');
   });
 
+  // [claims: capabilities/security-and-remediation#unified-detection]
   it('merges by shared alias and keeps highest severity', () => {
     // claim: dedupe-merge
     const merged = dedupeAdvisories([
@@ -61,12 +62,14 @@ describe('advisory', () => {
     expect(dedupeAdvisories([adv(), adv({ ecosystem: 'pip' })])).toHaveLength(2);
   });
 
+  // [claims: capabilities/security-and-remediation#unified-detection]
   it('sorts deterministically', () => {
     // claim: advisory-sort
     const sorted = sortAdvisories([adv({ id: 'b', severity: 'low' }), adv({ id: 'a', severity: 'critical' }), adv({ id: 'c', severity: 'critical', package: 'aaa' })]);
     expect(sorted.map((a) => a.id)).toEqual(['c', 'a', 'b']);
   });
 
+  // [claims: capabilities/security-and-remediation#unified-detection]
   it('applies ignore entries by id or alias, only while unexpired', () => {
     // claim: ignore-match
     // claim: ignore-expiry

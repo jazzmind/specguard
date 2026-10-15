@@ -10,7 +10,7 @@
  * execute any changes. Execution happens after human approval (via the
  * dashboard's "Approve & Execute" button or via `specguard analyze --auto-fix`).
  *
- * Spec: specs/pipelines/plan-fix.md (create after implementation)
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import path from 'node:path';
 import fs from 'node:fs';

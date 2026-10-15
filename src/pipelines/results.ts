@@ -5,12 +5,15 @@
  * claims by claim tag, aggregates one verdict per claim, and writes through the
  * same ledger path as `proof ingest`.
  *
- * Spec: specs/pipelines/results.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { attachSourceClaimTags } from '../core/claim-tags.js';
 import { formatClaimRef } from '../core/claims.js';
 import { loadConfig } from '../core/config.js';
+import { aliasRef, loadClaimMigration } from '../core/claim-migration.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
@@ -23,6 +26,8 @@ import {
   type TestCaseResult,
 } from '../core/test-results.js';
 import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
+import { loadWorkspace } from '../core/workspace.js';
+import { canonicalClaimRef } from '../core/workspace-units.js';
 import { ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
 
 export interface ResultsIngestOpts extends ProofOpts {
@@ -129,6 +134,18 @@ export async function runResultsIngest(
     return result;
   }
 
+  // Results from before a consolidation still carry the old claim tags; accept them for one release.
+  const migration = await loadClaimMigration(cwd);
+  // A tag naming a package unit (`web:capabilities/auth#login`) is a tag of the workspace root's claim.
+  const packageUnits = await (async () => {
+    if (!existsSync(path.join(cwd, '.specguard', 'workspace.json'))) return undefined;
+    try {
+      const m = await loadWorkspace(cwd);
+      return path.resolve(m.rootDir) === path.resolve(cwd) ? m.units : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
   const all: TestCaseResult[] = [];
   const perFile = new Map<string, ClaimAggregate[]>();
   let parseFailures = 0;
@@ -136,6 +153,13 @@ export async function runResultsIngest(
     const rel = relPosix(cwd, abs);
     try {
       const rows = parseResults(await readFile(abs), opts.format ?? 'auto');
+      // A tag in a comment above a test is not in the report: join it back by file and title.
+      attachSourceClaimTags(rows, cwd);
+      if (migration || packageUnits) {
+        for (const row of rows) {
+          row.claims = [...new Set(row.claims.map((ref) => canonicalClaimRef(migration ? (aliasRef(ref, migration, [path.basename(cwd)]) ?? ref) : ref, packageUnits)))];
+        }
+      }
       all.push(...rows);
       perFile.set(rel, aggregateClaims(rows));
       result.messages.push(`${rel}: ${rows.length} test(s), ${rows.filter((r) => r.claims.length > 0).length} tagged`);

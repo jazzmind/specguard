@@ -5,7 +5,7 @@
  * Notes` section and its source module, and optionally runs a Semgrep SAST
  * scan over the source tree.
  *
- * Spec: specs/pipelines/security.md
+ * Spec: specs/capabilities/security-and-remediation.md
  *
  * Spec -> app -> output-path mapping
  * ----------------------------------

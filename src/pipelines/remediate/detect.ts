@@ -2,7 +2,7 @@
  * Detection: dependency advisories (ecosystem audit + OSV), Semgrep findings, gitleaks secrets.
  * Dedupes, applies the ignore file, sorts by severity and applies the threshold.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';

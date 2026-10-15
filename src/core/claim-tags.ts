@@ -6,9 +6,10 @@
  *   [claim: core/awards#award-once]
  *   [claims: core/awards#award-once, core/awards#no-dupes]
  *
- * Spec: specs/core/claim-tags.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { parseClaimRef } from './claims.js';
 
@@ -29,6 +30,33 @@ function normalize(ref: string): string | null {
   if (!parsed) return null;
   const left = parsed.repo ? `${parsed.repo}:${parsed.specKey}` : parsed.specKey;
   return `${left}#${parsed.claimId}`;
+}
+
+/**
+ * Rewrite every claim ref inside a claim tag (`@claim:` and `[claim(s): …]`).
+ * `map` returns the replacement ref or undefined to leave a ref alone.
+ * Text outside tags is never touched.
+ */
+export function rewriteClaimRefs(text: string, map: (ref: string) => string | undefined): { text: string; changed: number } {
+  let changed = 0;
+  const swap = (raw: string): string => {
+    const ref = normalize(raw);
+    const next = ref ? map(ref) : undefined;
+    if (!next) return raw;
+    changed += 1;
+    return next;
+  };
+  let out = text.replace(AT_TAG, (_all, ref: string) => `@claim:${swap(ref)}`);
+  out = out.replace(BRACKET, (all, body: string) => {
+    const parts = body.split(',').map((part) => {
+      const lead = part.match(/^\s*/)?.[0] ?? '';
+      const tail = part.match(/\s*$/)?.[0] ?? '';
+      const core = part.trim();
+      return core ? `${lead}${swap(core)}${tail}` : part;
+    });
+    return all.replace(body, parts.join(','));
+  });
+  return { text: out, changed };
 }
 
 /** Every claim ref named in `text`, de-duplicated, in order of appearance. */
@@ -139,6 +167,49 @@ export function buildClaimTestIndex(input: IndexInput): ClaimTestIndex {
     }
   }
   return index;
+}
+
+/** A title as a runner reports it: escapes in the source literal (`it('doesn\\'t')`) are resolved. */
+function plainTitle(title: string): string {
+  return title.replace(/\\(['"`\\])/g, '$1').trim();
+}
+
+/**
+ * Give each result row the claims tagged on its test in the source file.
+ *
+ * A tag may sit in a comment above the test (`// [claims: ...]`) rather than in
+ * its title, so a runner's report does not carry it. The row is matched to the
+ * tagged declaration by file and title. Rows whose file cannot be read, or whose
+ * title matches no tagged test, are left alone. Returns how many rows gained a claim.
+ */
+export function attachSourceClaimTags(rows: Array<{ file: string; title: string; claims: string[] }>, rootDir?: string): number {
+  const byFile = new Map<string, Map<string, string[]>>();
+  const tagsIn = (file: string): Map<string, string[]> => {
+    let map = byFile.get(file);
+    if (map) return map;
+    map = new Map();
+    try {
+      const abs = rootDir && !path.isAbsolute(file) ? path.join(rootDir, file) : file;
+      for (const hit of scanSourceForClaimTags(readFileSync(abs, 'utf8'), file)) {
+        if (!hit.title) continue;
+        const key = plainTitle(hit.title);
+        map.set(key, [...new Set([...(map.get(key) ?? []), hit.ref])]);
+      }
+    } catch {
+      /* unreadable or not a source file: nothing to attach */
+    }
+    byFile.set(file, map);
+    return map;
+  };
+  let gained = 0;
+  for (const row of rows) {
+    const refs = tagsIn(row.file).get(plainTitle(row.title));
+    if (!refs) continue;
+    const before = row.claims.length;
+    row.claims = [...new Set([...row.claims, ...refs])];
+    if (row.claims.length > before) gained += 1;
+  }
+  return gained;
 }
 
 export interface TestTitle {

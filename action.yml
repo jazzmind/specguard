@@ -1,5 +1,5 @@
 name: 'SpecGuard'
-description: 'Run SpecGuard spec-driven QA gates (status, drift, proofs, alignment, test-result ingestion, optional validate) and upload the evidence.'
+description: 'Run SpecGuard spec-driven QA gates (status, check, drift, proofs, alignment, test runs and result ingestion, browser verification, security scan) and upload the evidence.'
 author: 'jazzmind'
 branding:
   icon: 'shield'
@@ -41,7 +41,7 @@ inputs:
     default: '.'
   gates:
     description: >-
-      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps.
+      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan.
     required: false
     default: 'status,proof'
   fail-on:
@@ -63,11 +63,15 @@ inputs:
     required: false
     default: ''
   validate-url:
-    description: 'Base URL of the running app for the "validate" gate.'
+    description: 'Base URL of the running app for the "validate" and "verify" gates.'
     required: false
     default: ''
+  affected:
+    description: '"true": the "test" gate runs only the workspace units whose files changed and the units that depend on them.'
+    required: false
+    default: 'false'
   install-playwright:
-    description: 'Install Playwright browsers (needed by the "validate" gate).'
+    description: 'Install Playwright browsers (needed by the "validate" and "verify" gates).'
     required: false
     default: 'false'
   upload-evidence:
@@ -164,6 +168,7 @@ runs:
         SG_RUN_ID: ${{ inputs.run-id }}
         SG_DRIFT_SINCE: ${{ inputs.drift-since }}
         SG_VALIDATE_URL: ${{ inputs.validate-url }}
+        SG_AFFECTED: ${{ inputs.affected }}
       run: node "${{ github.action_path }}/action/run-gates.mjs"
 
     - name: Upload SpecGuard evidence

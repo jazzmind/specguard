@@ -67,9 +67,7 @@ vi.mock("../../src/pipelines/doc-generate.js", () => ({ runDocGenerate: vi.fn() 
 vi.mock("../../src/pipelines/validate.js", () => ({ runValidate: vi.fn() }));
 vi.mock("../../src/pipelines/matrix.js", () => ({ runMatrix: vi.fn() }));
 vi.mock("../../src/pipelines/import.js", () => ({ runImport: vi.fn() }));
-vi.mock("../../src/pipelines/code-quality.js", () => ({ runCodeQuality: vi.fn() }));
 vi.mock("../../src/pipelines/dep-check.js", () => ({ runDepCheck: vi.fn() }));
-vi.mock("../../src/pipelines/git-ops.js", () => ({ runGitOps: vi.fn() }));
 vi.mock("../../src/pipelines/analyze.js", () => ({ runAnalyze: vi.fn() }));
 vi.mock("../../src/pipelines/plan-fix.js", () => ({ runPlanFix: vi.fn() }));
 
@@ -122,6 +120,7 @@ describe("MCP Server", () => {
   // -------------------------------------------------------------------------
   // Scenario 1: Module imports without starting transport
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it("Module imports without starting transport", () => {
     buildServer();
 
@@ -135,6 +134,7 @@ describe("MCP Server", () => {
   // -------------------------------------------------------------------------
   // Scenario 2: A pipeline tool returns a formatted result
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it("A pipeline tool returns a formatted result", async () => {
     const fakePipelineResult = {
       pipeline: "status",
@@ -172,6 +172,7 @@ describe("MCP Server", () => {
   // -------------------------------------------------------------------------
   // Scenario 3: Config missing — tool reports an error
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it("Config missing — tool reports an error", async () => {
     const { ConfigNotFoundError } = await import("../../src/core/errors.js");
     mocks.loadConfig.mockRejectedValue(
@@ -202,6 +203,7 @@ describe("MCP Server", () => {
   // -------------------------------------------------------------------------
   // Scenario 4: Utility read_spec returns content + parsed summary
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it("Utility read_spec returns content + parsed summary", async () => {
     const fakeContent = `# MCP Server\n\n## Overview\nThe MCP server.\n`;
     mocks.readFile.mockResolvedValue(fakeContent);

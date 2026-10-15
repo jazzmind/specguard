@@ -1,7 +1,7 @@
 /**
  * npm, pnpm and yarn (classic and berry) adapters.
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

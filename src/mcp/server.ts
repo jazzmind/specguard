@@ -40,24 +40,28 @@ import { runDocGenerate } from '../pipelines/doc-generate.js';
 import { runValidate } from '../pipelines/validate.js';
 import { runMatrix } from '../pipelines/matrix.js';
 import { runImport } from '../pipelines/import.js';
-import { runCodeQuality } from '../pipelines/code-quality.js';
 import { runDepCheck } from '../pipelines/dep-check.js';
-import { runGitOps } from '../pipelines/git-ops.js';
 import { runAnalyze } from '../pipelines/analyze.js';
 import { runPlanFix } from '../pipelines/plan-fix.js';
 import { runContracts } from '../pipelines/contracts.js';
 import { runImpact } from '../pipelines/impact.js';
 import { runRemediate } from '../pipelines/remediate/index.js';
+import { runCheck } from '../pipelines/check.js';
+import { runHistoryAdd, runHistoryLog } from '../pipelines/history.js';
+import { runSecurityScan } from '../pipelines/security-scan.js';
+import { runPlanList, runPlanSetStatus, runPlanShow } from '../pipelines/security-plan.js';
+import { runSpecGraph } from '../pipelines/spec-graph-report.js';
+import { runTestRun } from '../pipelines/test-run.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { loadContractGraph } from '../core/contracts.js';
 import { runClaimsAssign, runClaimsList } from '../pipelines/claims.js';
 import { appendProofCoverage, runProofIngest } from '../pipelines/proof.js';
 import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
-import { loadCasesFile, runFeatureState } from '../pipelines/feature-state.js';
 
 import { runWithPipeline } from '../core/llm-runtime.js';
 import { cliVersion } from '../core/version.js';
+import { enabledPluginCommands } from '../plugins/commands.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
 import { appendActivityLogEntry } from './activity-hook.js';
 
@@ -101,6 +105,52 @@ async function withActivityLog(
     });
     throw err;
   }
+}
+
+/**
+ * Register one tool per enabled plugin command, as `specguard_<name>`. A command
+ * with `mcpParams` takes those typed inputs; otherwise free-form `args` and
+ * `options`. Core tools win a name clash.
+ */
+export async function registerPluginTools(server: McpServer, cwd: string = process.cwd()): Promise<string[]> {
+  const registered: string[] = [];
+  for (const command of await enabledPluginCommands(cwd, (m) => console.error(`[specguard-mcp] ${m}`))) {
+    if (command.mcp === false) continue;
+    const name = `specguard_${command.name}`;
+    const typed = command.mcpParams;
+    try {
+      server.registerTool(
+        name,
+        {
+          description: `${command.description} (CLI: specguard ${command.name}; provided by a plugin).`,
+          inputSchema: {
+            ...(typed ?? { args: z.array(z.string()).optional(), options: z.record(z.string(), z.unknown()).optional() }),
+            cwd: z.string().optional(),
+          },
+        },
+        (input: Record<string, unknown>): Promise<ToolResult> => {
+          const { cwd: inCwd, ...rest } = input;
+          const dir = resolveCwd(inCwd as string | undefined);
+          return withActivityLog(command.name, dir, async () => {
+            const config = command.needsConfig === false ? await loadConfig(dir).catch(() => null) : await loadConfig(dir);
+            // Typed inputs are the options as declared (one may itself be named `args` or `options`);
+            // free-form tools carry `args` and `options` as separate fields.
+            const free = rest as { args?: string[]; options?: Record<string, unknown> };
+            const result = await command.run({
+              config,
+              opts: typed ? rest : (free.options ?? {}),
+              args: typed ? [] : (free.args ?? []),
+            });
+            return toolResult(result);
+          }).catch(errorResult);
+        },
+      );
+      registered.push(name);
+    } catch {
+      /* a core tool already has this name */
+    }
+  }
+  return registered;
 }
 
 /**
@@ -252,11 +302,14 @@ export function buildServer(): McpServer {
 
   // --- Validate -------------------------------------------------------------
 
+  for (const toolName of ['specguard_validate', 'specguard_verify']) {
   server.registerTool(
-    'specguard_validate',
+    toolName,
     {
       description:
-        'Validate specs against the running app using PERCEIVE-PLAN-ACT-VERIFY browser loop (CLI: specguard validate). Requires @playwright/test installed and a running app.',
+        toolName === 'specguard_verify'
+          ? 'Verify the running app against each capability: walk its journeys, judge it against its stated problem and value, and record agentic proof (CLI: specguard verify). Needs @playwright/test and a running app; pass baseUrl and all.'
+          : 'Validate specs against the running app using PERCEIVE-PLAN-ACT-VERIFY browser loop (CLI: specguard validate). Requires @playwright/test installed and a running app.',
       inputSchema: {
         spec: z.string().optional().describe('Spec key to validate.'),
         all: z.boolean().optional().describe('Validate all specs with url: metadata.'),
@@ -268,12 +321,13 @@ export function buildServer(): McpServer {
       },
     },
     ({ spec, all, baseUrl, app, allowOutbound, headed, cwd }): Promise<ToolResult> =>
-      withActivityLog('validate', resolveCwd(cwd), async () => {
+      withActivityLog(toolName === 'specguard_verify' ? 'verify' : 'validate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runValidate(config, { spec, all, baseUrl, app, allowOutbound, headed });
         return toolResult(result);
       }).catch(errorResult),
   );
+  }
 
   // --- Matrix ---------------------------------------------------------------
 
@@ -324,26 +378,6 @@ export function buildServer(): McpServer {
       }).catch(errorResult),
   );
 
-  // --- Code quality ---------------------------------------------------------
-
-  server.registerTool(
-    'specguard_quality',
-    {
-      description: 'Run ESLint + Knip code quality checks and write .specguard/code-quality.json (CLI: specguard quality).',
-      inputSchema: {
-        app: z.string().optional().describe('Limit to a single app by name.'),
-        fix: z.boolean().optional().describe('Auto-fix ESLint fixable issues.'),
-        cwd: z.string().optional(),
-      },
-    },
-    ({ app, fix, cwd }): Promise<ToolResult> =>
-      withActivityLog('quality', resolveCwd(cwd), async () => {
-        const config = await loadConfig(resolveCwd(cwd));
-        const result = await runCodeQuality(config, { app, fix });
-        return toolResult(result);
-      }).catch(errorResult),
-  );
-
   // --- Dep-check ------------------------------------------------------------
 
   server.registerTool(
@@ -359,27 +393,6 @@ export function buildServer(): McpServer {
       withActivityLog('deps', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runDepCheck(config, { app });
-        return toolResult(result);
-      }).catch(errorResult),
-  );
-
-  // --- Git-ops --------------------------------------------------------------
-
-  server.registerTool(
-    'specguard_commit',
-    {
-      description: 'Stage and commit SpecGuard-generated files (tests, docs, specs, .specguard/ reports) only. Never commits source code (CLI: specguard commit).',
-      inputSchema: {
-        dryRun: z.boolean().optional().describe('Preview without staging/committing.'),
-        message: z.string().optional().describe('Custom commit message suffix.'),
-        app: z.string().optional().describe('Restrict to a single app.'),
-        cwd: z.string().optional(),
-      },
-    },
-    ({ dryRun, message, app, cwd }): Promise<ToolResult> =>
-      withActivityLog('commit', resolveCwd(cwd), async () => {
-        const config = await loadConfig(resolveCwd(cwd));
-        const result = await runGitOps(config, { dryRun, message, app });
         return toolResult(result);
       }).catch(errorResult),
   );
@@ -765,28 +778,6 @@ export function buildServer(): McpServer {
   );
 
   server.registerTool(
-    'specguard_feature_state',
-    {
-      description:
-        'Feature summary, UI/API/MCP state (no, stub, broken, passing, proven), and whether an agent may run. ' +
-        '(CLI: specguard features --state)',
-      inputSchema: {
-        cwd: z.string().optional().describe('Workspace or repo directory.'),
-        cases: z.string().optional().describe('Path to extra TestCaseResult JSON.'),
-      },
-    },
-    ({ cwd, cases }): Promise<ToolResult> =>
-      withActivityLog('feature-state', resolveCwd(cwd), async () => {
-        try {
-          const result = await runFeatureState(resolveCwd(cwd), cases ? loadCasesFile(cases) : []);
-          return textResult(result.messages.join('\n'));
-        } catch (err) {
-          return errorResult(err);
-        }
-      }).catch(errorResult),
-  );
-
-  server.registerTool(
     'specguard_proof_status',
     {
       description:
@@ -894,12 +885,145 @@ export function buildServer(): McpServer {
       }).catch(errorResult),
   );
 
+  // --- Functional specs, history, tests and security ------------------------
+
+  server.registerTool(
+    'specguard_check',
+    {
+      description:
+        'Spec health for the whole system: owned files, tests, proofs, gaps, matrix or drift, from one trace model written to .specguard/trace.json (CLI: specguard check). Start here when unsure what needs attention.',
+      inputSchema: {
+        view: z.enum(['summary', 'coverage', 'gaps', 'matrix', 'drift']).optional().describe('Default summary.'),
+        spec: z.string().optional().describe('With drift: one capability id.'),
+        since: z.string().optional().describe('With drift: git ref to diff against.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ view, spec, since, cwd }): Promise<ToolResult> =>
+      withActivityLog('check', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runCheck(config, { view, spec, since }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_spec_graph',
+    {
+      description: 'The spec tree (system, capabilities, components) with the files each spec owns, and any rule violations (CLI: specguard spec graph).',
+      inputSchema: { cwd: z.string().optional() },
+    },
+    ({ cwd }): Promise<ToolResult> =>
+      withActivityLog('spec-graph', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runSpecGraph(config));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_history_add',
+    {
+      description:
+        'Record a prompt, approved plan or decision as requirement history under specs/history and link it from the capabilities it affects. Omit affects and the fast model proposes them (CLI: specguard history add).',
+      inputSchema: {
+        prompt: z.string().optional(),
+        plan: z.string().optional().describe('The plan text, or a path to a file holding it.'),
+        decision: z.string().optional(),
+        title: z.string().optional(),
+        affects: z.array(z.string()).optional().describe('Capability ids. Unknown ids fail and nothing is written.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ prompt, plan, decision, title, affects, cwd }): Promise<ToolResult> =>
+      withActivityLog('history-add', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runHistoryAdd(config, { prompt, plan, decision, title, affects, source: 'mcp' }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_history_log',
+    {
+      description: 'The requirement timeline, newest first, optionally for one capability (CLI: specguard history log).',
+      inputSchema: { capability: z.string().optional(), cwd: z.string().optional() },
+    },
+    ({ capability, cwd }): Promise<ToolResult> =>
+      withActivityLog('history-log', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runHistoryLog(config, { capability }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_test_run',
+    {
+      description:
+        'Run the configured tests and ingest the results into the proof ledger in one step; in a workspace, one unit, several, or only the affected ones (CLI: specguard test run).',
+      inputSchema: {
+        app: z.string().optional(),
+        units: z.array(z.string()).optional().describe('Workspace units to run.'),
+        affected: z.boolean().optional().describe('Only changed units and the units that depend on them.'),
+        since: z.string().optional().describe('With affected: git ref to compare against.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ app, units, affected, since, cwd }): Promise<ToolResult> =>
+      withActivityLog('test-run', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runTestRun(config, { app, units, affected, since }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_security_scan',
+    {
+      description:
+        'Scan dependencies, code and secrets, review each capability spec for security flaws that are missing or wrong requirements, and write a RemediationPlan to .specguard/security/plans (CLI: specguard security scan).',
+      inputSchema: {
+        minSeverity: z.enum(['critical', 'high', 'moderate', 'low']).optional(),
+        noSpecReview: z.boolean().optional(),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ minSeverity, noSpecReview, cwd }): Promise<ToolResult> =>
+      withActivityLog('security-scan', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        return toolResult(await runSecurityScan(config, { minSeverity, noSpecReview }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_security_plan',
+    {
+      description:
+        'List remediation plans, show one, or move an item through its lifecycle (open, planned, in-progress, fixed, verified, wont-fix) so an external system can report progress (CLI: specguard security plan).',
+      inputSchema: {
+        action: z.enum(['list', 'show', 'set-status']),
+        plan: z.string().optional().describe('Plan id, or latest.'),
+        item: z.string().optional(),
+        status: z.string().optional(),
+        note: z.string().optional(),
+        by: z.string().optional(),
+        externalRef: z.string().optional(),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ action, plan, item, status, note, by, externalRef, cwd }): Promise<ToolResult> =>
+      withActivityLog('security-plan', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        if (action === 'list') return toolResult(runPlanList(config));
+        if (action === 'show') return toolResult(runPlanShow(config, plan ?? 'latest'));
+        if (!item || !status) return errorResult(new Error('set-status needs item and status'));
+        return toolResult(await runPlanSetStatus(config, plan ?? 'latest', item, status, { note, by, externalRef }));
+      }).catch(errorResult),
+  );
+
   return server;
 }
 
 /** Start the server on a stdio transport. Only called when run as main. */
 async function main(): Promise<void> {
   const server = buildServer();
+  await registerPluginTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -18,6 +18,16 @@ export type SpecType = 'core' | 'pipeline' | 'adapter' | 'cli' | string;
 export type SpecStatus = 'draft' | 'stable' | string;
 
 /**
+ * Role of a v2 spec in the hierarchy. `system` is the single master spec,
+ * `capability` a functional area that delivers user or business value,
+ * `component` an optional sub-spec (for example frontend or backend) of a
+ * capability, and `journey` a cross-spec journey with invariants.
+ */
+export type SpecKind = 'system' | 'capability' | 'component' | 'journey';
+
+export const SPEC_KINDS: readonly SpecKind[] = ['system', 'capability', 'component', 'journey'];
+
+/**
  * Parsed `<!-- key: value -->` metadata block from a spec file.
  * Known keys are typed; anything else lands in `extra`.
  */
@@ -32,6 +42,22 @@ export interface SpecMeta {
   feature?: string;
   /** Surface this spec implements: ui, api, or mcp. */
   channel?: string;
+  /** v2 frontmatter: stable id, equal to the file's basename. Absent on v1 specs. */
+  id?: string;
+  /** v2 frontmatter: role in the hierarchy. Its presence marks a spec as v2. */
+  kind?: SpecKind;
+  /** v2 frontmatter: id of the parent spec (a capability's parent is the system spec). */
+  parent?: string;
+  /** v2 frontmatter: one-line statement of the user or business value delivered. */
+  value?: string;
+  /** v2 frontmatter: globs of the code files this spec owns, relative to the repo. */
+  sources?: string[];
+  /** v2 frontmatter: globs of the tests that prove this spec. */
+  tests?: string[];
+  /** v2 frontmatter: globs of the docs that describe this spec. */
+  docs?: string[];
+  /** v2 frontmatter: ids of the requirement-history entries behind this spec. */
+  history?: string[];
   /** Any metadata key not in the known set, preserved verbatim. */
   extra: Record<string, string>;
 }
@@ -258,6 +284,17 @@ export interface LlmPrice {
   outputPerMTok: number;
 }
 
+/** Model tier names accepted by `llm.models` and `llm.pipelines.<name>.tier`. */
+export type LlmTier = 'fast' | 'frontier';
+
+/** How coarse generated specs are. */
+export interface GranularityConfig {
+  /** Capability count `spec draft` aims for, `[min, max]`. Default `[8, 15]`. */
+  target?: [number, number];
+  /** `spec graph` validation warns above this many capability specs. Default 20. */
+  maxCapabilities?: number;
+}
+
 /** LLM provider configuration. */
 export interface LlmConfig {
   /** anthropic | openai | litellm | replay (serve recordings) | none (deterministic only). */
@@ -265,8 +302,17 @@ export interface LlmConfig {
   model: string;
   /** Name of the env var holding the API key. */
   apiKeyEnv: string;
-  /** Per-pipeline overrides keyed by pipeline name (reverse, align, drift, heal, ...). */
-  pipelines?: Record<string, Partial<LlmTarget> & { fallback?: LlmTarget[] }>;
+  /**
+   * Named model tiers. `fast` serves high-volume, latency-sensitive calls
+   * (file summaries, on-demand docs, history proposals); `frontier` serves
+   * clustering and spec-level review. Unset tiers fall back to the top-level model.
+   */
+  models?: Partial<Record<LlmTier, LlmTarget>>;
+  /**
+   * Per-pipeline overrides keyed by pipeline name (reverse, align, drift, heal, ...).
+   * `tier` picks one of `models`; an explicit `provider`/`model` wins over it.
+   */
+  pipelines?: Record<string, Partial<LlmTarget> & { fallback?: LlmTarget[]; tier?: LlmTier }>;
   /** Tried in order after the primary target has failed all its attempts. */
   fallback?: LlmTarget[];
   /** Per-attempt timeout. Default 120000. */
@@ -393,12 +439,35 @@ export interface FeatureStateConfig {
   repoChannels?: Record<string, string>;
   /** External-id adapters to apply: generic, zephyr, jira. */
   externalIds?: string[];
+  /** `list`: catalog files are bare feature lists (no `version:` wrapper). Default `document`. */
+  catalogFormat?: 'document' | 'list';
+  /** Extra directory stems tried when resolving a spec `module:` to a source file. */
+  moduleStems?: string[];
+  /** Ignore the first N dot-separated segments of a feature id when deciding which sibling a test file belongs to. */
+  idSkipSegments?: number;
+  /** Regex source: a catalog summary matching it is a placeholder to replace with the spec overview. */
+  placeholderSummaryPattern?: string;
+  /** Regex source (case-insensitive): a spec module or key matching it implements the MCP channel. */
+  mcpModulePattern?: string;
+  /** Where agent tools (for example MCP tools) are declared, so a feature's MCP channel can be found. */
+  agentTools?: {
+    /** Key of the repo that holds the tools. */
+    repo: string;
+    /** Directory of tool declarations inside it. Default `src/tools`. */
+    dir?: string;
+    /** Regex source with one capture group: the tool's name. Default matches `server.tool('name'`. */
+    namePattern?: string;
+    /** Regex source: files whose path matches declare tools that do not count as the feature's MCP channel. */
+    excludedPathPattern?: string;
+  };
 }
 
 /** Settings for `specguard validate`. */
 export interface ValidateConfig {
   /** Run the browser headless. Default true. `--headed` overrides. */
   headless?: boolean;
+  /** v2 specs: plan-act rounds per capability, so one run can walk a multi-page journey. Default 3. */
+  maxRounds?: number;
   guardrails?: {
     /** Words or phrases that always block. */
     deny?: string[];
@@ -455,6 +524,24 @@ export interface SpecGuardConfig {
   /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
   extends?: string;
   paths?: PathsConfig;
+  granularity?: GranularityConfig;
+  /** Requirement-history settings. */
+  history?: { failOnIntentGap?: boolean };
+  /** The `contract-mappings` plugin: where its mappings file is and what its keys are called. */
+  contractMappings?: {
+    /** File relative to the repo. Default `.specguard/contract-mappings.json`. */
+    file?: string;
+    /** Key of the list of mappings. Default `mappings`. */
+    list?: string;
+    /** Key of the consuming spec in each mapping. Default `spec`. */
+    spec?: string;
+    /** Keys whose values are the files a spec depends on. Default `['providers']`. */
+    providers?: string[];
+    /** Key of the documentation page a spec is described by. Default `docs`. */
+    docs?: string;
+    /** Contract type for provider edges. Default `dependency`. */
+    edgeType?: string;
+  };
   apps: AppConfig[];
   runners?: RunnersConfig;
   llm: LlmConfig;

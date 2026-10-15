@@ -11,7 +11,7 @@
  * control that can trigger something (button, link, submit input, menu item) is
  * judged by its own name, not by the planner's free-text description.
  *
- * Spec: specs/adapters/guardrails.md
+ * Spec: specs/capabilities/agentic-verification.md
  */
 
 // ---------------------------------------------------------------------------

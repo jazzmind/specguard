@@ -72,6 +72,7 @@ beforeEach(async () => {
 });
 
 describe('runMatrix', () => {
+  // [claims: capabilities/traceability-and-drift#matrix-links-all-artifacts]
   it('scenario 1: builds matrix for all apps', async () => {
     await writeSpec('specs/one/parser.md', 'Parser');
     await writeSpec('specs/two/validator.md', 'Validator');
@@ -86,6 +87,7 @@ describe('runMatrix', () => {
     expect(res.messages.some((m) => m.includes('traceability.json'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#matrix-links-all-artifacts]
   it('scenario 2: csv format output', async () => {
     await writeSpec('specs/one/parser.md', 'Parser');
 
@@ -95,6 +97,7 @@ describe('runMatrix', () => {
     expect(res.messages.some((m) => m.includes('.csv'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#matrix-links-all-artifacts]
   it('scenario 3: spec with no matching test has tests: []', async () => {
     await writeSpec('specs/one/parser.md', 'Parser');
 
@@ -109,6 +112,7 @@ describe('runMatrix', () => {
     expect(entry.specKey).toBe('one/parser');
   });
 
+  // [claims: capabilities/traceability-and-drift#no-test-by-claim-tag]
   it('finds matching test file by basename convention', async () => {
     await writeSpec('specs/one/parser.md', 'Parser');
     await writeTestFile('tests/one/parser.test.ts');
@@ -123,6 +127,7 @@ describe('runMatrix', () => {
     expect(entry.tests[0]).toContain('parser.test.ts');
   });
 
+  // [claims: capabilities/traceability-and-drift#matrix-links-all-artifacts]
   it('--app scopes to single app', async () => {
     await writeSpec('specs/one/parser.md', 'Parser');
     await writeSpec('specs/two/validator.md', 'Validator');
@@ -140,6 +145,7 @@ describe('runMatrix', () => {
 });
 
 describe('matrix claim linkage', () => {
+  // [claims: capabilities/traceability-and-drift#no-test-by-claim-tag, capabilities/traceability-and-drift#per-claim-linkage]
   it('links claims to tests by tag, honours sources.tests and extraTestSources, and reads result files', async () => {
     const { makeRepo } = await import('../helpers/repo.js');
     const repo = makeRepo();

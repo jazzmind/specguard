@@ -14,7 +14,7 @@
  * Each profile gets its own browser context (see `contextOptionsFor`), and
  * sessions are cached per profile name (in-memory).
  *
- * Spec: specs/adapters/auth-state-machine.md
+ * Spec: specs/capabilities/agentic-verification.md
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';

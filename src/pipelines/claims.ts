@@ -6,7 +6,7 @@
  * `list` prints the catalog and fails when a journey invariant cites a claim
  * that is not in the catalog, or when one spec repeats a claim id.
  *
- * Spec: specs/core/claims.md
+ * Spec: specs/capabilities/spec-authoring.md
  */
 import path from 'node:path';
 
@@ -21,7 +21,9 @@ import { fileExists, readFile } from '../core/reader.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import type { ParsedSpec, PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
+import { loadConfig } from '../core/config.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { canonicalClaimRef } from '../core/workspace-units.js';
 import { writeFile } from '../core/writer.js';
 
 export interface ClaimsAssignOpts {
@@ -55,20 +57,29 @@ async function claimSpecDirs(repoDir: string, config: SpecGuardConfig | null): P
   return config.apps.map((app) => path.resolve(root, app.specDir));
 }
 
-async function sourcesFor(opts: ClaimsListOpts): Promise<SpecSource[]> {
+async function sourcesFor(opts: ClaimsListOpts): Promise<{ sources: SpecSource[]; units?: Record<string, { kind: string }> }> {
   if (opts.workspace) {
-    const { repos } = await loadWorkspaceWithConfigs(opts.cwd);
+    const { manifest, repos } = await loadWorkspaceWithConfigs(opts.cwd);
     const sources: SpecSource[] = [];
     for (const repo of repos) {
       for (const specDir of await claimSpecDirs(repo.absPath, repo.specGuardConfig)) {
         sources.push({ repo: repo.key, specDir });
       }
     }
-    return sources;
+    // Package units share the workspace root's specs, which carry no repo prefix.
+    if (Object.values(manifest.units).some((u) => u.kind === 'package')) {
+      try {
+        const rootConfig = await loadConfig(manifest.rootDir);
+        for (const specDir of await claimSpecDirs(manifest.rootDir, rootConfig)) sources.push({ specDir });
+      } catch {
+        /* the workspace root has no SpecGuard config */
+      }
+    }
+    return { sources, units: manifest.units };
   }
-  if (!opts.config) return [];
+  if (!opts.config) return { sources: [] };
   const root = opts.config.rootDir ?? process.cwd();
-  return (await claimSpecDirs(root, opts.config)).map((specDir) => ({ specDir }));
+  return { sources: (await claimSpecDirs(root, opts.config)).map((specDir) => ({ specDir })) };
 }
 
 function loadDir(specDir: string): ParsedSpec[] {
@@ -137,7 +148,7 @@ export async function runClaimsAssign(opts: ClaimsAssignOpts): Promise<PipelineR
 
 export async function runClaimsList(opts: ClaimsListOpts): Promise<PipelineResult> {
   const result = emptyResult('claims-list');
-  const sources = await sourcesFor(opts);
+  const { sources, units } = await sourcesFor(opts);
   const catalog = new Set<string>();
   const journeys: ParsedSpec[] = [];
 
@@ -167,7 +178,9 @@ export async function runClaimsList(opts: ClaimsListOpts): Promise<PipelineResul
   }
 
   for (const spec of journeys) {
-    const missing = danglingClaimRefs(spec.journey?.invariants ?? [], catalog);
+    // A journey may cite a claim through a package unit; that is the root's claim.
+    const invariants = (spec.journey?.invariants ?? []).map((inv) => ({ ...inv, verifies: inv.verifies.map((r) => canonicalClaimRef(r, units)) }));
+    const missing = danglingClaimRefs(invariants, catalog);
     for (const ref of missing) {
       result.failed += 1;
       result.items.push({

@@ -140,6 +140,7 @@ describe("CLI Entrypoint", () => {
     );
   });
 
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env]
   it("Config file not found", async () => {
     const { ConfigNotFoundError } = await import("../../src/core/errors.js");
     mocks.loadConfig.mockRejectedValue(
@@ -154,6 +155,7 @@ describe("CLI Entrypoint", () => {
     expect(mocks.runReverseGenerate).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
   it("init scaffolds correctly", async () => {
     // init command doesn't use loadConfig — it calls fileExists/writeFile directly.
     mocks.fileExists.mockResolvedValue(false);
@@ -166,6 +168,7 @@ describe("CLI Entrypoint", () => {
     expect(mocks.writeFile).toHaveBeenCalled();
   });
 
+  // [claims: capabilities/integration-surfaces#cli-routing-and-flags]
   it("Subcommand --help", async () => {
     const { exitCode, stdout, stderr } = await runCLI(["validate", "--help"]);
 

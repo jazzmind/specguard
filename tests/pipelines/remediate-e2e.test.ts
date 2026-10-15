@@ -14,6 +14,7 @@ function remoteBranches(remote: string): string[] {
 }
 
 describe('remediate end to end (local bare remote, fake gh, canned npm audit)', () => {
+  // [claims: capabilities/security-and-remediation#branch-and-evidence, capabilities/security-and-remediation#pr-modes-no-merge]
   it('PRESERVED: a safe bump produces a branch and a normal PR; the user tree is untouched', async () => {
     // claim: pr-modes
     // claim: worktree-only
@@ -77,6 +78,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(existsSync(path.join(fx.dir, '.specguard/remediate.lock'))).toBe(false);
   }, T);
 
+  // [claims: capabilities/security-and-remediation#branch-and-evidence]
   it('idempotent: a re-run skips an advisory whose branch already exists', async () => {
     // claim: idempotent
     const fx = makeFixture('safe');
@@ -91,6 +93,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(remoteBranches(fx.remote).filter((b) => b.startsWith('specguard/'))).toEqual([]);
   }, T);
 
+  // [claims: capabilities/security-and-remediation#pr-modes-no-merge, capabilities/security-and-remediation#remediate-exit-codes]
   it('CHANGED: a bump that changes behavior fails a baseline-passing test, opens a draft, exits 9', async () => {
     const fx = makeFixture('breaking');
     const config = await fx.config();
@@ -109,6 +112,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(item.pr?.draft).toBe(true);
   }, T);
 
+  // [claims: capabilities/security-and-remediation#pr-modes-no-merge, capabilities/security-and-remediation#remediate-exit-codes]
   it('INCONCLUSIVE: a flaky test in the selected set is excluded and reported, draft PR, exit 10', async () => {
     const fx = makeFixture('flaky');
     const config = await fx.config();
@@ -121,6 +125,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(fx.ghCalls.find((c) => c.args[1] === 'create')!.args).toContain('--draft');
   }, T);
 
+  // [claims: capabilities/security-and-remediation#pr-modes-no-merge]
   it('--dry-run runs the whole loop and leaves no branch, no push, no PR and no files', async () => {
     // claim: dry-run
     const fx = makeFixture('safe');
@@ -136,6 +141,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(fx.git('worktree', 'list').split('\n')).toHaveLength(1);
   }, T);
 
+  // [claims: capabilities/security-and-remediation#worktree-isolation]
   it('refuses a dirty working tree and a fresh lock; replaces a stale lock', async () => {
     // claim: refuse-dirty-lock
     const fx = makeFixture('safe');
@@ -157,6 +163,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(ok.exitCode).toBe(RemediateExit.Preserved);
   }, T);
 
+  // [claims: capabilities/security-and-remediation#scan-only-and-secrets]
   it('--scan-only reports and exits 5 without changing anything', async () => {
     // claim: scan-only
     const fx = makeFixture('safe');
@@ -167,6 +174,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(fx.git('status', '--porcelain', '--ignored')).toBe('');
   }, T);
 
+  // [claims: capabilities/security-and-remediation#green-baseline-required, capabilities/security-and-remediation#remediate-exit-codes]
   it('an unparseable baseline counts as a failure: exit 11, nothing applied', async () => {
     // claim: baseline-not-green
     const fx = makeFixture('safe', { testCommand: 'true' });

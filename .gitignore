@@ -27,3 +27,5 @@ dist/
 .specguard/validation-history.json
 .specguard/ci/
 # specguard:generated-state:end
+specs/.DS_Store
+.DS_Store

@@ -30,6 +30,7 @@ afterAll(() => {
 });
 
 describe('getProfile', () => {
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('returns the typescript profile with legacy-exact values', () => {
     const p = getProfile('typescript');
     expect(p.testExt).toBe('.test.ts');
@@ -48,6 +49,7 @@ describe('getProfile', () => {
     expect(p.sourceGlobs.routes).toEqual(['src/**/*.{ts,tsx,js,jsx}']);
   });
 
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('marks python full and go/rust/java as stubs', () => {
     expect(getProfile('python').capability).toBe('full');
     expect(getProfile('go').capability).toBe('stub');
@@ -55,15 +57,18 @@ describe('getProfile', () => {
     expect(getProfile('java').capability).toBe('stub');
   });
 
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('throws on an unknown language', () => {
     expect(() => getProfile('cobol')).toThrow(/Unknown language/);
   });
 });
 
 describe('resolveProfile', () => {
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('defaults to typescript when language is absent', () => {
     expect(resolveProfile({} as never).id).toBe('typescript');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('honors an explicit language', () => {
     expect(resolveProfile({ language: 'python' } as never).id).toBe('python');
   });
@@ -71,12 +76,15 @@ describe('resolveProfile', () => {
 
 describe('featureFromPath (legacy deriveFeature parity)', () => {
   const ts = getProfile('typescript');
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('drops src + area segment and strips .ts', () => {
     expect(featureFromPath('/repo/src/core/sub/reader.ts', '/repo', ts)).toBe('sub/reader');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('strips a .test.ts qualifier', () => {
     expect(featureFromPath('/repo/tests/core/reader.test.ts', '/repo', ts)).toBe('reader');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('handles python _test.py and .py', () => {
     const py = getProfile('python');
     // Leading 'app' is not src/tests, so it is dropped as the area segment.
@@ -87,17 +95,20 @@ describe('featureFromPath (legacy deriveFeature parity)', () => {
 });
 
 describe('detectLanguage', () => {
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('detects python by marker file', async () => {
     const d = makeTempDir();
     writeFileSync(path.join(d, 'pyproject.toml'), '[project]\nname="x"\n');
     writeFileSync(path.join(d, 'main.py'), 'print(1)\n');
     expect(await detectLanguage(d)).toBe('python');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('detects typescript by package.json', async () => {
     const d = makeTempDir();
     writeFileSync(path.join(d, 'package.json'), '{}');
     expect(await detectLanguage(d)).toBe('typescript');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('falls back to typescript with no markers', async () => {
     const d = makeTempDir();
     expect(await detectLanguage(d)).toBe('typescript');
@@ -105,6 +116,7 @@ describe('detectLanguage', () => {
 });
 
 describe('parsers', () => {
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('parseVitestJson extracts failing tests', () => {
     const out = JSON.stringify({
       testResults: [
@@ -120,6 +132,7 @@ describe('parsers', () => {
     const f = parseVitestJson(out);
     expect(f).toEqual([{ file: '/r/foo.test.ts', name: 'does x', message: 'boom' }]);
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('parsePytestJson extracts failing tests from nodeids', () => {
     const out = JSON.stringify({
       tests: [
@@ -130,6 +143,7 @@ describe('parsers', () => {
     const f = parsePytestJson(out);
     expect(f).toEqual([{ file: 'tests/foo_test.py', name: 'test_x', message: 'AssertionError' }]);
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('parsers return null on non-JSON output', () => {
     expect(parseVitestJson('no json here')).toBeNull();
     expect(parsePytestJson('no json here')).toBeNull();
@@ -138,19 +152,23 @@ describe('parsers', () => {
 
 describe('featureFromPath stripPrefix', () => {
   const ts = getProfile('typescript');
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('keeps the legacy src/area heuristic without stripPrefix', () => {
     expect(featureFromPath('/repo/src/core/sub/reader.ts', '/repo', ts)).toBe('sub/reader');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('strips the configured prefix instead of the heuristic', () => {
     const app = { stripPrefix: 'src/features/' };
     expect(featureFromPath('/repo/src/features/orders/create.ts', '/repo', ts, app)).toBe('orders/create');
     expect(featureFromPath('/repo/src/features/orders/create.test.ts', '/repo', ts, app)).toBe('orders/create');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('uses the first matching prefix of a list and leaves non-matching paths whole', () => {
     const app = { stripPrefix: ['lib/', 'src/'] };
     expect(featureFromPath('/repo/src/a/b.ts', '/repo', ts, app)).toBe('a/b');
     expect(featureFromPath('/repo/other/c.ts', '/repo', ts, app)).toBe('other/c');
   });
+  // [claims: capabilities/platform-foundation#language-profiles]
   it('applies the profile extension rules to other languages', () => {
     const py = getProfile('python');
     expect(featureFromPath('/repo/app/orders/create.py', '/repo', py, { stripPrefix: 'app/' })).toBe('orders/create');

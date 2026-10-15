@@ -4,7 +4,7 @@
  * Each adapter knows how to ask one runner for a machine-readable report in an
  * OUTPUT FILE and how to read it. Reports are never recovered from stdout.
  *
- * Spec: specs/adapters/test-runners.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';

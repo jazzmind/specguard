@@ -1,7 +1,7 @@
 /**
  * Behavior-preservation verdict: baseline run vs patched run. Pure, no I/O.
  *
- * Spec: specs/core/behavior-verdict.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { meetsThreshold, type Advisory, type Severity } from './advisory.js';
 import type { TestCaseResult } from './test-results.js';

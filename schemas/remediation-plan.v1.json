@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string"
+    },
+    "createdAt": {
+      "description": "ISO 8601 timestamp.",
+      "type": "string"
+    },
+    "tool": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "specguard"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": {}
+    },
+    "previous": {
+      "description": "Id of the plan this scan carried statuses over from.",
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Stable across scans: derived from what was found, not from when.",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "moderate",
+              "low",
+              "info"
+            ]
+          },
+          "type": {
+            "description": "What kind of finding this is.",
+            "type": "string",
+            "enum": [
+              "spec",
+              "code",
+              "dependency",
+              "secret"
+            ]
+          },
+          "change": {
+            "description": "What kind of change would fix it.",
+            "type": "string",
+            "enum": [
+              "code",
+              "spec",
+              "dependency",
+              "config"
+            ]
+          },
+          "summary": {
+            "description": "The proposed change, in a sentence or two.",
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "Stable id of the finding in its detector, such as an advisory id or a rule id plus location.",
+                  "type": "string"
+                },
+                "detector": {
+                  "type": "string",
+                  "enum": [
+                    "advisory",
+                    "semgrep",
+                    "gitleaks",
+                    "spec-review"
+                  ]
+                },
+                "ruleId": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "file": {
+                  "description": "Repo-relative path.",
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "detector",
+                "message"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "capability": {
+            "description": "Id of the capability spec the finding falls under.",
+            "type": "string"
+          },
+          "claims": {
+            "description": "Claim refs (`specKey#claimId`) the finding bears on.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "files": {
+            "description": "Repo-relative paths a fix would touch.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verify": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "description": "`listed`: the claims below. `all-proven`: every claim proven now.",
+                "type": "string",
+                "enum": [
+                  "listed",
+                  "all-proven"
+                ]
+              },
+              "claims": {
+                "description": "Claim refs that must still be proven after the fix.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "scope",
+              "claims"
+            ],
+            "additionalProperties": {}
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "planned",
+              "in-progress",
+              "fixed",
+              "verified",
+              "wont-fix"
+            ]
+          },
+          "statusHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "planned",
+                    "in-progress",
+                    "fixed",
+                    "verified",
+                    "wont-fix"
+                  ]
+                },
+                "at": {
+                  "description": "ISO 8601 timestamp.",
+                  "type": "string"
+                },
+                "by": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "at"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "externalRef": {
+            "description": "Id of this item in an external tracker.",
+            "type": "string"
+          },
+          "fingerprint": {
+            "description": "Hash of the finding; equal fingerprints across scans are the same item.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "type",
+          "change",
+          "summary",
+          "findings",
+          "claims",
+          "files",
+          "verify",
+          "status",
+          "statusHistory",
+          "fingerprint"
+        ],
+        "additionalProperties": {}
+      }
+    }
+  },
+  "required": [
+    "version",
+    "id",
+    "createdAt",
+    "tool",
+    "items"
+  ],
+  "additionalProperties": {},
+  "$id": "https://specguard.dev/schemas/remediation-plan.v1.json",
+  "title": "SpecGuard RemediationPlan v1"
+}

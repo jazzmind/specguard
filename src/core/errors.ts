@@ -40,3 +40,12 @@ export class ConfigInvalidError extends SpecGuardError {
     Object.setPrototypeOf(this, ConfigInvalidError.prototype);
   }
 }
+
+/** Thrown when a v2 spec's YAML frontmatter is malformed or has an invalid field. */
+export class SpecFrontmatterError extends SpecGuardError {
+  constructor(file: string, message: string, cause?: unknown) {
+    super(`Invalid spec frontmatter in ${file}: ${message}`, ExitCode.InternalError, cause);
+    this.name = 'SpecFrontmatterError';
+    Object.setPrototypeOf(this, SpecFrontmatterError.prototype);
+  }
+}

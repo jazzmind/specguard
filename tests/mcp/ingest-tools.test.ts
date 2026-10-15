@@ -19,6 +19,7 @@ async function connect() {
 const text = (r: unknown) => ((r as { content: { text: string }[] }).content[0]?.text ?? '');
 
 describe('mcp results/proof ingest tools', () => {
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it('lists both ingest tools', async () => {
     const client = await connect();
     const names = (await client.listTools()).tools.map((t) => t.name);
@@ -26,6 +27,7 @@ describe('mcp results/proof ingest tools', () => {
     expect(names).toContain('specguard_proof_ingest');
   });
 
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path, capabilities/integration-surfaces#mcp-tools-parity]
   it('results_ingest writes the proof ledger', async () => {
     const repo = makeRepo();
     repo.write('a.xml', `<testsuite name="s"><testcase classname="c" name="t1 @claim:core/awards#award-once"/></testsuite>`);
@@ -36,6 +38,7 @@ describe('mcp results/proof ingest tools', () => {
     expect(ledger['core/awards#award-once']).toMatchObject({ verdict: 'proven', runId: 'mcp-1' });
   });
 
+  // [claims: capabilities/conformance-testing#results-ingest, capabilities/integration-surfaces#mcp-tools-parity]
   it('results_ingest rejects an unknown format', async () => {
     const repo = makeRepo();
     const client = await connect();
@@ -44,6 +47,7 @@ describe('mcp results/proof ingest tools', () => {
     expect(text(res)).toContain('unknown format');
   });
 
+  // [claims: capabilities/conformance-testing#shared-ingest-and-ledger-path, capabilities/integration-surfaces#mcp-tools-parity]
   it('proof_ingest merges a verdicts file', async () => {
     const repo = makeRepo();
     repo.write('v.json', JSON.stringify({ runId: 'r1', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven', exercised: 3 }] }));
@@ -55,6 +59,7 @@ describe('mcp results/proof ingest tools', () => {
 });
 
 describe('mcp remediate tool', () => {
+  // [claims: capabilities/integration-surfaces#mcp-activity-and-limits]
   it('is registered and exposes no way to open a PR', async () => {
     // claim: mcp-readonly
     const client = await connect();

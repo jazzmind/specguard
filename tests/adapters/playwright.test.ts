@@ -85,6 +85,7 @@ describe('isPlaywrightAvailable', () => {
 // ---------------------------------------------------------------------------
 
 describe('launchBrowser', () => {
+  // [claims: capabilities/agentic-verification#browser-lifecycle]
   it('scenario 1: launches headless Chromium and returns a handle', async () => {
     const { launch } = mockPw();
     const handle = await launchBrowser();
@@ -94,6 +95,7 @@ describe('launchBrowser', () => {
     expect(Array.isArray(handle._consoleErrors)).toBe(true);
   });
 
+  // [claims: capabilities/agentic-verification#browser-lifecycle]
   it('scenario 2: throws PlaywrightUnavailableError when not installed', async () => {
     vi.spyOn(playwrightRunner, 'tryImport').mockResolvedValue(null);
     await expect(launchBrowser()).rejects.toBeInstanceOf(PlaywrightUnavailableError);
@@ -149,6 +151,7 @@ describe('navigateTo', () => {
 // ---------------------------------------------------------------------------
 
 describe('takeScreenshot', () => {
+  // [claims: capabilities/agentic-verification#evidence-and-history]
   it('scenario 3: saves screenshot and returns file path', async () => {
     const handle = makeHandle();
     const filePath = await takeScreenshot(handle, 'homepage', evidenceDir);

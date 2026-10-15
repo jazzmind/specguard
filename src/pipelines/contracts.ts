@@ -7,7 +7,7 @@
  * 3. Optionally using LLM extraction for unstructured dependency text
  * 4. Merging, deduplicating, and validating the unified graph
  *
- * Spec: specs/pipelines/contracts.md (to be created)
+ * Spec: specs/capabilities/workspaces.md
  */
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -26,6 +26,7 @@ import {
   nodeId,
   parseContractsBlock,
 } from '../core/contracts.js';
+import { unitDependencies } from '../core/workspace-units.js';
 import { loadPlugins } from '../plugins/index.js';
 import {
   type WorkspaceManifest,
@@ -202,6 +203,26 @@ export async function runContracts(
     ? repos.filter((r) => r.key === opts.repo)
     : repos;
 
+  // --- Pass 0: dependencies between the workspace's own units -------------------
+  // Deterministic, so these edges are rebuilt every run and a removed dependency disappears.
+  graph.edges = graph.edges.filter((e) => e.source !== 'workspace');
+  const unitEdges = unitDependencies(manifest);
+  const today = new Date().toISOString().split('T')[0];
+  for (const dep of unitEdges) {
+    for (const key of [dep.from, dep.to]) {
+      upsertNode(graph, { id: nodeId(key, 'package'), repo: key, spec: 'package', title: manifest.units?.[key]?.packageName ?? key });
+    }
+    upsertEdge(graph, {
+      consumer: nodeId(dep.from, 'package'),
+      provider: nodeId(dep.to, 'package'),
+      type: 'package',
+      surface: [dep.declaredIn],
+      lastVerified: today,
+      source: 'workspace',
+    });
+  }
+  log(`Pass 0: ${unitEdges.length} dependency edge(s) between ${Object.keys(manifest.units ?? {}).length} unit(s)`);
+
   // --- Pass 1: contract importers from enabled plugins ---------------------
   const pluginNames = opts.plugins ?? [
     ...new Set(repos.flatMap((r) => r.specGuardConfig?.plugins ?? [])),
@@ -214,14 +235,14 @@ export async function runContracts(
   };
   for (const repo of reposInScope) {
     for (const importer of importers) {
-      const legacyEdges = importer.read({ key: repo.key, absPath: repo.absPath }, importManifest);
+      const legacyEdges = importer.read({ key: repo.key, absPath: repo.absPath }, importManifest, repo.specGuardConfig);
       if (legacyEdges.length === 0) continue;
 
       log(`  ${repo.key}: ${importer.id} found ${legacyEdges.length} link(s)`);
 
-      for (const { consumerSpec, providerPath, docPage } of legacyEdges) {
+      for (const { consumerSpec, providerPath, docPage, type: importedType } of legacyEdges) {
         const consumerId = nodeId(repo.key, consumerSpec);
-        const type = docPage ? 'docs' : 'graphql';
+        const type = importedType ?? (docPage ? 'docs' : 'dependency');
 
         upsertNode(graph, {
           id: consumerId,

@@ -6,7 +6,7 @@
  * `it()` / test block in the target framework, titled with the scenario name,
  * importing the module under test declared in the spec's `module` metadata.
  *
- * Spec: specs/pipelines/forward-generate.md
+ * Spec: specs/capabilities/conformance-testing.md
  *
  * Spec -> app -> output-path mapping
  * ----------------------------------

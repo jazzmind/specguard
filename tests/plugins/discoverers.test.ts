@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  agentToolsDiscoverer,
   clientRequestPaths,
   graphqlDiscoverer,
   graphqlOperations,
@@ -13,7 +14,7 @@ import {
   trpcCalls,
   trpcDiscoverer,
   trpcProcedures,
-} from '../../src/plugins/discoverers.js';
+} from '../../src/plugins/feature-catalog/discoverers.js';
 import type { CatalogFeatureInput, FeatureSpec } from '../../src/plugins/types.js';
 
 function workspace(files: Record<string, string>): string {
@@ -154,5 +155,54 @@ describe('tRPC discoverer', () => {
     expect(withSpec['orders.list'].api).toBe('server:routers/orders');
     const without = trpcDiscoverer.discover({ features: [feature()], specs: [uiSpec], repos, moduleStems: [] });
     expect(without['orders.list'].api).toBe('trpc:orders.list');
+  });
+});
+
+describe('agent tools discoverer [agent-tools]', () => {
+  // The screen asks for `orders`; one tool wraps that query.
+  const files = {
+    'web/src/orders/index.tsx': 'export default 1;',
+    'web/src/orders/queries.ts': 'gql`query { orders { id } }`',
+    'tools/src/tools/ops/list-orders.ts': "server.tool('list_orders', {}, async () => gql`query { orders { id } }`)",
+    'tools/src/tools/customer/my-orders.ts': "server.tool('my_orders', {}, async () => gql`query { orders { id } }`)",
+  };
+  const ctx = (root: string, excludedOnly = false) => ({
+    features: [feature()],
+    specs: [uiSpec],
+    repos: [
+      { key: 'web', absPath: path.join(root, 'web') },
+      { key: 'tools', absPath: path.join(root, excludedOnly ? 'tools-excluded' : 'tools') },
+    ],
+    moduleStems: [],
+  });
+
+  // [claims: capabilities/integration-surfaces#catalog-layout-config]
+  it('finds the tool in the configured repo and directory, with the default declaration pattern [found]', () => {
+    const root = workspace(files);
+    const found = agentToolsDiscoverer({ repo: 'tools' }).discover(ctx(root));
+    expect(found['orders.list'].mcpTool).toMatch(/^(list_orders|my_orders)$/);
+  });
+
+  // [claims: capabilities/integration-surfaces#catalog-layout-config]
+  it('a tool in an excluded path is evidence only, and a counted tool wins over it [excluded]', () => {
+    const root = workspace(files);
+    const found = agentToolsDiscoverer({ repo: 'tools', excludedPathPattern: '/customer/' }).discover(ctx(root));
+    expect(found['orders.list']).toEqual({ mcpTool: 'list_orders' });
+
+    const onlyExcluded = workspace({ ...files, 'tools/src/tools/ops/list-orders.ts': '// not a tool' });
+    const evidence = agentToolsDiscoverer({ repo: 'tools', excludedPathPattern: '/customer/' }).discover(ctx(onlyExcluded));
+    expect(evidence['orders.list'].mcpTool).toBeUndefined();
+    expect(evidence['orders.list'].mcpExcluded).toContain('my_orders');
+  });
+
+  // [claims: capabilities/integration-surfaces#catalog-layout-config]
+  it('reads another directory and another declaration pattern when config says so, and finds nothing when the repo is not present [config]', () => {
+    const root = workspace({
+      ...files,
+      'tools/lib/handlers/orders.ts': "registerHandler(\"orders_handler\", () => gql`query { orders { id } }`)",
+    });
+    const found = agentToolsDiscoverer({ repo: 'tools', dir: 'lib/handlers', namePattern: String.raw`registerHandler\(\s*"([^"]+)"` }).discover(ctx(root));
+    expect(found['orders.list']).toEqual({ mcpTool: 'orders_handler' });
+    expect(agentToolsDiscoverer({ repo: 'nope' }).discover(ctx(root))).toEqual({});
   });
 });

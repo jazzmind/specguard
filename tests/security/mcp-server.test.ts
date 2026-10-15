@@ -30,9 +30,7 @@ vi.mock("../pipelines/doc-generate.js", () => ({ runDocGenerate: vi.fn() }));
 vi.mock("../pipelines/validate.js", () => ({ runValidate: vi.fn() }));
 vi.mock("../pipelines/matrix.js", () => ({ runMatrix: vi.fn() }));
 vi.mock("../pipelines/import.js", () => ({ runImport: vi.fn() }));
-vi.mock("../pipelines/code-quality.js", () => ({ runCodeQuality: vi.fn() }));
 vi.mock("../pipelines/dep-check.js", () => ({ runDepCheck: vi.fn() }));
-vi.mock("../pipelines/git-ops.js", () => ({ runGitOps: vi.fn() }));
 vi.mock("../mcp/activity-hook.js", () => ({ appendActivityLogEntry: vi.fn() }));
 vi.mock("../mcp/format.js", async () => {
   const actual = await vi.importActual<typeof import("../mcp/format.js")>("../mcp/format.js");
@@ -53,9 +51,7 @@ import { runDocGenerate } from "../pipelines/doc-generate.js";
 import { runValidate } from "../pipelines/validate.js";
 import { runMatrix } from "../pipelines/matrix.js";
 import { runImport } from "../pipelines/import.js";
-import { runCodeQuality } from "../pipelines/code-quality.js";
 import { runDepCheck } from "../pipelines/dep-check.js";
-import { runGitOps } from "../pipelines/git-ops.js";
 import { buildServer } from "../mcp/server.js";
 
 // ---------------------------------------------------------------------------

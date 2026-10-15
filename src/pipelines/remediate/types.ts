@@ -1,7 +1,7 @@
 /**
  * Shared types for the remediate pipeline and its injectable seams.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import type { Advisory, Candidate, Severity } from '../../core/advisory.js';
 import type { Verdict, VerdictResult } from '../../core/behavior-verdict.js';

@@ -39,6 +39,7 @@ afterEach(() => {
 });
 
 describe('SessionPool', () => {
+  // [claims: capabilities/agentic-verification#one-context-per-profile]
   it('gives each auth profile its own context, reuses it, and keeps anonymous pages on the first context', async () => {
     const pool = new SessionPool(browser, config, '/proj');
     const anon = await pool.acquire(undefined);
@@ -51,12 +52,14 @@ describe('SessionPool', () => {
     expect(auth.authenticate).toHaveBeenCalledTimes(2);
   });
 
+  // [claims: capabilities/agentic-verification#one-context-per-profile]
   it('passes the profile context options (headers) when the context is created', async () => {
     const pool = new SessionPool(browser, config, '/proj');
     await pool.acquire('svc');
     expect(opened[0].options).toEqual({ extraHTTPHeaders: { Authorization: 'Bearer tok' } });
   });
 
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('a failed login closes its context, is not cached, and is retried', async () => {
     vi.mocked(auth.authenticate).mockResolvedValueOnce({ success: false, profile: 'admin', error: 'nope' });
     const pool = new SessionPool(browser, config, '/proj');
@@ -68,6 +71,7 @@ describe('SessionPool', () => {
     expect(opened).toHaveLength(2);
   });
 
+  // [claims: capabilities/agentic-verification#auth-failures-and-cache]
   it('an unknown profile or missing credentials is an auth failure, not a throw', async () => {
     const pool = new SessionPool(browser, config, '/proj');
     expect((await pool.acquire('ghost')).auth).toMatchObject({ success: false, error: expect.stringContaining('Profile not found') });

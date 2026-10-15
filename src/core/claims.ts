@@ -8,11 +8,13 @@
  * `repo:specKey#claimId` (repo key from workspace.json). `specKey#claimId`
  * is accepted when the spec lives in the repo currently being checked.
  *
- * Spec: specs/core/claims.md
+ * Spec: specs/capabilities/spec-authoring.md
  */
 import type { JourneyInvariant, JourneySpec, SpecClaim, SpecMeta } from './types.js';
 
 const CLAIM_ANCHOR = /<!--\s*claim:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*-->/i;
+/** The section whose bullets are claims: `Requirements` (v2) or `Acceptance Criteria` (v1). */
+const CRITERIA_HEADING = /^##\s+(?:Requirements|Acceptance Criteria)\s*$/i;
 const BULLET = /^(\s*[-*]\s+(?:\[[ xX]\]\s+)?)(.*)$/;
 
 /** Pull claim bullets out of an Acceptance Criteria section body. */
@@ -21,7 +23,17 @@ export function parseClaims(acceptanceCriteria: string): SpecClaim[] {
   const claims: SpecClaim[] = [];
   for (const line of acceptanceCriteria.split(/\r?\n/)) {
     const bullet = line.match(BULLET);
-    if (!bullet) continue;
+    if (!bullet) {
+      // An indented line under a bullet continues it: its text is part of the claim, and an anchor may sit on it.
+      const last = claims[claims.length - 1];
+      if (last && /^\s{2,}\S/.test(line)) {
+        const anchor = line.match(CLAIM_ANCHOR);
+        const more = line.replace(CLAIM_ANCHOR, '').trim();
+        if (more) last.text = `${last.text} ${more}`.trim();
+        if (anchor && !last.id) last.id = anchor[1].toLowerCase();
+      }
+      continue;
+    }
     const raw = bullet[2];
     const anchor = raw.match(CLAIM_ANCHOR);
     const checkbox = bullet[1].match(/\[([ xX])\]/);
@@ -89,7 +101,7 @@ export function assignClaimIds(content: string): { content: string; assigned: As
 
   for (const line of lines) {
     if (/^##\s+/.test(line)) {
-      inCriteria = /^##\s+Acceptance Criteria\s*$/i.test(line);
+      inCriteria = CRITERIA_HEADING.test(line);
       continue;
     }
     if (!inCriteria) continue;
@@ -103,7 +115,7 @@ export function assignClaimIds(content: string): { content: string; assigned: As
   inCriteria = false;
   for (const line of lines) {
     if (/^##\s+/.test(line)) {
-      inCriteria = /^##\s+Acceptance Criteria\s*$/i.test(line);
+      inCriteria = CRITERIA_HEADING.test(line);
       out.push(line);
       continue;
     }

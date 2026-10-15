@@ -2,11 +2,11 @@
  * Proof ledger types and the pure staleness rule.
  *
  * A stored verdict is `proven`, `failed`, `unexercised`, or `error`. `stale` is not
- * stored: it is computed when the spec hash, or a drift-registry file hash
+ * stored: it is computed when the spec hash (or, for v2 specs, the claim hash), or a drift-registry file hash
  * recorded at ingest, or the dependency fingerprint, no longer matches. `unproven` means the ledger has no
  * row for that claim.
  *
- * Spec: specs/pipelines/proof.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 
 export type StoredVerdict = 'proven' | 'failed' | 'unexercised' | 'error';
@@ -19,6 +19,13 @@ export interface ProofRecord {
   runId: string;
   /** SHA-256 of the spec file at ingest. */
   specHash: string;
+  /**
+   * v2 specs only: hash of this claim's text and the spec's Problem & Value
+   * (`claimHashOf`). When present on both sides it replaces `specHash` in the
+   * staleness rule, so editing another claim, a scenario, or the frontmatter
+   * does not stale this proof.
+   */
+  claimHash?: string;
   /** Git HEAD of the owning repo at ingest. Recorded, not used for staleness. */
   repoSha?: string;
   /** Drift-registry file hashes captured at ingest, keyed by repo-relative POSIX path. */
@@ -28,6 +35,8 @@ export interface ProofRecord {
   exercised: number;
   counterexamples: number;
   evidencePath?: string;
+  /** What produced the verdict. Absent means a test run. */
+  evidence?: 'test' | 'agentic';
   ingestedAt: string;
 }
 
@@ -40,10 +49,21 @@ export function emptyLedger(): ProofLedger {
   return { version: 1, proofs: {} };
 }
 
+/** How a changed file bears on a claim; supplied for v2 specs from the drift assessments. */
+export type FileChangeVerdict = 'affects' | 'unaffected' | 'unassessed';
+
 export interface CurrentClaimState {
   specHash: string;
+  /** Current `claimHashOf` for a v2 spec; leave unset for v1 specs. */
+  claimHash?: string;
   fileHashes: Record<string, string>;
   dependencyFingerprint?: string;
+  /**
+   * v2 specs: how a changed file bears on this claim. When set (with claim
+   * hashes on both sides), a changed file only stales the proof if the answer
+   * is `affects` or `unassessed`. Absent, any changed file stales it.
+   */
+  fileChange?: (file: string, nowHash: string, since?: string) => FileChangeVerdict;
 }
 
 /**
@@ -56,7 +76,11 @@ export function effectiveVerdict(
   current: CurrentClaimState,
 ): EffectiveVerdict {
   if (!record) return 'unproven';
-  if (record.specHash !== current.specHash) return 'stale';
+  if (record.claimHash !== undefined && current.claimHash !== undefined) {
+    if (record.claimHash !== current.claimHash) return 'stale';
+  } else if (record.specHash !== current.specHash) {
+    return 'stale';
+  }
   if (
     record.dependencyFingerprint !== undefined &&
     current.dependencyFingerprint !== undefined &&
@@ -64,9 +88,12 @@ export function effectiveVerdict(
   ) {
     return 'stale';
   }
+  const claimScoped = record.claimHash !== undefined && current.claimHash !== undefined && current.fileChange !== undefined;
   for (const [file, hash] of Object.entries(record.fileHashes)) {
     const now = current.fileHashes[file];
-    if (now !== undefined && now !== hash) return 'stale';
+    if (now === undefined || now === hash) continue;
+    if (claimScoped && current.fileChange!(file, now, record.ingestedAt) === 'unaffected') continue;
+    return 'stale';
   }
   return record.verdict;
 }

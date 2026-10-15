@@ -1,7 +1,7 @@
 /**
  * Deterministic claim-tag prepass shared by `matrix` and `align`.
  *
- * Spec: specs/core/claim-prepass.md
+ * Spec: specs/capabilities/traceability-and-drift.md
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

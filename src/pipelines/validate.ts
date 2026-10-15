@@ -15,7 +15,7 @@
  *
  * Validation history appended to .specguard/validation-history.json.
  *
- * Spec: specs/pipelines/validate.md
+ * Spec: specs/capabilities/agentic-verification.md
  */
 import path from 'node:path';
 import { readFile as fsReadFile } from 'node:fs/promises';
@@ -25,7 +25,8 @@ import type { SpecGuardConfig, AppConfig, PipelineResult, ParsedSpec } from '../
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { loadAllSpecs } from '../core/spec-parser.js';
+import { loadCanonicalSpecs } from '../core/spec-key.js';
+import { ingestVerdicts } from './proof.js';
 import { writeFile, ensureDir } from '../core/writer.js';
 import { fileExists } from '../core/reader.js';
 import { llmGenerateObject } from '../core/llm.js';
@@ -103,6 +104,8 @@ export interface ValidationEntry {
   timestamp: string;
   verdicts: CriterionVerdict[];
   overallVerdict: Verdict;
+  /** v2 specs: whether the observed behaviour delivers the capability's stated value. */
+  value?: ValueJudgement;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +132,17 @@ const VerifyResponseSchema = z.object({
     }),
   ),
 });
+
+/** v2 specs: the per-requirement verdicts plus a judgement of the capability's stated value. */
+const VerifyV2Schema = VerifyResponseSchema.extend({
+  value: z.object({
+    delivers: z.enum(['YES', 'PARTIAL', 'NO', 'INCONCLUSIVE']),
+    reason: z.string(),
+    gaps: z.array(z.string()),
+  }),
+});
+
+export type ValueJudgement = z.infer<typeof VerifyV2Schema>['value'];
 
 /**
  * Typed issue report produced by the REVIEW step.
@@ -162,7 +176,9 @@ function resolveFromRoot(config: SpecGuardConfig, p: string): string {
   return path.resolve(config.rootDir ?? process.cwd(), p);
 }
 
-function resolveUrl(base: string | undefined, specUrl: string): string {
+function resolveUrl(base: string | undefined, specUrl: string | undefined): string {
+  // A v2 capability has no page of its own: its journeys start from the base URL.
+  if (!specUrl) return base ?? '';
   if (!base) return specUrl;
   if (specUrl.startsWith('http://') || specUrl.startsWith('https://')) return specUrl;
   return base.replace(/\/$/, '') + '/' + specUrl.replace(/^\//, '');
@@ -187,6 +203,8 @@ async function ensureEvidenceIgnored(config: SpecGuardConfig): Promise<void> {
 }
 
 function overallVerdict(verdicts: CriterionVerdict[]): Verdict {
+  // No verdict at all is not a pass: nothing was judged.
+  if (verdicts.length === 0) return 'INCONCLUSIVE';
   if (verdicts.some((v) => v.verdict === 'FAIL')) return 'FAIL';
   if (verdicts.every((v) => v.verdict === 'PASS')) return 'PASS';
   if (verdicts.some((v) => v.verdict === 'BLOCKED')) return 'BLOCKED';
@@ -211,6 +229,41 @@ async function writeIssueReport(
   return reportPath;
 }
 
+/**
+ * Write an agentic verdict per requirement into the proof ledger, so `check`
+ * treats browser verification as proof like any other. Only PASS and FAIL
+ * count: BLOCKED and INCONCLUSIVE say nothing and must not overwrite a proof
+ * a test run already earned.
+ */
+async function recordAgenticProofs(
+  config: SpecGuardConfig,
+  spec: ParsedSpec,
+  verdicts: CriterionVerdict[],
+  runId: string,
+): Promise<number> {
+  const rows: Array<{ claim: string; verdict: 'proven' | 'failed'; exercised: number; counterexamples: number; evidencePath: string; evidence: 'agentic' }> = [];
+  for (const claim of spec.claims) {
+    if (!claim.id) continue;
+    // The id, exactly or followed by a delimiter, or the claim's own text. Never a substring: `login` must not match `login-valid-code`.
+    const hit = verdicts.find((v) => {
+      const c = v.criterion.trim();
+      return c === claim.id || c.startsWith(`${claim.id}:`) || c.startsWith(`${claim.id} `) || c === claim.text;
+    });
+    if (!hit || (hit.verdict !== 'PASS' && hit.verdict !== 'FAIL')) continue;
+    rows.push({
+      claim: `${spec.specKey}#${claim.id}`,
+      verdict: hit.verdict === 'PASS' ? 'proven' : 'failed',
+      exercised: 1,
+      counterexamples: hit.verdict === 'FAIL' ? 1 : 0,
+      evidencePath: `.specguard/evidence/${spec.specKey}`,
+      evidence: 'agentic',
+    });
+  }
+  if (rows.length === 0) return 0;
+  const res = await ingestVerdicts({ runId, verdicts: rows }, config.rootDir ?? process.cwd());
+  return res.updated;
+}
+
 async function appendHistory(config: SpecGuardConfig, entry: ValidationEntry): Promise<void> {
   const historyPath = resolveFromRoot(config, '.specguard/validation-history.json');
   let history: ValidationEntry[] = [];
@@ -230,6 +283,27 @@ async function appendHistory(config: SpecGuardConfig, entry: ValidationEntry): P
 // Collect specs to validate
 // ---------------------------------------------------------------------------
 
+/** A v2 capability or component can be verified; the system spec and journey specs cannot. */
+function isVerifiable(spec: ParsedSpec): boolean {
+  return spec.meta.kind === 'capability' || spec.meta.kind === 'component';
+}
+
+/** The journeys and scenarios the agent should walk, as prompt text. Empty for v1 specs. */
+function journeyText(spec: ParsedSpec): string {
+  if (!isVerifiable(spec)) return '';
+  const scenarios = spec.scenarios
+    .map((sc) => `- ${sc.name}: ${sc.steps.join(' -> ')} (expect: ${sc.expectedResults.join('; ')})`)
+    .join('\n');
+  return [spec.sections['Users & Journeys'] ? `User journeys:\n${spec.sections['Users & Journeys']}` : '', scenarios ? `Scenarios:\n${scenarios}` : '']
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** Requirements as `id: text` lines, so verdicts can name the claim they are about. */
+function requirementsText(spec: ParsedSpec): string {
+  return spec.claims.filter((c) => c.id).map((c) => `- ${c.id}: ${c.text}`).join('\n') || spec.acceptanceCriteria;
+}
+
 function collectSpecs(config: SpecGuardConfig, opts: ValidateOpts): ParsedSpec[] {
   const apps: AppConfig[] = opts.app
     ? config.apps.filter((a) => a.name === opts.app)
@@ -238,7 +312,7 @@ function collectSpecs(config: SpecGuardConfig, opts: ValidateOpts): ParsedSpec[]
   const all: ParsedSpec[] = [];
   for (const app of apps) {
     try {
-      all.push(...loadAllSpecs(resolveFromRoot(config, app.specDir)));
+      all.push(...loadCanonicalSpecs(config, resolveFromRoot(config, app.specDir)));
     } catch {
       // specDir may not exist yet
     }
@@ -252,7 +326,8 @@ function collectSpecs(config: SpecGuardConfig, opts: ValidateOpts): ParsedSpec[]
   }
 
   if (opts.all) {
-    return all.filter((s) => !!s.meta.url);
+    // A v2 capability has no page of its own; with a base URL it is verified as a journey from there.
+    return all.filter((s) => !!s.meta.url || (opts.baseUrl && isVerifiable(s)));
   }
 
   return [];
@@ -268,12 +343,13 @@ async function validateSpec(
   opts: ValidateOpts,
   log: (line: string) => void,
   run: RunContext,
-): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport }> {
+): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport; value?: ValueJudgement }> {
   const verdicts: CriterionVerdict[] = [];
   const evidenceFiles: string[] = [];
   let issueReportResult: IssueReport | undefined;
+  let valueJudgement: ValueJudgement | undefined;
 
-  const url = resolveUrl(opts.baseUrl, spec.meta.url!);
+  const url = resolveUrl(opts.baseUrl, spec.meta.url);
   const evidenceDir = resolveFromRoot(config, `.specguard/evidence/${spec.specKey}`);
   await ensureDir(evidenceDir);
 
@@ -358,69 +434,97 @@ async function validateSpec(
       return { verdicts, evidence: evidenceFiles, issueReport: undefined };
     }
 
-    // --- PLAN ---
-    const planPrompt = [
-      `You are validating a web application. The spec's acceptance criteria are:`,
-      spec.acceptanceCriteria,
-      '',
-      `Current page: ${url}`,
-      `Page title: "${safe(snapshot.title, 'dom')}"`,
-      `HTTP status: ${snapshot.statusCode}`,
-      snapshot.consoleErrors.length > 0
-        ? `Console errors: ${snapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
-        : '',
-      '',
-      `Accessibility tree:`,
-      a11y.slice(0, 3000),
-      '',
-      `List the browser actions needed to verify all acceptance criteria.`,
-      `Each action should be atomic (one click, one fill, one navigate).`,
-      `If a criterion can be verified from the current page state alone, include NO actions for it.`,
-      `Keep the action list SHORT — maximum 5 actions.`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    let plannedActions: z.infer<typeof PlannedActionSchema> = { actions: [] };
-    try {
-      plannedActions = await llmGenerateObject({
-        provider: config.llm.provider,
-        model: config.llm.model,
-        apiKeyEnv: config.llm.apiKeyEnv,
-        system: 'You are a QA automation planner. Output ONLY valid JSON matching the schema.',
-        prompt: planPrompt,
-        schema: PlannedActionSchema,
-      });
-    } catch {
-      // Planning failed — skip actions, proceed to verify from initial state.
-    }
-
-    // --- ACT ---
+    // --- PLAN / ACT ---
+    // A v1 spec gets one round on its own URL. A v2 capability gets several, so one run can walk a journey across pages.
+    const v2 = isVerifiable(spec);
+    const rounds = v2 ? (config.validate?.maxRounds ?? 3) : 1;
     const blockedActions: ReturnType<typeof makeBlockedAction>[] = [];
-    for (const action of plannedActions.actions) {
-      // Judge the element the action will touch (its role and accessible name), not just the planner's words.
-      const target = action.selector ? await inspectTarget(handle, action.selector) : null;
-      const classification = classifyAction(action.description, target ?? undefined, run.policy);
-      if (isBlocked(classification, run.policy)) {
-        const blocked = makeBlockedAction(action.description, classification);
-        blockedActions.push(blocked);
-        log(`[blocked] ${spec.specKey} — ${blocked.reason}: "${action.description}"`);
-        continue;
-      }
+    const taken: string[] = [];
+    let currentA11y = a11y;
+    let pageUrl = url;
+    let pageTitle = snapshot.title;
+    for (let round = 1; round <= rounds; round += 1) {
+      const planPrompt = [
+        `You are validating a web application. The spec's acceptance criteria are:`,
+        v2 ? requirementsText(spec) : spec.acceptanceCriteria,
+        '',
+        v2 ? journeyText(spec) : '',
+        `Current page: ${pageUrl}`,
+        `Page title: "${safe(pageTitle, 'dom')}"`,
+        round === 1 ? `HTTP status: ${snapshot.statusCode}` : '',
+        snapshot.consoleErrors.length > 0
+          ? `Console errors: ${snapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
+          : '',
+        '',
+        taken.length > 0 ? `Actions already taken: ${taken.join('; ')}` : '',
+        `Accessibility tree:`,
+        currentA11y.slice(0, 3000),
+        '',
+        `List the browser actions needed to verify all acceptance criteria.`,
+        `Each action should be atomic (one click, one fill, one navigate).`,
+        `If a criterion can be verified from the current page state alone, include NO actions for it.`,
+        v2 && round > 1 ? `If every journey step has been walked, return no actions.` : '',
+        `Keep the action list SHORT — maximum 5 actions.`,
+      ]
+        .filter(Boolean)
+        .join('\n');
 
-      // Execute action (best-effort — failures don't abort validation).
+      let plannedActions: z.infer<typeof PlannedActionSchema> = { actions: [] };
       try {
-        const page = handle._page as {
-          click?: (sel: string) => Promise<void>;
-          fill?: (sel: string, val: string) => Promise<void>;
-        };
-        if (action.selector && action.value && page.fill) {
-          await page.fill(action.selector, action.value);
-        } else if (action.selector && page.click) {
-          await page.click(action.selector);
-        }
+        plannedActions = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          system: 'You are a QA automation planner. Output ONLY valid JSON matching the schema.',
+          prompt: planPrompt,
+          schema: PlannedActionSchema,
+        });
       } catch {
-        // Action failed — continue to verify
+        // Planning failed — skip actions, proceed to verify from the current state.
+      }
+      if (round > 1 && plannedActions.actions.length === 0) break;
+
+      // --- ACT ---
+      for (const action of plannedActions.actions) {
+        // Judge the element the action will touch (its role and accessible name), not just the planner's words.
+        const target = action.selector ? await inspectTarget(handle, action.selector) : null;
+        const classification = classifyAction(action.description, target ?? undefined, run.policy);
+        if (isBlocked(classification, run.policy)) {
+          const blocked = makeBlockedAction(action.description, classification);
+          blockedActions.push(blocked);
+          log(`[blocked] ${spec.specKey} — ${blocked.reason}: "${action.description}"`);
+          continue;
+        }
+
+        // Execute action (best-effort — failures don't abort validation).
+        try {
+          const page = handle._page as {
+            click?: (sel: string) => Promise<void>;
+            fill?: (sel: string, val: string) => Promise<void>;
+          };
+          // Only an action that was really performed counts as taken: a planner step with no selector did nothing.
+          if (action.selector && action.value && page.fill) {
+            await page.fill(action.selector, action.value);
+            taken.push(action.description);
+          } else if (action.selector && page.click) {
+            await page.click(action.selector);
+            taken.push(action.description);
+          }
+        } catch {
+          // Action failed — continue to verify
+        }
+      }
+      if (plannedActions.actions.length === 0) break;
+      if (round < rounds) {
+        currentA11y = await getAccessibilitySnapshot(handle, run.redactor);
+        // The journey may have moved to another page: later rounds plan from where it is now.
+        const live = handle._page as { url?: () => string; title?: () => Promise<string> };
+        try {
+          pageUrl = live.url?.() ?? pageUrl;
+          pageTitle = (await live.title?.()) ?? pageTitle;
+        } catch {
+          /* keep the previous page's details */
+        }
       }
     }
 
@@ -434,7 +538,19 @@ async function validateSpec(
     evidenceFiles.push(postScreenshot);
     const postA11y = await getAccessibilitySnapshot(handle, run.redactor);
     const postHtml = await getPageHtml(handle, 40_000, run.redactor);
-    const postSnapshot = await navigateTo(handle, handle._page !== null ? (handle._page as { url?: () => string }).url?.() ?? url : url);
+    let postSnapshot: typeof snapshot;
+    if (v2) {
+      // Reloading would discard the state the journey built up.
+      let title = snapshot.title;
+      try {
+        title = (await (handle._page as { title?: () => Promise<string> }).title?.()) ?? title;
+      } catch {
+        /* keep the first title */
+      }
+      postSnapshot = { ...snapshot, title, consoleErrors: [...handle._consoleErrors] };
+    } else {
+      postSnapshot = await navigateTo(handle, handle._page !== null ? (handle._page as { url?: () => string }).url?.() ?? url : url);
+    }
 
     // --- VERIFY ---
     const blockedDescriptions = blockedActions.map((b) => `"${b.description}" (${b.classification})`);
@@ -443,9 +559,11 @@ async function validateSpec(
       '',
       `Spec: ${spec.title}`,
       `URL: ${url}`,
-      `Acceptance Criteria:`,
-      spec.acceptanceCriteria,
+      v2 ? `Problem & Value this capability exists to deliver:\n${spec.sections['Problem & Value'] ?? spec.overview}\n` : '',
+      v2 ? `Requirements (use the requirement id, exactly, as "criterion"):` : `Acceptance Criteria:`,
+      v2 ? requirementsText(spec) : spec.acceptanceCriteria,
       '',
+      v2 && taken.length > 0 ? `Actions taken during the journey: ${taken.join('; ')}\n` : '',
       `Page state after actions:`,
       `Title: "${safe(postSnapshot.title, 'dom')}"`,
       `HTTP status: ${postSnapshot.statusCode}`,
@@ -466,6 +584,14 @@ async function validateSpec(
       `- BLOCKED: verification requires an action that was blocked by guardrails`,
       `- INCONCLUSIVE: cannot determine from page state alone`,
       ``,
+      v2
+        ? [
+            `Also judge the capability as a whole against its Problem & Value, in "value":`,
+            `- delivers: YES when a user would get the stated value from what you observed, PARTIAL when only some, NO when not, INCONCLUSIVE when the page state cannot tell`,
+            `- gaps: value the capability promises that the observed behaviour does not deliver (empty when none)`,
+            ``,
+          ].join('\n')
+        : '',
       `Screenshot evidence: ${postScreenshot}`,
     ]
       .filter(Boolean)
@@ -473,14 +599,27 @@ async function validateSpec(
 
     let verifyResponse: z.infer<typeof VerifyResponseSchema> = { verdicts: [] };
     try {
-      verifyResponse = await llmGenerateObject({
-        provider: config.llm.provider,
-        model: config.llm.model,
-        apiKeyEnv: config.llm.apiKeyEnv,
-        system: 'You are a QA verification agent. Output ONLY valid JSON matching the schema.',
-        prompt: verifyPrompt,
-        schema: VerifyResponseSchema,
-      });
+      if (v2) {
+        const judged = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          system: 'You are a QA verification agent judging a running system against its stated problem and value. Output ONLY valid JSON matching the schema.',
+          prompt: verifyPrompt,
+          schema: VerifyV2Schema,
+        });
+        verifyResponse = { verdicts: judged.verdicts };
+        valueJudgement = judged.value;
+      } else {
+        verifyResponse = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          system: 'You are a QA verification agent. Output ONLY valid JSON matching the schema.',
+          prompt: verifyPrompt,
+          schema: VerifyResponseSchema,
+        });
+      }
     } catch (err) {
       // Verification LLM call failed — mark all as INCONCLUSIVE.
       log(`[warn] ${spec.specKey} — verification LLM call failed: ${(err as Error).message}`);
@@ -599,9 +738,10 @@ async function validateSpec(
     timestamp: new Date().toISOString(),
     verdicts,
     overallVerdict: overallVerdict(verdicts),
+    ...(valueJudgement ? { value: valueJudgement } : {}),
   });
 
-  return { verdicts, evidence: evidenceFiles, issueReport: issueReportResult };
+  return { verdicts, evidence: evidenceFiles, issueReport: issueReportResult, value: valueJudgement };
 }
 
 // ---------------------------------------------------------------------------
@@ -683,12 +823,33 @@ export async function runValidate(
     log(`[validate] ${spec.specKey}`);
 
     try {
-      const { verdicts, issueReport } = await validateSpec(config, spec, opts, log, run);
+      const { verdicts, issueReport, value } = await validateSpec(config, spec, opts, log, run);
       const ov = overallVerdict(verdicts);
 
       for (const v of verdicts) {
         const emoji = v.verdict === 'PASS' ? '✓' : v.verdict === 'FAIL' ? '✗' : '~';
         log(`  ${emoji} [${v.verdict}] ${v.criterion}${v.evidence ? ` — evidence: ${v.evidence}` : ''}`);
+      }
+
+      // v2: the verdicts become proofs, and the capability is judged against its stated value.
+      let valueFailed = false;
+      if (isVerifiable(spec)) {
+        const runId = `verify-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+        const proven = await recordAgenticProofs(config, spec, verdicts, runId);
+        if (proven > 0) log(`[proof] ${spec.specKey} — ${proven} requirement verdict(s) recorded as agentic proof`);
+        if (value) {
+          log(`  value: ${value.delivers} — ${value.reason}`);
+          for (const gap of value.gaps) log(`  ! [gap] ${gap}`);
+          valueFailed = value.delivers === 'NO';
+          try {
+            await writeFile(
+              resolveFromRoot(config, `.specguard/reports/verify-${spec.specKey.replace(/[\\/]/g, '-')}.json`),
+              JSON.stringify({ spec: spec.specKey, verifiedAt: new Date().toISOString(), verdicts, value }, null, 2) + '\n',
+            );
+          } catch {
+            // best-effort
+          }
+        }
       }
 
       // Persist and summarise issue report when present.
@@ -708,7 +869,7 @@ export async function runValidate(
         }
       }
 
-      if (ov === 'FAIL' || (issueReport && !issueReport.passed)) {
+      if (ov === 'FAIL' || valueFailed || (issueReport && !issueReport.passed)) {
         anyFailed = true;
         result.failed += 1;
         result.items.push({ key: spec.specKey, status: 'failed', message: `verdict: ${ov}` });

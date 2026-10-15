@@ -2,7 +2,7 @@
  * Release-note fetch (npm registry / PyPI / crates.io -> GitHub releases) and the
  * breaking-change analysis. HTTP is injected; the LLM goes through the shared LLM layer.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { z } from 'zod';
 

@@ -31,6 +31,7 @@ import { ConfigInvalidError } from './errors.js';
  * | event     | graphql-api triggers a Lambda in the services repo |
  * | test      | test-suite regression specs cover a feature |
  * | docs      | devops-support-center documents a feature |
+ * | package   | one unit of the workspace depends on another (a monorepo package, or a repo) |
  */
 export type ContractType =
   | 'graphql'
@@ -93,8 +94,9 @@ export interface ContractEdge {
    * 'spec-block'   = from <!-- contracts:start --> block in spec
    * 'llm'          = LLM extraction from free-text Dependencies section
    * 'manual'       = manually authored
+   * 'workspace'    = a dependency between two of the workspace's own units, read from their manifests
    */
-  source: 'traceability' | 'spec-block' | 'llm' | 'manual';
+  source: 'traceability' | 'spec-block' | 'llm' | 'manual' | 'workspace';
 }
 
 /** The full contract graph. */
@@ -122,7 +124,7 @@ const edgeSchema = z.object({
   type: z.string(),
   surface: z.array(z.string()),
   lastVerified: z.string().nullable(),
-  source: z.enum(['traceability', 'spec-block', 'llm', 'manual']),
+  source: z.enum(['traceability', 'spec-block', 'llm', 'manual', 'workspace']),
 });
 
 const contractGraphSchema = z.object({

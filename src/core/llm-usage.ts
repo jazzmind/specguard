@@ -1,7 +1,7 @@
 /**
  * LLM usage accounting: pricing table, cost estimate, and the usage log.
  *
- * Spec: specs/core/llm.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

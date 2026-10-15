@@ -8,7 +8,7 @@
  * line, and returns exit code 4 (`MissingSpecs`) if any source file lacks a
  * spec.
  *
- * Spec: specs/pipelines/status.md
+ * Spec: specs/capabilities/traceability-and-drift.md
  *
  * Source-file -> feature mapping
  * ------------------------------
@@ -33,6 +33,7 @@ import {
   featureFromPath,
   type LanguageProfile,
 } from '../core/language-profiles.js';
+import { isV2Repo, runCheck } from './check.js';
 import { appendProofCoverage } from './proof.js';
 import { detectOrphans } from './drift.js';
 import { expandAppGlobs } from '../core/spec-key.js';
@@ -96,6 +97,7 @@ export async function runStatus(
   config: SpecGuardConfig,
   _opts?: StatusOpts,
 ): Promise<PipelineResult> {
+  if (await isV2Repo(config)) return runCheck(config, { view: 'summary', as: 'status' });
   const result = emptyResult('status');
 
   const log = (line: string): void => {

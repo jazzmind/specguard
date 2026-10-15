@@ -3,7 +3,7 @@
  * machine (or per run), and do not belong in version control. Configuration,
  * rules, plans, replay recordings, and the proof ledger are not listed.
  *
- * Spec: specs/cli/commands/init.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 
 /** Paths relative to the repo root, as `.gitignore` patterns. */
@@ -18,6 +18,9 @@ export const GENERATED_STATE_PATHS = [
   '.specguard/gaps.json',
   '.specguard/security.json',
   '.specguard/llm-usage.json',
+  '.specguard/trace.json',
+  '.specguard/cache/',
+  '.specguard/history/',
   '.specguard/traceability.json',
   '.specguard/traceability.csv',
   '.specguard/contracts.json',

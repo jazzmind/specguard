@@ -6,7 +6,7 @@
  * version with `--define:__SPECGUARD_VERSION__="<version>"`. Unbundled runs read
  * `package.json` directly.
  *
- * Spec: specs/core/version.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 import { createRequire } from 'node:module';
 

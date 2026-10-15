@@ -2,7 +2,7 @@
  * OSV-Scanner parsing and the universal detector. Uses a local `osv-scanner` binary,
  * or `docker run ghcr.io/google/osv-scanner`, whichever is available.
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { normalizeSeverity, severityFromCvss, type Advisory, type Severity } from '../advisory.js';
 import { fixedFromRange } from './semver.js';

@@ -58,6 +58,7 @@ describe('runReverseGenerate', () => {
     await expect(runReverseGenerate(makeConfig(), { app: 'nope' })).rejects.toThrow();
   });
 
+  // [claims: capabilities/spec-authoring#reverse-per-source]
   it('scenario 1: generates a spec for a new file', async () => {
     await writeSource('src/pages/checkout.tsx');
     const res = await runReverseGenerate(makeConfig(), { app: 'my-app' });
@@ -71,6 +72,7 @@ describe('runReverseGenerate', () => {
     expect(res.messages.some((m) => m.includes('[gen]') && m.includes('my-app/checkout'))).toBe(true);
   });
 
+  // [claims: capabilities/spec-authoring#reverse-per-source]
   it('scenario 2: skips an existing spec without --force', async () => {
     await writeSource('src/pages/checkout.tsx');
     await mkdir(path.join(rootDir, 'specs/my-app'), { recursive: true });
@@ -89,6 +91,7 @@ describe('runReverseGenerate', () => {
     );
   });
 
+  // [claims: capabilities/spec-authoring#reverse-per-source]
   it('scenario 3: overwrites an existing spec with --force', async () => {
     await writeSource('src/pages/checkout.tsx');
     await mkdir(path.join(rootDir, 'specs/my-app'), { recursive: true });
@@ -102,6 +105,7 @@ describe('runReverseGenerate', () => {
     expect(content).toContain('Mock Spec');
   });
 
+  // [claims: capabilities/spec-authoring#reverse-per-source]
   it('scenario 4: --file targets a single source file', async () => {
     await writeSource('src/pages/login.tsx');
     await writeSource('src/pages/checkout.tsx');
@@ -115,6 +119,7 @@ describe('runReverseGenerate', () => {
     expect(existsSync(path.join(rootDir, 'specs/my-app/checkout.md'))).toBe(false);
   });
 
+  // [claims: capabilities/spec-authoring#reverse-safety]
   it('scenario 5: missing source file warns and does not throw', async () => {
     const res = await runReverseGenerate(makeConfig(), {
       app: 'my-app',
@@ -127,6 +132,7 @@ describe('runReverseGenerate', () => {
     expect(res.messages.some((m) => m.includes('[warn]') && m.includes('not found'))).toBe(true);
   });
 
+  // [claims: capabilities/spec-authoring#reverse-per-source, capabilities/spec-authoring#reverse-safety]
   it('scenario 6: LLM error records a failure and continues', async () => {
     await writeSource('src/pages/a.tsx');
     await writeSource('src/pages/b.tsx');
@@ -143,6 +149,7 @@ describe('runReverseGenerate', () => {
     expect(res.exitCode).toBe(0);
   });
 
+  // [claims: capabilities/spec-authoring#reverse-safety]
   it('exit code is non-zero when every attempted spec fails', async () => {
     await writeSource('src/pages/a.tsx');
     mockedLlm.mockRejectedValue(new Error('always boom'));
@@ -154,6 +161,7 @@ describe('runReverseGenerate', () => {
     expect(res.exitCode).not.toBe(0);
   });
 
+  // [claims: capabilities/spec-authoring#reverse-safety]
   it('warns when source contains secret-like patterns', async () => {
     await writeSource('src/pages/secret.tsx', 'const k = process.env.SECRET;\n');
 

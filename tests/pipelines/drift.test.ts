@@ -54,6 +54,7 @@ afterEach(async () => {
 });
 
 describe('runDrift', () => {
+  // [claims: capabilities/traceability-and-drift#drift-exit-and-orphans, capabilities/traceability-and-drift#drift-mtime-fallback]
   it('flags drift when the source is newer than its spec (exit 3)', async () => {
     const src = await writeFileAt('src/core/foo.ts');
     const spec = await writeFileAt('specs/core/foo.md', '# Foo\n');
@@ -72,6 +73,7 @@ describe('runDrift', () => {
     expect(result.messages.some((m) => m.includes('[drift]'))).toBe(true);
   });
 
+  // [claims: capabilities/traceability-and-drift#drift-mtime-fallback]
   it('reports no drift when the spec is newer than the source (exit 0)', async () => {
     const src = await writeFileAt('src/core/foo.ts');
     const spec = await writeFileAt('specs/core/foo.md', '# Foo\n');
@@ -87,6 +89,7 @@ describe('runDrift', () => {
     expect(result.items).toHaveLength(0);
   });
 
+  // [claims: capabilities/traceability-and-drift#drift-exit-and-orphans]
   it('flags drift when a changed source has no spec at all (exit 3)', async () => {
     await writeFileAt('src/core/bar.ts');
     // No specs/core/bar.md written.
@@ -146,6 +149,7 @@ describe('runDrift', () => {
     expect(result.items[0]?.key).toBe('specguard-core/foo');
   });
 
+  // [claims: capabilities/traceability-and-drift#drift-exit-and-orphans]
   it('falls back to scanning all sources when git fails (no throw)', async () => {
     const src = await writeFileAt('src/core/foo.ts');
     const spec = await writeFileAt('specs/core/foo.md', '# Foo\n');

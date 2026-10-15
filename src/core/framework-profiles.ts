@@ -1,7 +1,7 @@
 /**
  * Framework profiles for `specguard index`.
  *
- * Spec: specs/core/framework-profiles.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

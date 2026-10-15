@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { ExitCode, exitCodeLabel } from "src/core/exit-codes";
 
 describe("Exit Codes", () => {
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
   it("Retrieving a known exit code value", () => {
     expect(ExitCode.Success).toBe(0);
     expect(ExitCode.InternalError).toBe(1);
@@ -13,6 +14,7 @@ describe("Exit Codes", () => {
     expect(ExitCode.BudgetExceeded).toBe(8);
   });
 
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
   it("Obtaining a label for each defined exit code", () => {
     expect(exitCodeLabel(0)).toBe("success");
     expect(exitCodeLabel(1)).toBe("internal error");
@@ -24,12 +26,14 @@ describe("Exit Codes", () => {
     expect(exitCodeLabel(8)).toBe("llm budget exceeded");
   });
 
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
   it("Obtaining a label for an unknown exit code", () => {
     expect(exitCodeLabel(6)).toBe("unknown (6)");
     expect(exitCodeLabel(99)).toBe("unknown (99)");
     expect(exitCodeLabel(-1)).toBe("unknown (-1)");
   });
 
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
   it("Verifying no duplicate numeric values exist", () => {
     const values = Object.values(ExitCode);
     const uniqueValues = new Set(values);
@@ -37,6 +41,7 @@ describe("Exit Codes", () => {
     expect(uniqueValues.size).toBe(8);
   });
 
+  // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
   it("Type safety prevents arbitrary number assignment", () => {
     // @ts-expect-error - 6 is not a valid ExitCode value
     const invalid: ExitCode = 6;

@@ -2,7 +2,7 @@
  * Baseline: in a worktree, install, build, typecheck, run the configured tests twice
  * (flake detection), fingerprint the environment, and snapshot the proof ledger.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';

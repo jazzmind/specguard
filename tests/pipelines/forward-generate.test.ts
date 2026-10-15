@@ -82,6 +82,7 @@ describe('runForwardGenerate', () => {
     await expect(runForwardGenerate(makeConfig(), {})).rejects.toThrow();
   });
 
+  // [claims: capabilities/conformance-testing#generate-per-scenario]
   it('scenario 1: generates a test from a single spec via --spec', async () => {
     await writeSpec('specs/core/spec-parser.md');
 
@@ -96,6 +97,7 @@ describe('runForwardGenerate', () => {
     expect(res.messages.some((m) => m.includes('[gen] specguard-core/spec-parser'))).toBe(true);
   });
 
+  // [claims: capabilities/conformance-testing#generate-per-scenario]
   it('scenario 2: --all processes multiple specs across apps', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await writeSpec('specs/core/reader.md');
@@ -110,6 +112,7 @@ describe('runForwardGenerate', () => {
     expect(existsSync(path.join(rootDir, 'tests/pipelines/drift.test.ts'))).toBe(true);
   });
 
+  // [claims: capabilities/conformance-testing#generate-safe-writes]
   it('scenario 3: skips an existing test file without --force', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await mkdir(path.join(rootDir, 'tests/core'), { recursive: true });
@@ -125,6 +128,7 @@ describe('runForwardGenerate', () => {
     expect(res.messages.some((m) => m.includes('[skip] specguard-core/spec-parser'))).toBe(true);
   });
 
+  // [claims: capabilities/conformance-testing#generate-safe-writes]
   it('scenario 4: overwrites an existing test file with --force', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await mkdir(path.join(rootDir, 'tests/core'), { recursive: true });
@@ -138,6 +142,7 @@ describe('runForwardGenerate', () => {
     expect(content).toContain('expect(1).toBe(1)');
   });
 
+  // [claims: capabilities/conformance-testing#generate-safe-writes]
   it('scenario 6: strips Markdown fences from LLM output', async () => {
     await writeSpec('specs/core/spec-parser.md');
     mockedLlm.mockResolvedValueOnce('```ts\n' + DEFAULT_TEST_FILE + '\n```');
@@ -151,6 +156,7 @@ describe('runForwardGenerate', () => {
     expect(content).not.toContain('```');
   });
 
+  // [claims: capabilities/conformance-testing#generate-safe-writes]
   it('scenario 7: LLM error records a failure and continues', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await writeSpec('specs/core/reader.md');
@@ -183,6 +189,7 @@ describe('claim tags in generated tests', () => {
     '## Acceptance Criteria\n\n- [ ] Returns the title <!-- claim: returns-title -->\n- [ ] Rejects empty input <!-- claim: rejects-empty -->\n\n## Scenarios',
   );
 
+  // [claims: capabilities/conformance-testing#generate-claim-tags]
   it('lists claims with exact tags in the prompt and warns about missing tags', async () => {
     await writeSpec('specs/core/spec-parser.md', CLAIM_SPEC);
     mockedLlm.mockResolvedValue("it('parses a title @claim:spec-parser#returns-title', () => {});");
@@ -196,6 +203,7 @@ describe('claim tags in generated tests', () => {
     expect(warn).not.toContain('returns-title');
   });
 
+  // [claims: capabilities/conformance-testing#generate-claim-tags]
   it('does not warn when every tag is present', async () => {
     await writeSpec('specs/core/spec-parser.md', CLAIM_SPEC);
     mockedLlm.mockResolvedValue("it('a @claim:spec-parser#returns-title @claim:spec-parser#rejects-empty', () => {});");

@@ -11,7 +11,7 @@
  * Security: the resolved API key value is never logged or included in any
  * error message — only the *name* of the env var may appear in diagnostics.
  *
- * Spec: specs/core/llm.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 
 import { generateText, generateObject, type LanguageModel } from 'ai';
@@ -32,7 +32,7 @@ import {
   runSpend,
 } from './llm-runtime.js';
 import { estimateUsd, priceFor, recordUsage } from './llm-usage.js';
-import type { LlmTarget } from './types.js';
+import type { LlmTarget, LlmTier } from './types.js';
 
 export {
   configureLlm,
@@ -160,15 +160,29 @@ const DEFAULT_RETRIES = 2;
 const DEFAULT_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
 
-/** The ordered targets for one call: the primary (with a pipeline override applied), then the fallbacks. */
+/** Pipelines that use a named tier when `llm.models` defines it and the pipeline has no override of its own. */
+const DEFAULT_PIPELINE_TIERS: Record<string, LlmTier> = {
+  summarize: 'fast',
+  docs: 'fast',
+  history: 'fast',
+  cluster: 'frontier',
+  'spec-review': 'frontier',
+};
+
+/**
+ * The ordered targets for one call: the primary, then the fallbacks. The primary is the call's own
+ * target, replaced by the pipeline's tier model, replaced in turn by the pipeline's explicit override.
+ */
 export function resolveTargets(opts: Pick<LlmTextOpts, 'provider' | 'model' | 'apiKeyEnv' | 'pipeline'>): LlmTarget[] {
   const rt = getLlmRuntime();
   const pipeline = opts.pipeline ?? currentPipeline();
   const override = rt?.llm.pipelines?.[pipeline];
+  const tier = override?.tier ?? DEFAULT_PIPELINE_TIERS[pipeline];
+  const tiered = tier ? rt?.llm.models?.[tier] : undefined;
   const primary: LlmTarget = {
-    provider: override?.provider ?? opts.provider,
-    model: override?.model ?? opts.model,
-    apiKeyEnv: override?.apiKeyEnv ?? opts.apiKeyEnv,
+    provider: override?.provider ?? tiered?.provider ?? opts.provider,
+    model: override?.model ?? tiered?.model ?? opts.model,
+    apiKeyEnv: override?.apiKeyEnv ?? tiered?.apiKeyEnv ?? opts.apiKeyEnv,
   };
   const chain = override?.fallback ?? rt?.llm.fallback ?? [];
   return [primary, ...chain];

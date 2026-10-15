@@ -9,11 +9,13 @@ const root = path.join(__dirname, '..', '..');
 const pkgVersion = (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string }).version;
 
 describe('version', () => {
+  // [claims: capabilities/integration-surfaces#cli-routing-and-flags, capabilities/platform-foundation#single-version-source]
   it('comes from package.json, never a hard-coded value', () => {
     expect(cliVersion()).toBe(pkgVersion);
     expect(versionInfo()).toEqual({ name: 'specguard-ai', version: pkgVersion, node: process.version });
   });
 
+  // [claims: capabilities/integration-surfaces#cli-routing-and-flags, capabilities/platform-foundation#single-version-source]
   it('`--version --json` prints the machine-readable payload on one line', () => {
     const out = execFileSync('npx', ['tsx', 'src/cli/index.ts', '--version', '--json'], { cwd: root, encoding: 'utf8' });
     expect(out.trim().split('\n')).toHaveLength(1);

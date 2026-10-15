@@ -17,6 +17,7 @@ import {
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'sg-reg-'));
 
 describe('drift registry portability', () => {
+  // [claims: capabilities/traceability-and-drift#drift-hash-registry]
   it('round-trips repo-relative POSIX keys', () => {
     const root = tmp();
     const abs = path.join(root, 'src', 'a', 'b.ts');
@@ -25,6 +26,7 @@ describe('drift registry portability', () => {
     expect(fromRegistryKey(root, key)).toBe(abs);
   });
 
+  // [claims: capabilities/traceability-and-drift#drift-hash-registry]
   it('migrates absolute keys once and does not rewrite a relative registry', () => {
     const root = tmp();
     const abs = path.join(root, 'src', 'x.ts');
@@ -40,6 +42,7 @@ describe('drift registry portability', () => {
     expect(statSync(registryPath(root)).mtimeMs).toBe(mtime);
   });
 
+  // [claims: capabilities/traceability-and-drift#drift-hash-registry]
   it('updateFileEntry keys by the given key', () => {
     const reg = {};
     const entry = getOrCreateSpecEntry(reg, 'a/b', 'h');

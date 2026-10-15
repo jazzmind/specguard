@@ -228,6 +228,7 @@ describe("SpecGuard VS Code Extension", () => {
   // -------------------------------------------------------------------------
   // Scenario 1: Sidebar icon appears and Coverage view opens
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it("Sidebar icon appears and Coverage view opens", async () => {
     // Arrange: simulate extension activation with a workspace that has config
     const fs = await import("fs");
@@ -289,6 +290,7 @@ describe("SpecGuard VS Code Extension", () => {
   // -------------------------------------------------------------------------
   // Scenario 2: Dashboard workspace context banner
   // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it("Dashboard workspace context banner", async () => {
     // Arrange: workspace with config containing 2 apps
     const fs = await import("fs");
@@ -351,6 +353,7 @@ describe("SpecGuard VS Code Extension", () => {
     expect((call![0] as { configFound: boolean }).configFound).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
   it("Dashboard workspace context banner shows no-config state when config is missing", async () => {
     // Arrange: workspace WITHOUT config
     const fs = await import("fs");

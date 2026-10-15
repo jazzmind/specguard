@@ -25,7 +25,8 @@ import {
 } from '../core/language-profiles.js';
 import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
 import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
-import { appNameFor, detectMonorepo, testCommandFor, type MonorepoInfo } from '../core/monorepo.js';
+import { detectMonorepo, testCommandFor, type Ecosystem, type MonorepoInfo, type WorkspacePackage } from '../core/monorepo.js';
+import { unitsFromMonorepo } from '../core/workspace-units.js';
 
 export interface InitOpts {
   /** Test framework override; defaults to the language profile's framework. */
@@ -43,6 +44,8 @@ export interface InitOpts {
   runnerPath?: string;
   /** Apply differing existing MCP entries/hooks instead of printing a diff. */
   updateHooks?: boolean;
+  /** Wire the requirement-history hooks into `.claude/settings.local.json`. */
+  historyHooks?: boolean;
 }
 
 export interface InitResult extends PipelineResult {
@@ -54,27 +57,46 @@ export interface InitResult extends PipelineResult {
   skippedFiles: string[];
 }
 
-/** One app per workspace package, each with the command that runs only its tests. */
-function monorepoApps(info: MonorepoInfo, profile: LanguageProfile): Array<Record<string, unknown>> {
-  return info.packages.map((pkg) => {
-    const name = appNameFor(pkg);
+const PROFILE_OF: Record<Ecosystem, LanguageId> = { js: 'typescript', python: 'python', go: 'go', rust: 'rust' };
+
+/**
+ * One app per ecosystem, not per package: its sources list every package's
+ * code. Capabilities cut across packages, so a package-shaped app would put the
+ * per-file granularity problem back at package level. How to run each
+ * package's tests lives in the units manifest.
+ */
+function monorepoApps(info: MonorepoInfo, primary: LanguageProfile): Array<Record<string, unknown>> {
+  const byEcosystem = new Map<Ecosystem, WorkspacePackage[]>();
+  for (const pkg of info.packages) byEcosystem.set(pkg.ecosystem, [...(byEcosystem.get(pkg.ecosystem) ?? []), pkg]);
+  // The primary language's ecosystem first, so it gets the plain name `app`.
+  const order = [...byEcosystem.keys()].sort((a, b) => Number(PROFILE_OF[b] === primary.id) - Number(PROFILE_OF[a] === primary.id));
+  return order.map((eco, i) => {
+    const profile = getProfile(PROFILE_OF[eco]);
+    const pkgs = byEcosystem.get(eco) as WorkspacePackage[];
+    // A negation stays at the front: `!**/*_test.go` becomes `!svc/**/*_test.go`, not `svc/!**/*_test.go`.
+    const prefix = (globs: string[]): string[] =>
+      pkgs.flatMap((p) => globs.map((g) => (g.startsWith('!') ? `!${p.dir}/${g.slice(1)}` : `${p.dir}/${g}`)));
     return {
-      name,
-      repo: pkg.dir,
+      name: i === 0 ? 'app' : `app-${eco}`,
+      repo: '.',
       language: profile.id,
-      specDir: `specs/${name}`,
+      specDir: 'specs',
       sources: {
-        routes: profile.sourceGlobs.routes,
-        api: profile.sourceGlobs.api,
-        tests: profile.sourceGlobs.tests,
+        routes: prefix(profile.sourceGlobs.routes),
+        api: prefix(profile.sourceGlobs.api),
+        tests: prefix(profile.sourceGlobs.tests),
       },
-      framework: pkg.framework,
-      testOutput: `${pkg.dir}/${profile.testOutput}`,
-      test: { command: testCommandFor(info, pkg), reporter: pkg.framework },
+      framework: pkgs[0].framework,
+      testOutput: profile.testOutput,
       security: { enabled: false },
       docs: false,
     };
   });
+}
+
+/** `.specguard/workspace.json` for a monorepo: its packages as units. */
+function monorepoManifest(cwd: string, info: MonorepoInfo): string {
+  return `${JSON.stringify({ version: '2', name: path.basename(cwd), repos: {}, units: unitsFromMonorepo(info, (pkg) => testCommandFor(info, pkg)) }, null, 2)}\n`;
 }
 
 /** Build a config template from the resolved language profile. */
@@ -100,6 +122,8 @@ function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: M
           },
         ];
   const config = {
+    // Code-quality checks and the commit helper are plugins, on by default for new projects.
+    plugins: ['quality', 'git'],
     apps,
     runners: {
       playwright: 'local',
@@ -217,11 +241,12 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   };
 
-  const monorepo = opts.single || profile.id !== 'typescript' ? null : await detectMonorepo(cwd);
+  const monorepo = opts.single ? null : await detectMonorepo(cwd);
   if (monorepo && monorepo.packages.length > 0) {
     result.messages.push(
-      `  detected ${monorepo.tools.join(' + ')} workspace: ${monorepo.packages.length} package(s), one app each`,
+      `  detected ${monorepo.tools.join(' + ')} workspace: ${monorepo.packages.length} package(s) as units of one system`,
     );
+    await tryCreate(path.join(cwd, '.specguard', 'workspace.json'), monorepoManifest(cwd, monorepo));
   }
   await tryCreate(configPath, defaultConfig(profile, framework, monorepo));
   await tryCreate(specsReadmePath, SPECS_README);
@@ -252,6 +277,7 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     runner: opts.runner,
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
+    historyHooks: opts.historyHooks,
   });
   result.createdFiles.push(...scaffold.created);
   result.skippedFiles.push(...scaffold.skipped);

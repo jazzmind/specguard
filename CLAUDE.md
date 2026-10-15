@@ -76,25 +76,27 @@ See `BUILD-PLAN.md` for the full phased implementation plan.
 ## SpecGuard
 
 This project uses SpecGuard for spec-driven QA (language: **typescript**).
-Specs in `specs/` are the source of truth — read a module's spec before editing it.
+Specs in `specs/` are the source of truth: `specs/system.md` describes the system,
+each file in `specs/capabilities/` one piece of functionality. Read the capability
+that owns a file (`specguard spec graph`) before editing it.
 
-After changing code, run `specguard gap-analysis`, `specguard status`, and
-`specguard drift`. Tests run with `npm test`. Run `/goal` to build
+After changing code, update the capability spec, record why with `specguard history add`,
+and run `specguard check`. Tests run with `npm test`; tag a test with the
+requirement it proves: `// [claims: capabilities/<id>#<claim-id>]`. Run `/goal` to build
 the whole project from its specs.
 <!-- specguard:specguard-workflow:end -->
 
 <!-- specguard:specguard-commands:start -->
 | Command | What it does |
 |---------|-------------|
-| `specguard analyze` | Smart diagnostics — start here when unsure |
-| `specguard gap-analysis` | Find unimplemented specs and generate build plans |
-| `specguard status` | Spec + test coverage report |
-| `specguard reverse --all` | Generate Living Specs from source |
-| `specguard generate --all` | Generate test files from specs |
-| `specguard align --all` | Map existing tests to spec scenarios |
-| `specguard heal --all` | Run tests and auto-fix test bugs |
-| `specguard drift` | Detect specs out of sync with code |
-| `specguard security --all` | OWASP security test stubs |
+| `specguard check` | Spec health for the whole system: ownership, tests, proofs, gaps, drift. Start here |
+| `specguard spec graph` | The spec tree, the files each spec owns, and rule violations |
+| `specguard spec draft` | Write the system spec and functional capability specs from existing code |
+| `specguard history add` | Record why a requirement changed: a prompt, plan or decision |
+| `specguard test run` | Run the tests and record the results as proof |
+| `specguard verify --all --url <base>` | Judge the running app against each capability's problem and value |
+| `specguard security scan` | Code, dependency, secret and spec-level findings as one remediation plan |
+| `specguard serve` | Docs and audit API, with a web UI |
 | (tests run via) | `npm test` |
 
 Without a global install, run any command as `npx -p specguard-ai specguard <command>`.

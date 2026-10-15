@@ -2,7 +2,7 @@
  * Ecosystem registry: detection by lockfile marker, audit-runner compatibility, and
  * the combined detector (OSV when available, native audits otherwise).
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { dedupeAdvisories, type Advisory } from '../advisory.js';
 import { createNativeAdapters } from './native.js';

@@ -62,6 +62,7 @@ afterEach(() => {
 });
 
 describe('per-pipeline overrides and fallback', () => {
+  // [claims: capabilities/platform-foundation#llm-pipeline-overrides]
   it('applies the override for the running pipeline, else the call-site target', async () => {
     configure({ pipelines: { align: { model: 'claude-haiku-4-5', provider: 'openai' } } });
     expect(resolveTargets({ provider: 'anthropic', model: 'm', apiKeyEnv: 'K', pipeline: 'align' })[0]).toMatchObject({ provider: 'openai', model: 'claude-haiku-4-5', apiKeyEnv: 'K' });
@@ -72,6 +73,7 @@ describe('per-pipeline overrides and fallback', () => {
     expect(readUsageLog(root).byModel['claude-haiku-4-5'].calls).toBe(1);
   });
 
+  // [claims: capabilities/platform-foundation#llm-fallback-chain]
   it('tries the fallback chain after the primary exhausts its attempts', async () => {
     configure({ retries: 1, fallback: [{ provider: 'openai', model: 'gpt-4o-mini', apiKeyEnv: KEY }] });
     gt.mockRejectedValueOnce(Object.assign(new Error('overloaded'), { statusCode: 529 }))
@@ -82,6 +84,7 @@ describe('per-pipeline overrides and fallback', () => {
     expect(readUsageLog(root).byModel['gpt-4o-mini'].calls).toBe(1);
   });
 
+  // [claims: capabilities/platform-foundation#llm-fallback-chain]
   it('reports every target when all fail', async () => {
     configure({ retries: 0, fallback: [{ provider: 'openai', model: 'gpt-4o-mini', apiKeyEnv: KEY }] });
     gt.mockRejectedValue(Object.assign(new Error('bad request'), { statusCode: 400 }));
@@ -90,6 +93,7 @@ describe('per-pipeline overrides and fallback', () => {
 });
 
 describe('timeout and retry', () => {
+  // [claims: capabilities/platform-foundation#llm-timeout-retry]
   it('passes a timeout signal, retries retryable errors with growing backoff, and stops on auth errors', async () => {
     configure({ retries: 2, backoffMs: 100 });
     vi.spyOn(llmClock, 'random').mockReturnValue(1);
@@ -107,6 +111,7 @@ describe('timeout and retry', () => {
     expect(gt).toHaveBeenCalledTimes(1);
   });
 
+  // [claims: capabilities/platform-foundation#llm-timeout-retry]
   it('does not retry a missing key', async () => {
     configure();
     delete process.env[KEY];
@@ -114,6 +119,7 @@ describe('timeout and retry', () => {
     expect(gt).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/platform-foundation#llm-timeout-retry]
   it('gives up after the retry budget', async () => {
     configure({ retries: 1 });
     gt.mockRejectedValue(Object.assign(new Error('boom'), { code: 'ECONNRESET' }));
@@ -121,6 +127,7 @@ describe('timeout and retry', () => {
     expect(gt).toHaveBeenCalledTimes(2);
   });
 
+  // [claims: capabilities/platform-foundation#llm-timeout-retry]
   it('a real timeout aborts a hung call', async () => {
     configure({ retries: 0, timeoutMs: 20 });
     gt.mockImplementation(({ abortSignal }: { abortSignal: AbortSignal }) =>
@@ -131,6 +138,7 @@ describe('timeout and retry', () => {
 });
 
 describe('usage log and pricing', () => {
+  // [claims: capabilities/platform-foundation#llm-usage-log]
   it('records tokens, calls and estimated cost in total, per pipeline and per model', async () => {
     configure();
     gt.mockResolvedValue(ok('x', { inputTokens: 2_000_000, outputTokens: 1_000_000 }));
@@ -144,6 +152,7 @@ describe('usage log and pricing', () => {
     expect(existsSync(path.join(root, '.specguard', 'llm-usage.json'))).toBe(true);
   });
 
+  // [claims: capabilities/platform-foundation#llm-usage-log]
   it('uses overrides, counts unpriced models, and never charges for them', async () => {
     expect(priceFor('claude-opus-4')).toEqual({ inputPerMTok: 15, outputPerMTok: 75 });
     expect(priceFor('mystery')).toBeUndefined();
@@ -157,6 +166,7 @@ describe('usage log and pricing', () => {
 });
 
 describe('budget', () => {
+  // [claims: capabilities/platform-foundation#errors-and-exit-codes, capabilities/platform-foundation#llm-budget-cap]
   it('maxCalls refuses the next call, flags the run, and carries exit code 8', async () => {
     configure({ budget: { maxCalls: 2 } });
     gt.mockResolvedValue(ok());
@@ -170,6 +180,7 @@ describe('budget', () => {
     expect(budgetExceededMessage()).toMatch(/budget exceeded/);
   });
 
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
   it('maxUsd stops after the call that crosses it', async () => {
     configure({ budget: { maxUsd: 10 } });
     gt.mockResolvedValue(ok('x', { inputTokens: 2_000_000, outputTokens: 1_000_000 })); // $21
@@ -177,12 +188,14 @@ describe('budget', () => {
     await expect(call()).rejects.toBeInstanceOf(LlmBudgetExceededError);
   });
 
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
   it('maxTokens counts projected input as well as spent tokens', async () => {
     configure({ budget: { maxTokens: 1000 } });
     await expect(call({ prompt: 'x'.repeat(8000) })).rejects.toBeInstanceOf(LlmBudgetExceededError);
     expect(gt).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/platform-foundation#llm-budget-cap, capabilities/platform-foundation#llm-fallback-chain, capabilities/platform-foundation#llm-timeout-retry]
   it('a budget error is never retried or sent to a fallback', async () => {
     configure({ budget: { maxCalls: 1 }, fallback: [{ provider: 'openai', model: 'gpt-4o', apiKeyEnv: KEY }] });
     gt.mockResolvedValue(ok());
@@ -195,6 +208,7 @@ describe('budget', () => {
 describe('replay and record', () => {
   const schema = z.object({ name: z.string() });
 
+  // [claims: capabilities/platform-foundation#llm-replay-record]
   it('records with a real provider, then replays the same request offline', async () => {
     configure({ replay: { dir: 'rec' } });
     setRecordMode(true);
@@ -216,6 +230,7 @@ describe('replay and record', () => {
     expect(readUsageLog(root).totals.replayedCalls).toBe(2);
   });
 
+  // [claims: capabilities/platform-foundation#llm-replay-record]
   it('a miss names the hash and how to record; a changed prompt or image misses', async () => {
     configureLlm({ rootDir: root, llm: { provider: 'replay', model: 'x', apiKeyEnv: 'N', replay: { dir: 'rec' } } });
     const err = await llmGenerateText({ provider: 'replay', model: 'x', apiKeyEnv: 'N', prompt: 'unseen' }).catch((e) => e);
@@ -227,6 +242,7 @@ describe('replay and record', () => {
     expect(replayKey('text', 's', 'p')).not.toBe(replayKey('object', 's', 'p'));
   });
 
+  // [claims: capabilities/platform-foundation#llm-replay-record]
   it('a recording that no longer fits the schema is an error, not a silent pass', async () => {
     configure({ replay: { dir: 'rec' } });
     setRecordMode(true);
@@ -239,12 +255,14 @@ describe('replay and record', () => {
 });
 
 describe('provider none and allowImages', () => {
+  // [claims: capabilities/platform-foundation#llm-disabled-and-images]
   it('none throws LlmDisabledError without touching the SDK', async () => {
     configure({ provider: 'none' });
     await expect(call({ provider: 'none' })).rejects.toBeInstanceOf(LlmDisabledError);
     expect(gt).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/platform-foundation#llm-disabled-and-images]
   it('allowImages:false rejects a call with images and lets text through', async () => {
     configure({ allowImages: false });
     gt.mockResolvedValue(ok());

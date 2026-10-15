@@ -2,7 +2,7 @@
  * Harness scaffold — generates the agent-harness files that let an AI coding
  * agent run SpecGuard alongside a build.
  *
- * Spec: specs/core/scaffold.md
+ * Spec: specs/capabilities/integration-surfaces.md
  *
  * Language-aware (parameterized by a LanguageProfile) and harness-aware (Claude
  * Code, Cursor, or both). Idempotent and non-clobbering: managed Markdown files
@@ -28,6 +28,8 @@ export interface ScaffoldOpts {
   runnerPath?: string;
   /** Apply a differing existing MCP entry/hook instead of printing its diff. */
   updateHooks?: boolean;
+  /** Also wire the requirement-history hooks into `.claude/settings.local.json` (personal, not committed). */
+  historyHooks?: boolean;
 }
 
 export interface ScaffoldResult {
@@ -48,15 +50,14 @@ const COMMAND_TABLE = (p: LanguageProfile): string =>
   [
     '| Command | What it does |',
     '|---------|-------------|',
-    '| `specguard analyze` | Smart diagnostics — start here when unsure |',
-    '| `specguard gap-analysis` | Find unimplemented specs and generate build plans |',
-    '| `specguard status` | Spec + test coverage report |',
-    '| `specguard reverse --all` | Generate Living Specs from source |',
-    '| `specguard generate --all` | Generate test files from specs |',
-    '| `specguard align --all` | Map existing tests to spec scenarios |',
-    '| `specguard heal --all` | Run tests and auto-fix test bugs |',
-    '| `specguard drift` | Detect specs out of sync with code |',
-    '| `specguard security --all` | OWASP security test stubs |',
+    '| `specguard check` | Spec health for the whole system: ownership, tests, proofs, gaps, drift. Start here |',
+    '| `specguard spec graph` | The spec tree, the files each spec owns, and rule violations |',
+    '| `specguard spec draft` | Write the system spec and functional capability specs from existing code |',
+    '| `specguard history add` | Record why a requirement changed: a prompt, plan or decision |',
+    '| `specguard test run` | Run the tests and record the results as proof |',
+    '| `specguard verify --all --url <base>` | Judge the running app against each capability\'s problem and value |',
+    '| `specguard security scan` | Code, dependency, secret and spec-level findings as one remediation plan |',
+    '| `specguard serve` | Docs and audit API, with a web UI |',
     `| (tests run via) | \`${p.testCommand}\` |`,
     '',
     'Without a global install, run any command as `npx -p specguard-ai specguard <command>`.',
@@ -70,20 +71,29 @@ ${MANAGED_MARKER}
 
 ## SpecGuard Enforced (${profile.id})
 
-This repository uses **SpecGuard** for spec-driven QA. Specs in \`specs/\` are the
-source of truth. As an AI agent you **must** keep specs and code in sync.
+This repository uses **SpecGuard** for spec-driven QA. Code is fluid; the specs in
+\`specs/\`, and the tests that prove the code conforms to them, are the source of truth.
+\`specs/system.md\` describes the whole system; each file in \`specs/capabilities/\` describes
+one piece of functionality that delivers value, and lists the code, tests and docs behind it.
+As an AI agent you **must** keep specs and code in sync.
 
 ### Workflow
 
-1. **Read the spec** for a module before implementing it.
-2. **Edit** — make your code changes (target language: ${profile.id}).
-3. **Update the spec** — if implementation reveals gaps or changes, edit the spec file in \`specs/\` to match.
-4. **Validate** — run \`specguard drift\` when done. Run tests: \`${profile.testCommand}\`.
-5. **Report** — include the pipeline summary in your response.
+1. **Find the spec.** \`specguard spec graph\` shows which capability owns a file. Read it, and
+   \`specs/system.md\`, before changing the code (target language: ${profile.id}).
+2. **Edit** — make your code changes.
+3. **Update the spec** — if behaviour or requirements change, edit the capability spec: its
+   requirements are the bullets under \`## Requirements\`, each with a claim id
+   (\`<!-- claim: some-id -->\`). Record why with \`specguard history add\` (or let the
+   history hooks capture the plan).
+4. **Prove it** — run the tests (\`${profile.testCommand}\`). Tag a test that proves a requirement
+   with a comment above it: \`// [claims: capabilities/<id>#<claim-id>]\`. Then run
+   \`specguard check\`; it reports files no spec owns, untested requirements, stale proofs and drift.
+5. **Report** — include the \`check\` summary in your response.
 
-> **Tip**: For new modules with no test coverage yet, run \`specguard generate --spec <key>\`
-> then \`specguard heal --all\` to bootstrap tests. Run \`specguard align --all\` to map
-> existing tests to spec scenarios.
+> **Tip**: A project with no specs yet starts with \`specguard spec draft\`; one with a spec per
+> file moves to capability specs with \`specguard spec consolidate\`. \`specguard spec tag\`
+> links existing tests to the requirements they prove.
 
 ### Pipelines
 
@@ -127,12 +137,11 @@ ${COMMAND_TABLE(profile)}
 
 ## Build-from-specs Loop
 
-1. \`specguard gap-analysis\` → plans for every unimplemented spec (\`.specguard/plans/*\`).
-2. Implement one module against its spec + plan.
-3. \`specguard status\` → confirm the spec flips to covered.
-4. \`specguard generate --spec <key>\` then \`specguard heal --all\`.
-5. If the repo has many existing tests, run \`specguard align --all\` to map them to spec scenarios.
-6. Repeat until \`status\` reports full coverage.
+1. \`specguard check --gaps\` → what is unowned, untested, stale or failing.
+2. Implement one capability's requirements against its spec.
+3. Write tests and tag each with the requirement it proves (\`// [claims: capabilities/<id>#<claim-id>]\`).
+4. \`specguard test run\` → results become proof; \`specguard check\` shows what is proven.
+5. Repeat until every requirement is proven.
 
 Tests for this project run with \`${profile.testCommand}\`.
 `;
@@ -152,24 +161,24 @@ You are building this ${profile.id} project from its Living Specifications.
 
 ## Steps
 
-1. Run \`specguard gap-analysis\` (or the \`specguard_gap_analysis\` MCP tool). Read
-   every plan it writes under \`.specguard/plans/*.md\`.
-2. Read \`specs/**\` — the specs are the source of truth. Read a module's spec
-   before implementing it.
-3. Build an ordered module list from the plans' suggested files / steps.
-4. For each module, in dependency order:
-   - Implement the code (language: ${profile.id}).
-   - Run \`specguard gap-analysis\` and confirm the spec is no longer "unimplemented".
-   - Generate tests: \`specguard generate --spec <key>\`, then \`specguard heal --all\`
-     (tests run via \`${profile.testCommand}\`).
-5. Stop when \`specguard status\` reports the target coverage and all plans are
-   implemented.
+1. Run \`specguard check --gaps\` (or the \`specguard_check\` MCP tool). It lists the
+   requirements nothing proves yet.
+2. Read \`specs/system.md\` and \`specs/capabilities/**\` — the specs are the source of
+   truth. Read a capability's spec before implementing it.
+3. Build an ordered capability list, in dependency order.
+4. For each capability:
+   - Implement its requirements (language: ${profile.id}).
+   - Write tests and tag each with the requirement it proves
+     (\`// [claims: capabilities/<id>#<claim-id>]\`).
+   - Run \`specguard test run\` (tests run via \`${profile.testCommand}\`) and confirm
+     \`specguard check\` shows the requirements proven.
+5. Stop when \`specguard check\` shows every requirement proven.
 
 ## Rules
 
 - NEVER edit a spec to make a gap disappear — implement the code.
-- A \`heal\` \`app-bug\` is a real defect: fix the code, do not weaken the test.
-- Keep going module-by-module; report progress after each.
+- A failing proven requirement is a real defect: fix the code, do not weaken the test.
+- Keep going capability-by-capability; report progress after each.
 `;
 }
 
@@ -182,10 +191,13 @@ function claudeMdSections(profile: LanguageProfile): { sentinel: string; content
         '## SpecGuard',
         '',
         `This project uses SpecGuard for spec-driven QA (language: **${profile.id}**).`,
-        'Specs in `specs/` are the source of truth — read a module\'s spec before editing it.',
+        'Specs in `specs/` are the source of truth: `specs/system.md` describes the system,',
+        'each file in `specs/capabilities/` one piece of functionality. Read the capability',
+        'that owns a file (`specguard spec graph`) before editing it.',
         '',
-        'After changing code, run `specguard gap-analysis`, `specguard status`, and',
-        `\`specguard drift\`. Tests run with \`${profile.testCommand}\`. Run \`/goal\` to build`,
+        'After changing code, update the capability spec, record why with `specguard history add`,',
+        `and run \`specguard check\`. Tests run with \`${profile.testCommand}\`; tag a test with the`,
+        'requirement it proves: `// [claims: capabilities/<id>#<claim-id>]`. Run `/goal` to build',
         'the whole project from its specs.',
       ].join('\n'),
     },
@@ -218,6 +230,64 @@ export interface WireContext {
   update: boolean;
   /** Receives a diff for every existing entry left alone. */
   notes: string[];
+}
+
+interface HookSpec {
+  event: string;
+  /** Tool matcher; absent for events that take none (UserPromptSubmit). */
+  matcher?: string;
+  /** Substring that identifies our entry among the user's own hooks. */
+  marker: string;
+  command: string;
+}
+
+/**
+ * Add one hook to a settings `hooks` object, identified by `marker`. A differing
+ * existing entry is left alone with a diff unless `ctx.update` is set.
+ */
+function ensureHook(hooks: JsonObject, spec: HookSpec, where: string, ctx: WireContext): void {
+  const list = Array.isArray(hooks[spec.event]) ? [...(hooks[spec.event] as unknown[])] : [];
+  let found = false;
+  for (const entry of list as Array<{ hooks?: Array<{ command?: string }> }>) {
+    for (const h of entry.hooks ?? []) {
+      if (typeof h.command !== 'string' || !h.command.includes(spec.marker)) continue;
+      found = true;
+      if (h.command === spec.command) continue;
+      if (ctx.update) h.command = spec.command;
+      else {
+        ctx.notes.push(
+          `  differs  ${where} ${spec.event} hook (left unchanged; re-run with --update-hooks to apply):`,
+          `    - ${h.command}`,
+          `    + ${spec.command}`,
+        );
+      }
+    }
+  }
+  if (!found) {
+    list.push({ ...(spec.matcher ? { matcher: spec.matcher } : {}), hooks: [{ type: 'command', command: spec.command }] });
+  }
+  hooks[spec.event] = list;
+}
+
+/**
+ * The requirement-history hooks. Both print nothing (a UserPromptSubmit hook's
+ * stdout would be added to the model's context), use the resolved runner rather
+ * than an npx cold start, and never fail the session.
+ */
+export function historyHookSpecs(runner: ResolvedRunner): HookSpec[] {
+  return [
+    { event: 'UserPromptSubmit', marker: 'history inbox', command: `${runner.cli} history inbox >/dev/null 2>&1 || true` },
+    { event: 'PostToolUse', matcher: 'ExitPlanMode', marker: 'history capture', command: `${runner.cli} history capture >/dev/null 2>&1 || true` },
+  ];
+}
+
+/** Merge the history hooks into a settings object (used for `settings.local.json`). */
+export function mergeHistoryHooks(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
+  const next: JsonObject = { ...existing };
+  const hooks = { ...(next.hooks as JsonObject | undefined) };
+  for (const spec of historyHookSpecs(ctx.runner)) ensureHook(hooks, spec, '.claude/settings.local.json', ctx);
+  next.hooks = hooks;
+  return next;
 }
 
 function defaultWire(): WireContext {
@@ -328,36 +398,37 @@ export function buildSyncRule(): string {
 
 ## After modifying source files
 
-When you edit, create, or delete any source file in a module that has a spec
-in \`specs/\`, you **must** keep the spec in sync:
+Specs describe functionality, not files: \`specs/system.md\` is the whole system and each
+file in \`specs/capabilities/\` is one capability, with the code, tests and docs behind it.
+When you change behaviour, keep the spec in sync:
 
-1. **Check for a matching spec** — after editing \`src/foo/bar.ts\`, look for
-   \`specs/foo/bar.md\`. If it exists, review it and update any scenarios or
-   descriptions that no longer match the implementation.
+1. **Find the owning capability** — \`specguard spec graph\` shows which spec owns a file.
+   Read it, and update any requirement or scenario the change makes untrue.
 
-2. **Create a spec if one is missing** — if no spec exists for the module you
-   just created or substantially changed, write one now. Use the format in
-   \`specs/README.md\`. Do not defer — an unspecced module is a gap.
+2. **Add a requirement for new behaviour** — a new user-visible behaviour is a new
+   requirement (a bullet under \`## Requirements\` with a \`<!-- claim: id -->\`). If no
+   capability owns the file, add it to the right capability's \`sources\`.
 
-3. **Run drift when done** — at the end of a task (not after every file), run:
+3. **Check when done** — at the end of a task (not after every file), run:
    \`\`\`
-   specguard drift
+   specguard check
    \`\`\`
-   If drift is reported, fix it before declaring the task complete.
+   Fix what it reports (unowned files, untested or stale requirements, drift) before
+   declaring the task complete.
 
 ## Keep it light
 
-- You do NOT need to run \`gap-analysis\`, \`generate\`, or \`heal\` on every edit.
-- Only the three steps above are expected during normal feature work.
-- Run full pipelines (\`heal\`, \`generate\`) when explicitly building out a
-  module from scratch or when the spec says "no tests yet".
+- You do NOT need to run the full pipelines on every edit.
+- Tag a test that proves a requirement with \`// [claims: capabilities/<id>#<claim-id>]\`.
+- Record why a requirement changed with \`specguard history add\`, or let the hooks do it.
 
-## Monorepo / collapse tip
+## Granularity
 
-If a directory has many small files that form one logical unit (e.g.,
-\`src/resolvers/teams/\`), one directory-level spec is enough.
+Do not write one spec per file. Several files that deliver one piece of functionality
+belong to one capability spec.
 `;
 }
+
 
 /** Merge the specguard-mcp server into a Cursor mcp.json. */
 export function mergeCursorMcpJson(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
@@ -494,6 +565,15 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
       result,
       cwd,
     );
+    if (opts.historyHooks) {
+      // Personal settings: history capture is each person's choice, and the file is not committed by default.
+      await mergeJsonFile(
+        path.join(cwd, '.claude', 'settings.local.json'),
+        (existing) => mergeHistoryHooks(existing, wire),
+        result,
+        cwd,
+      );
+    }
   }
 
   if (wantCursor) {

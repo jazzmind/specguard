@@ -108,6 +108,7 @@ beforeEach(async () => {
 });
 
 describe('stripForDocs', () => {
+  // [claims: capabilities/documentation-api#docs-strip-internal]
   it('removes the metadata comment, Scenarios, and Security Notes sections', () => {
     const stripped = stripForDocs(SPEC_BODY);
 
@@ -127,10 +128,12 @@ describe('stripForDocs', () => {
 });
 
 describe('runDocGenerate', () => {
+  // [claims: capabilities/documentation-api#docs-per-spec]
   it('throws when neither --spec nor --all is provided', async () => {
     await expect(runDocGenerate(makeConfig(), {})).rejects.toThrow();
   });
 
+  // [claims: capabilities/documentation-api#docs-frontmatter, capabilities/documentation-api#docs-per-spec]
   it('scenario 1: generates a doc from a single spec with frontmatter', async () => {
     await writeSpec('specs/core/spec-parser.md');
 
@@ -152,6 +155,7 @@ describe('runDocGenerate', () => {
     expect(res.messages.some((m) => m.includes('[doc] specguard-core/spec-parser'))).toBe(true);
   });
 
+  // [claims: capabilities/documentation-api#docs-per-spec]
   it('scenario 2: --all processes multiple specs across apps', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await writeSpec('specs/core/reader.md');
@@ -166,6 +170,7 @@ describe('runDocGenerate', () => {
     expect(existsSync(path.join(rootDir, 'docs/user/drift.md'))).toBe(true);
   });
 
+  // [claims: capabilities/documentation-api#docs-per-spec]
   it('scenario 3: custom --out directory', async () => {
     await writeSpec('specs/core/spec-parser.md');
 
@@ -179,6 +184,7 @@ describe('runDocGenerate', () => {
     expect(existsSync(path.join(rootDir, 'docs/user/spec-parser.md'))).toBe(false);
   });
 
+  // [claims: capabilities/documentation-api#docs-failure-isolation]
   it('scenario 5: LLM error records a failure and continues', async () => {
     await writeSpec('specs/core/spec-parser.md');
     await writeSpec('specs/core/reader.md');
@@ -193,6 +199,7 @@ describe('runDocGenerate', () => {
     expect(res.exitCode).toBe(0);
   });
 
+  // [claims: capabilities/documentation-api#docs-failure-isolation]
   it('exit code is non-zero when every attempted spec fails', async () => {
     await writeSpec('specs/core/spec-parser.md');
     mockedLlm.mockRejectedValue(new Error('always boom'));

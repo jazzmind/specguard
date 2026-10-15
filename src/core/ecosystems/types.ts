@@ -1,7 +1,7 @@
 /**
  * Ecosystem adapter contract, the injectable command runner, and shared errors.
  *
- * Spec: specs/core/ecosystems.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { spawn } from 'node:child_process';
 

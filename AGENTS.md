@@ -4,34 +4,42 @@
 
 ## SpecGuard Enforced (typescript)
 
-This repository uses **SpecGuard** for spec-driven QA. Specs in `specs/` are the
-source of truth. As an AI agent you **must** keep specs and code in sync.
+This repository uses **SpecGuard** for spec-driven QA. Code is fluid; the specs in
+`specs/`, and the tests that prove the code conforms to them, are the source of truth.
+`specs/system.md` describes the whole system; each file in `specs/capabilities/` describes
+one piece of functionality that delivers value, and lists the code, tests and docs behind it.
+As an AI agent you **must** keep specs and code in sync.
 
 ### Workflow
 
-1. **Read the spec** for a module before implementing it.
-2. **Edit** — make your code changes (target language: typescript).
-3. **Update the spec** — if implementation reveals gaps or changes, edit the spec file in `specs/` to match.
-4. **Validate** — run `specguard drift` when done. Run tests: `npm test`.
-5. **Report** — include the pipeline summary in your response.
+1. **Find the spec.** `specguard spec graph` shows which capability owns a file. Read it, and
+   `specs/system.md`, before changing the code (target language: typescript).
+2. **Edit** — make your code changes.
+3. **Update the spec** — if behaviour or requirements change, edit the capability spec: its
+   requirements are the bullets under `## Requirements`, each with a claim id
+   (`<!-- claim: some-id -->`). Record why with `specguard history add` (or let the
+   history hooks capture the plan).
+4. **Prove it** — run the tests (`npm test`). Tag a test that proves a requirement
+   with a comment above it: `// [claims: capabilities/<id>#<claim-id>]`. Then run
+   `specguard check`; it reports files no spec owns, untested requirements, stale proofs and drift.
+5. **Report** — include the `check` summary in your response.
 
-> **Tip**: For new modules with no test coverage yet, run `specguard generate --spec <key>`
-> then `specguard heal --all` to bootstrap tests. Run `specguard align --all` to map
-> existing tests to spec scenarios.
+> **Tip**: A project with no specs yet starts with `specguard spec draft`; one with a spec per
+> file moves to capability specs with `specguard spec consolidate`. `specguard spec tag`
+> links existing tests to the requirements they prove.
 
 ### Pipelines
 
 | Command | What it does |
 |---------|-------------|
-| `specguard analyze` | Smart diagnostics — start here when unsure |
-| `specguard gap-analysis` | Find unimplemented specs and generate build plans |
-| `specguard status` | Spec + test coverage report |
-| `specguard reverse --all` | Generate Living Specs from source |
-| `specguard generate --all` | Generate test files from specs |
-| `specguard align --all` | Map existing tests to spec scenarios |
-| `specguard heal --all` | Run tests and auto-fix test bugs |
-| `specguard drift` | Detect specs out of sync with code |
-| `specguard security --all` | OWASP security test stubs |
+| `specguard check` | Spec health for the whole system: ownership, tests, proofs, gaps, drift. Start here |
+| `specguard spec graph` | The spec tree, the files each spec owns, and rule violations |
+| `specguard spec draft` | Write the system spec and functional capability specs from existing code |
+| `specguard history add` | Record why a requirement changed: a prompt, plan or decision |
+| `specguard test run` | Run the tests and record the results as proof |
+| `specguard verify --all --url <base>` | Judge the running app against each capability's problem and value |
+| `specguard security scan` | Code, dependency, secret and spec-level findings as one remediation plan |
+| `specguard serve` | Docs and audit API, with a web UI |
 | (tests run via) | `npm test` |
 
 Without a global install, run any command as `npx -p specguard-ai specguard <command>`.

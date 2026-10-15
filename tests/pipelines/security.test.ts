@@ -84,6 +84,7 @@ describe('runSecurity', () => {
     await expect(runSecurity(makeConfig(), {})).rejects.toThrow();
   });
 
+  // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 1: generates OWASP-annotated stubs from a single spec', async () => {
     await writeSpec('specs/core/llm.md');
 
@@ -102,6 +103,7 @@ describe('runSecurity', () => {
     expect(res.messages.some((m) => m.includes('[gen] specguard-core/llm'))).toBe(true);
   });
 
+  // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 2: --all generates one stub per spec across apps', async () => {
     await writeSpec('specs/core/llm.md');
     await writeSpec('specs/core/reader.md');
@@ -116,6 +118,7 @@ describe('runSecurity', () => {
     expect(existsSync(path.join(rootDir, 'tests/security/drift.test.ts'))).toBe(true);
   });
 
+  // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 3: skips an existing security test file', async () => {
     await writeSpec('specs/core/llm.md');
     await mkdir(path.join(rootDir, 'tests/security'), { recursive: true });
@@ -131,6 +134,7 @@ describe('runSecurity', () => {
     expect(res.messages.some((m) => m.includes('[skip] specguard-core/llm'))).toBe(true);
   });
 
+  // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 4: strips Markdown fences from LLM output', async () => {
     await writeSpec('specs/core/llm.md');
     mockedLlm.mockResolvedValueOnce('```ts\n' + DEFAULT_TEST_FILE + '\n```');
@@ -144,6 +148,7 @@ describe('runSecurity', () => {
     expect(content).not.toContain('```');
   });
 
+  // [claims: capabilities/security-and-remediation#security-exit-and-report]
   it('scenario 5: --with-sast with findings sets exitCode 5 and reports them', async () => {
     await writeSpec('specs/core/llm.md');
     const sastSpy = vi.spyOn(sast, 'run').mockResolvedValue({
@@ -171,6 +176,7 @@ describe('runSecurity', () => {
     expect(promptArg.prompt).toContain('eval-injection');
   });
 
+  // [claims: capabilities/security-and-remediation#sast-degrades-gracefully]
   it('scenario 6: --with-sast when tool unavailable does not throw, exitCode 0', async () => {
     await writeSpec('specs/core/llm.md');
     const sastSpy = vi.spyOn(sast, 'run').mockResolvedValue({ ok: false, findings: [] });
@@ -183,6 +189,7 @@ describe('runSecurity', () => {
     expect(res.messages.some((m) => m.includes('[warn] SAST unavailable'))).toBe(true);
   });
 
+  // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 7: LLM error records a failure and continues', async () => {
     await writeSpec('specs/core/llm.md');
     await writeSpec('specs/core/reader.md');

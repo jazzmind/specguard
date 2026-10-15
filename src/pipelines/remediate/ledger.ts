@@ -2,7 +2,7 @@
  * Proof-ledger glue for remediate: ingest a test run into a ledger file, snapshot it,
  * and read the stale / re-proven state that the behavior verdict needs.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';

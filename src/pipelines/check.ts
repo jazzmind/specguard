@@ -1,0 +1,182 @@
+/**
+ * `specguard check`: the one spec-health command.
+ *
+ * It builds the trace model (system -> capability -> claim) once and renders
+ * views of it: the default summary (what `status` reported), coverage, gaps,
+ * the traceability matrix, drift and alignment. `status`, `gap-analysis`,
+ * `matrix` and `drift` keep their names and exit codes and delegate here when a
+ * repo uses v2 specs.
+ *
+ * Spec: specs/capabilities/traceability-and-drift.md
+ */
+import path from 'node:path';
+
+import { parseClaimRef } from '../core/claims.js';
+import { ExitCode } from '../core/exit-codes.js';
+import { listHistory } from '../core/history.js';
+import { intentGaps } from '../core/intent-gap.js';
+import { buildSpecGraph } from '../core/spec-graph.js';
+import { specsRootDir } from '../core/spec-key.js';
+import { buildTraceModel, TRACE_FILE, type TraceModel, type TraceNode } from '../core/trace.js';
+import type { EffectiveVerdict } from '../core/proof-ledger.js';
+import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
+import { emptyResult } from '../core/types.js';
+import { writeFile } from '../core/writer.js';
+import { runAlign } from './align.js';
+import { runCapabilityDrift } from './drift-capability.js';
+import { appendProofCoverage, walkClaimVerdicts } from './proof.js';
+import { collectSourceFiles } from './spec-synth.js';
+
+export type CheckView = 'summary' | 'coverage' | 'gaps' | 'matrix' | 'drift' | 'align';
+
+export interface CheckOpts {
+  view?: CheckView;
+  /** Matrix as CSV instead of JSON. */
+  csv?: boolean;
+  /** Matrix output path, relative to the repo root. */
+  out?: string;
+  since?: string;
+  spec?: string;
+  /** Pipeline name to report under, so `status` and friends keep their `--json` identity. */
+  as?: string;
+}
+
+/** True when the repo has at least one spec that declares a `kind` (v2). */
+export async function isV2Repo(config: SpecGuardConfig): Promise<boolean> {
+  const graph = await buildSpecGraph(config);
+  return [...graph.nodes.values()].some((n) => n.kind !== undefined);
+}
+
+const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n / d) * 100));
+
+/** The trace model with proof verdicts from the ledger and the repo's source files. */
+export async function loadTrace(config: SpecGuardConfig): Promise<{ model: TraceModel; verdicts: Map<string, EffectiveVerdict>; sourceFiles: string[] }> {
+  const verdicts = new Map<string, EffectiveVerdict>();
+  await walkClaimVerdicts(config, (ref, verdict) => {
+    const parsed = parseClaimRef(ref);
+    if (parsed) verdicts.set(`${parsed.specKey}#${parsed.claimId}`, verdict);
+  });
+  const sourceFiles = (await collectSourceFiles(config)).map((f) => f.rel);
+  return { model: await buildTraceModel(config, { verdicts, sourceFiles }), verdicts, sourceFiles };
+}
+
+const specNodes = (m: TraceModel): TraceNode[] => m.nodes.filter((n) => n.kind === 'capability' || n.kind === 'component');
+
+export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): Promise<PipelineResult> {
+  const view = opts.view ?? 'summary';
+  if (view === 'drift') return { ...(await runCapabilityDrift(config, { since: opts.since, spec: opts.spec })), pipeline: opts.as ?? 'check' };
+  if (view === 'align') return runAlign(config, { spec: opts.spec });
+
+  let intentFailures = 0;
+  const result = emptyResult(opts.as ?? 'check');
+  const log = (line: string): void => void result.messages.push(line);
+  const root = config.rootDir ?? process.cwd();
+  const { model, sourceFiles } = await loadTrace(config);
+  await writeFile(path.join(root, TRACE_FILE), JSON.stringify(model, null, 2) + '\n');
+
+  const errors = model.issues.filter((i) => i.level === 'error');
+  const orphans = specNodes(model).filter((n) => n.ownedFiles.length === 0 && n.status !== 'planned');
+  for (const issue of model.issues) log(`  [${issue.level === 'error' ? 'error' : 'warn'}] ${issue.code}: ${issue.message}`);
+
+  switch (view) {
+    case 'coverage':
+      for (const n of specNodes(model)) {
+        log(
+          `${n.id} [${n.kind}]: ${n.ownedFiles.length} files, ${n.tests.length} tests, ${n.counts.claims} claims ` +
+            `(${pct(n.counts.withTests, n.counts.claims)}% cited by a test, ${n.counts.proven} proven)`,
+        );
+        result.items.push({ key: n.id, status: n.tests.length > 0 ? 'ok' : 'failed', message: n.tests.length > 0 ? undefined : 'no tests' });
+      }
+      break;
+
+    case 'gaps': {
+      for (const f of model.unowned) {
+        log(`  [unowned] ${f}`);
+        result.items.push({ key: f, status: 'failed', message: 'owned by no spec' });
+      }
+      for (const n of specNodes(model)) {
+        if (n.ownedFiles.length === 0) log(`  [no-sources] ${n.id}${n.status === 'planned' ? ' (planned)' : ''}`);
+        if (n.tests.length === 0) log(`  [no-tests] ${n.id}`);
+        for (const c of n.claims) {
+          if (c.tests.length === 0) log(`  [untested-claim] ${c.ref}`);
+          if (c.proof !== 'proven' && c.proof !== 'unproven') log(`  [proof-${c.proof}] ${c.ref}`);
+        }
+      }
+      result.failed = model.unowned.length;
+      break;
+    }
+
+    case 'matrix': {
+      const rows = specNodes(model).flatMap((n) =>
+        n.claims.map((c) => ({
+          capability: n.id,
+          claim: c.ref,
+          text: c.text,
+          proof: c.proof,
+          tests: [...new Set(c.tests.map((t) => t.file))],
+          docs: n.docs,
+          sources: n.ownedFiles.length,
+          history: n.history,
+        })),
+      );
+      const out = opts.out ?? (opts.csv ? '.specguard/traceability.csv' : '.specguard/traceability.json');
+      const body = opts.csv
+        ? ['capability,claim,proof,tests,docs,sources', ...rows.map((r) => [r.capability, r.claim, r.proof, r.tests.join(' '), r.docs.join(' '), r.sources].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n') + '\n'
+        : JSON.stringify({ generated: model.generated, rows }, null, 2) + '\n';
+      await writeFile(path.join(root, out), body);
+      log(`matrix: ${rows.length} claim(s) across ${specNodes(model).length} capabilities written to ${out}`);
+      result.created = rows.length;
+      break;
+    }
+
+    default: {
+      for (const n of specNodes(model)) {
+        const c = n.counts;
+        log(`# ${n.id} [${n.kind}] ${n.ownedFiles.length} files, ${n.tests.length} tests, ${c.claims} claims (${c.proven} proven, ${c.stale} stale, ${c.failed} failed, ${c.unproven} unproven)`);
+        result.items.push({ key: n.id, status: n.ownedFiles.length > 0 ? 'ok' : 'failed', message: n.ownedFiles.length > 0 ? undefined : 'no owned files' });
+      }
+      for (const u of model.units ?? []) {
+        log(`# unit ${u.unit} [${u.kind}] ${u.sourceFiles} source files, ${u.unowned.length} unowned, ${u.capabilities.length} capabilities${u.capabilities.length ? ` (${u.capabilities.join(', ')})` : ''}`);
+      }
+      // Only configured source files count: a capability may also own docs or other files.
+      const sourceSet = new Set(sourceFiles);
+      const tested = new Set<string>();
+      for (const n of specNodes(model)) if (n.tests.length > 0) for (const f of n.ownedFiles) if (sourceSet.has(f)) tested.add(f);
+      const total = model.totals.sourceFiles;
+      const ownedSource = total - model.unowned.length;
+      for (const f of model.unowned.slice(0, 40)) log(`  [missing-spec] ${f}`);
+      log(
+        `TOTAL: ${total} source files, ${ownedSource} specs (${pct(ownedSource, total)}%), ` +
+          `${tested.size} tests (${pct(tested.size, total)}%), ${model.unowned.length} missing specs`,
+      );
+      if (orphans.length > 0) {
+        log(`ORPHANS: ${orphans.length} spec(s) have no matching source file:`);
+        for (const n of orphans) log(`  [orphan] ${n.id}`);
+      } else {
+        log('ORPHANS: 0');
+      }
+      await appendProofCoverage(config, log);
+      const gaps = intentGaps(root, model.nodes, listHistory(config), path.relative(root, specsRootDir(config)).split(path.sep).join('/'));
+      for (const gap of gaps) {
+        log(`  [intent-gap] ${gap.id}: code changed ${gap.codeDate}; last recorded intent ${gap.intentDate || 'none'}`);
+      }
+      // Advisory unless the project opts in.
+      if (gaps.length > 0 && config.history?.failOnIntentGap) intentFailures = gaps.length;
+      result.created = model.totals.capabilities;
+      result.failed = model.unowned.length + orphans.length;
+    }
+  }
+
+  if (errors.length > 0) {
+    result.failed += errors.length;
+    result.exitCode = ExitCode.ValidationFailed;
+  } else if (intentFailures > 0 && !(view === 'summary' && result.failed > 0)) {
+    result.failed += intentFailures;
+    result.exitCode = ExitCode.DriftDetected;
+  } else if (view === 'summary' && result.failed > 0) {
+    result.exitCode = ExitCode.MissingSpecs;
+  } else if (view === 'gaps' && result.failed > 0) {
+    result.exitCode = ExitCode.MissingSpecs;
+  }
+  return result;
+}

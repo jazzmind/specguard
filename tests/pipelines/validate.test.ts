@@ -151,6 +151,7 @@ describe('runValidate', () => {
     await expect(runValidate(makeConfig(), {})).rejects.toThrow();
   });
 
+  // [claims: capabilities/agentic-verification#validate-exit-code]
   it('scenario 1: all criteria pass → exitCode 0', async () => {
     await writeSpec('specs/feature.md', SPEC_WITH_URL);
 
@@ -161,6 +162,7 @@ describe('runValidate', () => {
     expect(res.messages.some((m) => m.includes('PASS'))).toBe(true);
   });
 
+  // [claims: capabilities/agentic-verification#criterion-verdicts, capabilities/agentic-verification#validate-exit-code]
   it('scenario 2: FAIL verdict → exitCode 2', async () => {
     mockedLlm.mockReset();
     mockedLlm
@@ -185,6 +187,7 @@ describe('runValidate', () => {
     expect(res.messages.some((m) => m.includes('FAIL'))).toBe(true);
   });
 
+  // [claims: capabilities/agentic-verification#validate-targets]
   it('scenario 3: spec without url is skipped', async () => {
     await writeSpec('specs/no-url.md', SPEC_WITHOUT_URL);
 
@@ -195,6 +198,7 @@ describe('runValidate', () => {
     expect(res.messages.some((m) => m.includes('[skip]') && m.includes('no url'))).toBe(true);
   });
 
+  // [claims: capabilities/agentic-verification#evidence-and-history]
   it('validation history written to .specguard/validation-history.json', async () => {
     await writeSpec('specs/feature.md', SPEC_WITH_URL);
 
@@ -208,6 +212,7 @@ describe('runValidate', () => {
     expect(history[0].url).toBe('http://localhost:3000/');
   });
 
+  // [claims: capabilities/agentic-verification#criterion-verdicts, capabilities/agentic-verification#guardrail-blocking]
   it('scenario 4: blocked action recorded in results', async () => {
     mockedLlm.mockReset();
     mockedLlm

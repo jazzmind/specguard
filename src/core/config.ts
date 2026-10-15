@@ -85,6 +85,7 @@ const llmSchema = z
     provider: z.string(),
     model: z.string(),
     apiKeyEnv: z.string(),
+    models: z.object({ fast: llmTargetSchema.optional(), frontier: llmTargetSchema.optional() }).optional(),
     pipelines: z
       .record(
         z.string(),
@@ -93,6 +94,7 @@ const llmSchema = z
             provider: z.string().optional(),
             model: z.string().optional(),
             apiKeyEnv: z.string().optional(),
+            tier: z.enum(['fast', 'frontier']).optional(),
             fallback: z.array(llmTargetSchema).optional(),
           })
           .passthrough(),
@@ -180,6 +182,7 @@ const authProfileSchema = z
 const validateSchema = z
   .object({
     headless: z.boolean().optional(),
+    maxRounds: z.number().int().min(1).max(10).optional(),
     guardrails: z
       .object({
         deny: z.array(z.string()).optional(),
@@ -219,6 +222,19 @@ const featureStateSchema = z
     channelByType: z.record(z.string(), z.string()).optional(),
     repoChannels: z.record(z.string(), z.string()).optional(),
     externalIds: z.array(z.string()).optional(),
+    catalogFormat: z.enum(['document', 'list']).optional(),
+    moduleStems: z.array(z.string()).optional(),
+    idSkipSegments: z.number().int().min(0).optional(),
+    placeholderSummaryPattern: z.string().optional(),
+    mcpModulePattern: z.string().optional(),
+    agentTools: z
+      .object({
+        repo: z.string(),
+        dir: z.string().optional(),
+        namePattern: z.string().optional(),
+        excludedPathPattern: z.string().optional(),
+      })
+      .optional(),
   })
   .passthrough();
 
@@ -243,8 +259,27 @@ const remediateSchema = z
   })
   .passthrough();
 
+const granularitySchema = z
+  .object({
+    target: z.tuple([z.number().int().min(1), z.number().int().min(1)]).optional(),
+    maxCapabilities: z.number().int().min(1).optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
+    granularity: granularitySchema.optional(),
+    history: z.object({ failOnIntentGap: z.boolean().optional() }).passthrough().optional(),
+    contractMappings: z
+      .object({
+        file: z.string().optional(),
+        list: z.string().optional(),
+        spec: z.string().optional(),
+        providers: z.array(z.string()).optional(),
+        docs: z.string().optional(),
+        edgeType: z.string().optional(),
+      })
+      .optional(),
     plugins: z.array(z.string()).optional(),
     featureState: featureStateSchema.optional(),
     auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),

@@ -23,6 +23,7 @@ export interface InitOpts {
   runner?: string;
   runnerPath?: string;
   updateHooks?: boolean;
+  historyHooks?: boolean;
 }
 
 const RUNNERS = ['node', 'npx', 'path'];
@@ -45,6 +46,7 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     runner: checkRunner(opts.runner),
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
+    historyHooks: opts.historyHooks,
   });
 
   for (const line of result.messages) {
@@ -64,6 +66,7 @@ export interface ScaffoldCmdOpts {
   runner?: string;
   runnerPath?: string;
   updateHooks?: boolean;
+  historyHooks?: boolean;
 }
 
 /** Regenerate agent-harness files for an already-initialised project. */
@@ -78,6 +81,7 @@ export async function scaffoldCommand(opts: ScaffoldCmdOpts): Promise<void> {
     runner: checkRunner(opts.runner),
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
+    historyHooks: opts.historyHooks,
   });
 
   process.stdout.write(`specguard scaffold (language: ${profile.id}, harness: ${opts.harness ?? 'both'})\n`);

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { loadConfig } from '../../src/core/config.js';
-import { safeRootsFor } from '../../src/pipelines/git-ops.js';
+import { safeRootsFor } from '../../src/core/git-scope.js';
 import { ingestVerdicts } from '../../src/pipelines/proof.js';
 import { runMatrix } from '../../src/pipelines/matrix.js';
 import { makeRepo, SPEC_AWARDS } from '../helpers/repo.js';

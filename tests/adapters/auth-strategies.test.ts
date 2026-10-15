@@ -42,6 +42,7 @@ describe('login URL predicate', () => {
     expect(isLoginUrl('not a url', '/login')).toBe(false);
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('logged in means off the login page, or on the configured success URL', () => {
     const p = { loginUrl: 'https://app.example/login' };
     expect(isLoggedInUrl('https://app.example/home', p)).toBe(true);
@@ -71,17 +72,20 @@ describe('fillAndSubmit with a fake page', () => {
     return { _browser: {}, _page: page, _consoleErrors: [] } as unknown as BrowserHandle;
   }
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('succeeds when the browser leaves the login page, including a /login-success page', async () => {
     const res = await authRunner.fillAndSubmit(pageThatEndsAt('https://app.example/login-success'), profile, 'u', 'p');
     expect(res).toEqual({ success: true });
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('fails when the login page is still showing', async () => {
     const res = await authRunner.fillAndSubmit(pageThatEndsAt('https://app.example/login?error=1'), profile, 'u', 'p');
     expect(res.success).toBe(false);
     expect(res.error).toMatch(/Timeout|still on the login page/);
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('without waitForURL it still refuses to report success on the login page', async () => {
     const handle = pageThatEndsAt('https://app.example/login');
     delete (handle._page as { waitForURL?: unknown }).waitForURL;
@@ -98,6 +102,7 @@ describe('fillAndSubmit with a fake page', () => {
 });
 
 describe('context options per strategy', () => {
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('header: resolves each header from its env var and names the missing one', () => {
     const profile: AuthProfile = { name: 'svc', strategy: 'header', headers: { 'X-Api-Key': 'SG_KEY' } };
     expect(contextOptionsFor(profile, '/r').error).toMatch(/SG_KEY/);
@@ -105,6 +110,7 @@ describe('context options per strategy', () => {
     expect(contextOptionsFor(profile, '/r')).toEqual({ options: { extraHTTPHeaders: { 'X-Api-Key': 'k-123' } } });
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('token: Authorization Bearer by default, configurable header and prefix', () => {
     process.env.SG_TOKEN = 't-9';
     expect(contextOptionsFor({ name: 'a', strategy: 'token', tokenEnvVar: 'SG_TOKEN' }, '/r').options).toEqual({
@@ -117,6 +123,7 @@ describe('context options per strategy', () => {
     expect(contextOptionsFor({ name: 'a', strategy: 'token', tokenEnvVar: 'SG_TOKEN' }, '/r').error).toMatch(/SG_TOKEN/);
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('storageState: uses .specguard/auth/<profile>.json when it exists', () => {
     const dir = root();
     const profile: AuthProfile = { name: 'admin user', strategy: 'storageState' };
@@ -132,6 +139,7 @@ describe('context options per strategy', () => {
 describe('authenticate per strategy', () => {
   const handle = (extra: Record<string, unknown> = {}) => ({ _browser: {}, _page: {}, _consoleErrors: [], ...extra }) as unknown as BrowserHandle;
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('token and header succeed when their env vars are set, and fail naming the variable', async () => {
     const dir = root();
     const cfg = config([{ name: 'api', strategy: 'token', tokenEnvVar: 'SG_TOKEN' }], dir);
@@ -140,6 +148,7 @@ describe('authenticate per strategy', () => {
     expect(await authenticate(handle(), 'api', cfg)).toEqual({ success: true, profile: 'api' });
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('script: runs the project module, and rejects a path outside the project', async () => {
     const dir = root();
     writeFileSync(path.join(dir, 'login.mjs'), "export default async ({ page }) => { page.visited = true; };");
@@ -155,6 +164,7 @@ describe('authenticate per strategy', () => {
     expect((await authenticate(handle(), 's', missing, { rootDir: dir })).error).toMatch(/not found/);
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('storageState: an existing file is a ready session with no login', async () => {
     const dir = root();
     const profile: AuthProfile = { name: 'saved', strategy: 'storageState' };
@@ -165,6 +175,7 @@ describe('authenticate per strategy', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('storageState: without a file it logs in with the form and saves the state under .specguard/auth', async () => {
     const dir = root();
     process.env.SG_USER = 'u@example.com';
@@ -179,6 +190,7 @@ describe('authenticate per strategy', () => {
     expect(readFileSync(storageStateFile(profile, dir), 'utf8')).toContain('cookies');
   });
 
+  // [claims: capabilities/agentic-verification#auth-strategies]
   it('storageState: no file and no form configured is a clear error', async () => {
     const dir = root();
     const res = await authenticate(handle(), 'saved', config([{ name: 'saved', strategy: 'storageState' }], dir));
@@ -186,6 +198,7 @@ describe('authenticate per strategy', () => {
     expect(res.error).toMatch(/No saved login/);
   });
 
+  // [claims: capabilities/agentic-verification#credentials-never-leak]
   it('a failed form login redacts credentials from the error', async () => {
     const dir = root();
     process.env.SG_USER = 'user@example.com';

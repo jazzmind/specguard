@@ -2,7 +2,7 @@
  * Heuristics for `specguard workspace init`: repo keys and roles derived from
  * what a repo contains, not from how it is named.
  *
- * Spec: specs/core/workspace.md
+ * Spec: specs/capabilities/workspaces.md
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';

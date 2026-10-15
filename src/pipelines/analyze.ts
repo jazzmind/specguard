@@ -6,7 +6,7 @@
  * start" entry point — instead of knowing which pipeline to run, call analyze
  * and let SpecGuard decide.
  *
- * Spec: specs/pipelines/analyze.md (create after implementation)
+ * Spec: specs/capabilities/traceability-and-drift.md
  *
  * Output
  * ------
@@ -29,7 +29,7 @@ import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { runStatus } from './status.js';
 import { runDrift } from './drift.js';
-import { runCodeQuality } from './code-quality.js';
+import { loadPlugins } from '../plugins/index.js';
 import { runDepCheck } from './dep-check.js';
 import { runGapAnalysis } from './gap-analysis.js';
 import { runMatrix } from './matrix.js';
@@ -44,6 +44,16 @@ export interface AnalyzeOpts {
 }
 
 /** Recommended pipelines `--auto-fix` is allowed to run. */
+/**
+ * Run the `quality` command of whichever enabled plugin provides it. Code
+ * quality is not a SpecGuard pillar, so analyze never imports it: with no such
+ * plugin enabled it is simply not part of the analysis.
+ */
+async function runQuality(config: SpecGuardConfig, fix: boolean): Promise<PipelineResult | undefined> {
+  const command = (await loadPlugins(config.plugins)).flatMap((p) => p.commands ?? []).find((c) => c.name === 'quality');
+  return command ? command.run({ config, opts: fix ? { fix: true } : {}, args: [] }) : undefined;
+}
+
 export const AUTO_FIX_SAFE = ['quality', 'matrix'] as const;
 
 export interface AnalysisRecommendation {
@@ -174,9 +184,10 @@ export async function runAnalyze(
   // --- Code quality ---
   log('[analyze] checking code quality...');
   try {
-    const qualityResult = await runCodeQuality(config, {});
-    summary.qualityFindings = qualityResult.failed;
-    if (qualityResult.failed > 0) {
+    const qualityResult = await runQuality(config, false);
+    if (!qualityResult) log('[analyze] no quality plugin enabled; skipped');
+    summary.qualityFindings = qualityResult?.failed ?? 0;
+    if (qualityResult && qualityResult.failed > 0) {
       recs.push({
         pipeline: 'quality',
         reason: `${qualityResult.failed} lint/dead-code issue(s) found`,
@@ -251,7 +262,7 @@ export async function runAnalyze(
         continue;
       }
       try {
-        const run = rec.pipeline === 'quality' ? await runCodeQuality(config, { fix: true }) : await runMatrix(config, {});
+        const run = (rec.pipeline === 'quality' ? await runQuality(config, true) : await runMatrix(config, {})) ?? emptyResult(rec.pipeline);
         ran.push(rec.pipeline);
         log(`[auto-fix] ${rec.pipeline}: ran (exit ${run.exitCode})`);
         for (const line of run.messages.slice(-2)) log(`  ${line}`);

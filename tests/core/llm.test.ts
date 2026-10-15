@@ -34,6 +34,7 @@ describe('llm adapter', () => {
   });
 
   describe('llmGenerateText', () => {
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('returns the mocked text', async () => {
       const result = await llmGenerateText({
         provider: 'anthropic',
@@ -45,6 +46,7 @@ describe('llm adapter', () => {
       expect(generateText).toHaveBeenCalledOnce();
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('throws SpecGuardError when the API key env var is missing', async () => {
       delete process.env[API_KEY_ENV];
       await expect(
@@ -57,6 +59,7 @@ describe('llm adapter', () => {
       ).rejects.toBeInstanceOf(SpecGuardError);
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('uses messages array when images are provided', async () => {
       const screenshot = Buffer.from('PNG_DATA');
       await llmGenerateText({
@@ -76,6 +79,7 @@ describe('llm adapter', () => {
       expect(content[1].type).toBe('text');
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('uses prompt (not messages) when no images are provided', async () => {
       await llmGenerateText({
         provider: 'anthropic',
@@ -90,6 +94,7 @@ describe('llm adapter', () => {
   });
 
   describe('llmGenerateObject', () => {
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('returns the mocked object and forwards the schema', async () => {
       const schema = z.object({ name: z.string() });
       const result = await llmGenerateObject({
@@ -105,6 +110,7 @@ describe('llm adapter', () => {
       expect(callArg.schema).toBe(schema);
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('uses messages array when images are provided', async () => {
       const schema = z.object({ name: z.string() });
       const screenshot = Buffer.from('PNG_DATA');
@@ -123,22 +129,26 @@ describe('llm adapter', () => {
   });
 
   describe('resolveModel', () => {
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('builds an anthropic model via createAnthropic with the resolved key', () => {
       const model = resolveModel('anthropic', 'claude-3-5-sonnet', API_KEY_ENV);
       expect(createAnthropic).toHaveBeenCalledWith({ apiKey: 'sk-test-secret-value' });
       expect(model).toMatchObject({ provider: 'anthropic', model: 'claude-3-5-sonnet' });
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('builds an openai model via createOpenAI with the resolved key', () => {
       const model = resolveModel('openai', 'gpt-4o', API_KEY_ENV);
       expect(createOpenAI).toHaveBeenCalledWith({ apiKey: 'sk-test-secret-value' });
       expect(model).toMatchObject({ provider: 'openai', model: 'gpt-4o' });
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('throws SpecGuardError for an unknown provider', () => {
       expect(() => resolveModel('grok', 'whatever', API_KEY_ENV)).toThrow(SpecGuardError);
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('throws SpecGuardError when the API key env var is unset', () => {
       delete process.env[API_KEY_ENV];
       expect(() => resolveModel('anthropic', 'claude-3-5-sonnet', API_KEY_ENV)).toThrow(
@@ -146,6 +156,7 @@ describe('llm adapter', () => {
       );
     });
 
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
     it('does not leak the API key value in the missing-key error message', () => {
       process.env[API_KEY_ENV] = '';
       try {

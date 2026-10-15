@@ -4,7 +4,7 @@
  * Cross-references specs with test files, doc files, and source modules.
  * Output: .specguard/traceability.json (default) or CSV.
  *
- * Spec: specs/pipelines/matrix.md
+ * Spec: specs/capabilities/traceability-and-drift.md
  */
 import path from 'node:path';
 
@@ -12,6 +12,7 @@ import type { SpecGuardConfig, AppConfig, PipelineResult } from '../core/types.j
 import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
+import { isV2Repo, runCheck } from './check.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
 import { expandGlobs, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
@@ -149,6 +150,7 @@ export async function runMatrix(
   config: SpecGuardConfig,
   opts: MatrixOpts,
 ): Promise<PipelineResult> {
+  if (await isV2Repo(config)) return runCheck(config, { view: 'matrix', csv: opts.format === 'csv', out: opts.out, as: 'matrix' });
   const result = emptyResult('matrix');
   const log = (line: string) => result.messages.push(line);
 

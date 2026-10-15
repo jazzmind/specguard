@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { collectFeatures } from '../../src/cli/commands/features.js';
+import { collectFeatures } from '../../src/plugins/feature-catalog/index.js';
 import type { SpecGuardConfig } from '../../src/core/types.js';
 
 function repoWithSpecs(specs: Record<string, string>): SpecGuardConfig {
@@ -24,6 +24,7 @@ function repoWithSpecs(specs: Record<string, string>): SpecGuardConfig {
 const meta = (extra: string): string => `# X\n\n<!-- module: src/x.ts / type: page / status: draft${extra} -->\n\n## Acceptance Criteria\n\n- [ ] ok\n`;
 
 describe('collectFeatures', () => {
+  // [claims: capabilities/integration-surfaces#feature-catalog]
   it('lists specs that carry feature ids and splits comma separated values', () => {
     const config = repoWithSpecs({
       'pages/a': meta(' / feature: design.a, design.b'),
@@ -35,6 +36,7 @@ describe('collectFeatures', () => {
     ]);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-catalog]
   it('skips specs with no feature meta', () => {
     const config = repoWithSpecs({ 'pages/c': meta('') });
     expect(collectFeatures(config)).toEqual([]);

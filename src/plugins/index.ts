@@ -5,11 +5,10 @@
  *
  * Plugins are loaded by name so core never imports a platform-specific module.
  *
- * Spec: specs/plugins/plugins.md
+ * Spec: specs/capabilities/integration-surfaces.md
  */
 import { ConfigInvalidError } from '../core/errors.js';
-import { BUILTIN_EXTERNAL_ID_ADAPTERS } from './external-id.js';
-import type { ExternalIdAdapter, SpecGuardPlugin } from './types.js';
+import type { SpecGuardPlugin } from './types.js';
 
 const NAME = /^[a-z][a-z0-9-]*$/;
 const cache = new Map<string, SpecGuardPlugin>();
@@ -55,22 +54,6 @@ export async function loadPlugins(names: string[] | undefined): Promise<SpecGuar
     out.push(mod.plugin);
   }
   return out;
-}
-
-/** External-id adapters named in config (`generic`, `zephyr`, `jira`) plus any a plugin brings. */
-export function resolveExternalIdAdapters(names: string[] | undefined, plugins: SpecGuardPlugin[]): ExternalIdAdapter[] {
-  const adapters = new Map<string, ExternalIdAdapter>();
-  for (const plugin of plugins) for (const a of plugin.externalIdAdapters ?? []) adapters.set(a.id, a);
-  for (const name of names ?? []) {
-    const adapter = BUILTIN_EXTERNAL_ID_ADAPTERS[name];
-    if (!adapter) {
-      throw new ConfigInvalidError(
-        `unknown external-id adapter '${name}'. Built-in adapters: ${Object.keys(BUILTIN_EXTERNAL_ID_ADAPTERS).join(', ')}.`,
-      );
-    }
-    adapters.set(adapter.id, adapter);
-  }
-  return [...adapters.values()];
 }
 
 export * from './types.js';

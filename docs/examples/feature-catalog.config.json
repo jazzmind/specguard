@@ -1,0 +1,27 @@
+{
+  "plugins": ["feature-catalog", "contract-mappings"],
+  "featureState": {
+    "catalog": "qa/catalog",
+    "catalogFormat": "list",
+    "resultsDirs": ["qa/.results/cases"],
+    "externalIds": ["zephyr"],
+    "channelByType": { "page": "ui", "ui": "ui", "mutation": "api", "query": "api", "api": "api", "mcp": "mcp" },
+    "repoChannels": { "web": "ui", "api": "api", "agent-tools": "mcp" },
+    "moduleStems": ["src/pages", "src/components", "src/schema"],
+    "idSkipSegments": 2,
+    "placeholderSummaryPattern": "^[a-z0-9]+(?:-[a-z0-9]+)+ — ",
+    "mcpModulePattern": "/mcp/|/tools/",
+    "agentTools": {
+      "repo": "agent-tools",
+      "dir": "src/tools",
+      "excludedPathPattern": "/end-user/"
+    }
+  },
+  "contractMappings": {
+    "file": "qa/contract-links.json",
+    "list": "links",
+    "spec": "consumer",
+    "providers": ["calls"],
+    "docs": "page"
+  }
+}

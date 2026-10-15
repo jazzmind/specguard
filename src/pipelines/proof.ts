@@ -6,9 +6,10 @@
  * Each row records the spec hash and the drift-registry file hashes at ingest
  * time. `stale` is computed later by comparing those hashes; it is not stored.
  *
- * Spec: specs/pipelines/proof.md
+ * Spec: specs/capabilities/conformance-testing.md
  */
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { z } from 'zod';
@@ -17,7 +18,10 @@ import { loadConfig } from '../core/config.js';
 import { formatClaimRef, parseClaimRef } from '../core/claims.js';
 import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
 import { fromRegistryKey, hashFile, hashString, loadRegistry, saveRegistry, toRegistryKey } from '../core/drift-registry.js';
+import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
+import { claimHashOf } from '../core/claim-hash.js';
+import { fileChangeResolver, loadAssessments } from '../core/drift-assessments.js';
 import {
   effectiveVerdict,
   emptyLedger,
@@ -36,7 +40,8 @@ import {
 } from '../core/spec-key.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
-import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { loadWorkspace, loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { canonicalClaimRef } from '../core/workspace-units.js';
 import { writeFile } from '../core/writer.js';
 
 const VerdictFileSchema = z.object({
@@ -49,6 +54,8 @@ const VerdictFileSchema = z.object({
       exercised: z.number().int().nonnegative().optional(),
       counterexamples: z.number().int().nonnegative().optional(),
       evidencePath: z.string().optional(),
+      /** What produced the verdict: a test run (default) or the agentic browser run. */
+      evidence: z.enum(['test', 'agentic']).optional(),
     }),
   ),
 });
@@ -176,6 +183,26 @@ interface LocatedSpec {
   config?: SpecGuardConfig;
 }
 
+/** `claimHashOf` for a spec given as raw content; undefined for v1 specs and unparsable files. */
+function claimHashInContent(content: string, file: string, claimId: string): string | undefined {
+  try {
+    return claimHashOf(parseSpecContent(content, file, path.dirname(file)), claimId);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The units of the workspace manifest at `cwd` itself, when there is one. */
+async function workspaceUnits(cwd: string): Promise<Record<string, { kind: string }> | undefined> {
+  if (!existsSync(path.join(cwd, '.specguard', 'workspace.json'))) return undefined;
+  try {
+    const m = await loadWorkspace(cwd);
+    return path.resolve(m.rootDir) === path.resolve(cwd) ? m.units : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function locateSpec(cwd: string, claim: string): Promise<LocatedSpec | null> {
   const ref = parseClaimRef(claim);
   if (!ref) return null;
@@ -254,7 +281,11 @@ export function migrateLedgerPaths(ledger: ProofLedger, roots: string[]): boolea
 async function readLedger(file: string, cwd: string): Promise<ProofLedger> {
   if (!(await fileExists(file))) return emptyLedger();
   const parsed = JSON.parse(await readFile(file)) as ProofLedger;
-  if (!parsed || parsed.version !== 1 || !parsed.proofs) return emptyLedger();
+  if (!parsed || typeof parsed !== 'object' || !parsed.proofs) return emptyLedger();
+  // A ledger written by a newer SpecGuard must not be read as empty and then overwritten.
+  if (parsed.version !== 1) {
+    throw new SpecGuardError(`proof ledger ${file} has version ${String(parsed.version)}; this SpecGuard reads version 1. Upgrade SpecGuard rather than overwrite it.`, ExitCode.InternalError);
+  }
   if (migrateLedgerPaths(parsed, await candidateRoots(cwd))) {
     await writeFile(file, JSON.stringify(parsed, null, 2) + '\n');
   }
@@ -300,8 +331,10 @@ export async function ingestVerdicts(
   const { file } = await resolveLedgerFile(cwd, opts);
   const ledger = await readLedger(file, cwd);
   const appNames = await appNamesFor(cwd);
+  // Claims that name a package unit are claims of the workspace root's specs.
+  const packageUnits = await workspaceUnits(cwd);
 
-  for (const row of body.verdicts) {
+  for (const row of body.verdicts.map((r) => ({ ...r, claim: canonicalClaimRef(r.claim, packageUnits) }))) {
     if (!parseClaimRef(row.claim)) {
       result.failed += 1;
       result.items.push({ key: row.claim, status: 'failed', message: 'claim ref is not repo:spec#id' });
@@ -328,12 +361,14 @@ export async function ingestVerdicts(
       verdict: row.verdict,
       runId: body.runId,
       specHash: hashString(located.content),
+      claimHash: ref ? claimHashInContent(located.content, located.abs, ref.claimId) : undefined,
       repoSha,
       fileHashes: await recordedFileHashes(located, ref?.specKey ?? '', appNames, result),
       dependencyFingerprint: dependencyFingerprint(located.repoDir),
       exercised: row.exercised ?? 0,
       counterexamples: row.counterexamples ?? 0,
       evidencePath: row.evidencePath,
+      evidence: row.evidence,
       ingestedAt: new Date().toISOString(),
     };
     ledger.proofs[row.claim] = record;
@@ -408,6 +443,7 @@ async function walkClaims(
   if (!(await fileExists(file))) return null;
   const ledger = await readLedger(file, cwd);
   const fingerprint = dependencyFingerprint(cwd);
+  const assessments = loadAssessments(cwd);
   const repoKey = await repoKeyFor(cwd);
   const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0 };
   const top = path.resolve(cwd, config.paths?.specsRoot ?? 'specs');
@@ -435,6 +471,8 @@ async function walkClaims(
         const record = ledger.proofs[ref] ?? ledger.proofs[formatClaimRef(undefined, spec.specKey, claim.id)];
         const verdict = effectiveVerdict(record, {
           specHash,
+          claimHash: claimHashOf(spec, claim.id),
+          fileChange: fileChangeResolver(assessments, spec.specKey, claim.id),
           fileHashes: record ? currentFileHashes(cwd, record.fileHashes) : {},
           dependencyFingerprint: fingerprint,
         });

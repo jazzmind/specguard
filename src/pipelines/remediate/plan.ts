@@ -2,7 +2,7 @@
  * Planning: group advisories, choose the smallest fixing version, fetch release notes,
  * analyze breaking changes, score risk, name branches, and skip work that already exists.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { createHash } from 'node:crypto';
 

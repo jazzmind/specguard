@@ -45,6 +45,7 @@ function repo(): { dir: string; git: (...a: string[]) => string } {
 }
 
 describe('planning', () => {
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('picks the smallest fix, patch over minor, and refuses a major without --allow-major', () => {
     // claim: plan-smallest
     const a = adv({ installedVersion: '2.2.0', fixedVersions: ['3.0.1', '2.3.0', '2.2.5'] });
@@ -71,6 +72,7 @@ describe('planning', () => {
     expect(scoreRisk({ ...c, bump: 'major' }, { breaking: true, source: 'llm', summary: '', items: [], confidence: 'high' }, false, true)).toMatchObject({ score: 100, level: 'high' });
   });
 
+  // [claims: capabilities/security-and-remediation#branch-and-evidence]
   it('detects an existing branch or PR (idempotency)', () => {
     // claim: idempotent
     const { dir, git } = repo();
@@ -124,6 +126,7 @@ describe('changelog and LLM analysis', () => {
 });
 
 describe('detection', () => {
+  // [claims: capabilities/security-and-remediation#plan-no-secret-values, capabilities/security-and-remediation#scan-only-and-secrets, capabilities/security-and-remediation#unified-detection]
   it('applies the ignore file, the threshold, and reports secrets without their value', async () => {
     // claim: sast-secrets
     const dir = tmp();
@@ -161,6 +164,7 @@ describe('detection', () => {
 describe('write allowlist and limits', () => {
   const scope = { type: 'dependency' as const, files: ['package.json', 'package-lock.json'] };
 
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('accepts manifest and lockfile edits only', () => {
     // claim: write-allowlist
     const { dir } = repo();
@@ -178,6 +182,7 @@ describe('write allowlist and limits', () => {
     expect(() => enforce(bad, { maxFiles: 20, maxLines: 2000 })).toThrow(/outside its write allowlist.*src\/a\.ts/);
   });
 
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('enforces file and line limits; untracked directories are noise; test leftovers are tolerated when tracked-only', () => {
     const { dir } = repo();
     const before = snapshotTree(realGit, dir);
@@ -195,6 +200,7 @@ describe('write allowlist and limits', () => {
     expect(collectChanges(realGit, dir, before, scope, true).violations).toEqual(['src/b.ts']);
   });
 
+  // [claims: capabilities/security-and-remediation#minimal-write-allowlist]
   it('a code fix may only change the named file and cannot escape the repo', async () => {
     const { dir, git } = repo();
     const issue: SastIssue = { kind: 'sast', ruleId: 'r', path: 'src/a.ts', message: 'm', severity: 'high' };
@@ -209,11 +215,13 @@ describe('write allowlist and limits', () => {
 describe('baseline, selection, ship', () => {
   const t = (title: string, status: TestCaseResult['status'], file = 'a.test.ts', claims: string[] = []): TestCaseResult => ({ file, title, fullTitle: title, status, durationMs: 1, tags: [], claims, externalIds: [] });
 
+  // [claims: capabilities/security-and-remediation#green-baseline-required]
   it('quarantines ids whose status differs between the two baseline runs', () => {
     // claim: baseline-flaky
     expect(flakyIds([t('a', 'pass'), t('b', 'pass'), t('c', 'pass')], [t('a', 'pass'), t('b', 'fail'), t('d', 'pass')])).toEqual(['a.test.ts::b', 'a.test.ts::c', 'a.test.ts::d']);
   });
 
+  // [claims: capabilities/security-and-remediation#verify-after-patch]
   it('selects claim-tagged tests of affected specs plus tests in importing files', () => {
     const reg = { 'app/spec': { specKey: 'spec', specHash: 'h', files: { 'src/app.ts': { hash: 'x', lastChecked: '', lastVerdict: 'no-drift' as const } } } };
     const specs = specsForFiles(reg, ['src/app.ts']);
@@ -231,6 +239,7 @@ describe('baseline, selection, ship', () => {
     expect(importPattern({ ecosystem: 'crates.io', package: 'serde-json' }).test('use serde_json::Value;')).toBe(true);
   });
 
+  // [claims: capabilities/security-and-remediation#pr-modes-no-merge]
   it('ship stages only the scope, commits, and uses --draft for non-PRESERVED verdicts; no merge call exists', () => {
     // claim: scoped-commit
     const { dir, git } = repo();

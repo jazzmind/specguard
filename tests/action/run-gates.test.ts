@@ -16,6 +16,7 @@ describe('action.yml', () => {
     runs: { using: string; steps: Array<{ uses?: string; run?: string; with?: Record<string, string>; env?: Record<string, string> }> };
   };
 
+  // [claims: capabilities/integration-surfaces#action-gates]
   it('is a composite action with the documented inputs', () => {
     expect(action.runs.using).toBe('composite');
     for (const name of ['version', 'gates', 'fail-on', 'results', 'run-id', 'drift-since', 'validate-url', 'upload-evidence', 'working-directory']) {
@@ -25,6 +26,7 @@ describe('action.yml', () => {
     expect(Object.keys(action.outputs)).toEqual(['remediate-exit', 'failed', 'tripped']);
   });
 
+  // [claims: capabilities/integration-surfaces#action-gates]
   it('sets up Node, installs specguard-ai@<version>, runs the gates, and uploads evidence without secrets', () => {
     const steps = action.runs.steps;
     expect(steps[0].uses).toMatch(/^actions\/setup-node@/);
@@ -40,6 +42,7 @@ describe('action.yml', () => {
 });
 
 describe('gate evaluation', () => {
+  // [claims: capabilities/integration-surfaces#action-fail-on]
   it('parses lists and the PROOFS summary line', () => {
     expect(splitList('a, b\nc')).toEqual(['a', 'b', 'c']);
     expect(parseProofCounts(['x', 'PROOFS: 3 proven, 1 failed, 2 error, 4 unexercised, 5 stale, 6 unproven'])).toMatchObject({
@@ -49,6 +52,7 @@ describe('gate evaluation', () => {
     expect(parseProofCounts([]).ledger).toBe(false);
   });
 
+  // [claims: capabilities/integration-surfaces#action-fail-on]
   it('trips only the thresholds that are configured and violated', () => {
     const runs = {
       status: { ran: true, exitCode: 4 },
@@ -63,12 +67,14 @@ describe('gate evaluation', () => {
     expect(evaluate(runs, DEFAULT_FAIL_ON.split(',')).tripped).toHaveLength(5);
   });
 
+  // [claims: capabilities/integration-surfaces#action-fail-on]
   it('error verdicts count as failed proofs, and gates that did not run never trip', () => {
     const proofErr = { proof: { ran: true, exitCode: 2, messages: ['PROOFS: 0 proven, 0 failed, 1 error, 0 unexercised, 0 stale, 0 unproven'] } };
     expect(evaluate(proofErr, ['proof-failed']).tripped).toEqual(['proof-failed']);
     expect(evaluate({ status: { ran: false, exitCode: 4 } }, ['missing-specs']).tripped).toEqual([]);
   });
 
+  // [claims: capabilities/integration-surfaces#action-fail-on]
   it('a missing ledger is a note, not a failure', () => {
     const out = evaluate({ proof: { ran: true, exitCode: 0, messages: ['PROOFS: no ledger'] } }, ['proof-failed']);
     expect(out.tripped).toEqual([]);
@@ -77,6 +83,7 @@ describe('gate evaluation', () => {
     expect(none.notes[0]).toMatch(/no proof ledger/);
   });
 
+  // [claims: capabilities/integration-surfaces#action-fail-on]
   it('align-below compares the average score', () => {
     expect(averageAlignment({ entries: [{ alignmentScore: 100 }, { alignmentScore: 50 }] })).toBe(75);
     expect(averageAlignment({ entries: [] })).toBeNull();
@@ -85,6 +92,7 @@ describe('gate evaluation', () => {
     expect(evaluate({}, ['mystery']).notes[0]).toMatch(/unknown fail-on rule/);
   });
 
+  // [claims: capabilities/integration-surfaces#action-gates]
   it('builds the CLI arguments per gate', () => {
     expect(argsFor('status', {})).toEqual(['status']);
     expect(argsFor('drift', { SG_DRIFT_SINCE: 'origin/main' })).toEqual(['drift', '--since', 'origin/main']);
@@ -92,6 +100,22 @@ describe('gate evaluation', () => {
     expect(argsFor('results', {})).toBeNull();
     expect(argsFor('results', { SG_RESULTS: 'a.json\nb/*.xml', SG_RUN_ID: '7-1' })).toEqual(['results', 'ingest', 'a.json', 'b/*.xml', '--run-id', '7-1']);
     expect(argsFor('validate', { SG_VALIDATE_URL: 'https://stg' })).toEqual(['validate', '--all', '--url', 'https://stg']);
+  });
+
+  it('builds the arguments for the gates of the functional-spec commands [new-gates]', () => {
+    expect(argsFor('check', {})).toEqual(['check']);
+    expect(argsFor('test', {})).toEqual(['test', 'run']);
+    expect(argsFor('test', { SG_AFFECTED: 'true', SG_RUN_ID: '9-1' })).toEqual(['test', 'run', '--affected', '--run-id', '9-1']);
+    expect(argsFor('test', { SG_AFFECTED: 'false' })).toEqual(['test', 'run']);
+    expect(argsFor('verify', { SG_VALIDATE_URL: 'https://stg' })).toEqual(['verify', '--all', '--url', 'https://stg']);
+    expect(argsFor('scan', {})).toEqual(['security', 'scan']);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-fail-on]
+  it('trips the new gates on a non-zero exit, and only when they ran [new-gate-rules]', () => {
+    const runs = { check: { ran: true, exitCode: 4 }, test: { ran: true, exitCode: 0 }, verify: { ran: false, exitCode: 2 }, scan: { ran: true, exitCode: 5 } };
+    expect(evaluate(runs, ['check', 'test', 'verify', 'scan']).tripped).toEqual(['check', 'scan']);
+    expect(evaluate(runs, ['none']).tripped).toEqual([]);
   });
 });
 
@@ -104,6 +128,7 @@ describe('main (end to end with a fake specguard)', () => {
     return file;
   }
 
+  // [claims: capabilities/integration-surfaces#action-fail-on, capabilities/integration-surfaces#action-gates]
   it('runs gates, writes per-gate JSON and the summary, and exits 1 when a threshold trips', () => {
     const bin = fakeBin(`
       const args = process.argv.slice(2).filter((a) => a !== '--json');
@@ -132,12 +157,14 @@ describe('main (end to end with a fake specguard)', () => {
     }
   });
 
+  // [claims: capabilities/integration-surfaces#action-gates]
   it('rejects an unknown gate', () => {
     expect(main({ SG_GATES: 'status,bogus' })).toBe(2);
   });
 });
 
 describe('remediate mode', () => {
+  // [claims: capabilities/integration-surfaces#action-remediate-and-release]
   it('action.yml exposes mode: remediate without merging', async () => {
     // claim: remediate-mode
     const { readFileSync } = await import('node:fs');

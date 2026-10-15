@@ -2,13 +2,13 @@
  * Ship: scoped commit on the remediation branch, then (only with `--pr`) push and `gh pr create`.
  * There is no auto-merge anywhere in this module.
  *
- * Spec: specs/pipelines/remediate.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Verdict } from '../../core/behavior-verdict.js';
-import { parsePorcelain, partitionByScope, type ChangeScope } from '../git-ops.js';
+import { parsePorcelain, partitionByScope, type ChangeScope } from '../../core/git-scope.js';
 import { currentBranch, hasRemote, RemediateSetupError } from './git.js';
 import type { Exec } from './types.js';
 

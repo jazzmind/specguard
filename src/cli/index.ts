@@ -58,20 +58,23 @@ import { ExitCode } from '../core/exit-codes.js';
 import type { GlobalOpts } from './commands/helpers.js';
 import { reverseCommand } from './commands/reverse.js';
 import { statusCommand } from './commands/status.js';
-import { featuresCommand } from './commands/features.js';
-import { featureStateCommand } from './commands/feature-state.js';
 import { driftCommand } from './commands/drift.js';
 import { generateCommand } from './commands/generate.js';
 import { healCommand } from './commands/heal.js';
-import { securityCommand } from './commands/security.js';
+import {
+  securityCommand,
+  securityFixCommand,
+  securityPlanListCommand,
+  securityPlanSetStatusCommand,
+  securityPlanShowCommand,
+  securityScanCommand,
+} from './commands/security.js';
 import { docsCommand } from './commands/docs.js';
 import { initCommand, scaffoldCommand } from './commands/init.js';
 import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
 import { importCommand } from './commands/import.js';
-import { qualityCommand } from './commands/quality.js';
 import { depsCommand } from './commands/deps.js';
-import { commitCommand } from './commands/commit.js';
 import { analyzeCommand } from './commands/analyze.js';
 import { planFixCommand } from './commands/plan-fix.js';
 import { gapAnalysisCommand } from './commands/gap-analysis.js';
@@ -83,6 +86,13 @@ import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
 import { loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
 import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
+import type { HistoryAddOpts } from '../pipelines/history.js';
+import { registerPluginCommands } from './plugin-commands.js';
+import { checkCommand } from './commands/check.js';
+import { serveCommand } from './commands/serve.js';
+import { testRunCommand } from './commands/test.js';
+import { historyAddCommand, historyCaptureCommand, historyInboxCommand, historyLogCommand } from './commands/history.js';
+import { specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand } from './commands/spec.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
 import { resultsIngestCommand } from './commands/results.js';
@@ -143,7 +153,8 @@ program
   .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
   .option('--runner-path <file>', 'specguard CLI entry for --runner path')
   .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
+  .option('--history-hooks', 'record prompts and approved plans as requirement history (hooks go in .claude/settings.local.json)')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
@@ -152,6 +163,7 @@ program
       runner: opts.runner,
       runnerPath: opts.runnerPath,
       updateHooks: opts.updateHooks,
+      historyHooks: opts.historyHooks,
     });
   });
 
@@ -163,8 +175,9 @@ program
   .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
   .option('--runner-path <file>', 'specguard CLI entry for --runner path')
   .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
-  .action(async (opts: { harness?: string; runner?: string; runnerPath?: string; updateHooks?: boolean }) => {
-    await scaffoldCommand({ harness: opts.harness, runner: opts.runner, runnerPath: opts.runnerPath, updateHooks: opts.updateHooks });
+  .option('--history-hooks', 'record prompts and approved plans as requirement history (hooks go in .claude/settings.local.json)')
+  .action(async (opts: { harness?: string; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean }) => {
+    await scaffoldCommand({ harness: opts.harness, runner: opts.runner, runnerPath: opts.runnerPath, updateHooks: opts.updateHooks, historyHooks: opts.historyHooks });
   });
 
 // --- import <file> --------------------------------------------------------
@@ -182,7 +195,7 @@ program
 // --- reverse --------------------------------------------------------------
 program
   .command('reverse')
-  .description('generate specs from existing source')
+  .description('generate one spec per source file (superseded by `spec draft`, which writes functional capability specs)')
   .option('--app <name>', 'target app from config (required unless --all is used)')
   .option('--all', 'process all apps defined in config')
   .option('--file <path>', 'process a single source file (only with --app)')
@@ -198,76 +211,111 @@ program
   });
 
 // --- generate -------------------------------------------------------------
-program
-  .command('generate')
-  .description('generate tests from specs')
-  .option('--spec <key>', 'target a single spec')
-  .option('--all', 'process all specs')
-  .option('--framework <name>', 'override test framework')
-  .option('--app <name>', 'limit to a single app')
-  .option('--force', 'overwrite existing test files')
-  .option('--type <type>', 'test type: unit | integration | e2e (default: unit)')
-  .action(
-    async (
-      opts: { spec?: string; all?: boolean; framework?: string; app?: string; force?: boolean; type?: string },
-      cmd: Command,
-    ) => {
-      await generateCommand(withGlobals(cmd, opts as Parameters<typeof generateCommand>[0]));
-    },
-  );
+function addGenerate(cmd: Command): Command {
+  return cmd
+    .description('generate tests from specs')
+    .option('--spec <key>', 'target a single spec')
+    .option('--all', 'process all specs')
+    .option('--framework <name>', 'override test framework')
+    .option('--app <name>', 'limit to a single app')
+    .option('--force', 'overwrite existing test files')
+    .option('--type <type>', 'test type: unit | integration | e2e (default: unit)')
+    .action(
+      async (
+        opts: { spec?: string; all?: boolean; framework?: string; app?: string; force?: boolean; type?: string },
+        c: Command,
+      ) => {
+        await generateCommand(withGlobals(c, opts as Parameters<typeof generateCommand>[0]));
+      },
+    );
+}
+addGenerate(program.command('generate'));
 
 // --- heal -----------------------------------------------------------------
-program
-  .command('heal')
-  .description('self-heal failing generated tests')
-  .option('--spec <key>', 'run only the app that owns this spec, and only its tests')
-  .option('--all', 'heal every app (the default)')
-  .option('--app <name>', 'heal a single app')
-  .option('--max-retries <n>', 'maximum heal attempts')
-  .option('--classify-only', 'classify failures and report them; never rewrite a test or re-run')
-  .option('--lenient', 'treat an unreadable test report as passing when the runner exited 0 (default: failure)')
+function addHeal(cmd: Command): Command {
+  return cmd
+    .description('self-heal failing generated tests')
+    .option('--spec <key>', 'run only the app that owns this spec, and only its tests')
+    .option('--all', 'heal every app (the default)')
+    .option('--app <name>', 'heal a single app')
+    .option('--max-retries <n>', 'maximum heal attempts')
+    .option('--classify-only', 'classify failures and report them; never rewrite a test or re-run')
+    .option('--lenient', 'treat an unreadable test report as passing when the runner exited 0 (default: failure)')
+    .action(
+      async (
+        opts: { spec?: string; all?: boolean; app?: string; maxRetries?: string; classifyOnly?: boolean; lenient?: boolean },
+        c: Command,
+      ) => {
+        await healCommand(withGlobals(c, opts));
+      },
+    );
+}
+addHeal(program.command('heal'));
+
+// --- test -----------------------------------------------------------------
+const testCmd = program.command('test').description('generate, run and heal the tests that prove the specs');
+addGenerate(testCmd.command('generate'));
+addHeal(testCmd.command('heal'));
+testCmd
+  .command('run')
+  .description('run the configured tests and ingest the results into the proof ledger')
+  .option('--app <name>', 'only this app')
+  .option('--run-id <id>', 'run id recorded with each verdict')
+  .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .option('--unexercised', 'also record claims no test cited as unexercised (full runs only)')
+  .option('--unit <keys...>', 'workspaces: run only these units')
+  .option('--affected', 'workspaces: run only the units whose files changed, and the units that depend on them')
+  .option('--since <ref>', 'with --affected: git ref to compare against (default: working tree against HEAD)')
+  .argument('[files...]', 'run only these test files')
   .action(
     async (
-      opts: { spec?: string; all?: boolean; app?: string; maxRetries?: string; classifyOnly?: boolean; lenient?: boolean },
+      files: string[],
+      opts: { app?: string; runId?: string; ledger?: string; unexercised?: boolean; unit?: string[]; affected?: boolean; since?: string },
       cmd: Command,
     ) => {
-      await healCommand(withGlobals(cmd, opts));
+      await testRunCommand(withGlobals(cmd, { ...opts, units: opts.unit, selection: files.length > 0 ? files : undefined }));
     },
   );
 
-// --- validate -------------------------------------------------------------
-program
-  .command('validate')
-  .description('validate specs against the running app')
-  .option('--spec <key>', 'target a single spec')
-  .option('--all', 'process all specs with url: metadata')
-  .option('--url <url>', 'base URL of the running app')
-  .option('--app <name>', 'limit to a single app')
-  .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
-  .option('--headed', 'show the browser window (default: headless, or validate.headless)')
-  .option('--allow-outbound', 'let outbound actions (send, invite, pay, ...) run; for staging. Destructive actions stay blocked')
-  .action(
-    async (
-      opts: {
-        spec?: string;
-        all?: boolean;
-        url?: string;
-        app?: string;
-        review?: boolean;
-        headed?: boolean;
-        allowOutbound?: boolean;
+// --- validate / verify ----------------------------------------------------
+function addValidate(cmd: Command, description: string): Command {
+  return cmd
+    .description(description)
+    .option('--spec <key>', 'target a single spec')
+    .option('--all', 'process all specs with url: metadata (with --url, also every v2 capability)')
+    .option('--url <url>', 'base URL of the running app')
+    .option('--app <name>', 'limit to a single app')
+    .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
+    .option('--headed', 'show the browser window (default: headless, or validate.headless)')
+    .option('--allow-outbound', 'let outbound actions (send, invite, pay, ...) run; for staging. Destructive actions stay blocked')
+    .action(
+      async (
+        opts: {
+          spec?: string;
+          all?: boolean;
+          url?: string;
+          app?: string;
+          review?: boolean;
+          headed?: boolean;
+          allowOutbound?: boolean;
+        },
+        c: Command,
+      ) => {
+        // commander turns --no-review into review:false
+        await validateCommand(withGlobals(c, { ...opts, noReview: opts.review === false }));
       },
-      cmd: Command,
-    ) => {
-      // commander turns --no-review into review:false
-      await validateCommand(withGlobals(cmd, { ...opts, noReview: opts.review === false }));
-    },
-  );
+    );
+}
+addValidate(program.command('validate'), 'validate specs against the running app');
+addValidate(
+  program.command('verify'),
+  'verify the running app against each capability: walk its journeys, judge it against its stated problem and value, and record agentic proof',
+);
 
 // --- security -------------------------------------------------------------
-program
+const securityCmd = program
   .command('security')
-  .description('run security analysis for specs')
+  .description('security: scan code, dependencies, secrets and specs into one remediation plan; fix; track items (bare `security` writes OWASP test stubs)')
   .option('--spec <key>', 'target a single spec')
   .option('--all', 'process all specs')
   .option('--with-sast', 'include static analysis (Semgrep) and the dependency audit for the app language')
@@ -281,6 +329,61 @@ program
       await securityCommand(withGlobals(cmd, opts));
     },
   );
+
+securityCmd
+  .command('scan')
+  .description('detect dependency advisories, code findings and secrets, review each capability spec for security flaws, and write a RemediationPlan')
+  .option('--min-severity <level>', 'lowest severity in the plan: critical | high | moderate | low (default remediate.minSeverity or high)')
+  .option('--app <name>', 'limit to one app')
+  .option('--no-spec-review', 'skip the model-based spec-level review')
+  .action(async (opts: { minSeverity?: string; app?: string; specReview?: boolean }, cmd: Command) => {
+    await securityScanCommand(withGlobals(cmd, opts));
+  });
+
+securityCmd
+  .command('fix')
+  .description('execute dependency and code items of a plan with the remediation executor (worktree, patch, re-run tests, behaviour verdict)')
+  .argument('[plan]', 'plan id, or latest (default)')
+  .option('--item <id>', 'fix one item')
+  .option('--pr', 'push the branch and open a pull request')
+  .option('--dry-run', 'plan and verify in a temporary worktree without leaving a branch')
+  .option('--no-llm', 'skip the model-based breaking-change analysis')
+  .option('--allow-major', 'allow major-version upgrades')
+  .option('--ledger <file>', 'proof ledger the baseline starts from')
+  .option('--app <name>', 'limit to one app')
+  .action(
+    async (
+      plan: string | undefined,
+      opts: { item?: string; pr?: boolean; dryRun?: boolean; llm?: boolean; allowMajor?: boolean; ledger?: string; app?: string },
+      cmd: Command,
+    ) => {
+      await securityFixCommand(withGlobals(cmd, { ...opts, planId: plan, noLlm: opts.llm === false }));
+    },
+  );
+
+const securityPlanCmd = securityCmd.command('plan').description('list plans, show one, or report an item\'s progress');
+securityPlanCmd.command('list').description('list remediation plans, newest first').action(async (_o: Record<string, never>, cmd: Command) => {
+  await securityPlanListCommand(withGlobals(cmd, {}));
+});
+securityPlanCmd
+  .command('show')
+  .description('show a plan\'s items')
+  .argument('[plan]', 'plan id, or latest (default)', 'latest')
+  .action(async (plan: string, _o: Record<string, never>, cmd: Command) => {
+    await securityPlanShowCommand(plan, withGlobals(cmd, {}));
+  });
+securityPlanCmd
+  .command('set-status')
+  .description('move an item through its lifecycle: open | planned | in-progress | fixed | verified | wont-fix')
+  .argument('<plan>', 'plan id, or latest')
+  .argument('<item>', 'item id')
+  .argument('<status>', 'new status')
+  .option('--note <text>', 'why')
+  .option('--by <who>', 'who or what made the change')
+  .option('--external-ref <id>', 'the item\'s id in an external tracker')
+  .action(async (plan: string, item: string, status: string, opts: { note?: string; by?: string; externalRef?: string }, cmd: Command) => {
+    await securityPlanSetStatusCommand(plan, item, status, withGlobals(cmd, opts));
+  });
 
 // --- docs -----------------------------------------------------------------
 program
@@ -299,7 +402,7 @@ program
 // --- drift ----------------------------------------------------------------
 program
   .command('drift')
-  .description('detect specs that have drifted from source (hash+LLM by default)')
+  .description('detect specs that have drifted from source; with capability specs, one verdict per capability (also `check --drift`)')
   .option('--since <ref>', 'git ref to diff against (default HEAD~1)')
   .option('--spec <key>', 'target a single spec')
   .option('--force', 'bypass hash cache and re-evaluate all files with LLM')
@@ -311,7 +414,7 @@ program
 // --- matrix ---------------------------------------------------------------
 program
   .command('matrix')
-  .description('build the requirement-to-test traceability matrix')
+  .description('build the requirement-to-test traceability matrix (also `check --matrix`)')
   .option('--out <path>', 'output path')
   .option('--format <format>', 'json or csv (default: json)')
   .option('--app <name>', 'limit to a single app')
@@ -321,41 +424,19 @@ program
     },
   );
 
-// --- quality --------------------------------------------------------------
-program
-  .command('quality')
-  .description('run ESLint + Knip code quality checks')
-  .option('--app <name>', 'limit to a single app')
-  .option('--fix', 'auto-fix ESLint fixable issues')
-  .action(async (opts: { app?: string; fix?: boolean }, cmd: Command) => {
-    await qualityCommand(withGlobals(cmd, opts));
-  });
-
 // --- deps -----------------------------------------------------------------
 program
   .command('deps')
-  .description('run npm-audit + depcheck dependency health checks')
+  .description('run npm-audit + depcheck dependency health checks (superseded by `security scan`)')
   .option('--app <name>', 'limit to a single app')
   .action(async (opts: { app?: string }, cmd: Command) => {
     await depsCommand(withGlobals(cmd, opts));
   });
 
-// --- commit ---------------------------------------------------------------
-program
-  .command('commit')
-  .description('commit SpecGuard-generated files (tests, docs, specs, reports)')
-  .option('--dry-run', 'preview what would be staged without committing')
-  .option('--message <msg>', 'custom commit message suffix')
-  .option('--app <name>', 'restrict to a single app')
-  .option('--pipeline <name>', 'originating pipeline (used for conventional commit message and changelog)')
-  .action(async (opts: { dryRun?: boolean; message?: string; app?: string; pipeline?: string }, cmd: Command) => {
-    await commitCommand(withGlobals(cmd, opts));
-  });
-
 // --- analyze --------------------------------------------------------------
 program
   .command('analyze')
-  .description('run all diagnostic checks and return recommendations')
+  .description('run all diagnostic checks and return recommendations (`check` is the one spec-health command)')
   .option('--auto-fix', 'run the recommended pipelines that are safe unattended (quality --fix, matrix); the rest stay recommendations')
   .action(async (opts: { autoFix?: boolean }, cmd: Command) => {
     await analyzeCommand(withGlobals(cmd, opts));
@@ -364,7 +445,7 @@ program
 // --- plan-fix -------------------------------------------------------------
 program
   .command('plan-fix')
-  .description('generate a fix plan from pipeline findings')
+  .description('generate a fix plan from pipeline findings (superseded by `security scan` and its RemediationPlan)')
   .requiredOption('--pipeline <name>', 'pipeline that produced the findings (e.g. validate, security)')
   .requiredOption('--issues <text>', 'summary of issues to fix')
   .action(async (opts: { pipeline: string; issues: string }, cmd: Command) => {
@@ -374,7 +455,7 @@ program
 // --- gap-analysis ---------------------------------------------------------
 program
   .command('gap-analysis')
-  .description('detect unimplemented/partial specs and generate implementation plans')
+  .description('detect unimplemented/partial specs and generate implementation plans (also `check --gaps`)')
   .option('--spec <key>', 'restrict to a single spec key (e.g. app/feature)')
   .option('--all', 'check all apps (default)')
   .option('--no-plan', 'skip LLM plan generation — only report gaps')
@@ -418,21 +499,138 @@ program
 // --- status ---------------------------------------------------------------
 program
   .command('status')
-  .description('report spec coverage')
+  .description('report spec coverage (also `check`)')
   .action(async (_opts: Record<string, never>, cmd: Command) => {
     await statusCommand(withGlobals(cmd, {}));
   });
 
-// --- features -------------------------------------------------------------
+// --- check ----------------------------------------------------------------
 program
-  .command('features')
-  .description('list spec back-references, or with --state the channel report and agent gate')
-  .option('--state', 'print summary, UI/API/MCP state, and the agent gate')
-  .option('--cases <file>', 'extra TestCaseResult rows (JSON array) used with --state')
-  .action(async (opts: { state?: boolean; cases?: string }, cmd: Command) => {
-    if (opts.state) await featureStateCommand(withGlobals(cmd, opts));
-    else await featuresCommand(withGlobals(cmd, {}));
+  .command('check')
+  .description('spec health: ownership, tests, proofs, gaps, matrix and drift for the whole system')
+  .option('--coverage', 'per-capability files, tests and claims cited by tests')
+  .option('--gaps', 'unowned files, untested claims, and claims that are stale, failed or unproven')
+  .option('--matrix', 'write the traceability matrix (capability, claim, tests, docs, proof)')
+  .option('--csv', 'with --matrix: CSV instead of JSON')
+  .option('--out <file>', 'with --matrix: output path relative to the repo root')
+  .option('--drift', 'assess code changes against each capability\'s requirements')
+  .option('--since <ref>', 'with --drift: git ref to diff against (default: working tree against HEAD)')
+  .option('--align', 'map spec scenarios and claims to test assertions with the LLM')
+  .option('--spec <id>', 'restrict to one capability')
+  .action(async (opts: Record<string, unknown>, cmd: Command) => {
+    await checkCommand(withGlobals(cmd, opts));
   });
+
+// --- serve ----------------------------------------------------------------
+program
+  .command('serve')
+  .description('serve the docs and audit API (/api/v1) and a web UI; docs are generated on demand and cached')
+  .option('--port <n>', 'port to listen on (default 4317)')
+  .option('--host <addr>', 'address to bind (default 127.0.0.1; beyond loopback the API has no authentication)')
+  .option('--cors <origin>', 'origin allowed to read the API from a browser, or *')
+  .action(async (opts: { port?: string; host?: string; cors?: string }, cmd: Command) => {
+    await serveCommand(withGlobals(cmd, opts));
+  });
+
+// --- history --------------------------------------------------------------
+const historyCmd = program
+  .command('history')
+  .description('requirement history: the prompts, plans and decisions behind each capability');
+
+historyCmd
+  .command('add')
+  .description('record a prompt, plan or decision under specs/history and link it from the capabilities it affects')
+  .option('--prompt <text>', 'the prompt or request')
+  .option('--plan <fileOrText>', 'an approved plan: a file path or the text itself')
+  .option('--decision <text>', 'a decision and its reasoning')
+  .option('--title <text>', 'entry title (default: the plan heading or first line)')
+  .option('--affects <ids...>', 'capability ids the entry changes; omitted: the fast model proposes them')
+  .option('--kind <kind>', 'prompt | plan | prompt+plan | decision | import')
+  .action(async (opts: HistoryAddOpts, cmd: Command) => {
+    await historyAddCommand(withGlobals(cmd, opts));
+  });
+
+historyCmd
+  .command('log')
+  .description('show the requirement timeline, newest first')
+  .option('--capability <id>', 'only entries behind one capability')
+  .action(async (opts: { capability?: string }, cmd: Command) => {
+    await historyLogCommand(withGlobals(cmd, opts));
+  });
+
+historyCmd
+  .command('inbox')
+  .description('hook entry point (UserPromptSubmit): reads hook JSON on stdin, records the redacted prompt, prints nothing')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await historyInboxCommand(withGlobals(cmd, {}));
+  });
+
+historyCmd
+  .command('capture')
+  .description('hook entry point (PostToolUse on ExitPlanMode): reads hook JSON on stdin, writes the approved plan and its prompts as one entry')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await historyCaptureCommand(withGlobals(cmd, {}));
+  });
+
+// --- spec -----------------------------------------------------------------
+const specCmd = program
+  .command('spec')
+  .description('author and inspect specs: the system, capability and component tree');
+
+specCmd
+  .command('graph')
+  .description('print the spec tree with owned files and fail on v2 rule violations')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await specGraphCommand(withGlobals(cmd, {}));
+  });
+
+specCmd
+  .command('index')
+  .description('refresh the capability map table in specs/system.md')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await specIndexCommand(withGlobals(cmd, {}));
+  });
+
+specCmd
+  .command('tag')
+  .description('link existing tests to the requirements they prove, as [claims: ...] comments above each test (dry run unless --yes)')
+  .option('--spec <id>', 'one capability')
+  .option('--yes', 'write the tags')
+  .option('--list', 'print every test with the requirements it was tagged with, for review')
+  .action(async (opts: { spec?: string; yes?: boolean; list?: boolean }, cmd: Command) => {
+    await specTagCommand(withGlobals(cmd, opts));
+  });
+
+specCmd
+  .command('draft')
+  .description('write functional specs for an existing codebase: capability map first, then one spec per capability')
+  .option('--yes', 'write the specs without stopping at the capability map for review')
+  .option('--from-map', 'continue from .specguard/spec-map.json (edit it first if needed)')
+  .option('--force', 'overwrite specs that already exist')
+  .option('--guidance <text>', 'steer the clustering, for example the capability names to use')
+  .option('--history <ids...>', 'ids of specs/history entries to link from every generated spec')
+  .action(async (opts: { yes?: boolean; fromMap?: boolean; force?: boolean; history?: string[]; guidance?: string }, cmd: Command) => {
+    await specDraftCommand(withGlobals(cmd, opts));
+  });
+
+specCmd
+  .command('consolidate')
+  .description('migrate per-file specs to functional capability specs; rekeys claim tags, proofs and drift state')
+  .option('--yes', 'write the specs without stopping at the capability map for review')
+  .option('--from-map', 'continue from .specguard/spec-map.json (edit it first if needed)')
+  .option('--force', 'overwrite capability specs that already exist')
+  .option('--no-archive', 'keep the old specs in place and do not rewrite tags, ledger or registry')
+  .option('--rewrite-source-refs', 'update "Spec: specs/..." comments in source files to the new capability spec')
+  .option('--guidance <text>', 'steer the clustering, for example the capability names to use')
+  .option('--history <ids...>', 'ids of specs/history entries to link from every generated spec')
+  .action(
+    async (
+      opts: { yes?: boolean; fromMap?: boolean; force?: boolean; archive?: boolean; rewriteSourceRefs?: boolean; history?: string[]; guidance?: string },
+      cmd: Command,
+    ) => {
+      await specConsolidateCommand(withGlobals(cmd, { ...opts, noArchive: opts.archive === false }));
+    },
+  );
 
 // --- claims ---------------------------------------------------------------
 const claimsCmd = program
@@ -610,6 +808,7 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
   try {
+    await registerPluginCommands(program);
     await program.parseAsync(process.argv);
   } catch (err) {
     // commander throws CommanderError for --help/--version (exitCode 0) and for

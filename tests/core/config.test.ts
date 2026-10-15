@@ -32,6 +32,7 @@ afterAll(() => {
 });
 
 describe('loadConfig', () => {
+  // [claims: capabilities/platform-foundation#config-discovery]
   it('loads the repo .specguard/config.json', async () => {
     const config = await loadConfig(REPO_ROOT);
     expect(config.apps.length).toBeGreaterThanOrEqual(1);
@@ -39,17 +40,20 @@ describe('loadConfig', () => {
     expect(config.rootDir).toBe(REPO_ROOT);
   });
 
+  // [claims: capabilities/platform-foundation#config-discovery]
   it('walks up from a nested subdirectory to find the config', async () => {
     const config = await loadConfig(path.join(REPO_ROOT, 'src', 'core'));
     expect(config.rootDir).toBe(REPO_ROOT);
     expect(config.apps.length).toBeGreaterThanOrEqual(1);
   });
 
+  // [claims: capabilities/platform-foundation#config-discovery]
   it('throws ConfigNotFoundError when no config exists', async () => {
     const empty = makeTempDir();
     await expect(loadConfig(empty)).rejects.toBeInstanceOf(ConfigNotFoundError);
   });
 
+  // [claims: capabilities/platform-foundation#config-validation]
   it('throws ConfigInvalidError when the config fails schema validation', async () => {
     const root = makeTempDir();
     mkdirSync(path.join(root, '.specguard'), { recursive: true });
@@ -61,6 +65,7 @@ describe('loadConfig', () => {
     await expect(loadConfig(root)).rejects.toBeInstanceOf(ConfigInvalidError);
   });
 
+  // [claims: capabilities/platform-foundation#config-validation]
   it('throws ConfigInvalidError on malformed JSON', async () => {
     const root = makeTempDir();
     mkdirSync(path.join(root, '.specguard'), { recursive: true });
@@ -70,6 +75,7 @@ describe('loadConfig', () => {
 });
 
 describe('writer + reader round-trip', () => {
+  // [claims: capabilities/platform-foundation#filesystem-access]
   it('writeFile creates nested dirs and readFile reads it back', async () => {
     const root = makeTempDir();
     const target = path.join(root, 'a', 'b', 'c.txt');
@@ -78,6 +84,7 @@ describe('writer + reader round-trip', () => {
     expect(await readFile(target)).toBe('hello world');
   });
 
+  // [claims: capabilities/platform-foundation#filesystem-access]
   it('ensureDir is idempotent', async () => {
     const root = makeTempDir();
     const dir = path.join(root, 'x', 'y');
@@ -88,6 +95,7 @@ describe('writer + reader round-trip', () => {
 });
 
 describe('expandGlobs', () => {
+  // [claims: capabilities/platform-foundation#default-glob-excludes]
   it('finds src/core/*.ts as absolute, sorted, deduped paths', async () => {
     const matches = await expandGlobs(['src/core/*.ts'], REPO_ROOT);
     expect(matches.length).toBeGreaterThan(0);
@@ -116,6 +124,7 @@ describe('loadConfig repo boundary and extends', () => {
     writeFileSync(path.join(root, rel), typeof body === 'string' ? body : JSON.stringify(body));
   };
 
+  // [claims: capabilities/platform-foundation#config-discovery]
   it('does not inherit a parent repo config across a .git boundary', async () => {
     const parent = makeTempDir();
     put(parent, '.git/HEAD', 'ref: refs/heads/main');
@@ -129,6 +138,7 @@ describe('loadConfig repo boundary and extends', () => {
     expect((await loadConfig(path.join(parent, 'pkg', 'deep'))).rootDir).toBe(parent);
   });
 
+  // [claims: capabilities/platform-foundation#config-extends]
   it('inherits a parent config only through extends, merging one level deep', async () => {
     const parent = makeTempDir();
     put(parent, '.git/HEAD', '');
@@ -147,6 +157,7 @@ describe('loadConfig repo boundary and extends', () => {
     expect(config.paths).toEqual({ docsOut: 'documentation', specsRoot: 'spec' });
   });
 
+  // [claims: capabilities/platform-foundation#config-extends]
   it('accepts a directory as the extends target and rejects cycles and missing targets', async () => {
     const root = makeTempDir();
     put(root, 'a/.specguard/config.json', base);
@@ -159,6 +170,7 @@ describe('loadConfig repo boundary and extends', () => {
     await expect(loadConfig(path.join(root, 'e'))).rejects.toThrow(/not found/);
   });
 
+  // [claims: capabilities/platform-foundation#config-apps-and-defaults]
   it('accepts paths, stripPrefix, entryPoints, plugins and featureState', async () => {
     const root = makeTempDir();
     put(root, '.specguard/config.json', {

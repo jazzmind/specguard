@@ -3,7 +3,7 @@
  * current command, and the spend of this run. Kept apart from `llm.ts` so that
  * loading a config never needs the AI SDK.
  *
- * Spec: specs/core/llm.md
+ * Spec: specs/capabilities/platform-foundation.md
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -71,6 +71,16 @@ export function recordMode(): boolean {
 
 export function runSpend(): RunSpend {
   return spend;
+}
+
+/**
+ * Start a fresh spend count. A CLI run counts spend once for the whole process;
+ * a long-lived `serve` process applies `llm.budget` per generation instead,
+ * or it would refuse every request once the process total reached the cap.
+ */
+export function resetRunSpend(): void {
+  spend = { calls: 0, tokens: 0, usd: 0 };
+  budgetMessage = null;
 }
 
 export function addRunSpend(delta: Partial<RunSpend>): void {

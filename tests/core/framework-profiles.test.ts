@@ -17,6 +17,7 @@ function repo(files: Record<string, string>): string {
 const pkg = (deps: Record<string, string>) => JSON.stringify({ dependencies: deps });
 
 describe('framework profiles', () => {
+  // [claims: capabilities/conformance-testing#framework-profiles]
   it('detects frameworks from manifests', () => {
     expect(detectFramework(repo({ 'package.json': pkg({ next: '1', react: '1' }) })).id).toBe('next');
     expect(detectFramework(repo({ 'package.json': pkg({ react: '1' }) })).id).toBe('react');
@@ -33,6 +34,7 @@ describe('framework profiles', () => {
     expect(detectFramework(repo({ 'notes.txt': '' })).id).toBe('generic');
   });
 
+  // [claims: capabilities/conformance-testing#framework-profiles]
   it('reads profile entry points, and app.entryPoints replaces them', async () => {
     const dir = repo({
       'package.json': pkg({ express: '4' }),
@@ -50,6 +52,7 @@ describe('framework profiles', () => {
     expect(capped[0].source).toHaveLength(1);
   });
 
+  // [claims: capabilities/conformance-testing#framework-profiles]
   it('builds a prompt that names the surface and does not assume a frontend', () => {
     const express = getFrameworkProfile('express')!;
     const prompt = buildIndexPrompt('svc', '', ['a.md'], [{ file: 'src/server.ts', source: 'x' }], express);

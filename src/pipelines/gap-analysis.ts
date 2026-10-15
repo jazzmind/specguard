@@ -22,6 +22,7 @@ import { z } from 'zod';
 import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
+import { isV2Repo, runCheck } from './check.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
 import { expandAppGlobs } from '../core/spec-key.js';
 import { llmGenerateObject } from '../core/llm.js';
@@ -108,6 +109,10 @@ export async function runGapAnalysis(
   config: SpecGuardConfig,
   opts: GapAnalysisOpts = {},
 ): Promise<GapAnalysisResult> {
+  if (await isV2Repo(config)) {
+    const gaps = await runCheck(config, { view: 'gaps', spec: opts.spec, as: 'gap-analysis' });
+    return { ...gaps, gaps: [] };
+  }
   const result = emptyResult('gap-analysis') as GapAnalysisResult;
   result.gaps = [];
 

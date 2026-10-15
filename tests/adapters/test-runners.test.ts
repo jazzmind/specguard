@@ -23,6 +23,7 @@ describe('prepareRun', () => {
   const run = (id: keyof typeof ADAPTERS, opts: Partial<Parameters<typeof prepareRun>[1]> = {}) =>
     prepareRun(ADAPTERS[id], { cwd: '/repo', ...opts }, '/repo/.specguard/runs/x');
 
+  // [claims: capabilities/conformance-testing#runner-adapters, capabilities/conformance-testing#runner-invocation]
   it('adds the right reporter flags per adapter', () => {
     expect(run('vitest').command).toBe('npx vitest run --reporter=json --outputFile=/repo/.specguard/runs/x/results.json');
     expect(run('jest').command).toBe('npx jest --json --outputFile=/repo/.specguard/runs/x/results.json');
@@ -36,6 +37,7 @@ describe('prepareRun', () => {
     expect(cargo.env).toEqual({ RUSTC_BOOTSTRAP: '1' });
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('inserts one -- for npm scripts only', () => {
     expect(withFlags('npm test', '--reporter=json')).toBe('npm test -- --reporter=json');
     expect(withFlags('npm run test:unit', '--json')).toBe('npm run test:unit -- --json');
@@ -45,6 +47,7 @@ describe('prepareRun', () => {
     expect(run('vitest', { command: 'npm test' }).command).toBe('npm test -- --reporter=json --outputFile=/repo/.specguard/runs/x/results.json');
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('runs the command verbatim when resultsFile is configured', () => {
     const p = run('vitest', { command: 'pnpm test:ci', resultsFile: 'out/vitest.json' });
     expect(p.command).toBe('pnpm test:ci');
@@ -52,12 +55,14 @@ describe('prepareRun', () => {
     expect(p.file).toBeUndefined();
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('passes a selection as file arguments (package dirs for Go)', () => {
     expect(run('vitest', { selection: ['tests/a.test.ts', 'tests/b c.test.ts'] }).command).toContain("--outputFile=/repo/.specguard/runs/x/results.json tests/a.test.ts 'tests/b c.test.ts'");
     expect(run('go', { selection: ['./pkg/a'] }).command).toBe('go test -json ./pkg/a > /repo/.specguard/runs/x/results.jsonl');
     expect(run('pytest', { selection: ['tests/test_a.py'] }).command).toBe('pytest --junitxml=/repo/.specguard/runs/x/results.xml tests/test_a.py');
   });
 
+  // [claims: capabilities/conformance-testing#runner-adapters]
   it('knows the adapter for each language framework and rejects unknown ones', () => {
     expect(runnerForFramework('go-test')).toBe('go');
     expect(runnerForFramework('cargo-test')).toBe('cargo');
@@ -81,6 +86,7 @@ function fakeRunner(fixture: string, exitCode = 1) {
 }
 
 describe('runTests', () => {
+  // [claims: capabilities/conformance-testing#runner-adapters]
   it('reads every test from the reporter file, including passes', async () => {
     fakeRunner('vitest.json');
     const report = await runTests('vitest', { cwd: tmp() });
@@ -90,6 +96,7 @@ describe('runTests', () => {
     expect(report.raw).toContain('noisy stdout');
   });
 
+  // [claims: capabilities/conformance-testing#runner-adapters]
   it('reads Playwright from the env-named file, pytest from JUnit, Go and Cargo from the redirect', async () => {
     fakeRunner('playwright.json');
     expect((await runTests('playwright', { cwd: tmp() })).tests).toHaveLength(3);
@@ -101,6 +108,7 @@ describe('runTests', () => {
     expect((await runTests('cargo', { cwd: tmp() })).tests).toHaveLength(2);
   });
 
+  // [claims: capabilities/conformance-testing#runner-adapters, capabilities/conformance-testing#runner-invocation]
   it('never falls back to stdout: a missing report is parsed:false with no tests', async () => {
     vi.spyOn(testRunnerSeam, 'exec').mockReturnValue({ output: readFileSync(fx('vitest.json'), 'utf8'), exitCode: 0, timedOut: false });
     const report = await runTests('vitest', { cwd: tmp() });
@@ -109,6 +117,7 @@ describe('runTests', () => {
     expect(report.parseError).toMatch(/not written/);
   });
 
+  // [claims: capabilities/conformance-testing#normalised-results]
   it('an unparseable report file is parsed:false and names the file', async () => {
     vi.spyOn(testRunnerSeam, 'exec').mockImplementation((command) => {
       writeFileSync(command.match(/--outputFile=(\S+)/)![1], '{ not json');
@@ -119,6 +128,7 @@ describe('runTests', () => {
     expect(report.parseError).toMatch(/results\.json/);
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('merges a results glob and runs the command as written', async () => {
     const cwd = tmp();
     const spy = vi.spyOn(testRunnerSeam, 'exec').mockImplementation(() => {
@@ -134,6 +144,7 @@ describe('runTests', () => {
     expect(report.reportFiles).toHaveLength(2);
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('reports a timeout', async () => {
     vi.spyOn(testRunnerSeam, 'exec').mockReturnValue({ output: '', exitCode: 124, timedOut: true });
     const report = await runTests('vitest', { cwd: tmp(), timeoutMs: 5 });
@@ -141,6 +152,7 @@ describe('runTests', () => {
     expect(report.exitCode).not.toBe(0);
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('actually spawns and kills a hung process at timeoutMs', async () => {
     const report = await runTests('vitest', { cwd: tmp(), command: 'node -e "setTimeout(()=>{}, 30000)" #', timeoutMs: 300 });
     expect(report.timedOut).toBe(true);
@@ -148,6 +160,7 @@ describe('runTests', () => {
     expect(report.parsed).toBe(false);
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('docker sandbox needs an image and a daemon, and never falls back to the host', async () => {
     const exec = vi.spyOn(testRunnerSeam, 'exec');
     const noImage = await runTests('vitest', { cwd: tmp(), sandbox: 'docker' });
@@ -158,6 +171,7 @@ describe('runTests', () => {
     expect(exec).not.toHaveBeenCalled();
   });
 
+  // [claims: capabilities/conformance-testing#runner-invocation]
   it('docker sandbox mounts the repo and rewrites host paths', async () => {
     const cwd = tmp();
     const spawn = vi.spyOn(dockerRunner, 'spawn').mockImplementation((args) => {

@@ -96,6 +96,7 @@ describe('parseVitestJson', () => {
 });
 
 describe('runHeal', () => {
+  // [claims: capabilities/conformance-testing#heal-exit-and-safety]
   it('scenario 1: all passing on first run → exit 0, no LLM calls', async () => {
     const spy = vi.spyOn(healRunner, 'run').mockResolvedValue(report(PASSING_JSON, 0));
 
@@ -109,6 +110,7 @@ describe('runHeal', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-classifies-failures]
   it('scenario 2: test-bug rewrite, second run passes → fixed:1, exit 0', async () => {
     const testFile = path.join(rootDir, 'foo.test.ts');
     await writeFile(testFile, 'expect(1).toBe(2);\n', 'utf-8');
@@ -136,6 +138,7 @@ describe('runHeal', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-classifies-failures, capabilities/conformance-testing#heal-exit-and-safety]
   it('scenario 3: app-bug recorded, no rewrite, exit 7', async () => {
     const testFile = path.join(rootDir, 'bar.test.ts');
     await writeFile(testFile, 'expect(api()).toBe(true);\n', 'utf-8');
@@ -165,6 +168,7 @@ describe('runHeal', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-classifies-failures, capabilities/conformance-testing#heal-exit-and-safety]
   it('scenario 4: still failing after maxRetries → still-broken, exit 7', async () => {
     const testFile = path.join(rootDir, 'baz.test.ts');
     await writeFile(testFile, 'expect(1).toBe(2);\n', 'utf-8');
@@ -229,6 +233,7 @@ describe('runHeal', () => {
 });
 
 describe('runHeal gate and modes', () => {
+  // [claims: capabilities/conformance-testing#heal-exit-and-safety]
   it('an unreadable report is a failure even when the runner exited 0', async () => {
     const spy = vi.spyOn(healRunner, 'run').mockResolvedValue(unreadable(0));
     const res = await runHeal(makeConfig(), {});
@@ -238,6 +243,7 @@ describe('runHeal gate and modes', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-exit-and-safety]
   it('--lenient restores fail-open only for a zero exit', async () => {
     const spy = vi.spyOn(healRunner, 'run').mockResolvedValue(unreadable(0));
     expect((await runHeal(makeConfig(), { lenient: true })).exitCode).toBe(ExitCode.Success);
@@ -246,6 +252,7 @@ describe('runHeal gate and modes', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-classifies-failures, capabilities/conformance-testing#heal-exit-and-safety]
   it('--classify-only classifies but never writes a test and never re-runs', async () => {
     const testFile = path.join(rootDir, 'stale.test.ts');
     await writeFile(testFile, 'expect(1).toBe(2);\n', 'utf-8');
@@ -260,6 +267,7 @@ describe('runHeal gate and modes', () => {
     spy.mockRestore();
   });
 
+  // [claims: capabilities/conformance-testing#heal-classifies-failures]
   it('runs one job per distinct command across apps and reports failures from each', async () => {
     const a = path.join(rootDir, 'a.test.ts');
     const b = path.join(rootDir, 'b.test.ts');

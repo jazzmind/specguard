@@ -9,7 +9,7 @@
  * @playwright/test is an OPTIONAL peer dependency. All functions check for
  * availability and return PlaywrightUnavailableError when not installed.
  *
- * Spec: specs/adapters/playwright.md
+ * Spec: specs/capabilities/agentic-verification.md
  *
  * Testability seam
  * ----------------

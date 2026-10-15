@@ -8,7 +8,7 @@
  * Depcheck detects: unused dependencies, unused devDependencies, and missing
  * dependencies (imported but not declared in package.json).
  *
- * Spec: specs/adapters/depcheck.md (to be created as needed)
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { spawnSync } from 'node:child_process';
 

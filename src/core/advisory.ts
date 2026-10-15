@@ -2,7 +2,7 @@
  * Normalized vulnerability advisory, remediation candidate, dedupe, and the
  * `.specguard/vuln-ignore.json` suppression file.
  *
- * Spec: specs/core/advisory.md
+ * Spec: specs/capabilities/security-and-remediation.md
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

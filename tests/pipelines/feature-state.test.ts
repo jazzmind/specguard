@@ -7,7 +7,7 @@ import {
   unitBelongs,
   type CatalogFeatureInput,
   type FeatureStateInput,
-} from '../../src/pipelines/feature-state.js';
+} from '../../src/plugins/feature-catalog/feature-state.js';
 
 function feature(overrides: Partial<CatalogFeatureInput> = {}): CatalogFeatureInput {
   return {
@@ -37,6 +37,7 @@ function input(overrides: Partial<FeatureStateInput> = {}): FeatureStateInput {
 }
 
 describe('featureStates', () => {
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('marks required channels Passing when the unit test passed', () => {
     const [row] = featureStates(input({
       cases: [{ kind: 'unit', status: 'passed', file: 'createExperience.spec.ts' }],
@@ -48,6 +49,7 @@ describe('featureStates', () => {
     expect(row.agentGate.allowed).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('does not open the agent gate on a regression pass alone', () => {
     const [row] = featureStates(input({
       features: [feature({ tests: { unit: [], regression: ['CORE-T93'], integration: [], proof: [] } })],
@@ -58,6 +60,7 @@ describe('featureStates', () => {
     expect(row.agentGate.reason).toBe('No unit or integration test linked');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('marks a failed unit test Broken and keeps the gate closed', () => {
     const [row] = featureStates(input({
       cases: [{ kind: 'unit', status: 'failed', file: 'createExperience.spec.ts' }],
@@ -66,12 +69,14 @@ describe('featureStates', () => {
     expect(row.agentGate.reason).toBe('Unit or integration tests failed');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('stays Stub until a linked unit test has a result', () => {
     const [row] = featureStates(input());
     expect(row.channels.ui.state).toBe('stub');
     expect(row.agentGate.reason).toBe('Unit or integration tests have not passed yet');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('marks a required channel with nothing linked as No', () => {
     const [row] = featureStates(input({
       features: [feature({
@@ -85,6 +90,7 @@ describe('featureStates', () => {
     expect(row.channels.ui.required).toBe(false);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('uses the single linked spec overview when the catalog has no summary', () => {
     const [row] = featureStates(input({
       features: [feature({ summary: '', specs: ['graphql-api:mutations/experience'], requires: ['api'] })],
@@ -98,6 +104,7 @@ describe('featureStates', () => {
     expect(row.summary).toBe('Creates an experience from a name.');
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('counts a non-stale proven claim as Proven for that channel', () => {
     const [row] = featureStates(input({
       proofs: [{ claim: 'graphql-api:mutations/experience#created', verdict: 'proven' }],
@@ -108,6 +115,7 @@ describe('featureStates', () => {
 });
 
 describe('generic engine rules', () => {
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('matches cases by external id, feature externalIds, and @feature tags', () => {
     const f = feature({ tests: { unit: [], regression: [], integration: [], proof: [] }, externalIds: ['QA-9'] });
     const [byId] = featureStates(input({ features: [f], cases: [{ kind: 'integration', status: 'passed', externalIds: ['QA-9'] }] }));
@@ -127,12 +135,14 @@ describe('generic engine rules', () => {
     expect(unitBelongs(a, 'refund-flow.test.ts', [a, b], () => [])).toBe(true);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('infers required channels from repo channels only when configured', () => {
     const f = feature({ requires: [], specs: ['web:orders'] });
     expect(inferRequires(f, [])).toEqual([]);
     expect(inferRequires(f, [], undefined, { repoChannels: { web: 'ui' } })).toEqual(['ui']);
   });
 
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('does not treat a heading-shaped summary as a placeholder unless told to', () => {
     const f = feature({ summary: 'orders-list — Every order.', requires: ['ui'], specs: ['web:orders'], id: 'orders.list' });
     const specs = [{ ref: 'web:orders', featureIds: ['orders.list'], channel: 'ui' as const, overview: 'Lists orders. More.' }];
@@ -143,6 +153,7 @@ describe('generic engine rules', () => {
 });
 
 describe('channelOf', () => {
+  // [claims: capabilities/integration-surfaces#feature-state]
   it('uses explicit channel, then the configured type map, module pattern, and repo channel', () => {
     expect(channelOf({ type: 'page' })).toBeNull();
     expect(channelOf({ type: 'ui' })).toBe('ui');

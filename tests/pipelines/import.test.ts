@@ -77,6 +77,7 @@ beforeEach(async () => {
 });
 
 describe('runImport', () => {
+  // [claims: capabilities/spec-authoring#import-documents]
   it('scenario 1: imports a Markdown file and creates a spec', async () => {
     await writePrd('docs/feature.md');
 
@@ -91,6 +92,7 @@ describe('runImport', () => {
     expect(promptArg.prompt).toContain('My Feature');
   });
 
+  // [claims: capabilities/spec-authoring#import-documents]
   it('scenario 2: skips if spec already exists and --force not set', async () => {
     await writePrd('docs/feature.md');
     await mkdir(path.join(rootDir, 'specs'), { recursive: true });
@@ -103,6 +105,7 @@ describe('runImport', () => {
     expect(res.created).toBe(0);
   });
 
+  // [claims: capabilities/spec-authoring#import-documents]
   it('force overwrites existing spec', async () => {
     await writePrd('docs/feature.md');
     await mkdir(path.join(rootDir, 'specs'), { recursive: true });
@@ -115,6 +118,7 @@ describe('runImport', () => {
     expect(content).toContain('My Feature');
   });
 
+  // [claims: capabilities/spec-authoring#import-documents]
   it('--out overrides the output path', async () => {
     await writePrd('docs/feature.md');
     const outPath = path.join(rootDir, 'custom-out.md');
@@ -130,12 +134,14 @@ describe('runImport', () => {
     await expect(runImport(makeConfig(), { source: '' })).rejects.toThrow();
   });
 
+  // [claims: capabilities/spec-authoring#import-documents]
   it('returns failed when source file not found', async () => {
     const res = await runImport(makeConfig(), { source: 'nonexistent/file.md' });
     expect(res.failed).toBe(1);
     expect(res.exitCode).not.toBe(0);
   });
 
+  // [claims: capabilities/spec-authoring#import-documents]
   it('LLM failure records failed result', async () => {
     await writePrd('docs/feature.md');
     mockedLlm.mockRejectedValueOnce(new Error('LLM down'));
@@ -148,6 +154,7 @@ describe('runImport', () => {
 });
 
 describe('fetchUrl', () => {
+  // [claims: capabilities/spec-authoring#import-documents]
   it('rejects non-http protocols', async () => {
     await expect(fetchUrl('file:///etc/passwd')).rejects.toThrow('Unsupported protocol');
   });
