@@ -272,6 +272,11 @@ describe('API [api-v1]', () => {
       llm.mockResolvedValue('# Guide');
       const r = (await get(await api(withModel), '/api/v1/docs/user/system')).json;
       expect(r.markdown).toBe('# Guide');
+      // The model is given the system spec's own sections, not empty capability sections.
+      const systemPrompt = llm.mock.calls[0][0].prompt as string;
+      expect(systemPrompt).toContain('## Problem');
+      expect(systemPrompt).not.toContain('## Requirements');
+      expect(systemPrompt).not.toContain('## Problem & Value');
       const prompt = llm.mock.calls[0][0].prompt as string;
       expect(prompt).toContain('# Capabilities');
       expect(prompt).toContain('Only approved people sign in.');

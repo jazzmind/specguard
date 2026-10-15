@@ -24,7 +24,7 @@ import type { DocRenderer } from '../plugins/types.js';
 
 export const AUDIENCES = ['user', 'dev', 'agent'] as const;
 export type Audience = (typeof AUDIENCES)[number];
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 
 export class DocNotFoundError extends Error {}
 
@@ -55,7 +55,16 @@ function reqs(node: SpecNode, ids: boolean): string {
 }
 
 /** The spec as prompt material: every section a doc could draw on. */
+/** The system spec has its own sections (Problem, Users, Value, Non-goals), not a capability's Problem & Value and Requirements. */
+function systemMaterial(node: SpecNode): string {
+  const own = Object.entries(node.spec.sections)
+    .filter(([name, body]) => body.trim() && !/^capability map$/i.test(name))
+    .map(([name, body]) => `## ${name}\n${body.trim()}`);
+  return [`# ${node.spec.title || node.id}`, node.spec.meta.value ? `Value: ${node.spec.meta.value}` : '', ...own].filter(Boolean).join('\n\n');
+}
+
 function material(node: SpecNode, dev: boolean): string {
+  if (node.kind === 'system') return systemMaterial(node);
   const parts = [
     `# ${node.spec.title || node.id}`,
     node.spec.meta.value ? `Value: ${node.spec.meta.value}` : '',
