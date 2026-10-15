@@ -1,7 +1,7 @@
 {
   "name": "specguard-ai",
   "version": "0.2.0",
-  "description": "SpecGuard — Living Specification QA agent CLI + MCP server",
+  "description": "SpecGuard \u2014 Living Specification QA agent CLI + MCP server",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -33,10 +33,11 @@
     "test:watch": "vitest",
     "dev": "tsx src/cli/index.ts",
     "lint": "eslint .",
-    "prepublishOnly": "npm run typecheck && npm run build",
+    "prepublishOnly": "npm run typecheck && npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "ci": "npm run typecheck && npm run lint && npm test && npm run build",
-    "schemas": "node scripts/export-schemas.mjs"
+    "schemas": "node scripts/export-schemas.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.71",

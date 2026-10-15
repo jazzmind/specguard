@@ -104,6 +104,8 @@ describe('team server: access [central-access]', () => {
     expect((await call(base, '/api/v1/health')).status).toBe(200);
     const root = base.replace(/\/specguard$/, '');
     expect((await call(root, '/api/v1/health')).status).toBe(404);
+    // The sandbox's health check hits the container without the prefix.
+    expect((await call(root, '/health')).json).toMatchObject({ ok: true });
     const ui = await call(base, '/');
     expect(ui.status).toBe(200);
     expect(ui.text).toContain('<meta name="sg-base" content="/specguard">');

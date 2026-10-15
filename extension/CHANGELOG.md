@@ -2,6 +2,76 @@
 
 All notable changes are documented here.
 
+## [0.2.0] — 2026-10-15
+
+### ✨ New
+
+- feat: local-first operation with an optional team server; finish the 0.2 surface cuts (0.2.0) (`21d94e6`)
+- feat(extension): read data through the SpecGuard API, with a team server and a local fallback (`9cf692e`)
+- Add comprehensive tests for API, server, and UI functionality (`69f684e`)
+- feat(remediate): MCP tool (scan-only/dry-run), action remediate mode, CI docs and example workflow (`20ef5e2`)
+- feat(remediate): CLI command and end-to-end fixtures (preserved, changed, flaky, dry-run, locks) (`5c243e6`)
+- feat(remediate): orchestrator, ship, PR body rendering (`19db8b7`)
+- feat(remediate): apply with write allowlist, code fixer, test selection, verification (`e57eb8f`)
+- feat(git-ops): per change-type staging scopes, -z porcelain parsing, traversal-safe root check (`56605cb`)
+- feat(remediate): detection, baseline, planning, changelog analysis, git/worktree helpers (`37688b1`)
+- feat(core): behavior-preservation verdict (pure) with table-driven tests (`b4ae9e8`)
+- feat(core): ecosystem adapters (npm/pnpm/yarn/pip/poetry/uv/go/cargo/maven/gradle), OSV detector, audit fixtures (`7eb0887`)
+- feat(core): advisory model, ignore file, remediate exit codes (`9553af3`)
+- feat(validate): auth strategies, per-profile contexts, redaction, target-aware guardrails, headless/allow-outbound (`8a16c16`)
+- feat(release): package-qualified npx forms, single version source, GitHub Action, tag-driven release, real lint (`cd57769`)
+- feat(llm): per-pipeline overrides, fallback chain, timeout/retry, usage log, hard budget, replay and none providers (`a0e8377`)
+- feat(test-runners,heal): runner adapters reading reporter files, per-app test config, heal jobs, workspace detection (`5140146`)
+- feat(portability): ignore generated run state, init writes the ignore block, one org identity (`9526a66`)
+- feat(config): paths block, extends, repo-boundary config search, stripPrefix, entryPoints, framework profiles for index (`97184f2`)
+- feat(plugins): plugin architecture, generic feature-state, de-Practera (`9d0c1a9`)
+- feat(matrix,align,generate): claim-tag prepass, per-claim matrix linkage, tagged generated tests (`1ee25b9`)
+- feat(results): test-result ingestion, claim tags, portable proof ledger (`c601157`)
+- feat: enhance spec management with new features and error handling (`94a2826`)
+- feat: introduce claims and proof management commands in CLI (`13eba8e`)
+- feat: enhance align command with concurrency and fresh options (`2a3c6d0`)
+- feat: add initial VSCode settings for Python environment configuration (`0355857`)
+- feat: add index command and enhance orphan detection in drift pipeline (`162250e`)
+- feat: enhance documentation and UI for spec management and contract rebuilding (`d966536`)
+- feat: release version 0.1.28 with new commands and enhancements (`b46d9fd`)
+- feat: release version 0.1.27 with enhancements and new features (`bc5555b`)
+
+### 🐛 Fixed
+
+- fix(ci): extension lockfile in sync under npm 10 (esbuild 0.28 matches vite peer); give analyze --auto-fix test a CI-safe timeout (`35503c1`)
+- fix(init): resolve a local specguard runner for MCP/hook wiring (--runner node (`npx`)
+- fix(sources): globs resolve relative to the app repo with warned root-relative fallback; correct HiRocky adoption doc (`15ffdc9`)
+- fix(results): partial ingests only update present claims; --unexercised/--sweep needs --full-run or all-app coverage and never downgrades proven claims (`56a0f24`)
+- fix(status): mark specs (no test) by claim-tag linkage, file name as fallback; add HiRocky regression suite (`00dc48f`)
+- fix(spec-key): one canonical spec key; ingest records declared source hashes; migrate legacy registry keys (`0dd7e7b`)
+- fix: security uses the language audit runner, audit detail kept, changelog write, no-op flags wired, security.json report, bandit removed (`8ffd306`)
+
+### 🔧 Internal
+
+- test: keep the publish tests independent of CI environment variables (`760a6d7`)
+- chore: update settings.json to include attribution fields and co-authorship option (`ac7d6bf`)
+- chore: update pnpm-lock.yaml with dependency version upgrades for AI SDKs and ESLint packages (`6c27444`)
+- chore: build the CLI on install and mark the dependency upgrade as 0.1.3 (`b98b262`)
+- chore: update package-lock.json with dependency version upgrades for @modelcontextprotocol/sdk and proxy-addr, and add funding information for express (`60886e4`)
+- chore: remove unused imports (`2a53309`)
+- docs: README spec keys, ingest semantics, runner; regression tests for partial/full ingest (`c5faa82`)
+- spec: sources relative to repo (`f258d29`)
+- spec: canonical spec key, partial-ingest semantics, claim-tag status, init runner (`2fa4a26`)
+- docs: dogfood results of remediate against a read-only HiRocky copy (`cef326a`)
+- docs: README remediate section, exit codes, git/PR non-goal exception (`deb1e8f`)
+- chore(remediate): lint fixes (`cfb47c1`)
+- test(remediate): unit tests for planning, changelog/replay LLM, detection, allowlist, selection, ship; MCP tool test (`838b633`)
+- docs(specs): remediate pipeline spec (`b39a35d`)
+- docs(specs): advisory, ecosystems and behavior-verdict specs for remediate (`a76d35b`)
+- docs: fix HiRocky config note, update guardrails README (`98129af`)
+- docs: HiRocky adoption guide (`ade0d88`)
+- chore(dogfood): self config with test blocks, tag claim-tags tests, ledger, docs/dogfood.md (`93911d5`)
+- docs: correct remaining npx wording, drop machine-specific doc path mentions (`294d49e`)
+- test(mcp): results/proof ingest tools via in-memory client; refresh MCP spec tool table (`57ef1f6`)
+- test: resolve specguard-core alias, fix errors import, build feature-state fixture instead of a machine-specific checkout (`eea8dd7`)
+- chore: update dependencies and refactor LLM integration (`2fabe7b`)
+- chore: update package-lock.json for version bump and dependency updates (`3ec377a`)
+- ci: add check-gitignore workflow to prevent tracked build artifacts (`80c2e55`)
 ## [0.1.28] — 2026-08-29
 
 ### ✨ New

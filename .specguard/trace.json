@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-15T20:23:12.499Z",
+  "generated": "2026-10-15T20:26:30.740Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -6135,31 +6135,31 @@
           "tests": [
             {
               "file": "tests/pipelines/publish.test.ts",
-              "line": 13,
+              "line": 29,
               "title": "writes a snapshot a server would accept: specs, history, trace, proofs, and no source code [snapshot]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/publish.test.ts",
-              "line": 36,
+              "line": 52,
               "title": "redacts credentials from every file and leaves the v1 archive out [redaction]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/publish.test.ts",
-              "line": 47,
+              "line": 63,
               "title": "names the project from the flag, then config, then the directory [project-name]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/publish.test.ts",
-              "line": 60,
+              "line": 76,
               "title": "rejects paths that leave the spec tree, non-markdown files and bad project names [paths]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/publish.test.ts",
-              "line": 76,
+              "line": 92,
               "title": "rejects malformed, oversized and wrong-version input without throwing [malformed]",
               "origin": "source"
             }

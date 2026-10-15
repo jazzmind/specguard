@@ -85,6 +85,9 @@ jobs:
   publish-extension:
     name: Publish the VS Code extension
     # After the CLI, so an extension that expects this CLI version never ships before it exists.
+    # Off until the repository variable PUBLISH_EXTENSION is set to "true" (Settings > Variables), so a release without
+    # Marketplace credentials still publishes the CLI and creates the GitHub release.
+    if: ${{ vars.PUBLISH_EXTENSION == 'true' }}
     needs: [verify, publish-cli]
     runs-on: ubuntu-latest
     env:
@@ -124,9 +127,12 @@ jobs:
   github-release:
     name: GitHub release
     needs: [verify, publish-cli, publish-extension]
+    # Runs when the CLI was published, whether or not the extension job ran.
+    if: ${{ !cancelled() && needs.publish-cli.result == 'success' && needs.publish-extension.result != 'failure' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
+        if: ${{ needs.publish-extension.result == 'success' }}
         with:
           name: vsix
       - name: Create the release
@@ -134,4 +140,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ needs.verify.outputs.prerelease }}" = "true" ]; then PRE="--prerelease"; else PRE=""; fi
-          gh release create "$GITHUB_REF_NAME" specguard-*.vsix --repo "$GITHUB_REPOSITORY" --generate-notes --title "SpecGuard ${{ needs.verify.outputs.version }}" $PRE
+          gh release create "$GITHUB_REF_NAME" $(ls specguard-*.vsix 2>/dev/null) --repo "$GITHUB_REPOSITORY" --generate-notes --title "SpecGuard ${{ needs.verify.outputs.version }}" $PRE

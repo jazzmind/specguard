@@ -102,6 +102,11 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
       } catch {
         return sendJson(400, { error: 'invalid request target' });
       }
+      // The sandbox's health check calls the container directly, without the path prefix.
+      if (pathname === '/health' && (req.method === 'GET' || req.method === 'HEAD')) {
+        const health = await api.handle({ method: 'GET', path: '/api/v1/health' });
+        return send(health.status, health.type, health.body);
+      }
       if (basePath) {
         if (pathname !== basePath && !pathname.startsWith(`${basePath}/`)) return sendJson(404, { error: 'not found' });
         pathname = pathname.slice(basePath.length) || '/';
