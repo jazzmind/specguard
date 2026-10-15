@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { loadConfig } from '../../src/core/config.js';
 import { MAX_SNAPSHOT_BYTES, parseSnapshot } from '../../src/core/snapshot.js';
@@ -8,6 +8,22 @@ import { runHistoryAdd } from '../../src/pipelines/history.js';
 import { ingestVerdicts } from '../../src/pipelines/proof.js';
 import { buildSnapshot, runPublish } from '../../src/pipelines/publish.js';
 import { makeV2Repo } from '../helpers/v2-repo.js';
+
+// On GitHub Actions the repository name comes from the environment; these tests are about what is derived without it.
+const CI_VARS = ['GITHUB_ACTIONS', 'GITHUB_REPOSITORY', 'GITHUB_REF_NAME', 'GITHUB_HEAD_REF', 'GITHUB_SHA', 'GITHUB_ACTOR', 'CI'] as const;
+const savedEnv: Record<string, string | undefined> = {};
+beforeEach(() => {
+  for (const v of CI_VARS) {
+    savedEnv[v] = process.env[v];
+    delete process.env[v];
+  }
+});
+afterEach(() => {
+  for (const v of CI_VARS) {
+    if (savedEnv[v] === undefined) delete process.env[v];
+    else process.env[v] = savedEnv[v];
+  }
+});
 
 describe('publish [publish]', () => {
   // [claims: capabilities/team-server#publish-snapshot]
