@@ -1,12 +1,777 @@
 {
   "capabilities/agentic-verification": {},
-  "capabilities/conformance-testing": {},
-  "capabilities/documentation-api": {},
-  "capabilities/integration-surfaces": {},
-  "capabilities/platform-foundation": {},
-  "capabilities/requirement-history": {},
-  "capabilities/security-and-remediation": {},
-  "capabilities/spec-authoring": {},
-  "capabilities/traceability-and-drift": {},
-  "capabilities/workspaces": {}
+  "capabilities/conformance-testing": {
+    "src/core/proof-ledger.ts@e71bf9548e6eb0c7be6705acb62fb219eb62f0e2d7a5f12df6cd87d877f6e613": {
+      "affectedClaims": [
+        "proof-provenance",
+        "ledger-records-basis",
+        "shared-ingest-and-ledger-path",
+        "ledger-verdict-states"
+      ],
+      "at": "2026-10-15T19:08:33.224Z",
+      "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    },
+    "src/core/provenance.ts@6b7914e2983db7842389cf18cc88339b99b2af19e3a3e155e6397d4deaa084e9": {
+      "affectedClaims": [
+        "proof-provenance",
+        "ledger-records-basis",
+        "shared-ingest-and-ledger-path",
+        "ledger-verdict-states"
+      ],
+      "at": "2026-10-15T19:08:33.224Z",
+      "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    },
+    "src/core/state/ledger-store.ts@927b75515bfb81f8944e9d385b58ce83c5c5d03b3c1f306a28302e9584455ce3": {
+      "affectedClaims": [
+        "proof-provenance",
+        "ledger-records-basis",
+        "shared-ingest-and-ledger-path",
+        "ledger-verdict-states"
+      ],
+      "at": "2026-10-15T19:08:33.224Z",
+      "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    },
+    "src/core/state/lock.ts@a465103a17e22eeec8be1d086051139517ac356c2177d91f1e2a0e28c8c96ab9": {
+      "affectedClaims": [
+        "proof-provenance",
+        "ledger-records-basis",
+        "shared-ingest-and-ledger-path",
+        "ledger-verdict-states"
+      ],
+      "at": "2026-10-15T19:08:33.224Z",
+      "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    },
+    "src/pipelines/proof.ts@0d716137e82001f26f5a4ff1ffac84b94067875e612890924dacc22e5692f704": {
+      "affectedClaims": [
+        "proof-provenance",
+        "ledger-records-basis",
+        "shared-ingest-and-ledger-path",
+        "ledger-verdict-states"
+      ],
+      "at": "2026-10-15T19:08:33.224Z",
+      "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    }
+  },
+  "capabilities/documentation-api": {
+    "src/server/api.ts@b3d2dfbf99c68f5aea12d062ffb13a7c35f9106da3e0e8dadc5b4ab199c5d1e9": {
+      "affectedClaims": [
+        "serve-readonly",
+        "spec-endpoints",
+        "audit-endpoints",
+        "docs-endpoints",
+        "single-flight-budget",
+        "audience-shapes",
+        "cache-key",
+        "serve-host-guard"
+      ],
+      "at": "2026-10-15T19:08:48.467Z",
+      "reason": "The change significantly restructures the API routing and introduces new endpoints, write capabilities, authentication/authorization, and multi-project support. Several requirements are directly affected: serve-readonly is affected because the API now conditionally allows writes (PATCH /security/plans/:plan/items/:item, POST /projects/:project/snapshots) depending on registry.writable and identity/role, whereas the requirement states no endpoint that writes, runs a pipeline or executes code; spec-endpoints are affected because routes now live under /api/v1/projects/:project/... with a default-project fallback; audit-endpoints are affected similarly; docs-endpoints are affected. New user-visible behaviour not covered by any requirement includes: multi-project registry support, snapshot publishing (POST /projects/:project/snapshots), PATCH for security plan item status, /coverage, /contracts, /findings, /specs, /specs/:id, /docs/:audience (list), /projects listing, /health and /version endpoints returning engine/hash version info, identity/role-based authorization (401/403 responses), If-Match optimistic concurrency, /api/v1/projects/:project/... routing prefix, and usage attribution via onUsage callback."
+    },
+    "src/server/central/auth.ts@5180551b4db0635d198b12cf689d24adc46533413ad6ae0ccaef5142aa110c3f": {
+      "affectedClaims": [
+        "serve-readonly",
+        "spec-endpoints",
+        "audit-endpoints",
+        "docs-endpoints",
+        "single-flight-budget",
+        "audience-shapes",
+        "cache-key",
+        "serve-host-guard"
+      ],
+      "at": "2026-10-15T19:08:48.467Z",
+      "reason": "The change significantly restructures the API routing and introduces new endpoints, write capabilities, authentication/authorization, and multi-project support. Several requirements are directly affected: serve-readonly is affected because the API now conditionally allows writes (PATCH /security/plans/:plan/items/:item, POST /projects/:project/snapshots) depending on registry.writable and identity/role, whereas the requirement states no endpoint that writes, runs a pipeline or executes code; spec-endpoints are affected because routes now live under /api/v1/projects/:project/... with a default-project fallback; audit-endpoints are affected similarly; docs-endpoints are affected. New user-visible behaviour not covered by any requirement includes: multi-project registry support, snapshot publishing (POST /projects/:project/snapshots), PATCH for security plan item status, /coverage, /contracts, /findings, /specs, /specs/:id, /docs/:audience (list), /projects listing, /health and /version endpoints returning engine/hash version info, identity/role-based authorization (401/403 responses), If-Match optimistic concurrency, /api/v1/projects/:project/... routing prefix, and usage attribution via onUsage callback."
+    },
+    "src/server/central/backend.ts@7625ce421bcd4933d9accbf69302dbe7a1733c464835f600e26314efc9342758": {
+      "affectedClaims": [
+        "serve-readonly",
+        "spec-endpoints",
+        "audit-endpoints",
+        "docs-endpoints",
+        "single-flight-budget",
+        "audience-shapes",
+        "cache-key",
+        "serve-host-guard"
+      ],
+      "at": "2026-10-15T19:08:48.467Z",
+      "reason": "The change significantly restructures the API routing and introduces new endpoints, write capabilities, authentication/authorization, and multi-project support. Several requirements are directly affected: serve-readonly is affected because the API now conditionally allows writes (PATCH /security/plans/:plan/items/:item, POST /projects/:project/snapshots) depending on registry.writable and identity/role, whereas the requirement states no endpoint that writes, runs a pipeline or executes code; spec-endpoints are affected because routes now live under /api/v1/projects/:project/... with a default-project fallback; audit-endpoints are affected similarly; docs-endpoints are affected. New user-visible behaviour not covered by any requirement includes: multi-project registry support, snapshot publishing (POST /projects/:project/snapshots), PATCH for security plan item status, /coverage, /contracts, /findings, /specs, /specs/:id, /docs/:audience (list), /projects listing, /health and /version endpoints returning engine/hash version info, identity/role-based authorization (401/403 responses), If-Match optimistic concurrency, /api/v1/projects/:project/... routing prefix, and usage attribution via onUsage callback."
+    },
+    "src/server/central/config.ts@47808f0a7d37abe4d06f3bac4f1150677c1b65e505faf237810487b42b715d9d": {
+      "affectedClaims": [
+        "serve-readonly",
+        "spec-endpoints",
+        "audit-endpoints",
+        "docs-endpoints",
+        "single-flight-budget",
+        "audience-shapes",
+        "cache-key",
+        "serve-host-guard"
+      ],
+      "at": "2026-10-15T19:08:48.467Z",
+      "reason": "The change significantly restructures the API routing and introduces new endpoints, write capabilities, authentication/authorization, and multi-project support. Several requirements are directly affected: serve-readonly is affected because the API now conditionally allows writes (PATCH /security/plans/:plan/items/:item, POST /projects/:project/snapshots) depending on registry.writable and identity/role, whereas the requirement states no endpoint that writes, runs a pipeline or executes code; spec-endpoints are affected because routes now live under /api/v1/projects/:project/... with a default-project fallback; audit-endpoints are affected similarly; docs-endpoints are affected. New user-visible behaviour not covered by any requirement includes: multi-project registry support, snapshot publishing (POST /projects/:project/snapshots), PATCH for security plan item status, /coverage, /contracts, /findings, /specs, /specs/:id, /docs/:audience (list), /projects listing, /health and /version endpoints returning engine/hash version info, identity/role-based authorization (401/403 responses), If-Match optimistic concurrency, /api/v1/projects/:project/... routing prefix, and usage attribution via onUsage callback."
+    },
+    "src/server/central/file-backend.ts@85bbb3e63cdfbb72454a30f90dc7abaef891d57f8c44272189aa7fd6e2102bb1": {
+      "affectedClaims": [
+        "serve-readonly",
+        "spec-endpoints",
+        "audit-endpoints",
+        "docs-endpoints",
+        "single-flight-budget",
+        "audience-shapes",
+        "cache-key",
+        "serve-host-guard"
+      ],
+      "at": "2026-10-15T19:08:48.467Z",
+      "reason": "The change significantly restructures the API routing and introduces new endpoints, write capabilities, authentication/authorization, and multi-project support. Several requirements are directly affected: serve-readonly is affected because the API now conditionally allows writes (PATCH /security/plans/:plan/items/:item, POST /projects/:project/snapshots) depending on registry.writable and identity/role, whereas the requirement states no endpoint that writes, runs a pipeline or executes code; spec-endpoints are affected because routes now live under /api/v1/projects/:project/... with a default-project fallback; audit-endpoints are affected similarly; docs-endpoints are affected. New user-visible behaviour not covered by any requirement includes: multi-project registry support, snapshot publishing (POST /projects/:project/snapshots), PATCH for security plan item status, /coverage, /contracts, /findings, /specs, /specs/:id, /docs/:audience (list), /projects listing, /health and /version endpoints returning engine/hash version info, identity/role-based authorization (401/403 responses), If-Match optimistic concurrency, /api/v1/projects/:project/... routing prefix, and usage attribution via onUsage callback."
+    },
+    "src/server/central/mcp.ts@3de7e8b0fb0b41c9550d59c453a900bc836a394b8498ce9552c1bdd5642d21f8": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/central/pg-backend.ts@67426c65947bb7c04f0d5522cc585500cb25fddcfe928bb4a0ae22d4e7542023": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/central/puller.ts@83b3843622fe562cde0806f152b6220e5e5bacd4ac8b0cc36a75c8940c888c40": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/central/registry.ts@f1084fd95fc5a42649b25ede2c670b38247a81184eba61a2d066063d269109a9": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/central/server.ts@1a6ea05982d4b5a0b213a5accde4ee9c4b0481d02d7b78ef5aa45f0adcd24464": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/docs.ts@4ed9bb89a932f52315c09e0588ca70a910209e307fd076da1e72a8360b947f7f": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/project.ts@defb69288589786ad59547a4b8cba2b3a8633e00d69f541c50a33bb6f6d09ee6": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/server/ui.ts@a6fd57313b0827ca2b515b3d0025867abbc2d0bffef4d00945e73f96634c62cc": {
+      "affectedClaims": [
+        "single-flight-budget",
+        "cache-key",
+        "serve-readonly",
+        "static-ui",
+        "docs-endpoints",
+        "audience-shapes"
+      ],
+      "at": "2026-10-15T19:09:02.326Z",
+      "reason": "The changes touch several behaviours described in the requirements. In docs.ts: (1) the serial 'exclusive' gate is replaced by per-generation LLM scopes (affects single-flight-budget and cache-key); (2) the file-based cache is replaced by a ContentCache interface (affects cache-key); (3) plugin renderers are integrated and become part of the cache key (affects cache-key); (4) user attribution is threaded through (affects single-flight-budget). In ui.ts: a Tokens management view is added (POST /tokens, DELETE /tokens/:id write actions surfaced in the UI), which contradicts serve-readonly ('no endpoint that writes'); a project switcher is added; the UI now makes write requests (revoke, create token). The new MCP endpoint (mcp.ts) and team-server files (pg-backend, puller, registry, server) are new team-server behaviour not covered by documentation-api requirements. The ui.ts changes also introduce unspecified behaviour (token management UI, project switcher)."
+    },
+    "src/core/root-doc-sync.ts@1fd5f18f88b195b977fa2ac89d4cd0e084a73cf4bf7ca4ccb0c602af4c40f2b8": {
+      "affectedClaims": [
+        "root-doc-sync-sentinels",
+        "root-doc-sync-safe",
+        "cache-key"
+      ],
+      "at": "2026-10-15T19:09:08.730Z",
+      "reason": "The root-doc-sync.ts change alters the content written into the auto-generated marked sections of README.md, CLAUDE.md, and AGENTS.md (the command list and AGENTS.md template). This directly affects the behaviour described by root-doc-sync-sentinels and root-doc-sync-safe, which specify what is placed between the markers. The content-cache.ts file introduces the file-based cache implementation referenced by the cache-key requirement, which is new behaviour (storing cache entries under .specguard/cache/)."
+    },
+    "src/core/state/content-cache.ts@ef792d21f8d622737ef7003a5bcf31cd73cbb34825c5efd6fe6e8219f47b4a8d": {
+      "affectedClaims": [
+        "root-doc-sync-sentinels",
+        "root-doc-sync-safe",
+        "cache-key"
+      ],
+      "at": "2026-10-15T19:09:08.730Z",
+      "reason": "The root-doc-sync.ts change alters the content written into the auto-generated marked sections of README.md, CLAUDE.md, and AGENTS.md (the command list and AGENTS.md template). This directly affects the behaviour described by root-doc-sync-sentinels and root-doc-sync-safe, which specify what is placed between the markers. The content-cache.ts file introduces the file-based cache implementation referenced by the cache-key requirement, which is new behaviour (storing cache entries under .specguard/cache/)."
+    }
+  },
+  "capabilities/integration-surfaces": {
+    "extension/src/api/adapters.test.ts@5041cd14fae0e8b75e3507501c20c30860f838106e0db6c58fa6642b4c4ec33c": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.622Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/adapters.ts@eec6c692923ceae80179d9b0df9c2662784e1414b5b9c7acedad82a5d93399ff": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/client.ts@fcda5bc5083cc21c395da04d285da4bab060284948b476a5a1f1cd0ce4476b05": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/connection.test.ts@0de58df5365bf5c5516cc638199aa2f9e1f42183846ec05a8ca24ceccbe5510a": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/connection.ts@20a60b422cb93f99ff65b5933dce0733bce512e6a29ed24e119a880525b4102a": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/data.ts@38e9338f7a551ef84c459722c790669241bac772d1022368412e1e0f8d628170": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/hub.ts@6cbc3a0c8ab019d53edc0749e5d997ba26c951385a187c8cc70cb3a33c42c869": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/local-server.test.ts@71b5c74358b5a3e120a4ac58b04ff2ae5be9c140bee05aee927f0ea70b37fb11": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/local-server.ts@04e54a0b72ce0762e72703ef546d7dadfa284a77ca127139ea272705c48f5ae6": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/shared.ts@41bd3c93660e0ee658154b373b8e1b2d8fa8baf46d779585eabe1813707e81b3": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "extension/src/api/types.ts@fbf860563f9974bce3bfbd248cf93800ccc4f0f643734f618d65a3f9c5a6aa19": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-15T19:09:24.623Z",
+      "reason": "The change introduces a substantial new subsystem in the VS Code extension: an HTTP API client layer (ApiClient, ApiHub, connection resolution, local server spawning, data adapters) that connects the extension to either a team server or a local `specguard serve` process. This directly affects the vscode-dashboard requirement, which specifies how the extension resolves and runs the CLI, reads .specguard files, and displays dashboard data. The new code adds team-server connectivity, token/credential management, a local server fallback, and API-driven data loading — behaviours not described in vscode-dashboard. It also introduces concepts (team server, server URL config, project switching via API, sign-in flow, stored tokens) that partially overlap with vscode-dashboard but go well beyond it, and are not covered by any listed requirement."
+    },
+    "src/cli/index.ts@37cb5d4cc424713e9f2958dfe78f8bc7b3fc3082bb92e1c94d5852634379e643": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "src/mcp/server.ts@b132037c80f869a942c1ec72c737968984983d0981710743df8ab4e2e435c327": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "src/plugins/index.ts@2de69c5f11233f1b6e4da645ebed49f4dcad6b19ec0cb667f18d5451c395ba8a": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "action.yml@30e2b41444e6468029a5150294b2c70bab4e9285f03d904cb4c264db91189b80": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "action/run-gates.mjs@451d71d0ae8fdbfebef3eb78d02ec40c01544e50c77f5500365066f1014275d9": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "extension/src/commands.ts@0e89a145767c02209c81931ce396cf47cfc8e0e4af88896146ec07a9a00452c7": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "extension/src/dashboard/flow-events.ts@ccdd4329c68bc3ca0567380546f90eefcad8deec818508106382a40498e640dd": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "extension/src/dashboard/host.ts@7ef026f39bfb429045e352f8e918bd159cd2b608aa7fde0617ec1c03aff4731e": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "extension/src/dashboard/protocol.ts@c098861eb93018a67fb83dd1fe01643fb6a75962335f241b495544f8ed7d65f4": {
+      "affectedClaims": [
+        "planned-reduced-surface",
+        "action-gates",
+        "action-fail-on",
+        "exit-codes-and-env",
+        "mcp-activity-and-limits",
+        "mcp-tools-parity",
+        "vscode-dashboard",
+        "planned-plugin-extensions",
+        "plugin-contract"
+      ],
+      "at": "2026-10-15T19:09:43.964Z",
+      "reason": "The change removes the `deps`, `analyze` and `plan-fix` CLI commands and their MCP tools, aligning with `planned-reduced-surface`. It also adds new gates (`publish`), new CLI commands (`login`, `logout`, `publish`, `server`), new Action inputs (`server-url`, `server-token`), new `fail-on` thresholds (`check`, `test`, `verify`, `scan`, `publish`), and new MCP behaviour (`team` flag on `check`, `loadSpecGuardEnv` per MCP call, team-server plan routing). Several of these touch specified requirements: removing `deps`/`analyze`/`plan-fix` from CLI/MCP affects `planned-reduced-surface`; `deps` gate now runs `security scan` instead of `specguard deps`, affecting `action-gates`; new `publish` gate and `fail-on` entries are not in `action-gates` or `action-fail-on`; new `server-url`/`server-token` inputs and `publish` gate are not covered by `action-remediate-and-release` or `action-gates`; `loadSpecGuardEnv` moved to shared module and called per-MCP-invocation changes the `exit-codes-and-env` / `mcp-activity-and-limits` behaviour; the `team` flag on `check` is new unspecified behaviour; the VS Code dashboard's `analyze`/`plan-fix`/`deps` pipeline nodes are removed and `check`, `test-run`, `security-scan` added, affecting `vscode-dashboard`; the plugin loader now supports `{name,package}` npm entries, touching `planned-plugin-extensions`; `import` command gains `--capability`/`--yes` flags not in any requirement."
+    },
+    "extension/src/extension.ts@9df56811c554b4dc22e258301735c6974b9c6d2230ba527ec0cc473bc851f326": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/src/pipelines-view.ts@0c7e048c65dfdf8b875f2235ad20ac561269298d449b1690921230e934bb6fff": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/src/sidebar.ts@678c0ebdc96ca80391bbf07ae566432682c42548322b5ebffff9e4ae5f96266f": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/webview/src/protocol.ts@0b33d09b4ad361d51d74e008f5a27cafb3ea5c43436a5bb203197034d21d6da9": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/webview/src/reducer.ts@0fb4b93d5656da75830a361b2a084aa0fe67e921fe05cc560857a9d4c461f985": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/webview/src/views/FindingsView.tsx@a6fa1aba387fe374b59f694e53e4528f64a1bbaaaabd7f88e818088b8b554adc": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/webview/src/views/FlowView.tsx@84edb45e788a15fb515217c56155234e55c0b2156f1ae17a756f4753e7eb6610": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "src/plugins/commands.ts@cec8a922495f6f59f7a0303872526f778260a993229a2c55975831bf25517dfa": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "src/plugins/feature-catalog/feature-state.ts@872df7c602736b811b57af7a69d2645d2a546637d20e70acc3dd2bb602f43e2f": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "src/plugins/quality/code-quality.ts@0956a4633ac051f66c5981b5b920f8fabab395f7b89c0b2c9e6ed10c880325d0": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "src/plugins/types.ts@67e15f4eb99faa85706f29843c14f489730c897007709daae7129f63895a0292": {
+      "affectedClaims": [
+        "vscode-dashboard",
+        "planned-reduced-surface",
+        "planned-plugin-extensions",
+        "plugin-contract",
+        "core-plugin-boundary",
+        "action-gates"
+      ],
+      "at": "2026-10-15T19:09:58.455Z",
+      "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    }
+  },
+  "capabilities/platform-foundation": {
+    "src/core/config.ts@531c20304792f1abc203b9e501bfdb98965680ad75af03e31aa81aa4ef590de7": {
+      "affectedClaims": [
+        "llm-budget-cap",
+        "llm-provider-layer",
+        "config-apps-and-defaults",
+        "llm-usage-log"
+      ],
+      "at": "2026-10-15T19:10:12.784Z",
+      "reason": "The change introduces several behaviours described by requirements: (1) `baseUrl` in config for openai/litellm providers affects llm-provider-layer (config-driven endpoint override instead of only env vars); (2) `runWithLlmScope` with per-scope spend, budget, config and user directly implements llm-budget-cap's server mode isolation; (3) `UsageEvent` and `onUsage` callback implement llm-budget-cap's usage reporting to scope callback; (4) `scopeCallOptions` sending user and tags to the provider implements llm-budget-cap's requirement that a scope's user and labels are sent to the provider; (5) plugins now accepting `{name, package}` objects extends config-apps-and-defaults/plugin settings; (6) the new `server` config block (ServerConfig) and its schema are new user-visible behaviour not covered by any requirement."
+    },
+    "src/core/llm-runtime.ts@1381d03a2c8a0bebb13604e5e3f495780da8753abe95da7d8a104d96f44faa74": {
+      "affectedClaims": [
+        "llm-budget-cap",
+        "llm-provider-layer",
+        "config-apps-and-defaults",
+        "llm-usage-log"
+      ],
+      "at": "2026-10-15T19:10:12.784Z",
+      "reason": "The change introduces several behaviours described by requirements: (1) `baseUrl` in config for openai/litellm providers affects llm-provider-layer (config-driven endpoint override instead of only env vars); (2) `runWithLlmScope` with per-scope spend, budget, config and user directly implements llm-budget-cap's server mode isolation; (3) `UsageEvent` and `onUsage` callback implement llm-budget-cap's usage reporting to scope callback; (4) `scopeCallOptions` sending user and tags to the provider implements llm-budget-cap's requirement that a scope's user and labels are sent to the provider; (5) plugins now accepting `{name, package}` objects extends config-apps-and-defaults/plugin settings; (6) the new `server` config block (ServerConfig) and its schema are new user-visible behaviour not covered by any requirement."
+    },
+    "src/core/llm.ts@2fd5d9d271fdc315f7d63ba3b6329472cc970cf2cb961c72b06071ea0b614eef": {
+      "affectedClaims": [
+        "llm-budget-cap",
+        "llm-provider-layer",
+        "config-apps-and-defaults",
+        "llm-usage-log"
+      ],
+      "at": "2026-10-15T19:10:12.784Z",
+      "reason": "The change introduces several behaviours described by requirements: (1) `baseUrl` in config for openai/litellm providers affects llm-provider-layer (config-driven endpoint override instead of only env vars); (2) `runWithLlmScope` with per-scope spend, budget, config and user directly implements llm-budget-cap's server mode isolation; (3) `UsageEvent` and `onUsage` callback implement llm-budget-cap's usage reporting to scope callback; (4) `scopeCallOptions` sending user and tags to the provider implements llm-budget-cap's requirement that a scope's user and labels are sent to the provider; (5) plugins now accepting `{name, package}` objects extends config-apps-and-defaults/plugin settings; (6) the new `server` config block (ServerConfig) and its schema are new user-visible behaviour not covered by any requirement."
+    },
+    "src/core/types.ts@4e6a230c734ebc5b6f1c98b3579ba60ed743f0aed1bde1b061662c8502f19a52": {
+      "affectedClaims": [
+        "llm-budget-cap",
+        "llm-provider-layer",
+        "config-apps-and-defaults",
+        "llm-usage-log"
+      ],
+      "at": "2026-10-15T19:10:12.784Z",
+      "reason": "The change introduces several behaviours described by requirements: (1) `baseUrl` in config for openai/litellm providers affects llm-provider-layer (config-driven endpoint override instead of only env vars); (2) `runWithLlmScope` with per-scope spend, budget, config and user directly implements llm-budget-cap's server mode isolation; (3) `UsageEvent` and `onUsage` callback implement llm-budget-cap's usage reporting to scope callback; (4) `scopeCallOptions` sending user and tags to the provider implements llm-budget-cap's requirement that a scope's user and labels are sent to the provider; (5) plugins now accepting `{name, package}` objects extends config-apps-and-defaults/plugin settings; (6) the new `server` config block (ServerConfig) and its schema are new user-visible behaviour not covered by any requirement."
+    }
+  },
+  "capabilities/requirement-history": {
+    "specs/history/2026-10-15-local-first-specguard-with-an-optional-t.md@0910b4918440300150d97db7359641d22fda7649c938db9801a5ce14594c5b09": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:10:18.809Z",
+      "reason": "This change adds a new history entry file at specs/history/2026-10-15-local-first-specguard-with-an-optional-t.md. The file itself is a history entry (kind: prompt+plan) conforming to the history-entry-format requirement. Adding a history entry is exactly what the system is designed to hold — it is not a code change that alters any behaviour described in the requirements. The content describes a planning session about team-server capabilities, and the affects list references 'team-server'. No requirement logic is modified; this is purely additive data that the system is built to store and serve."
+    }
+  },
+  "capabilities/security-and-remediation": {
+    "src/cli/commands/security.ts@464bd369ee549483b7f4d93df8916b62ce5dbdee8dc18e257be9a2198d73e929": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/core/remediation-schema.ts@a6152f6d60d74d0ea50c657de30cfbbb2213f8f75d1e4086c448a3e44278fc8a": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/core/state/plan-store.ts@78019298afaccac591e1b1d7b96f76cebabb26a31f8957c85fe41650332c63ce": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/pipelines/security-fix.ts@27b944c2e71c36497c06bad033d5a4e1da2758fc8c36bb7c4f72013524d858bf": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/pipelines/security-plan.ts@30076d93b2edba6f5b54e59c9d8464d2e99e707bfbe1b048e06c775eb92aa392": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/pipelines/security-scan.ts@8d3f3eb5158aba649314c70ea5ec6b166f9f5988311e052eeb631fcb119b1919": {
+      "affectedClaims": [
+        "plan-transitions",
+        "plan-lifecycle",
+        "remediation-plan",
+        "security-fix-statuses",
+        "unified-scan",
+        "plan-carry-over",
+        "branch-and-evidence"
+      ],
+      "at": "2026-10-15T19:10:35.487Z",
+      "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    }
+  },
+  "capabilities/spec-authoring": {
+    "src/cli/commands/import.ts@931af37211ff85acc02a8d9147f2cd9a6eda7c18254cc432f8c39cbf89345925": {
+      "affectedClaims": [
+        "spec-index-refreshes-map",
+        "import-documents"
+      ],
+      "at": "2026-10-15T19:10:46.904Z",
+      "reason": "The import.ts change adds support for the --capability and --yes flags to the import command, routing to runImportIntoCapability. This directly implements the behaviour described in spec-index-refreshes-map: 'import <file> --capability <id> adds only the requirements a document states that the capability does not already cover (a dry run unless --yes), appends them with unique claim anchors, and records a history entry for what it changed'. The import-capability.ts pipeline file implements this pipeline including appendRequirements, the LLM call, dry-run behaviour, and history writing. The spec-synth.ts change adds a prompt version stamp to the cache hash, which is an internal caching refinement not described by any requirement and constitutes new unspecified behaviour (cache invalidation when the prompt version or model changes)."
+    },
+    "src/pipelines/import-capability.ts@626460ba63ac5808fc6962b18c3cc3845271ea6648c41ac64d83b03d137d180d": {
+      "affectedClaims": [
+        "spec-index-refreshes-map",
+        "import-documents"
+      ],
+      "at": "2026-10-15T19:10:46.904Z",
+      "reason": "The import.ts change adds support for the --capability and --yes flags to the import command, routing to runImportIntoCapability. This directly implements the behaviour described in spec-index-refreshes-map: 'import <file> --capability <id> adds only the requirements a document states that the capability does not already cover (a dry run unless --yes), appends them with unique claim anchors, and records a history entry for what it changed'. The import-capability.ts pipeline file implements this pipeline including appendRequirements, the LLM call, dry-run behaviour, and history writing. The spec-synth.ts change adds a prompt version stamp to the cache hash, which is an internal caching refinement not described by any requirement and constitutes new unspecified behaviour (cache invalidation when the prompt version or model changes)."
+    },
+    "src/pipelines/spec-synth.ts@12b50959e816b328953b7aefe9e97be0d1139f717ec2cd97e46e441b32125f24": {
+      "affectedClaims": [
+        "spec-index-refreshes-map",
+        "import-documents"
+      ],
+      "at": "2026-10-15T19:10:46.904Z",
+      "reason": "The import.ts change adds support for the --capability and --yes flags to the import command, routing to runImportIntoCapability. This directly implements the behaviour described in spec-index-refreshes-map: 'import <file> --capability <id> adds only the requirements a document states that the capability does not already cover (a dry run unless --yes), appends them with unique claim anchors, and records a history entry for what it changed'. The import-capability.ts pipeline file implements this pipeline including appendRequirements, the LLM call, dry-run behaviour, and history writing. The spec-synth.ts change adds a prompt version stamp to the cache hash, which is an internal caching refinement not described by any requirement and constitutes new unspecified behaviour (cache invalidation when the prompt version or model changes)."
+    }
+  },
+  "capabilities/traceability-and-drift": {
+    "src/cli/commands/check.ts@d091a33de09a79b53bd55083597ca21c90dcbab1b69e8bbe972627592d4e99b4": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:10:54.237Z",
+      "reason": "The changes are: (1) adding a `team` flag to the check command that appends team server lines to the output – this is new behaviour not described in any requirement; (2) exporting a HASH_VERSION constant from claim-hash.ts – internal/informational, no requirement covers versioned hashing rules; (3) removing a stale comment from gap-analysis.ts – comment-only change; (4) passing an extra `rootDir` argument to `loadPlugins` in status.ts – likely a bug-fix/refactor with no visible behaviour change described in requirements. None of these touch behaviour that the listed requirements describe, except the `team` flag which introduces entirely new user-visible behaviour not covered by any requirement."
+    },
+    "src/core/claim-hash.ts@297dc897d56063c5654d3b1c27efb56b31a4f32fd61a88a13be423078fd478b9": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:10:54.237Z",
+      "reason": "The changes are: (1) adding a `team` flag to the check command that appends team server lines to the output – this is new behaviour not described in any requirement; (2) exporting a HASH_VERSION constant from claim-hash.ts – internal/informational, no requirement covers versioned hashing rules; (3) removing a stale comment from gap-analysis.ts – comment-only change; (4) passing an extra `rootDir` argument to `loadPlugins` in status.ts – likely a bug-fix/refactor with no visible behaviour change described in requirements. None of these touch behaviour that the listed requirements describe, except the `team` flag which introduces entirely new user-visible behaviour not covered by any requirement."
+    },
+    "src/pipelines/gap-analysis.ts@c60b60db92a862b08d9f8f17c01f0a1d5d564cf43762f6eb1785c6df5f06d176": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:10:54.237Z",
+      "reason": "The changes are: (1) adding a `team` flag to the check command that appends team server lines to the output – this is new behaviour not described in any requirement; (2) exporting a HASH_VERSION constant from claim-hash.ts – internal/informational, no requirement covers versioned hashing rules; (3) removing a stale comment from gap-analysis.ts – comment-only change; (4) passing an extra `rootDir` argument to `loadPlugins` in status.ts – likely a bug-fix/refactor with no visible behaviour change described in requirements. None of these touch behaviour that the listed requirements describe, except the `team` flag which introduces entirely new user-visible behaviour not covered by any requirement."
+    },
+    "src/pipelines/status.ts@8299ac9ce710f76308163932ce67e203cfdfa670fbd3a0819890f2e94a88c47b": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:10:54.237Z",
+      "reason": "The changes are: (1) adding a `team` flag to the check command that appends team server lines to the output – this is new behaviour not described in any requirement; (2) exporting a HASH_VERSION constant from claim-hash.ts – internal/informational, no requirement covers versioned hashing rules; (3) removing a stale comment from gap-analysis.ts – comment-only change; (4) passing an extra `rootDir` argument to `loadPlugins` in status.ts – likely a bug-fix/refactor with no visible behaviour change described in requirements. None of these touch behaviour that the listed requirements describe, except the `team` flag which introduces entirely new user-visible behaviour not covered by any requirement."
+    }
+  },
+  "capabilities/workspaces": {
+    "src/core/env.ts@2d51b718cc1a27d3f5e451b8ab99f699f1b08ce6599683dc139c8303f83a4b41": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:11:00.284Z",
+      "reason": "The changes are internal refactors: (1) src/core/env.ts implements the shared-env requirement and is a new file with no behavioural diff to compare against; (2) src/pipelines/contracts.ts changes how plugins are deduplicated (from Set+string names to Map+JSON.stringify for PluginEntry objects) and passes manifest.rootDir to loadPlugins — these are implementation-level fixes/improvements to how plugins are loaded, not changes to the user-visible behaviour described in the requirements. The contract-sources requirement says edges are built from structured blocks, plugin importers, and optionally LLM; this refactor does not change that model. No requirement-described behaviour is altered, added, or removed."
+    },
+    "src/pipelines/contracts.ts@8d8f058fa7d5ff11e5e68e21fa115c166574e3e6f583174ae4cd7a80073f6cd1": {
+      "affectedClaims": [],
+      "at": "2026-10-15T19:11:00.284Z",
+      "reason": "The changes are internal refactors: (1) src/core/env.ts implements the shared-env requirement and is a new file with no behavioural diff to compare against; (2) src/pipelines/contracts.ts changes how plugins are deduplicated (from Set+string names to Map+JSON.stringify for PluginEntry objects) and passes manifest.rootDir to loadPlugins — these are implementation-level fixes/improvements to how plugins are loaded, not changes to the user-visible behaviour described in the requirements. The contract-sources requirement says edges are built from structured blocks, plugin importers, and optionally LLM; this refactor does not change that model. No requirement-described behaviour is altered, added, or removed."
+    }
+  },
+  "capabilities/team-server": {}
 }

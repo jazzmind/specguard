@@ -13,6 +13,7 @@ import { loadConfig } from '../../src/core/config.js';
 import { LlmBudgetExceededError, llmGenerateText } from '../../src/core/llm.js';
 import { runHistoryAdd } from '../../src/pipelines/history.js';
 import { Api } from '../../src/server/api.js';
+import { installNpmPlugin } from '../helpers/npm-plugin.js';
 import { makeV2Repo } from '../helpers/v2-repo.js';
 import type { TmpRepo } from '../helpers/repo.js';
 
@@ -50,7 +51,7 @@ describe('API [api-v1]', () => {
     expect(ui.body).toContain('<title>SpecGuard</title>');
     expect((await get(a, '/nope')).status).toBe(404);
     expect((await get(a, '/api/v1/nope')).status).toBe(404);
-    expect((await get(a, '/api/v1/health')).json).toEqual({ ok: true, version: 1 });
+    expect((await get(a, '/api/v1/health')).json).toEqual({ ok: true, version: 1, apiVersion: 1, engineVersion: expect.stringMatching(/^\d+\.\d+\.\d+/), hashVersion: 1, writable: false });
   });
 
   // [claims: capabilities/documentation-api#spec-endpoints]
@@ -189,21 +190,53 @@ describe('API [api-v1]', () => {
       expect(y.json.markdown).toBe('# Shared');
     });
 
+    // [claims: capabilities/integration-surfaces#planned-plugin-extensions]
+    it('lets a plugin renderer produce a document without a model call, and falls through when it declines or fails [doc-renderers]', async () => {
+      installNpmPlugin(
+        repo,
+        'specguard-plugin-docs',
+        "exports.plugin = { id: 'docs', docRenderers: [" +
+          "{ id: 'broken', render: () => { throw new Error('x'); } }," +
+          "{ id: 'user-only', render: (c) => c.audience === 'user' ? `# ${c.title} (rendered by a plugin)` : null }] };",
+      );
+      const viaPlugin = (c: Awaited<ReturnType<typeof loadConfig>>) => {
+        withModel(c);
+        c.plugins = [{ name: 'docs', package: 'specguard-plugin-docs' }];
+      };
+      const a = await api(viaPlugin);
+      llm.mockResolvedValue('# From the model');
+      const user = (await get(a, '/api/v1/docs/user/auth')).json;
+      expect(user.markdown).toContain('(rendered by a plugin)');
+      expect(user.generated).toBe(false);
+      expect(llm).not.toHaveBeenCalled();
+      // Cached, still marked as not model-generated.
+      expect((await get(a, '/api/v1/docs/user/auth')).json).toMatchObject({ cached: true, generated: false });
+      // The renderer declines the dev audience, so the model writes it.
+      const dev = (await get(a, '/api/v1/docs/dev/auth')).json;
+      expect(dev).toMatchObject({ markdown: '# From the model', generated: true });
+      expect(llm).toHaveBeenCalledTimes(1);
+    });
+
     // [claims: capabilities/documentation-api#single-flight-budget]
-    it('runs model generations one at a time, so one request cannot reset another\'s spend count [serialised]', async () => {
+    it('runs generations for different documents concurrently, each in its own LLM scope [concurrent-scopes]', async () => {
+      const { currentLlmScope } = await import('../../src/core/llm-runtime.js');
+      const scopes = new Set<unknown>();
       let active = 0;
       let peak = 0;
       llm.mockImplementation(async () => {
+        scopes.add(currentLlmScope());
         active += 1;
         peak = Math.max(peak, active);
-        await new Promise((r) => setTimeout(r, 20));
+        await new Promise((r) => setTimeout(r, 25));
         active -= 1;
         return '# Doc';
       });
       const a = await api(withModel);
       await Promise.all([get(a, '/api/v1/docs/user/auth'), get(a, '/api/v1/docs/dev/auth'), get(a, '/api/v1/docs/user/shop')]);
       expect(llm).toHaveBeenCalledTimes(3);
-      expect(peak).toBe(1);
+      expect(peak).toBeGreaterThan(1);
+      expect(scopes.size).toBe(3);
+      expect([...scopes].every((s) => (s as { tags?: string[] }).tags?.includes('specguard-docs'))).toBe(true);
     });
 
     // [claims: capabilities/documentation-api#single-flight-budget]
@@ -265,10 +298,14 @@ describe('API [api-v1]', () => {
   it('lists and reads security plans, and cannot be walked out of the plans folder [plans]', async () => {
     const a = await api();
     expect((await get(a, '/api/v1/security/plans')).json).toEqual({ plans: [] });
-    repo.write('.specguard/security/plans/p1.json', JSON.stringify({ id: 'p1', createdAt: '2026-10-15', items: [{}, {}] }));
+    const planItem = (id: string) => ({ id, title: id, severity: 'high', type: 'dependency', change: 'dependency', summary: 's', findings: [{ id, detector: 'advisory', message: 'm' }], claims: [], files: [], verify: { scope: 'all-proven', claims: [] }, status: 'open', statusHistory: [], fingerprint: id });
+    repo.write('.specguard/security/plans/p1.json', JSON.stringify({ version: 1, id: 'p1', createdAt: '2026-10-15', tool: { name: 'specguard' }, items: [planItem('a'), planItem('b')] }));
+    repo.write('.specguard/security/plans/broken.json', JSON.stringify({ id: 'broken', items: [{}] }));
     repo.write('secret.json', '{"leak":true}');
+    // A plan that does not match the schema is never served.
     expect((await get(a, '/api/v1/security/plans')).json.plans).toEqual([{ id: 'p1', createdAt: '2026-10-15', items: 2 }]);
     expect((await get(a, '/api/v1/security/plans/p1')).json.id).toBe('p1');
+    expect((await get(a, '/api/v1/security/plans/broken')).status).toBe(404);
     expect((await get(a, '/api/v1/security/plans/..%2F..%2Fsecret')).status).toBe(404);
   });
 });

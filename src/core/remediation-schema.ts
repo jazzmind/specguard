@@ -22,7 +22,7 @@ export type PlanSeverity = (typeof SEVERITY_LEVELS)[number];
 
 export const ITEM_TYPES = ['spec', 'code', 'dependency', 'secret'] as const;
 export const CHANGE_TYPES = ['code', 'spec', 'dependency', 'config'] as const;
-export const DETECTORS = ['advisory', 'semgrep', 'gitleaks', 'spec-review'] as const;
+export const DETECTORS = ['advisory', 'semgrep', 'gitleaks', 'spec-review', 'plugin'] as const;
 export const ITEM_STATUSES = ['open', 'planned', 'in-progress', 'fixed', 'verified', 'wont-fix'] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
@@ -30,6 +30,7 @@ export const FindingRefSchema = z.looseObject({
   id: z.string().describe('Stable id of the finding in its detector, such as an advisory id or a rule id plus location.'),
   detector: z.enum(DETECTORS),
   ruleId: z.string().optional(),
+  source: z.string().optional().describe('For detector `plugin`: the id of the plugin detector that found it.'),
   message: z.string(),
   file: z.string().optional().describe('Repo-relative path.'),
   line: z.number().int().optional(),
@@ -51,6 +52,7 @@ export const PlanItemSchema = z.looseObject({
   summary: z.string().describe('The proposed change, in a sentence or two.'),
   findings: z.array(FindingRefSchema),
   capability: z.string().optional().describe('Id of the capability spec the finding falls under.'),
+  unit: z.string().optional().describe('Key of the workspace unit (a repo or a monorepo package) the affected files are in, when the project has a workspace manifest.'),
   claims: z.array(z.string()).describe('Claim refs (`specKey#claimId`) the finding bears on.'),
   files: z.array(z.string()).describe('Repo-relative paths a fix would touch.'),
   verify: z.looseObject({

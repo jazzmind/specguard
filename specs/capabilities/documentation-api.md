@@ -6,6 +6,7 @@ parent: system
 value: Anyone, human or AI, can read accurate documentation of the system as it is now, pitched at their level, generated from the specs on request and delivered over an API.
 status: active
 sources:
+  - "src/core/state/content-cache.ts"
   - "src/pipelines/doc-generate.ts"
   - "src/core/root-doc-sync.ts"
   - "src/cli/commands/docs.ts"
@@ -51,8 +52,8 @@ Because the specs are kept current and traceable to code and tests, they are the
 - [ ] `GET /docs/:audience/:id` and `/docs/:audience/system` return generated documentation for the audience `user`, `dev` or `agent`, and an unknown audience or capability returns a clear 400 or 404 error. <!-- claim: docs-endpoints -->
 - [ ] the user audience omits claims and internals, the dev audience adds sources, interfaces and tests, and the agent audience is a compact structured form that can be parsed without reading prose. <!-- claim: audience-shapes -->
 - [ ] documentation is generated on demand with the fast model tier, never in the background, and responses are complete documents rather than streams. <!-- claim: fast-tier-on-demand -->
-- [ ] generated documents are cached by spec content hash, audience and prompt version, so an unchanged spec is served from cache and an edited spec or a changed prompt version regenerates it. <!-- claim: cache-key -->
-- [ ] concurrent requests for the same uncached document share one LLM call (single-flight), and each request is limited by a per-request LLM budget that fails with a clear error instead of overspending. <!-- claim: single-flight-budget -->
+- [ ] generated documents are cached (behind a cache interface, files by default) by spec content hash, audience, prompt version, model and the enabled plugin renderers, so an unchanged spec is served from cache and an edited spec, a changed prompt version or a different model regenerates it. <!-- claim: cache-key -->
+- [ ] concurrent requests for the same uncached document share one LLM call (single-flight), different documents generate concurrently, and each generation runs in its own LLM scope with its own budget (a spent budget fails that request with a clear error and never affects or resets another) and with the requester's name sent to the model gateway for spend attribution. <!-- claim: single-flight-budget -->
 - [ ] a small static web UI served at `/` lets a person browse the system, capabilities, trace and generated docs using only the API. <!-- claim: static-ui -->
 - [ ] served documents and data are redacted so credentials and secret values from specs, config or history never leave the server. <!-- claim: served-redaction -->
 - [ ] On a loopback address the server rejects any request whose Host header is not a local name (blocking DNS-rebinding reads from a hostile page), answers with `nosniff`, no-store and a content security policy on the UI, and sends cross-origin headers only when `--cors` names an origin <!-- claim: serve-host-guard -->

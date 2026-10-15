@@ -14,6 +14,8 @@ import type { DetectionReport, ItemReport } from '../../src/pipelines/remediate/
 import { runSecurityFix } from '../../src/pipelines/security-fix.js';
 import { readPlan, runPlanSetStatus } from '../../src/pipelines/security-plan.js';
 import { runSecurityScan } from '../../src/pipelines/security-scan.js';
+import { installNpmPlugin } from '../helpers/npm-plugin.js';
+import { makeMonorepo } from '../helpers/monorepo-fixture.js';
 import { makeV2Repo } from '../helpers/v2-repo.js';
 import type { TmpRepo } from '../helpers/repo.js';
 
@@ -201,6 +203,79 @@ describe('security scan [security-scan]', () => {
       expect(second.exitCode).toBe(1);
       expect(second.plan).toBeUndefined();
       expect(second.messages.join('\n')).toContain('does not validate');
+    });
+  });
+
+  // [claims: capabilities/workspaces#unit-aware-pipelines]
+  it('names the workspace unit each finding is in, and omits it outside a workspace [unit-key]', async () => {
+    const sastIn = (file: string) => ({ kind: 'sast', ruleId: 'js.xss', path: file, line: 1, message: 'x', severity: 'high' });
+    mockedDetect.mockResolvedValue(detection({ sast: [sastIn('packages/web/src/index.ts'), sastIn('packages/ui/src/button.ts')] as never, advisories: [advisory()], sources: ['semgrep', 'osv-scanner'] }));
+    const mono = makeMonorepo();
+    const inMono = await runSecurityScan(await loadConfig(mono.dir), { noSpecReview: true });
+    const unitOfTitle = Object.fromEntries(inMono.plan!.items.map((i) => [i.title, i.unit]));
+    expect(unitOfTitle['js.xss in packages/web/src/index.ts']).toBe('web');
+    expect(unitOfTitle['js.xss in packages/ui/src/button.ts']).toBe('ui');
+    // A dependency item points at the root manifest, which belongs to no package.
+    expect(inMono.plan!.items.find((i) => i.type === 'dependency')!.unit).toBeUndefined();
+    expect(RemediationPlanSchema.safeParse(inMono.plan).success).toBe(true);
+    const plain = await scan({});
+    expect(plain.plan!.items.every((i) => i.unit === undefined)).toBe(true);
+  });
+
+  describe('plugin detectors [plugin-detectors]', () => {
+    // The package is loaded once per process, so its answer is read from a file the test rewrites between scans.
+    const PLUGIN =
+      "const fs = require('fs'); const path = require('path');" +
+      "exports.plugin = { id: 'lint-rules', detectors: [{ id: 'lint-rules', detect: async ({ rootDir }) => {" +
+      "const state = JSON.parse(fs.readFileSync(path.join(rootDir, 'detector-state.json'), 'utf8'));" +
+      "if (state.throw) throw new Error(state.throw); return state; } }] };";
+    const answer = (state: unknown) => repo.write('detector-state.json', JSON.stringify(state));
+    const withPlugin = (c: Awaited<ReturnType<typeof loadConfig>>) => {
+      c.plugins = [{ name: 'lint-rules', package: 'specguard-plugin-lint-rules' }];
+    };
+    const evalFinding = { ruleId: 'no-eval', path: 'src/auth/login.ts', line: 4, message: 'eval on input', severity: 'high' };
+
+    beforeEach(() => installNpmPlugin(repo, 'specguard-plugin-lint-rules', PLUGIN));
+
+    // [claims: capabilities/integration-surfaces#planned-plugin-extensions]
+    it('turns a plugin detector\'s findings into code items under the owning capability [findings]', async () => {
+      answer({ findings: [evalFinding, { ruleId: 'tiny', path: 'src/auth/login.ts', message: 'nit', severity: 'low' }] });
+      const r = await scan({}, withPlugin);
+      const items = r.plan!.items.filter((i) => i.findings[0].detector === 'plugin');
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ type: 'code', severity: 'high', capability: 'auth', files: ['src/auth/login.ts'] });
+      expect(items[0].findings[0]).toMatchObject({ source: 'lint-rules', ruleId: 'no-eval', line: 4 });
+      expect(RemediationPlanSchema.safeParse(r.plan).success).toBe(true);
+    });
+
+    // [claims: capabilities/integration-surfaces#planned-plugin-extensions]
+    it('closes its findings only when the detector ran cleanly, and never patches them [lifecycle]', async () => {
+      answer({ findings: [evalFinding] });
+      await scan({ planId: 'scan-1' }, withPlugin);
+      // The detector now warns: it did not finish, so silence is not a fix.
+      answer({ findings: [], warnings: ['rules file missing'] });
+      const partial = await scan({ planId: 'scan-2' }, withPlugin);
+      expect(partial.plan!.items.map((i) => i.status)).toEqual(['open']);
+      // Cleanly empty: closed.
+      answer({ findings: [] });
+      const clean = await scan({ planId: 'scan-3' }, withPlugin);
+      expect(clean.plan!.items.map((i) => i.status)).toEqual(['fixed']);
+      // And security fix leaves a plugin-found item alone.
+      answer({ findings: [evalFinding] });
+      await scan({ planId: 'scan-4' }, withPlugin);
+      const remediate = vi.fn();
+      const fixed = await runSecurityFix(await loadConfig(repo.dir), { planId: 'scan-4' }, {}, remediate as never);
+      expect(remediate).not.toHaveBeenCalled();
+      expect(fixed.messages.join('\n')).toContain('found by a plugin detector');
+    });
+
+    // [claims: capabilities/integration-surfaces#planned-plugin-extensions]
+    it('a detector that throws is reported and does not stop the scan [detector-crash]', async () => {
+      answer({ throw: 'boom' });
+      mockedDetect.mockResolvedValue(detection({ advisories: [advisory()], sources: ['osv-scanner'] }));
+      const r = await scan({}, withPlugin);
+      expect(r.messages.join('\n')).toContain('detector lint-rules failed: boom');
+      expect(r.plan!.items.map((i) => i.type)).toEqual(['dependency']);
     });
   });
 

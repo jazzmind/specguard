@@ -13,7 +13,8 @@ import {
   type PlanItem,
   type RemediationPlan,
 } from '../../src/core/remediation-schema.js';
-import { carryOver, readPlan, runPlanList, runPlanSetStatus, runPlanShow, writePlan } from '../../src/pipelines/security-plan.js';
+import { filePlanStore } from '../../src/core/state/plan-store.js';
+import { PlanStatusError, carryOver, itemVersion, planStoreFor, readPlan, runPlanList, runPlanSetStatus, runPlanShow, setItemStatus, writePlan } from '../../src/pipelines/security-plan.js';
 import { makeV2Repo } from '../helpers/v2-repo.js';
 
 const item = (over: Partial<PlanItem> = {}): PlanItem => ({
@@ -161,5 +162,58 @@ describe('published schema [plan-schema]', () => {
     expect(schema.properties.items.items.properties.status.enum).toEqual([...ITEM_STATUSES]);
     expect(schema.properties.items.items.additionalProperties).not.toBe(false);
     expect(RemediationPlanSchema.safeParse({ ...plan([item()]), annotatedBy: 'tracker' }).success).toBe(true);
+  });
+});
+
+describe('plan store and versioned status updates [plan-store]', () => {
+  const stored = async (items: PlanItem[]) => {
+    const config = await loadConfig(makeV2Repo().dir);
+    await writePlan(config, plan(items));
+    return { config, store: planStoreFor(config) };
+  };
+
+  // [claims: capabilities/security-and-remediation#plan-transitions]
+  it('rejects an update made against a stale item version and writes nothing [conflict]', async () => {
+    const { store } = await stored([item()]);
+    const first = await setItemStatus(store, 'scan-1', 'sec-aaa', 'in-progress', { note: 'taking it' });
+    expect(itemVersion(first.item)).toBe(1);
+    // A second caller still holds version 0.
+    await expect(setItemStatus(store, 'scan-1', 'sec-aaa', 'wont-fix', { expectedVersion: 0 })).rejects.toMatchObject({ code: 'conflict' });
+    expect((await store.read('scan-1'))!.items[0].status).toBe('in-progress');
+    // With the current version it goes through.
+    const ok = await setItemStatus(store, 'scan-1', 'sec-aaa', 'fixed', { expectedVersion: 1, by: 'tracker' });
+    expect(ok.was).toBe('in-progress');
+    expect(itemVersion(ok.item)).toBe(2);
+  });
+
+  // [claims: capabilities/security-and-remediation#plan-transitions]
+  it('names why an update was refused: no plan, no item, bad status, bad transition [error-codes]', async () => {
+    const { store } = await stored([item()]);
+    const code = async (fn: () => Promise<unknown>) => (await fn().catch((e: PlanStatusError) => e)) as PlanStatusError;
+    expect((await code(() => setItemStatus(store, 'nope', 'sec-aaa', 'fixed'))).code).toBe('no-plan');
+    expect((await code(() => setItemStatus(store, 'scan-1', 'missing', 'fixed'))).code).toBe('no-item');
+    expect((await code(() => setItemStatus(store, 'scan-1', 'sec-aaa', 'done'))).code).toBe('bad-status');
+    expect((await code(() => setItemStatus(store, 'scan-1', 'sec-aaa', 'verified'))).code).toBe('bad-transition');
+    expect((await store.read('scan-1'))!.items[0].statusHistory).toEqual([]);
+  });
+
+  // [claims: capabilities/security-and-remediation#plan-transitions]
+  it('serialises concurrent updates to different items of one plan, losing none [concurrent-items]', async () => {
+    const items = Array.from({ length: 12 }, (_, i) => item({ id: `sec-${i}`, fingerprint: `f${i}` }));
+    const { store } = await stored(items);
+    await Promise.all(items.map((it, i) => setItemStatus(store, 'scan-1', it.id, 'in-progress', { note: `n${i}`, externalRef: `EXT-${i}` })));
+    const after = (await store.read('latest'))!.items;
+    expect(after.every((it, i) => it.status === 'in-progress' && it.externalRef === `EXT-${i}`)).toBe(true);
+  });
+
+  // [claims: capabilities/security-and-remediation#plan-transitions]
+  it('lists plans oldest first and resolves latest, and skips temp files and invalid plans [list-latest]', async () => {
+    const { config } = await stored([item()]);
+    await writePlan(config, plan([item()], 'scan-2'));
+    const store = filePlanStore(path.join(config.rootDir!, '.specguard/security/plans'));
+    expect(await store.list()).toEqual(['scan-1', 'scan-2']);
+    expect((await store.read('latest'))!.id).toBe('scan-2');
+    expect(await store.read('../scan-1')).not.toBeNull();
+    expect(await store.read('ghost')).toBeNull();
   });
 });

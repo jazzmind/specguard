@@ -27,6 +27,7 @@ import {
   ReplayMissError,
   resetLlmRuntime,
   resolveTargets,
+  runWithLlmScope,
   runWithPipeline,
   setRecordMode,
 } from '../../src/core/llm.js';
@@ -268,5 +269,68 @@ describe('provider none and allowImages', () => {
     gt.mockResolvedValue(ok());
     await expect(call({ images: [Buffer.from('png')] })).rejects.toThrow(/allowImages/);
     expect(await call()).toBe('hi');
+  });
+});
+
+describe('per-request scopes [llm-scope]', () => {
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
+  it('gives each scope its own spend count and budget, so concurrent requests cannot spend or reset one another\'s [isolated-budget]', async () => {
+    configure({ budget: { maxCalls: 2 } });
+    gt.mockResolvedValue(ok());
+    const request = (n: number) =>
+      runWithLlmScope({}, async () => {
+        const results: string[] = [];
+        for (let i = 0; i < n; i += 1) results.push(await call().then(() => 'ok', (e: Error) => (e instanceof LlmBudgetExceededError ? 'budget' : 'other')));
+        return results;
+      });
+    const [a, b, c] = await Promise.all([request(3), request(2), request(1)]);
+    expect(a).toEqual(['ok', 'ok', 'budget']);
+    expect(b).toEqual(['ok', 'ok']);
+    expect(c).toEqual(['ok']);
+    // Outside any scope the process-wide count is untouched by the scoped calls.
+    expect(budgetExceededMessage()).toBeNull();
+    await expect(call()).resolves.toBe('hi');
+  });
+
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
+  it('uses the scope\'s own config, including its budget and gateway [scope-config]', async () => {
+    configure({});
+    gt.mockResolvedValue(ok());
+    const strict: LlmConfig = { ...base, backoffMs: 0, budget: { maxCalls: 1 } };
+    await runWithLlmScope({ runtime: { rootDir: root, llm: strict } }, async () => {
+      await call();
+      await expect(call()).rejects.toBeInstanceOf(LlmBudgetExceededError);
+    });
+    // The process-wide config has no budget.
+    await expect(call()).resolves.toBe('hi');
+    await expect(call()).resolves.toBe('hi');
+  });
+
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
+  it('reports usage to the scope, and passes the user and tags to the provider [attribution]', async () => {
+    configure({});
+    gt.mockResolvedValue(ok('hi', { inputTokens: 100, outputTokens: 50 }));
+    const seen: Array<{ pipeline: string; model: string; inputTokens: number; user?: string }> = [];
+    await runWithLlmScope({ user: 'wes@plymouthrock.com', tags: ['docs', 'portal'], onUsage: (u) => seen.push(u) }, () => call({ pipeline: 'docs' }));
+    expect(seen).toEqual([expect.objectContaining({ pipeline: 'docs', model: 'claude-sonnet-4-6', inputTokens: 100, outputTokens: 50, user: 'wes@plymouthrock.com' })]);
+    // Anthropic takes the user in metadata; the gateway-style header is not sent to it.
+    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { anthropic: { metadata: { userId: 'wes@plymouthrock.com' } } } });
+    expect(gt.mock.calls[0][0].headers).toBeUndefined();
+    // An OpenAI-compatible gateway gets the OpenAI user field and the LiteLLM tags header.
+    gt.mockClear();
+    await runWithLlmScope({ user: 'wes@plymouthrock.com', tags: ['docs', 'portal'] }, () => call({ provider: 'litellm', model: 'fast', apiKeyEnv: 'NOPE' }));
+    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { openai: { user: 'wes@plymouthrock.com' } }, headers: { 'x-litellm-tags': 'docs,portal' } });
+    // No scope, no extras.
+    gt.mockClear();
+    await call();
+    expect(gt.mock.calls[0][0].providerOptions).toBeUndefined();
+    expect(gt.mock.calls[0][0].headers).toBeUndefined();
+  });
+
+  // [claims: capabilities/platform-foundation#llm-budget-cap]
+  it('a failing usage callback never fails the call [onusage-throws]', async () => {
+    configure({});
+    gt.mockResolvedValue(ok());
+    await expect(runWithLlmScope({ onUsage: () => { throw new Error('sink down'); } }, () => call())).resolves.toBe('hi');
   });
 });

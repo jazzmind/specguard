@@ -13,7 +13,7 @@ import { makeRepo } from '../helpers/repo.js';
 const names = async (cwd: string) => (await enabledPluginCommands(cwd)).map((c) => c.name).sort();
 
 describe('plugin commands [plugin-commands]', () => {
-  // [claims: capabilities/integration-surfaces#plugin-commands]
+  // [claims: capabilities/integration-surfaces#plugin-commands, capabilities/integration-surfaces#core-plugin-boundary]
   it('are available only while the plugin is enabled in config [enabled-only]', async () => {
     expect(await names(makeRepo({}).dir)).toEqual([]);
     expect(await names(makeRepo({ plugins: ['quality'] }).dir)).toEqual(['quality']);

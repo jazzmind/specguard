@@ -1,7 +1,10 @@
 /**
- * Process-wide LLM runtime: the loaded `llm` config, the pipeline name for the
- * current command, and the spend of this run. Kept apart from `llm.ts` so that
- * loading a config never needs the AI SDK.
+ * LLM runtime: the loaded `llm` config, the pipeline name for the current
+ * command, and the spend of this run. A CLI process has one of each. A server
+ * handling many projects and requests wraps each request in `runWithLlmScope`,
+ * which gives it its own config, spend, budget and user, so one request can
+ * neither spend another's budget nor reset its count. Kept apart from `llm.ts`
+ * so that loading a config never needs the AI SDK.
  *
  * Spec: specs/capabilities/platform-foundation.md
  */
@@ -28,13 +31,55 @@ let budgetMessage: string | null = null;
 
 const pipelineStore = new AsyncLocalStorage<{ pipeline: string }>();
 
+/** One call's usage, as reported to a scope's `onUsage`. */
+export interface UsageEvent {
+  pipeline: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedUsd: number;
+  /** True when the model has no known price, so `estimatedUsd` is 0 by default rather than measured. */
+  unpriced: boolean;
+  user?: string;
+}
+
+export interface LlmScope {
+  /** Config for calls in this scope; default: the process-wide one. */
+  runtime?: LlmRuntime;
+  /** Who the calls are for. Sent to the provider so a gateway can attribute spend. */
+  user?: string;
+  /** Labels sent to the gateway with every call (for example the project). */
+  tags?: string[];
+  /** Called after every successful call. */
+  onUsage?: (usage: UsageEvent) => void;
+}
+
+interface ScopeState extends LlmScope {
+  spend: RunSpend;
+  budgetMessage: string | null;
+}
+
+const scopeStore = new AsyncLocalStorage<ScopeState>();
+
+/**
+ * Run `fn` with its own spend count, budget and (optionally) config and user. Everything `fn` starts
+ * inherits the scope; a scope inside a scope starts a new one.
+ */
+export function runWithLlmScope<T>(scope: LlmScope, fn: () => T): T {
+  return scopeStore.run({ ...scope, spend: { calls: 0, tokens: 0, usd: 0 }, budgetMessage: null }, fn);
+}
+
+export function currentLlmScope(): LlmScope | undefined {
+  return scopeStore.getStore();
+}
+
 /** Called by `loadConfig`. The last config loaded in the process wins. */
 export function configureLlm(next: LlmRuntime): void {
   runtime = next;
 }
 
 export function getLlmRuntime(): LlmRuntime | null {
-  return runtime;
+  return scopeStore.getStore()?.runtime ?? runtime;
 }
 
 /** Forget everything (tests). */
@@ -70,7 +115,7 @@ export function recordMode(): boolean {
 }
 
 export function runSpend(): RunSpend {
-  return spend;
+  return scopeStore.getStore()?.spend ?? spend;
 }
 
 /**
@@ -79,19 +124,37 @@ export function runSpend(): RunSpend {
  * or it would refuse every request once the process total reached the cap.
  */
 export function resetRunSpend(): void {
+  const scope = scopeStore.getStore();
+  if (scope) {
+    scope.spend = { calls: 0, tokens: 0, usd: 0 };
+    scope.budgetMessage = null;
+    return;
+  }
   spend = { calls: 0, tokens: 0, usd: 0 };
   budgetMessage = null;
 }
 
 export function addRunSpend(delta: Partial<RunSpend>): void {
+  const scope = scopeStore.getStore();
+  if (scope) {
+    scope.spend = {
+      calls: scope.spend.calls + (delta.calls ?? 0),
+      tokens: scope.spend.tokens + (delta.tokens ?? 0),
+      usd: scope.spend.usd + (delta.usd ?? 0),
+    };
+    return;
+  }
   spend = { calls: spend.calls + (delta.calls ?? 0), tokens: spend.tokens + (delta.tokens ?? 0), usd: spend.usd + (delta.usd ?? 0) };
 }
 
 /** Set when a call was refused for budget; the CLI turns it into exit code 8. */
 export function markBudgetExceeded(message: string): void {
-  budgetMessage ??= message;
+  const scope = scopeStore.getStore();
+  if (scope) scope.budgetMessage ??= message;
+  else budgetMessage ??= message;
 }
 
 export function budgetExceededMessage(): string | null {
-  return budgetMessage;
+  const scope = scopeStore.getStore();
+  return scope ? scope.budgetMessage : budgetMessage;
 }

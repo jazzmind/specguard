@@ -24,7 +24,7 @@
 | Input | Default | Meaning |
 |---|---|---|
 | `version` | `latest` | `specguard-ai` version to install. `local` builds the checked-out repo (SpecGuard's own CI). |
-| `gates` | `status,proof` | Any of `status`, `drift`, `proof`, `align`, `results`, `validate`, `security`, `deps`. |
+| `gates` | `status,proof` | Any of `status`, `drift`, `proof`, `align`, `results`, `validate`, `security`, `check`, `test`, `verify`, `scan` (`deps` is a retired alias of `scan`). |
 | `fail-on` | `missing-specs,drift,proof-failed,proof-stale,results` | Thresholds, below. |
 | `results` | empty | Reporter files or globs for `results ingest` (comma or newline separated). The `results` gate does nothing without them. |
 | `run-id` | `<run id>-<attempt>` | Run id stored in the proof ledger. |
@@ -48,7 +48,7 @@ Outputs: `failed` (`true` or `false`) and `tripped` (comma list).
 | `proof-unproven` | a spec claim has no ledger row |
 | `align-below:<n>` | the average alignment score is under n percent |
 | `results` | `results ingest` exited non-zero (a failed claim or an unreadable report) |
-| `validate`, `security`, `deps` | that gate exited non-zero |
+| `validate`, `security`, `check`, `test`, `verify`, `scan`, `deps` | that gate exited non-zero |
 | `none` | never fail; report only |
 
 A gate that did not run never trips. `proof-*` thresholds are skipped, with a note in the summary, when there is no ledger yet.

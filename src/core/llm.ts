@@ -25,6 +25,7 @@ import { ExitCode } from './exit-codes.js';
 import { loadReplay, previewOf, replayKey, saveReplay, type ReplayKind } from './llm-replay.js';
 import {
   addRunSpend,
+  currentLlmScope,
   currentPipeline,
   getLlmRuntime,
   markBudgetExceeded,
@@ -37,6 +38,7 @@ import type { LlmTarget, LlmTier } from './types.js';
 export {
   configureLlm,
   resetLlmRuntime,
+  runWithLlmScope,
   runWithPipeline,
   setDefaultPipeline,
   setRecordMode,
@@ -134,12 +136,12 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
       return anthropic(model);
     }
     case 'openai': {
-      const baseURL = process.env['OPENAI_BASE_URL'] || undefined;
+      const baseURL = getLlmRuntime()?.llm.baseUrl || process.env['OPENAI_BASE_URL'] || undefined;
       const openai = createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
       return openai.chat(model);
     }
     case 'litellm': {
-      const baseURL = process.env['LITELLM_BASE_URL'] || 'http://localhost:4000';
+      const baseURL = getLlmRuntime()?.llm.baseUrl || process.env['LITELLM_BASE_URL'] || 'http://localhost:4000';
       const openai = createOpenAI({ apiKey: apiKey || 'nokey', baseURL });
       return openai.chat(model);
     }
@@ -246,7 +248,7 @@ async function attemptTarget<T>(
   target: LlmTarget,
   pipeline: string,
   projectedInputTokens: number,
-  exec: (model: LanguageModel, signal: AbortSignal) => Promise<CallResult<T>>,
+  exec: (model: LanguageModel, signal: AbortSignal, target: LlmTarget) => Promise<CallResult<T>>,
 ): Promise<{ result: CallResult<T> }> {
   const rt = getLlmRuntime();
   const retries = rt?.llm.retries ?? DEFAULT_RETRIES;
@@ -257,7 +259,7 @@ async function attemptTarget<T>(
     checkBudget(pipeline, projectedInputTokens);
     const model = resolveModel(target.provider, target.model, target.apiKeyEnv ?? '');
     try {
-      const result = await exec(model, AbortSignal.timeout(timeoutMs));
+      const result = await exec(model, AbortSignal.timeout(timeoutMs), target);
       return { result };
     } catch (err) {
       lastError = err;
@@ -273,6 +275,14 @@ function account(target: LlmTarget, pipeline: string, inputTokens: number, outpu
   const price = priceFor(target.model, rt?.llm.pricing);
   const usd = estimateUsd(inputTokens, outputTokens, price);
   addRunSpend({ calls: 1, tokens: inputTokens + outputTokens, usd });
+  const scope = currentLlmScope();
+  if (scope?.onUsage) {
+    try {
+      scope.onUsage({ pipeline, model: target.model, inputTokens, outputTokens, estimatedUsd: usd, unpriced: !price, ...(scope.user ? { user: scope.user } : {}) });
+    } catch {
+      /* usage reporting must never fail a call */
+    }
+  }
   if (rt) {
     recordUsage(rt.rootDir, pipeline, target.model, {
       calls: 1,
@@ -294,7 +304,7 @@ function replayDir(): string {
 async function invoke<T>(
   kind: ReplayKind,
   opts: LlmTextOpts,
-  exec: (model: LanguageModel, signal: AbortSignal) => Promise<CallResult<T>>,
+  exec: (model: LanguageModel, signal: AbortSignal, target: LlmTarget) => Promise<CallResult<T>>,
   fromReplay: (recorded: unknown) => T,
 ): Promise<T> {
   const pipeline = opts.pipeline ?? currentPipeline();
@@ -353,6 +363,20 @@ async function invoke<T>(
   throw lastError;
 }
 
+/**
+ * Who a call is for, in the form each provider takes it. A gateway (LiteLLM) attributes spend by the OpenAI-style
+ * `user` field and the `x-litellm-tags` header; Anthropic takes `metadata.user_id`.
+ */
+export function scopeCallOptions(provider: string): { providerOptions?: Record<string, Record<string, unknown>>; headers?: Record<string, string> } {
+  const scope = currentLlmScope();
+  if (!scope?.user && !scope?.tags?.length) return {};
+  if (provider === 'anthropic') return scope.user ? { providerOptions: { anthropic: { metadata: { userId: scope.user } } } } : {};
+  return {
+    ...(scope.user ? { providerOptions: { openai: { user: scope.user } } } : {}),
+    ...(scope.tags?.length ? { headers: { 'x-litellm-tags': scope.tags.join(',') } } : {}),
+  };
+}
+
 function userMessages(opts: LlmTextOpts) {
   return [
     {
@@ -370,13 +394,14 @@ export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
   return invoke<string>(
     'text',
     opts,
-    async (model, abortSignal) => {
+    async (model, abortSignal, target) => {
       const common = {
         model,
         system: opts.system,
         maxOutputTokens: opts.maxTokens,
         temperature: opts.temperature,
         abortSignal,
+        ...(scopeCallOptions(target.provider) as object),
       };
       const res =
         opts.images && opts.images.length > 0
@@ -393,7 +418,7 @@ export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
   return invoke<T>(
     'object',
     opts,
-    async (model, abortSignal) => {
+    async (model, abortSignal, target) => {
       const common = {
         model,
         schema: opts.schema,
@@ -401,6 +426,7 @@ export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
         maxOutputTokens: opts.maxTokens,
         temperature: opts.temperature,
         abortSignal,
+        ...(scopeCallOptions(target.provider) as object),
       };
       const res =
         opts.images && opts.images.length > 0

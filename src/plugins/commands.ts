@@ -18,7 +18,7 @@ export async function enabledPluginCommands(cwd: string, warn: (msg: string) => 
     return [];
   }
   try {
-    return (await loadPlugins(config.plugins)).flatMap((p) => p.commands ?? []);
+    return (await loadPlugins(config.plugins, config.rootDir)).flatMap((p) => p.commands ?? []);
   } catch (err) {
     warn(`[warn] plugins not loaded: ${(err as Error).message}`);
     return [];

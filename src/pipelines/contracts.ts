@@ -11,7 +11,7 @@
  */
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
-import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
+import type { SpecGuardConfig, PipelineResult, PluginEntry } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { loadAllSpecs } from '../core/spec-parser.js';
@@ -224,10 +224,9 @@ export async function runContracts(
   log(`Pass 0: ${unitEdges.length} dependency edge(s) between ${Object.keys(manifest.units ?? {}).length} unit(s)`);
 
   // --- Pass 1: contract importers from enabled plugins ---------------------
-  const pluginNames = opts.plugins ?? [
-    ...new Set(repos.flatMap((r) => r.specGuardConfig?.plugins ?? [])),
-  ];
-  const importers = (await loadPlugins(pluginNames)).flatMap((p) => p.contractImporters ?? []);
+  const pluginEntries: PluginEntry[] =
+    opts.plugins ?? [...new Map(repos.flatMap((r) => r.specGuardConfig?.plugins ?? []).map((p) => [JSON.stringify(p), p] as const)).values()];
+  const importers = (await loadPlugins(pluginEntries, manifest.rootDir)).flatMap((p) => p.contractImporters ?? []);
   log(`Pass 1: Running ${importers.length} contract importer(s)...`);
   const importManifest = {
     rootDir: manifest.rootDir,

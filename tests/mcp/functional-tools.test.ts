@@ -9,7 +9,7 @@ function registered(): Map<string, { description?: string; inputSchema?: Record<
     tools.set(name, config);
     return {} as never;
   }) as never);
-  buildServer();
+  buildServer({ legacy: true });
   spy.mockRestore();
   return tools;
 }

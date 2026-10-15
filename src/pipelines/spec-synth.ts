@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 
-import { llmGenerateObject } from '../core/llm.js';
+import { llmGenerateObject, resolveTargets } from '../core/llm.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { expandAppGlobs } from '../core/spec-key.js';
 import type { CapabilityPlanT } from '../core/spec-map.js';
@@ -72,6 +72,9 @@ const SummarySchema = z.object({
   summary: z.string().describe('One or two sentences, at most 240 characters: what user-visible or business functionality this file provides.'),
 });
 
+/** Bump when SUMMARY_SYSTEM changes, so cached summaries are rewritten. */
+const SUMMARY_PROMPT_VERSION = 's1';
+
 const SUMMARY_SYSTEM =
   'You summarise one source file for a system-design review. Say what functionality it provides to users or other parts of the system, ' +
   'not how it is implemented. Do not invent behaviour that is not in the file.';
@@ -98,10 +101,12 @@ export async function summarizeFiles(
   const out: Record<string, string> = {};
   const queue = [...files];
   let fresh = 0;
+  // A summary is only reusable for the same file content, prompt and model: a better model or prompt must not be served stale text.
+  const stamp = `${SUMMARY_PROMPT_VERSION}|${resolveTargets({ provider: config.llm.provider, model: config.llm.model, apiKeyEnv: config.llm.apiKeyEnv, pipeline: 'summarize' })[0]?.model ?? config.llm.model}`;
   const worker = async (): Promise<void> => {
     for (let file = queue.shift(); file; file = queue.shift()) {
       const text = await readCapped(file.abs);
-      const hash = hashOf(text);
+      const hash = hashOf(`${stamp}\n${text}`);
       const hit = cache[file.rel];
       if (hit?.hash === hash) {
         out[file.rel] = hit.summary;

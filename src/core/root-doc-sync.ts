@@ -79,11 +79,10 @@ function buildContextPrompt(config: SpecGuardConfig, specs: ParsedSpec[]): strin
     'drift — detect specs out of sync with source code',
     'matrix — traceability matrix: specs → tests → docs',
     'quality — ESLint + dead-code (Knip)',
-    'deps — dependency vulnerability + unused dep audit',
+    'security scan — code, dependency, secret and spec-level findings as one remediation plan',
     'heal — LLM-assisted self-healing of failing tests',
     'commit — stage and commit SpecGuard-generated files',
-    'analyze — diagnose which pipelines need to run and why',
-    'plan-fix — generate an agent-consumable fix plan from findings',
+    'check — spec health for the whole system: ownership, tests, proofs, gaps, drift',
   ].join('\n');
 
   return [
@@ -190,7 +189,7 @@ function buildAgentsMd(guide: z.infer<typeof AgentsGuideSchema>): string {
     '',
     '```bash',
     'npx tsx src/cli/index.ts status          # check spec coverage',
-    'npx tsx src/cli/index.ts analyze          # diagnose which pipelines to run',
+    'npx tsx src/cli/index.ts check            # spec health: ownership, tests, proofs, drift',
     'npx tsx src/cli/index.ts reverse --all    # generate missing specs',
     'npx tsx src/cli/index.ts gap-analysis     # find unimplemented specs',
     'npx tsx src/cli/index.ts drift            # detect spec drift',

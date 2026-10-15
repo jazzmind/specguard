@@ -63,7 +63,7 @@ describe('runNpmAudit', () => {
     expect(result.findings).toHaveLength(0);
   });
 
-  // [claims: capabilities/security-and-remediation#deps-report-and-gate]
+  // [claims: capabilities/security-and-remediation#sast-degrades-gracefully]
   it('scenario 3: returns ok:false when npm unavailable', async () => {
     vi.spyOn(npmAuditRunner, 'run').mockReturnValue({
       stdout: null,

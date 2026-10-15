@@ -41,13 +41,13 @@ inputs:
     default: '.'
   gates:
     description: >-
-      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan.
+      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan, publish.
     required: false
     default: 'status,proof'
   fail-on:
     description: >-
       Comma-separated thresholds that fail the job: missing-specs, drift, proof-failed, proof-stale,
-      proof-unexercised, proof-unproven, align-below:<percent>, results, validate, security, deps, none.
+      proof-unexercised, proof-unproven, align-below:<percent>, results, validate, security, deps, check, test, verify, scan, publish, none.
     required: false
     default: 'missing-specs,drift,proof-failed,proof-stale,results'
   results:
@@ -64,6 +64,14 @@ inputs:
     default: ''
   validate-url:
     description: 'Base URL of the running app for the "validate" and "verify" gates.'
+    required: false
+    default: ''
+  server-url:
+    description: 'Team server to push the snapshot to from the "publish" gate (for runners that can reach it). Without it the snapshot is only uploaded with the evidence, and the server fetches it.'
+    required: false
+    default: ''
+  server-token:
+    description: 'Token for the team server. Pass it from a secret; it is given to SpecGuard as SPECGUARD_TOKEN.'
     required: false
     default: ''
   affected:
@@ -169,6 +177,8 @@ runs:
         SG_DRIFT_SINCE: ${{ inputs.drift-since }}
         SG_VALIDATE_URL: ${{ inputs.validate-url }}
         SG_AFFECTED: ${{ inputs.affected }}
+        SG_SERVER_URL: ${{ inputs.server-url }}
+        SPECGUARD_TOKEN: ${{ inputs.server-token }}
       run: node "${{ github.action_path }}/action/run-gates.mjs"
 
     - name: Upload SpecGuard evidence

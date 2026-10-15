@@ -9,6 +9,9 @@ sources:
   - "src/core/claim-tags.ts"
   - "src/core/test-results.ts"
   - "src/core/proof-ledger.ts"
+  - "src/core/provenance.ts"
+  - "src/core/state/ledger-store.ts"
+  - "src/core/state/lock.ts"
   - "src/core/dependency-fingerprint.ts"
   - "src/core/framework-profiles.ts"
   - "src/adapters/test-runners.ts"
@@ -25,6 +28,7 @@ sources:
   - "src/core/claim-migration.ts"
 tests:
   - "tests/core/claim-tags.test.ts"
+  - "tests/core/state-stores.test.ts"
   - "tests/core/test-results.test.ts"
   - "tests/core/framework-profiles.test.ts"
   - "tests/adapters/test-runners.test.ts"
@@ -74,6 +78,7 @@ Conformance testing turns specs into tests, runs the project's own test suite th
 - [ ] `results ingest` merges several report files before aggregating, detects or accepts an explicit format, accepts a run id, records a repo-relative evidence path, and exits 2 when any claim failed or a file could not be parsed. <!-- claim: results-ingest -->
 - [ ] A partial ingest only writes verdicts for claims present in the results, while the sweep option stores unexercised for absent claims only on a declared full run and never downgrades a still-matching proven claim. <!-- claim: partial-and-sweep -->
 - [ ] `proof ingest` and `results ingest` share one code path, write identical rows for identical verdicts, and use a ledger path from `--ledger`, then `paths.proofLedger`, then `.specguard/proofs.json`, kept portable with repo-relative keys. <!-- claim: shared-ingest-and-ledger-path -->
+- [ ] Each proof row records its provenance: `origin` (`ci` on a GitHub Actions or other CI run, `local` otherwise, `server` for a server-side run), repository, branch, CI actor (never a developer's git identity) and the claim-hash version in force; ledger writes go through one store interface (a file by default) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten <!-- claim: proof-provenance -->
 - [ ] `proof status` lists failed and stale claims and exits 2 when any exist, while `status` shows proof counts without changing its exit code and `drift` reports each stale proof. <!-- claim: proof-reporting -->
 - [ ] Healing runs one job per distinct test command, classifies each failing test as a test bug or an application bug, rewrites only test code and re-runs up to the retry budget, and never modifies application source. <!-- claim: heal-classifies-failures -->
 - [ ] Healing treats a missing or unparseable report as a failure even when the runner exited 0 unless told to be lenient, exits 7 while any test remains broken including application bugs, and with classify-only never writes or re-runs. <!-- claim: heal-exit-and-safety -->

@@ -15,13 +15,11 @@ sources:
   - "src/pipelines/matrix.ts"
   - "src/pipelines/align.ts"
   - "src/pipelines/drift.ts"
-  - "src/pipelines/analyze.ts"
   - "src/cli/commands/status.ts"
   - "src/cli/commands/gap-analysis.ts"
   - "src/cli/commands/matrix.ts"
   - "src/cli/commands/drift.ts"
   - "src/cli/commands/align.ts"
-  - "src/cli/commands/analyze.ts"
   - "src/core/trace.ts"
   - "src/core/drift-assessments.ts"
   - "src/core/intent-gap.ts"
@@ -59,7 +57,6 @@ This capability computes that answer on demand and without opinion. It links spe
 - An auditor runs `specguard matrix --format csv` to hand compliance a spec-to-test-to-doc traceability table, with per-claim test linkage.
 - A tech lead runs `specguard gap-analysis` to see which specs have no implementation yet and gets a build plan per missing spec to hand to a coding agent.
 - A QA engineer runs `specguard align` to learn which spec scenarios and claims no test actually exercises.
-- A newcomer runs `specguard analyze` when unsure what is wrong and receives a prioritised list of the next commands to run.
 
 ## Requirements
 - [ ] Status reports, for every configured app, how many non-test source files have an owning spec and how many have a test, and lists the files without a spec; test files are never counted as source files that need their own spec. <!-- claim: status-coverage-report -->
@@ -79,7 +76,6 @@ This capability computes that answer on demand and without opinion. It links spe
 - [ ] Drift exits with the drift code (3) when any spec has drifted, treats a changed source file with no spec as drift, warns and scans all configured sources when git is unavailable, and reports specs with no matching source as orphans. <!-- claim: drift-exit-and-orphans -->
 - [ ] A stored proof whose recorded spec hash or drift-registry file hash no longer matches is reported as drift. <!-- claim: stale-proof-is-drift -->
 - [ ] For v2 specs a claim's hash covers only that claim's text and the Problem & Value section, so editing other claims, scenarios, frontmatter or history does not make a proof stale, while changing Problem & Value does. <!-- claim: claim-scoped-hash -->
-- [ ] Analyze runs status, drift, quality, dependency and gap checks, isolates a failing sub-check, returns a de-duplicated list of recommendations ordered high to low priority, writes `.specguard/analysis.json`, and exits 4 when recommendations exist and 0 when the workspace is healthy. <!-- claim: analyze-recommendations -->
 - [ ] one trace model (system, capability, claim) behind a single `check` command whose legacy aliases (`status`, `gap-analysis`, `drift`, `matrix`, `align`) return identical results. <!-- claim: planned-unified-check -->
 - [ ] drift is evaluated per capability from all of its source files, reports at claim level, and chunks large diffs so a capability-sized spec stays within the LLM context. <!-- claim: planned-capability-drift -->
 - [ ] `check` summary exits 2 on spec rule violations, 4 when a source file has no owning spec or a non-planned capability owns no files, and 0 otherwise; `--coverage`, `--gaps` and `--matrix [--csv]` render the same trace model, which is also written to `.specguard/trace.json` <!-- claim: check-exit-codes -->
@@ -150,24 +146,14 @@ This capability computes that answer on demand and without opinion. It links spe
 - A spec whose scenarios and claims are all settled makes no LLM call and scores 100.
 - `.specguard/alignment.json` records covered and uncovered claims for the spec.
 
-### Scenario 7: Smart start with analyze
-**Steps:**
-1. A repository has uncovered source files and one drifted spec.
-2. A developer runs `specguard analyze`.
-
-**Expected Results:**
-- Recommendations include `reverse` and `drift` as high priority and `heal` as medium, de-duplicated and sorted high to low.
-- `.specguard/analysis.json` contains `generatedAt`, `recommendations` and a summary.
-- The exit code is 4.
-
 ## Security & Data Considerations
 These pipelines read source, specs and tests and write only JSON, CSV and Markdown plans under `.specguard/`. The drift registry stores hashes, timestamps and verdicts, never file content or credentials, and uses repo-relative keys so it can be committed and compared across machines. Hashes detect change; they are not an integrity guarantee against an adversary. Diffs and spec excerpts sent to the LLM for drift and alignment are subject to the configured redaction. LLM keys are referenced by environment variable name only and never appear in plans, `gaps.json` or the registry. Plan file names derive from the spec key with path separators replaced. Traceability output reveals spec and test names, so treat the output directory as internal.
 
 ## Interfaces
-- CLI: `specguard status`, `specguard gap-analysis [--spec <key>] [--all] [--no-plan]`, `specguard matrix [--out <path>] [--format json|csv] [--app <name>]`, `specguard align [--app] [--spec] [--all] [--concurrency <n>] [--fresh] [--extra-tests <globs...>]`, `specguard drift [--since <ref>] [--spec <key>] [--force] [--mtime]`, `specguard analyze [--auto-fix]`.
-- MCP tools: `specguard_status`, `specguard_drift`, `specguard_matrix`, `specguard_gap_analysis`, `specguard_analyze`.
-- Files under `.specguard/`: `drift-registry.json`, `gaps.json`, `plans/<feature>.md`, `plans/gap-analysis-<timestamp>.md`, `alignment.json`, `analysis.json`, `traceability.json` (path configurable through `matrix.output`).
-- Exit codes: 0 success, 3 drift detected, 4 missing specs or recommendations or gaps present, 1 internal error.
+- CLI: `specguard status`, `specguard gap-analysis [--spec <key>] [--all] [--no-plan]`, `specguard matrix [--out <path>] [--format json|csv] [--app <name>]`, `specguard align [--app] [--spec] [--all] [--concurrency <n>] [--fresh] [--extra-tests <globs...>]`, `specguard drift [--since <ref>] [--spec <key>] [--force] [--mtime]`.
+- MCP tools: `specguard_status`, `specguard_drift`, `specguard_matrix`, `specguard_gap_analysis`, `specguard_check`.
+- Files under `.specguard/`: `drift-registry.json`, `gaps.json`, `plans/<feature>.md`, `plans/gap-analysis-<timestamp>.md`, `alignment.json`, `traceability.json` (path configurable through `matrix.output`).
+- Exit codes: 0 success, 3 drift detected, 4 missing specs or gaps present, 1 internal error.
 - `specguard check` with the legacy commands as aliases.
 
 ## Out of Scope

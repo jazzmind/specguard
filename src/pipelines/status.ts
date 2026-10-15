@@ -320,7 +320,7 @@ export async function runStatus(
   await appendProofCoverage(config, log);
 
   // UNFEATURED only makes sense against a feature catalog: report it only when one is configured.
-  const plugins = await loadPlugins(config.plugins);
+  const plugins = await loadPlugins(config.plugins, config.rootDir);
   const catalogConfigured =
     Boolean(config.featureState?.catalog) ||
     plugins.some((plugin) => plugin.catalogProviders?.some((provider) => provider.defaultDir));

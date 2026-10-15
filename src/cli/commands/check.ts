@@ -4,6 +4,7 @@
 import { runCheck, type CheckView } from '../../pipelines/check.js';
 import { runStatus } from '../../pipelines/status.js';
 import { isV2Repo } from '../../pipelines/check.js';
+import { teamLines } from '../../pipelines/team.js';
 import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 
 export interface CheckCliOpts extends GlobalOpts {
@@ -16,6 +17,8 @@ export interface CheckCliOpts extends GlobalOpts {
   since?: string;
   spec?: string;
   out?: string;
+  /** Show what the team's server knows next to this working tree's proofs. */
+  team?: boolean;
 }
 
 export async function checkCommand(opts: CheckCliOpts): Promise<void> {
@@ -27,5 +30,7 @@ export async function checkCommand(opts: CheckCliOpts): Promise<void> {
     result.messages.push('This repo uses per-file specs. Run `specguard spec consolidate` to move to functional capability specs.');
     outputResult(result, opts);
   }
-  outputResult(await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since, spec: opts.spec }), opts);
+  const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since, spec: opts.spec });
+  if (opts.team) result.messages.push(...(await teamLines(config)));
+  outputResult(result, opts);
 }

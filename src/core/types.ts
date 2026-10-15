@@ -303,6 +303,12 @@ export interface LlmConfig {
   /** Name of the env var holding the API key. */
   apiKeyEnv: string;
   /**
+   * Endpoint for the `openai` and `litellm` providers (an OpenAI-compatible gateway). Overrides the
+   * `OPENAI_BASE_URL` / `LITELLM_BASE_URL` environment variables, so one server process can serve projects
+   * that use different gateways.
+   */
+  baseUrl?: string;
+  /**
    * Named model tiers. `fast` serves high-volume, latency-sensitive calls
    * (file summaries, on-demand docs, history proposals); `frontier` serves
    * clustering and spec-level review. Unset tiers fall back to the top-level model.
@@ -517,9 +523,42 @@ export interface RemediateConfig {
 }
 
 /** The fully parsed `.specguard/config.json`. */
+/**
+ * A SpecGuard team server this project can use. The CLI works fully without one: with `mode: auto` (the default)
+ * it uses the server when it answers and falls back to local files when it does not.
+ */
+export interface ServerConfig {
+  /** Base URL of the server, for example `http://ae1pocltv03/specguard`. `SPECGUARD_SERVER` overrides it. */
+  url?: string;
+  /** The project's name on the server. Default: the repository directory name. */
+  project?: string;
+  /** Environment variable holding the access token. Default `SPECGUARD_TOKEN`. */
+  tokenEnv?: string;
+  /** `auto`: use the server if it answers. `off`: never. `required`: an unreachable server is an error (for CI). */
+  mode?: 'auto' | 'off' | 'required';
+  /** How long to wait for the server's health check, in milliseconds. Default 800. */
+  timeoutMs?: number;
+}
+
+/** An npm plugin. Importing a package runs its code, so it loads only when named explicitly in config. */
+export interface NpmPluginRef {
+  /** The id the package's plugin declares. */
+  name: string;
+  /** npm package name, resolved from the project's own `node_modules`. */
+  package: string;
+}
+
+export type PluginEntry = string | NpmPluginRef;
+
 export interface SpecGuardConfig {
-  /** Built-in plugins to enable: directory names under `src/plugins/`. Empty means none. */
-  plugins?: string[];
+  /**
+   * Plugins to enable. A string names a built-in plugin (a directory under `src/plugins/`);
+   * `{ name, package }` names an npm package, which is imported only because it is listed here.
+   * Empty means none.
+   */
+  plugins?: PluginEntry[];
+  /** Optional team server; see {@link ServerConfig}. */
+  server?: ServerConfig;
   featureState?: FeatureStateConfig;
   /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
   extends?: string;

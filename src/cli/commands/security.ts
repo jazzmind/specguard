@@ -2,7 +2,7 @@
  * `specguard security` — generate security tests / run SAST (Phase 5).
  */
 import { runSecurity } from '../../pipelines/security.js';
-import { runPlanList, runPlanSetStatus, runPlanShow } from '../../pipelines/security-plan.js';
+import { planList, planSetStatus, planShow } from '../../pipelines/team.js';
 import { runSecurityFix, type SecurityFixOpts } from '../../pipelines/security-fix.js';
 import { runSecurityScan } from '../../pipelines/security-scan.js';
 import type { Severity } from '../../core/advisory.js';
@@ -43,11 +43,11 @@ export async function securityFixCommand(opts: GlobalOpts & SecurityFixOpts): Pr
 }
 
 export async function securityPlanListCommand(opts: GlobalOpts): Promise<void> {
-  outputResult(runPlanList(await loadCliConfig(opts)), opts);
+  outputResult(await planList(await loadCliConfig(opts)), opts);
 }
 
 export async function securityPlanShowCommand(planId: string, opts: GlobalOpts): Promise<void> {
-  outputResult(runPlanShow(await loadCliConfig(opts), planId), opts);
+  outputResult(await planShow(await loadCliConfig(opts), planId), opts);
 }
 
 export async function securityPlanSetStatusCommand(
@@ -57,5 +57,5 @@ export async function securityPlanSetStatusCommand(
   opts: GlobalOpts & { note?: string; by?: string; externalRef?: string },
 ): Promise<void> {
   const config = await loadCliConfig(opts);
-  outputResult(await runPlanSetStatus(config, planId, itemId, status, { note: opts.note, by: opts.by, externalRef: opts.externalRef }), opts);
+  outputResult(await planSetStatus(config, planId, itemId, status, { note: opts.note, by: opts.by, externalRef: opts.externalRef }), opts);
 }

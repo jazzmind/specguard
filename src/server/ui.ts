@@ -8,11 +8,12 @@
  *
  * Spec: specs/capabilities/documentation-api.md
  */
-export const UI_HTML = String.raw`<!doctype html>
+const UI_TEMPLATE = String.raw`<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="sg-base" content="__BASE__">
 <title>SpecGuard</title>
 <style>
   :root { --fg:#1d2733; --muted:#5b6b7c; --line:#dde3ea; --bg:#f6f8fa; --card:#fff; --accent:#1f5fbf; --ok:#1a7f4b; --warn:#a15c00; --bad:#b3261e; }
@@ -40,10 +41,11 @@ export const UI_HTML = String.raw`<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>SpecGuard</h1><a href="#/matrix" id="t-matrix">Traceability</a><a href="#/audit" id="t-audit">Audit</a></header>
+<header><h1>SpecGuard</h1><a href="#/matrix" id="t-matrix">Traceability</a><a href="#/audit" id="t-audit">Audit</a><a href="#/tokens" id="t-tokens">Tokens</a><span id="project-slot" style="margin-left:auto"></span></header>
 <div id="layout"><nav id="nav">Loading…</nav><main id="main"></main></div>
 <script>
-var API = '/api/v1';
+var BASE = document.querySelector('meta[name="sg-base"]').getAttribute('content');
+var API = BASE + '/api/v1';
 var FENCE = '\x60\x60\x60';
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function get(p) {
@@ -114,6 +116,7 @@ function buildNav(caps, current) {
   nav.innerHTML = h;
   document.getElementById('t-matrix').className = current === '#matrix' ? 'on' : '';
   document.getElementById('t-audit').className = current === '#audit' ? 'on' : '';
+  document.getElementById('t-tokens').className = current === '#tokens' ? 'on' : '';
 }
 
 function countsLine(c) {
@@ -203,6 +206,44 @@ function viewAudit(caps) {
   }).catch(fail);
 }
 
+/* ---- tokens: the team server's own, never project-prefixed ---- */
+function send(method, path, body) {
+  var init = { method: method, headers: { 'X-Requested-With': 'specguard' } };
+  if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+  return fetch(BASE + '/api/v1' + path, init).then(function (r) {
+    return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; });
+  });
+}
+function viewTokens(caps) {
+  buildNav(caps, '#tokens');
+  fetch(BASE + '/api/v1/tokens').then(function (r) {
+    if (r.status === 404 || r.status === 405) { show('<h2>Tokens</h2><p class="value">Tokens are issued by a team server. This server only shows one project from a working tree.</p>'); return null; }
+    return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; });
+  }).then(function (j) {
+    if (!j) return;
+    var rows = j.tokens.map(function (t) {
+      return '<tr><td>' + esc(t.name) + '</td><td>' + badge(t.role) + (t.project ? badge(t.project) : '') + '</td><td>' + esc(t.createdAt) + '</td><td>' + esc(t.lastUsedAt || 'never') + '</td><td>' +
+        (t.revokedAt ? badge('revoked', 'failed') : '<button data-revoke="' + esc(t.id) + '">Revoke</button>') + '</td></tr>';
+    }).join('');
+    show('<h2>Tokens</h2><p class="value">A token lets the command line, the editor extension or an agent act as you. Give it to <code>specguard login</code>. It is shown once.</p>' +
+      '<div class="card"><strong>Create a token</strong><p><input id="tk-name" placeholder="name, for example laptop" maxlength="64"> ' +
+      '<select id="tk-role"><option value="viewer">viewer (read)</option><option value="maintainer" selected>maintainer (read and change plans)</option></select> ' +
+      '<input id="tk-project" placeholder="limit to one project (optional)"> <button id="tk-create">Create</button></p><div id="tk-out"></div></div>' +
+      '<table><tr><th>Name</th><th>Access</th><th>Created</th><th>Last used</th><th></th></tr>' + (rows || '<tr><td colspan="5" class="meta">No tokens yet.</td></tr>') + '</table>');
+    document.getElementById('tk-create').onclick = function () {
+      var body = { name: document.getElementById('tk-name').value, role: document.getElementById('tk-role').value };
+      var proj = document.getElementById('tk-project').value.trim();
+      if (proj) body.project = proj;
+      send('POST', '/tokens', body).then(function (t) {
+        document.getElementById('tk-out').innerHTML = '<p>Copy this now; it will not be shown again:</p><pre><code>' + esc(t.token) + '</code></pre>';
+      }).catch(function (e) { document.getElementById('tk-out').innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
+    };
+    Array.prototype.forEach.call(main.querySelectorAll('button[data-revoke]'), function (b) {
+      b.onclick = function () { send('DELETE', '/tokens/' + encodeURIComponent(b.getAttribute('data-revoke'))).then(function () { viewTokens(caps); }).catch(fail); };
+    });
+  }).catch(fail);
+}
+
 var capsCache = null;
 function route() {
   var h = location.hash || '#/system';
@@ -211,13 +252,38 @@ function route() {
     if ((m = h.match(/^#\/cap\/(.+)$/))) return viewCapability(decodeURIComponent(m[1]), caps);
     if (h === '#/matrix') return viewMatrix(caps);
     if (h === '#/audit') return viewAudit(caps);
+    if (h === '#/tokens') return viewTokens(caps);
     return viewSystem(caps);
   };
   if (capsCache) return go(capsCache);
   get('/capabilities').then(function (r) { capsCache = r.capabilities.filter(function (c) { return c.kind === 'capability'; }); go(capsCache); }).catch(fail);
 }
-window.onhashchange = route; route();
+window.onhashchange = route;
+/* A server with several projects has no unprefixed routes: pick a project (?project=name, else the first) and offer a switcher. */
+function boot() {
+  var wanted = new URLSearchParams(location.search).get('project');
+  fetch(BASE + '/api/v1/projects').then(function (r) { return r.ok ? r.json() : { projects: [], default: null }; }).then(function (p) {
+    var names = (p.projects || []).map(function (x) { return x.name; });
+    var use = wanted && names.indexOf(wanted) >= 0 ? wanted : (p['default'] ? null : names[0]);
+    if (use) API = BASE + '/api/v1/projects/' + encodeURIComponent(use);
+    if (names.length > 1) {
+      var sel = '<select id="project" aria-label="Project">' + names.map(function (n) { return '<option value="' + esc(n) + '"' + (n === use ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select>';
+      document.getElementById('project-slot').innerHTML = sel;
+      document.getElementById('project').onchange = function (e) { location.search = '?project=' + encodeURIComponent(e.target.value); };
+    }
+    route();
+  }).catch(function () { route(); });
+}
+boot();
 </script>
 </body>
 </html>
 `;
+
+/** The page, with the path prefix the server is mounted under (empty at the root). The prefix must be a plain path. */
+export function renderUi(basePath = ''): string {
+  if (!/^(\/[A-Za-z0-9._-]+)*$/.test(basePath) || basePath.split('/').some((part) => part === '.' || part === '..')) throw new Error(`invalid base path "${basePath}"`);
+  return UI_TEMPLATE.replace('__BASE__', basePath);
+}
+
+export const UI_HTML = renderUi('');

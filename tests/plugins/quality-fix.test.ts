@@ -7,7 +7,6 @@ import { eslintRunner } from '../../src/plugins/quality/eslint.js';
 import { ruffRunner } from '../../src/plugins/quality/ruff.js';
 import { knipRunner } from '../../src/plugins/quality/knip.js';
 import { runCodeQuality } from '../../src/plugins/quality/code-quality.js';
-import { runAnalyze, AUTO_FIX_SAFE } from '../../src/pipelines/analyze.js';
 import type { SpecGuardConfig } from '../../src/core/types.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -31,36 +30,4 @@ describe('quality --fix', () => {
     await runCodeQuality(config('python'), { fix: true });
     expect(ruff).toHaveBeenCalledWith(expect.any(String), { fix: true });
   });
-});
-
-describe('analyze --auto-fix', () => {
-  it('runs only the safe recommended pipelines', () => {
-    expect(AUTO_FIX_SAFE).toEqual(['quality', 'matrix']);
-  });
-
-  // [claims: capabilities/integration-surfaces#core-plugin-boundary]
-  it('runs quality --fix when it is recommended and leaves LLM pipelines as recommendations', async () => {
-    const cfg = { ...config(), plugins: ['quality'] };
-    // two lint errors make `quality` a recommendation; no specs exist so other recommendations follow
-    const eslint = vi.spyOn(eslintRunner, 'run').mockReturnValue({
-      status: 1,
-      stdout: JSON.stringify([{ filePath: `${cfg.rootDir}/x.ts`, errorCount: 1, warningCount: 0, messages: [{ ruleId: 'no-x', severity: 2, message: 'm', line: 1, column: 1 }] }]),
-    });
-    vi.spyOn(knipRunner, 'run').mockReturnValue({ stdout: '{}', status: 0 });
-    const res = await runAnalyze(cfg, { autoFix: true });
-    expect(res.analysisReport.recommendations.some((r) => r.pipeline === 'quality')).toBe(true);
-    const fixCall = eslint.mock.calls.find((c) => c[1]?.fix === true);
-    expect(fixCall).toBeDefined();
-    expect(res.messages.some((m) => m.startsWith('[auto-fix] quality: ran'))).toBe(true);
-    // analyze reaches code quality only through the plugin: with it off, quality is not part of the analysis
-    eslint.mockClear();
-    const without = await runAnalyze({ ...cfg, plugins: [] }, {});
-    expect(without.analysisReport.recommendations.some((r) => r.pipeline === 'quality')).toBe(false);
-    expect(without.messages.join('\n')).toContain('no quality plugin enabled');
-    expect(eslint).not.toHaveBeenCalled();
-    // without the flag nothing is run automatically
-    eslint.mockClear();
-    const plain = await runAnalyze(cfg, {});
-    expect(plain.messages.some((m) => m.startsWith('[auto-fix]'))).toBe(false);
-  }, 30_000); // runs the real (unmocked) analyze pipelines twice, which spawn git; the 5s default is too tight on loaded CI runners
 });

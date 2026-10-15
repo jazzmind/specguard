@@ -85,6 +85,7 @@ const llmSchema = z
     provider: z.string(),
     model: z.string(),
     apiKeyEnv: z.string(),
+    baseUrl: z.string().optional(),
     models: z.object({ fast: llmTargetSchema.optional(), frontier: llmTargetSchema.optional() }).optional(),
     pipelines: z
       .record(
@@ -280,7 +281,16 @@ const configSchema = z
         edgeType: z.string().optional(),
       })
       .optional(),
-    plugins: z.array(z.string()).optional(),
+    server: z
+      .object({
+        url: z.string().optional(),
+        project: z.string().optional(),
+        tokenEnv: z.string().optional(),
+        mode: z.enum(['auto', 'off', 'required']).optional(),
+        timeoutMs: z.number().int().positive().optional(),
+      })
+      .optional(),
+    plugins: z.array(z.union([z.string(), z.object({ name: z.string(), package: z.string() })])).optional(),
     featureState: featureStateSchema.optional(),
     auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
     validate: validateSchema.optional(),

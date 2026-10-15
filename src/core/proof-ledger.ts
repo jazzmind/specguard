@@ -37,6 +37,18 @@ export interface ProofRecord {
   evidencePath?: string;
   /** What produced the verdict. Absent means a test run. */
   evidence?: 'test' | 'agentic';
+  /**
+   * Where the proof was earned: `ci` (a pushed commit), `local` (a working tree) or `server` (a server-side run).
+   * Absent on rows written before provenance was recorded, which are treated as `local`.
+   */
+  origin?: 'local' | 'ci' | 'server';
+  /** `owner/name` of the repository, when known. */
+  repo?: string;
+  branch?: string;
+  /** Who or what started the run (a CI actor). */
+  actor?: string;
+  /** `HASH_VERSION` in force when `claimHash` was computed. Absent means 1. */
+  hashVersion?: number;
   ingestedAt: string;
 }
 

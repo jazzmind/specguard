@@ -9,7 +9,9 @@
  */
 import type { ZodTypeAny } from 'zod';
 
-import type { ParsedSpec, PipelineResult, SpecGuardConfig } from '../core/types.js';
+import type { NpmPluginRef, ParsedSpec, PipelineResult, PluginEntry, SpecGuardConfig } from '../core/types.js';
+
+export type { NpmPluginRef, PluginEntry };
 
 export const CHANNELS = ['ui', 'api', 'mcp'] as const;
 export type ChannelName = (typeof CHANNELS)[number];
@@ -182,6 +184,53 @@ export interface PluginCommand {
   run(ctx: PluginCommandContext): Promise<PipelineResult>;
 }
 
+export type DetectorSeverity = 'critical' | 'high' | 'moderate' | 'low' | 'info';
+
+/** One problem a plugin detector found in the code. */
+export interface DetectorFinding {
+  ruleId: string;
+  /** Repo-relative path. */
+  path: string;
+  line?: number;
+  message: string;
+  severity: DetectorSeverity;
+}
+
+export interface DetectorContext {
+  config: SpecGuardConfig;
+  rootDir: string;
+}
+
+/**
+ * Adds findings to `security scan`. They become `code` items in the remediation plan, grouped under the
+ * capability that owns the file. They are reported, never patched automatically.
+ */
+export interface SecurityDetector {
+  id: string;
+  /** Throwing, or returning `warnings`, means the detector did not run to completion: nothing it reported before is closed. */
+  detect(ctx: DetectorContext): Promise<{ findings: DetectorFinding[]; warnings?: string[] }>;
+}
+
+export interface DocRenderContext {
+  audience: 'user' | 'dev' | 'agent';
+  /** Capability id, or `system`. */
+  id: string;
+  title: string;
+  /** The spec file's text (for `system`, the system spec). */
+  markdown: string;
+  capabilities: Array<{ id: string; title: string; value: string }>;
+  config: SpecGuardConfig;
+}
+
+/**
+ * Renders a document for the docs API without a model call. The first renderer to return text wins;
+ * `null` passes to the next renderer and finally to the model.
+ */
+export interface DocRenderer {
+  id: string;
+  render(ctx: DocRenderContext): string | null | Promise<string | null>;
+}
+
 /** A plugin bundles any of the interfaces. */
 export interface SpecGuardPlugin {
   id: string;
@@ -196,6 +245,10 @@ export interface SpecGuardPlugin {
   moduleStems?: string[];
   /** Importers that add edges to the contract graph from legacy files. */
   contractImporters?: ContractImporter[];
+  /** Extra detectors for `security scan`. */
+  detectors?: SecurityDetector[];
+  /** Renderers the docs API tries before the model. */
+  docRenderers?: DocRenderer[];
 }
 
 /** An edge a contract importer contributes. Provider is a node id `<repo>::<path>`. */

@@ -14,11 +14,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { LlmBudgetExceededError, llmGenerateText, resolveTargets } from '../core/llm.js';
-import { resetRunSpend } from '../core/llm-runtime.js';
+import { runWithLlmScope, type UsageEvent } from '../core/llm-runtime.js';
 import { buildSpecGraph, type SpecNode } from '../core/spec-graph.js';
 import { specsRootDir } from '../core/spec-key.js';
 import type { SpecGuardConfig } from '../core/types.js';
-import { writeFile } from '../core/writer.js';
+import { fileContentCache, type ContentCache } from '../core/state/content-cache.js';
+import { loadPlugins } from '../plugins/index.js';
+import type { DocRenderer } from '../plugins/types.js';
 
 export const AUDIENCES = ['user', 'dev', 'agent'] as const;
 export type Audience = (typeof AUDIENCES)[number];
@@ -118,23 +120,20 @@ const SYSTEM_GUIDE_SYSTEM =
 
 export class DocService {
   private readonly inflight = new Map<string, Promise<DocResult>>();
-  /** Model calls run one generation at a time: the spend budget is process-wide, so two at once would reset each other's count. */
-  private gate: Promise<unknown> = Promise.resolve();
 
-  constructor(private readonly config: SpecGuardConfig) {}
+  private readonly cache: ContentCache;
 
-  private exclusive<T>(run: () => Promise<T>): Promise<T> {
-    const next = this.gate.then(run, run);
-    this.gate = next.catch(() => undefined);
-    return next;
+  constructor(
+    private readonly config: SpecGuardConfig,
+    cache?: ContentCache,
+    /** Who generated documents are made for, and labels for the gateway; sent with every model call. */
+    private readonly scope: { user?: string; tags?: string[] } = {},
+  ) {
+    this.cache = cache ?? fileContentCache(config.rootDir ?? process.cwd());
   }
 
   private root(): string {
     return this.config.rootDir ?? process.cwd();
-  }
-
-  private cacheFile(audience: Audience, id: string): string {
-    return path.join(this.root(), '.specguard', 'cache', 'docs', audience, `${id.replace(/[^a-z0-9-]/gi, '_')}.json`);
   }
 
   private fileText(node: SpecNode): string {
@@ -145,36 +144,68 @@ export class DocService {
     }
   }
 
-  async get(audience: Audience, id: string): Promise<DocResult> {
+  /** `who` names the requester for model-spend attribution; a shared in-flight generation is attributed to whoever asked first. */
+  async get(audience: Audience, id: string, who: { user?: string; onUsage?: (usage: UsageEvent) => void } = {}): Promise<DocResult> {
     const graph = await buildSpecGraph(this.config);
     const node = id === 'system' ? graph.system : graph.nodes.get(id);
     if (!node) throw new DocNotFoundError(id === 'system' ? 'this repo has no system spec' : `no spec with id "${id}"`);
 
     const capabilities = [...graph.nodes.values()].filter((n) => n.kind === 'capability').sort((a, b) => a.id.localeCompare(b.id));
     const content = id === 'system' ? [this.fileText(node), ...capabilities.map((c) => this.fileText(c))].join('\n\0\n') : this.fileText(node);
+    const renderers = await this.renderers();
     const model = resolveTargets({ provider: this.config.llm.provider, model: this.config.llm.model, apiKeyEnv: this.config.llm.apiKeyEnv, pipeline: 'docs' })[0].model;
-    const hash = sha(`${sha(content)}|${audience}|${PROMPT_VERSION}|${audience === 'agent' ? '-' : model}`);
+    // Renderers are part of the key, so enabling or removing a plugin renderer regenerates what it covers.
+    const hash = sha(`${sha(content)}|${audience}|${PROMPT_VERSION}|${audience === 'agent' ? '-' : model}|${renderers.map((r) => r.id).join(',')}`);
 
-    const cacheFile = this.cacheFile(audience, id);
-    try {
-      const hit = JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as { hash: string; markdown: string };
-      if (hit.hash === hash) return { id, audience, markdown: hit.markdown, generated: audience !== 'agent', cached: true, hash };
-    } catch {
-      /* not cached */
+    const hit = await this.cache.get(`docs/${audience}`, id);
+    if (hit?.hash === hash) {
+      try {
+        const stored = JSON.parse(hit.value) as { markdown: string; generated?: boolean };
+        return { id, audience, markdown: stored.markdown, generated: stored.generated ?? audience !== 'agent', cached: true, hash };
+      } catch {
+        /* a damaged entry is regenerated */
+      }
     }
 
     const key = `${audience}:${id}:${hash}`;
     const pending = this.inflight.get(key);
     if (pending) return pending;
-    const work = this.generate(audience, id, node, capabilities, hash, cacheFile).finally(() => this.inflight.delete(key));
+    const work = this.generate(audience, id, node, capabilities, hash, renderers, content, who.user ?? this.scope.user, who.onUsage).finally(() => this.inflight.delete(key));
     this.inflight.set(key, work);
     return work;
   }
 
-  private async generate(audience: Audience, id: string, node: SpecNode, capabilities: SpecNode[], hash: string, cacheFile: string): Promise<DocResult> {
+  private async renderers(): Promise<DocRenderer[]> {
+    try {
+      return (await loadPlugins(this.config.plugins, this.root())).flatMap((p) => p.docRenderers ?? []);
+    } catch {
+      return [];
+    }
+  }
+
+  private async generate(audience: Audience, id: string, node: SpecNode, capabilities: SpecNode[], hash: string, renderers: DocRenderer[], content: string, user?: string, onUsage?: (usage: UsageEvent) => void): Promise<DocResult> {
+    // A plugin renderer produces the document without a model call; the first one to return text wins.
+    for (const renderer of renderers) {
+      try {
+        const markdown = await renderer.render({
+          audience,
+          id,
+          title: node.spec.title || id,
+          markdown: content,
+          capabilities: capabilities.map((c) => ({ id: c.id, title: c.spec.title || c.id, value: c.spec.meta.value ?? '' })),
+          config: this.config,
+        });
+        if (typeof markdown === 'string') {
+          await this.cache.put(`docs/${audience}`, id, { hash, value: JSON.stringify({ markdown, generated: false }) });
+          return { id, audience, markdown, generated: false, cached: false, hash };
+        }
+      } catch {
+        /* a failing renderer must not take the docs API down: try the next, then the model */
+      }
+    }
     if (audience === 'agent') {
       const markdown = renderAgentBrief(node);
-      await writeFile(cacheFile, JSON.stringify({ hash, markdown }) + '\n');
+      await this.cache.put(`docs/${audience}`, id, { hash, value: JSON.stringify({ markdown, generated: false }) });
       return { id, audience, markdown, generated: false, cached: false, hash };
     }
     const { llm } = this.config;
@@ -187,12 +218,12 @@ export class DocService {
         ? `${material(node, false)}\n\n# Capabilities\n${capabilities.map((c) => `## ${c.spec.title || c.id}\n${c.spec.meta.value ?? ''}\n${(section(c, 'Problem & Value') || c.spec.overview).slice(0, 500)}`).join('\n\n')}`
         : material(node, audience === 'dev');
     try {
-      const markdown = await this.exclusive(() => {
-        // `llm.budget` applies to one generation, not to the lifetime of the server.
-        resetRunSpend();
-        return llmGenerateText({ provider: llm.provider, model: llm.model, apiKeyEnv: llm.apiKeyEnv, pipeline: 'docs', system, prompt });
-      });
-      await writeFile(cacheFile, JSON.stringify({ hash, markdown }) + '\n');
+      // Each generation has its own spend count and budget, so concurrent requests neither share nor reset one another's.
+      const markdown = await runWithLlmScope(
+        { runtime: { rootDir: this.root(), llm }, ...(user ? { user } : {}), ...(onUsage ? { onUsage } : {}), tags: ['specguard-docs', ...(this.scope.tags ?? [])] },
+        () => llmGenerateText({ provider: llm.provider, model: llm.model, apiKeyEnv: llm.apiKeyEnv, pipeline: 'docs', system, prompt }),
+      );
+      await this.cache.put(`docs/${audience}`, id, { hash, value: JSON.stringify({ markdown, generated: true }) });
       return { id, audience, markdown, generated: true, cached: false, hash };
     } catch (err) {
       // A spent budget is an error to report, not something to paper over with a different document.

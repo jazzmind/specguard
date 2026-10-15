@@ -6,6 +6,7 @@ parent: system
 value: Teams that split one system across several repos or packages can treat it as one system, so a change in one place shows what else must be re-checked.
 status: active
 sources:
+  - "src/core/env.ts"
   - "src/core/workspace.ts"
   - "src/core/workspace-heuristics.ts"
   - "src/core/monorepo.ts"
@@ -19,6 +20,7 @@ sources:
   - "src/core/workspace-units.ts"
 tests:
   - "tests/core/monorepo.test.ts"
+  - "tests/core/env.test.ts"
   - "tests/core/workspace-heuristics.test.ts"
   - "tests/core/claims.test.ts"
   - "tests/pipelines/init.test.ts"
@@ -63,7 +65,7 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - [ ] A workspace is a set of units, where a unit is a repo or a package (`kind: repo|package`) listed under `units` in the manifest and a manifest may mix both; existing `repos` manifests load unchanged as units of kind repo, a repo-kind unit is also visible under `repos`, and a key listed as both is rejected <!-- claim: units -->
 - [ ] A claim ref that names a package unit (`web:capabilities/auth#login`) means the workspace root's claim: proofs and test tags carrying it are stored and found under the unprefixed ref, and journey references through a package unit resolve; refs naming a separate repo are left alone. Planned: a capability may also live inside one unit's own spec tree <!-- claim: unit-claim-refs -->
 - [ ] Detection also covers Go (`go.work`), Cargo workspaces and uv workspaces besides JavaScript ones, and a repo may hold several; `init` writes one app per ecosystem over every package's sources plus a units manifest carrying each package's test command, instead of one app per package, with glob negations kept at the front <!-- claim: more-ecosystems -->
-- [ ] `check` reports each unit's source files, unowned files and the capabilities touching it (a capability spanning packages appears in each, and gets one drift verdict); `test run` runs each package unit's own command, only named units with `--unit`, or with `--affected [--since <ref>]` the changed units plus every unit that depends on them, running everything when a changed file is outside every unit; `serve` exposes the rollup at `/api/v1/units`. Planned: security findings carry the unit key <!-- claim: unit-aware-pipelines -->
+- [ ] `check` reports each unit's source files, unowned files and the capabilities touching it (a capability spanning packages appears in each, and gets one drift verdict); `test run` runs each package unit's own command, only named units with `--unit`, or with `--affected [--since <ref>]` the changed units plus every unit that depends on them, running everything when a changed file is outside every unit; `serve` exposes the rollup at `/api/v1/units`, and security plan items carry the unit key <!-- claim: unit-aware-pipelines -->
 - [ ] Dependencies between units, read from each unit's own manifest (package.json, go.mod, Cargo.toml, pyproject.toml), become `package` contract edges with source `workspace`, rebuilt on every `contracts` run so a removed dependency disappears; `impact` accepts a unit or a file inside one, and reports the capabilities with code in the affected units as well as the units themselves <!-- claim: package-edges -->
 
 ## Scenarios
@@ -141,4 +143,4 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - Managing git operations, branches or releases across repos.
 - Automatically editing consumer code or specs when a provider changes; impact only reports and suggests.
 - Replacing a monorepo build tool; SpecGuard calls Nx, Turbo and package managers to run tests but does not orchestrate builds.
-- Detecting runtime service dependencies by tracing traffic; edges come from declared blocks, plugin importers, optional LLM extraction and (planned) package manifests.
+- Detecting runtime service dependencies by tracing traffic; edges come from declared blocks, plugin importers, optional LLM extraction and package manifests.

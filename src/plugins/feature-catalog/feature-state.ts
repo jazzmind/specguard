@@ -467,7 +467,7 @@ export async function collectFeatureState(
 ): Promise<FeatureStateInput & { notes: string[] }> {
   const resolved = await resolveWorkspace(cwd);
   const { rootDir, repos, config } = resolved;
-  const plugins: SpecGuardPlugin[] = await loadPlugins(opts.plugins ?? config?.plugins ?? resolved.manifestPlugins);
+  const plugins: SpecGuardPlugin[] = await loadPlugins(opts.plugins ?? config?.plugins ?? resolved.manifestPlugins, rootDir);
   const fs = config?.featureState ?? {};
   const notes: string[] = [];
 

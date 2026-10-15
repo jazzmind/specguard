@@ -21,6 +21,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import { loadConfig } from '../core/config.js';
+import { loadSpecGuardEnv } from '../core/env.js';
 import { parseSpecContent } from '../core/spec-parser.js';
 import { readFile } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
@@ -40,16 +41,13 @@ import { runDocGenerate } from '../pipelines/doc-generate.js';
 import { runValidate } from '../pipelines/validate.js';
 import { runMatrix } from '../pipelines/matrix.js';
 import { runImport } from '../pipelines/import.js';
-import { runDepCheck } from '../pipelines/dep-check.js';
-import { runAnalyze } from '../pipelines/analyze.js';
-import { runPlanFix } from '../pipelines/plan-fix.js';
 import { runContracts } from '../pipelines/contracts.js';
 import { runImpact } from '../pipelines/impact.js';
 import { runRemediate } from '../pipelines/remediate/index.js';
 import { runCheck } from '../pipelines/check.js';
 import { runHistoryAdd, runHistoryLog } from '../pipelines/history.js';
 import { runSecurityScan } from '../pipelines/security-scan.js';
-import { runPlanList, runPlanSetStatus, runPlanShow } from '../pipelines/security-plan.js';
+import { planList, planSetStatus, planShow, teamLines } from '../pipelines/team.js';
 import { runSpecGraph } from '../pipelines/spec-graph-report.js';
 import { runTestRun } from '../pipelines/test-run.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
@@ -85,6 +83,8 @@ async function withActivityLog(
   fn: () => Promise<ToolResult>,
 ): Promise<ToolResult> {
   const startMs = Date.now();
+  // The CLI loads `.specguard/.env` at start-up; an MCP server has no start-up directory, so each call loads its own project's.
+  loadSpecGuardEnv(cwd);
   appendActivityLogEntry(cwd, { pipeline, status: 'running', source: 'mcp' });
   try {
     const result = await runWithPipeline(pipeline, fn);
@@ -154,11 +154,41 @@ export async function registerPluginTools(server: McpServer, cwd: string = proce
 }
 
 /**
- * Build and configure the MCP server, registering every tool. Does NOT connect
- * a transport — see {@link main}.
+ * The tools an agent sees by default: one per core capability, mirroring the core CLI.
+ * Everything else is a legacy name from before 0.2, registered only on request
+ * (`SPECGUARD_MCP_LEGACY=1` or `buildServer({ legacy: true })`) so the default
+ * tool list stays small. Plugin tools are always registered.
  */
-export function buildServer(): McpServer {
+export const CORE_TOOLS: ReadonlySet<string> = new Set([
+  'specguard_check',
+  'specguard_spec_graph',
+  'specguard_read_spec',
+  'specguard_write_spec',
+  'specguard_history_add',
+  'specguard_history_log',
+  'specguard_test_run',
+  'specguard_verify',
+  'specguard_security_scan',
+  'specguard_security_plan',
+  'specguard_proof_status',
+  'specguard_results_ingest',
+  'specguard_impact',
+  'specguard_contracts',
+  'specguard_workspace_status',
+  'specguard_init',
+]);
+
+/**
+ * Build and configure the MCP server, registering the core tools (and the legacy
+ * ones when asked). Does NOT connect a transport — see {@link main}.
+ */
+export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const legacy = opts.legacy ?? process.env.SPECGUARD_MCP_LEGACY === '1';
+  const register = server.registerTool.bind(server) as (...args: unknown[]) => unknown;
+  // Filter while the built-in tools register; plugin tools are added afterwards through the original method.
+  (server as { registerTool: unknown }).registerTool = (name: string, ...rest: unknown[]) =>
+    legacy || CORE_TOOLS.has(name) ? register(name, ...rest) : undefined;
 
   // --- Pipeline tools ------------------------------------------------------
 
@@ -375,85 +405,6 @@ export function buildServer(): McpServer {
         const config = await loadConfig(resolveCwd(cwd));
         const result = await runImport(config, { source, app, out, force });
         return toolResult(result);
-      }).catch(errorResult),
-  );
-
-  // --- Dep-check ------------------------------------------------------------
-
-  server.registerTool(
-    'specguard_deps',
-    {
-      description: 'Run npm-audit + depcheck dependency health checks and write .specguard/dep-check.json (CLI: specguard deps).',
-      inputSchema: {
-        app: z.string().optional().describe('Limit to a single app by name.'),
-        cwd: z.string().optional(),
-      },
-    },
-    ({ app, cwd }): Promise<ToolResult> =>
-      withActivityLog('deps', resolveCwd(cwd), async () => {
-        const config = await loadConfig(resolveCwd(cwd));
-        const result = await runDepCheck(config, { app });
-        return toolResult(result);
-      }).catch(errorResult),
-  );
-
-  // --- Analyze & Plan Fix ---------------------------------------------------
-
-  server.registerTool(
-    'specguard_analyze',
-    {
-      description:
-        'Run all diagnostic checks (status, drift, quality, deps) and return prioritised recommendations for which pipelines to run next. Call this first when you are unsure what needs to be done.',
-      inputSchema: {
-        autoFix: z.boolean().optional().describe('Run the recommended pipelines that are safe unattended (quality --fix, matrix).'),
-        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
-      },
-    },
-    ({ autoFix, cwd }): Promise<ToolResult> =>
-      withActivityLog('analyze', resolveCwd(cwd), async () => {
-        const config = await loadConfig(resolveCwd(cwd));
-        const result = await runAnalyze(config, { autoFix });
-        const recs = result.analysisReport?.recommendations ?? [];
-        const summary =
-          recs.length === 0
-            ? 'Workspace is healthy — nothing to do.'
-            : `${recs.length} recommendation(s):\n` +
-              recs.map((r) => `  [${r.priority}] ${r.pipeline}: ${r.reason}`).join('\n');
-        return toolResult({ ...result, messages: [...result.messages, summary] });
-      }).catch(errorResult),
-  );
-
-  server.registerTool(
-    'specguard_plan_fix',
-    {
-      description:
-        'Given a summary of pipeline failures, use the LLM to produce a structured, step-by-step fix plan. The plan is written to .specguard/fix-plan.json and returned as text. Present the plan to the user for approval before executing.',
-      inputSchema: {
-        pipeline: z.string().describe('The pipeline that produced the failures (e.g. "validate", "security").'),
-        issues: z.string().describe('Human-readable summary of the issues found.'),
-        logLines: z.array(z.string()).optional().describe('Optional: last N log lines from the failing pipeline for extra context.'),
-        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
-      },
-    },
-    ({ pipeline, issues, logLines, cwd }): Promise<ToolResult> =>
-      withActivityLog('plan-fix', resolveCwd(cwd), async () => {
-        const config = await loadConfig(resolveCwd(cwd));
-        const result = await runPlanFix(config, {
-          sourcePipeline: pipeline,
-          issuesSummary: issues,
-          logLines,
-        });
-        const planText = result.plan
-          ? [
-              `Fix Plan: ${result.plan.title}`,
-              result.plan.summary,
-              '',
-              ...result.plan.steps.map((s) => `  ${s.id}: ${s.description}`),
-              '',
-              'Plan saved to .specguard/fix-plan.json — present to user for approval before executing.',
-            ].join('\n')
-          : 'Failed to generate fix plan.';
-        return toolResult({ ...result, messages: [planText] });
       }).catch(errorResult),
   );
 
@@ -896,13 +847,16 @@ export function buildServer(): McpServer {
         view: z.enum(['summary', 'coverage', 'gaps', 'matrix', 'drift']).optional().describe('Default summary.'),
         spec: z.string().optional().describe('With drift: one capability id.'),
         since: z.string().optional().describe('With drift: git ref to diff against.'),
+        team: z.boolean().optional().describe('Also show what the team server has proven (CI), set against this working tree.'),
         cwd: z.string().optional(),
       },
     },
-    ({ view, spec, since, cwd }): Promise<ToolResult> =>
+    ({ view, spec, since, team, cwd }): Promise<ToolResult> =>
       withActivityLog('check', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        return toolResult(await runCheck(config, { view, spec, since }));
+        const result = await runCheck(config, { view, spec, since });
+        if (team) result.messages.push(...(await teamLines(config)));
+        return toolResult(result);
       }).catch(errorResult),
   );
 
@@ -1010,13 +964,15 @@ export function buildServer(): McpServer {
     ({ action, plan, item, status, note, by, externalRef, cwd }): Promise<ToolResult> =>
       withActivityLog('security-plan', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        if (action === 'list') return toolResult(runPlanList(config));
-        if (action === 'show') return toolResult(runPlanShow(config, plan ?? 'latest'));
+        // Plans are shared state: through the team server when one answers, local files otherwise, and the result says which.
+        if (action === 'list') return toolResult(await planList(config));
+        if (action === 'show') return toolResult(await planShow(config, plan ?? 'latest'));
         if (!item || !status) return errorResult(new Error('set-status needs item and status'));
-        return toolResult(await runPlanSetStatus(config, plan ?? 'latest', item, status, { note, by, externalRef }));
+        return toolResult(await planSetStatus(config, plan ?? 'latest', item, status, { note, by, externalRef }));
       }).catch(errorResult),
   );
 
+  (server as { registerTool: unknown }).registerTool = register;
   return server;
 }
 

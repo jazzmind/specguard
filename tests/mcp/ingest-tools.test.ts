@@ -9,7 +9,7 @@ import { makeRepo } from '../helpers/repo.js';
 
 async function connect() {
   const [a, b] = InMemoryTransport.createLinkedPair();
-  const server = buildServer();
+  const server = buildServer({ legacy: true });
   await server.connect(b);
   const client = new Client({ name: 't', version: '0' });
   await client.connect(a);

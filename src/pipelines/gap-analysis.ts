@@ -10,9 +10,6 @@
  * (suggested file structure, key components, API surface) written to
  * `.specguard/plans/<feature>.md`.
  *
- * Integration with analyze: runAnalyze calls this and surfaces the gap count
- * as a high-priority recommendation when unimplemented specs exist.
- *
  * CLI: specguard gap-analysis [--spec <key>] [--all]
  */
 import path from 'node:path';

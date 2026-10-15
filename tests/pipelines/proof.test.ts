@@ -155,10 +155,10 @@ describe('ledger versions [ledger-version]', () => {
   it('refuses to read or overwrite a ledger written by a newer SpecGuard', async () => {
     const repo = makeRepo();
     const file = path.join(repo.dir, '.specguard', 'proofs.json');
-    repo.write('.specguard/proofs.json', JSON.stringify({ version: 2, proofs: { 'a#b': { claim: 'a#b', verdict: 'proven' } } }));
+    repo.write('.specguard/proofs.json', JSON.stringify({ version: 3, proofs: { 'a#b': { claim: 'a#b', verdict: 'proven' } } }));
     const before = readFileSync(file, 'utf8');
     repo.write('v.json', JSON.stringify({ runId: 'r', verdicts: [{ claim: 'core/awards#award-once', verdict: 'proven' }] }));
-    await expect(runProofIngest('v.json', repo.dir)).rejects.toThrow(/version 2/);
+    await expect(runProofIngest('v.json', repo.dir)).rejects.toThrow(/version 3/);
     expect(readFileSync(file, 'utf8')).toBe(before);
   });
 });

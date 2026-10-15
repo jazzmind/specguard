@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-15T17:35:56.753Z",
+  "generated": "2026-10-15T20:23:12.499Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -628,6 +628,9 @@
         "src/core/dependency-fingerprint.ts",
         "src/core/framework-profiles.ts",
         "src/core/proof-ledger.ts",
+        "src/core/provenance.ts",
+        "src/core/state/ledger-store.ts",
+        "src/core/state/lock.ts",
         "src/core/test-results.ts",
         "src/pipelines/forward-generate.ts",
         "src/pipelines/heal.ts",
@@ -639,6 +642,7 @@
         "tests/adapters/test-runners.test.ts",
         "tests/core/claim-tags.test.ts",
         "tests/core/framework-profiles.test.ts",
+        "tests/core/state-stores.test.ts",
         "tests/core/test-results.test.ts",
         "tests/fixtures/results/cargo.jsonl",
         "tests/fixtures/results/go.jsonl",
@@ -1135,6 +1139,56 @@
           ]
         },
         {
+          "id": "proof-provenance",
+          "ref": "capabilities/conformance-testing#proof-provenance",
+          "text": "Each proof row records its provenance: `origin` (`ci` on a GitHub Actions or other CI run, `local` otherwise, `server` for a server-side run), repository, branch, CI actor (never a developer's git identity) and the claim-hash version in force; ledger writes go through one store interface (a file by default) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 15,
+              "title": "reads GitHub Actions variables, and never a developer\\'s git identity [github]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 23,
+              "title": "is ci for any other CI and local otherwise [others]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 35,
+              "title": "does not lose concurrent updates [no-lost-updates]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 50,
+              "title": "leaves the file as it was when an update throws, and keeps accepting updates after [failed-update]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 61,
+              "title": "refuses a newer ledger version instead of reading it as empty [newer-version]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 74,
+              "title": "stamps each row with its origin, branch, actor and the hash version, taking overrides from the caller [stamp]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/state-stores.test.ts",
+              "line": 81,
+              "title": "writes to an injected store instead of a file [injected-store]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
           "id": "proof-reporting",
           "ref": "capabilities/conformance-testing#proof-reporting",
           "text": "`proof status` lists failed and stale claims and exits 2 when any exist, while `status` shows proof counts without changing its exit code and `drift` reports each stale proof.",
@@ -1312,14 +1366,14 @@
         }
       ],
       "counts": {
-        "claims": 25,
-        "proven": 18,
+        "claims": 26,
+        "proven": 19,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 7,
-        "withTests": 18
+        "withTests": 19
       }
     },
     {
@@ -1335,16 +1389,31 @@
         "src/cli/commands/docs.ts",
         "src/cli/commands/serve.ts",
         "src/core/root-doc-sync.ts",
+        "src/core/state/content-cache.ts",
         "src/pipelines/doc-generate.ts",
         "src/server/api.ts",
+        "src/server/central/auth.ts",
+        "src/server/central/backend.ts",
+        "src/server/central/config.ts",
+        "src/server/central/file-backend.ts",
+        "src/server/central/mcp.ts",
+        "src/server/central/pg-backend.ts",
+        "src/server/central/puller.ts",
+        "src/server/central/registry.ts",
+        "src/server/central/server.ts",
         "src/server/docs.ts",
         "src/server/index.ts",
+        "src/server/project.ts",
         "src/server/ui.ts"
       ],
       "tests": [
         "tests/core/redact.test.ts",
         "tests/pipelines/doc-generate.test.ts",
         "tests/server/api.test.ts",
+        "tests/server/backend-contract.test.ts",
+        "tests/server/central.test.ts",
+        "tests/server/projects.test.ts",
+        "tests/server/puller.test.ts",
         "tests/server/server.test.ts",
         "tests/server/ui.test.ts"
       ],
@@ -1482,7 +1551,7 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 249,
+              "line": 282,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -1503,8 +1572,20 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 38,
+              "line": 39,
               "title": "is read-only [read-only]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 63,
+              "title": "answers writes with 405 while the registry is not writable [read-only-registry]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 133,
+              "title": "reports versions on /health and /version, including whether the server accepts writes [version]",
               "origin": "source"
             },
             {
@@ -1529,20 +1610,44 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 56,
+              "line": 57,
               "title": "describes the system with its capabilities and totals [system]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 64,
+              "line": 65,
               "title": "lists capabilities and returns one with its claims, tests and files [capabilities]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 75,
+              "line": 76,
               "title": "returns a capability\\'s history and single entries [history]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 29,
+              "title": "lists projects and serves each under its own prefix [prefix]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 42,
+              "title": "refuses unprefixed routes when there is no default project, and unknown projects [no-default]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 52,
+              "title": "serves a single local project both with and without the prefix [local-both-forms]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 72,
+              "title": "lists specs with the file an editor opens [specs]",
               "origin": "source"
             }
           ]
@@ -1555,14 +1660,32 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 90,
+              "line": 91,
               "title": "exposes the matrix and the audit [trace-and-audit]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 264,
+              "line": 297,
               "title": "lists and reads security plans, and cannot be walked out of the plans folder [plans]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 81,
+              "title": "summarises coverage per capability and overall [coverage]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 108,
+              "title": "lists unresolved findings from the newest plan, and an empty list without one [findings]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 121,
+              "title": "serves the contract graph, empty when there is none [contracts]",
               "origin": "source"
             }
           ]
@@ -1575,26 +1698,32 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 102,
+              "line": 103,
               "title": "serves the agent brief without a model, exact ids included, and caches it [agent-doc]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 125,
+              "line": 126,
               "title": "rejects an unknown audience and an unknown spec [doc-errors]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 137,
+              "line": 138,
               "title": "generates with the docs pipeline, never shows claim ids to users, and caches by spec content [generate-and-cache]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 237,
+              "line": 270,
               "title": "builds the system guide from the system spec and every capability [system-guide]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 99,
+              "title": "lists the documents that can be requested, system first [docs-list]",
               "origin": "source"
             }
           ]
@@ -1607,19 +1736,19 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 102,
+              "line": 103,
               "title": "serves the agent brief without a model, exact ids included, and caches it [agent-doc]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 137,
+              "line": 138,
               "title": "generates with the docs pipeline, never shows claim ids to users, and caches by spec content [generate-and-cache]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 160,
+              "line": 161,
               "title": "gives developers the ids and the code map [dev-prompt]",
               "origin": "source"
             }
@@ -1635,24 +1764,24 @@
         {
           "id": "cache-key",
           "ref": "capabilities/documentation-api#cache-key",
-          "text": "generated documents are cached by spec content hash, audience and prompt version, so an unchanged spec is served from cache and an edited spec or a changed prompt version regenerates it.",
+          "text": "generated documents are cached (behind a cache interface, files by default) by spec content hash, audience, prompt version, model and the enabled plugin renderers, so an unchanged spec is served from cache and an edited spec, a changed prompt version or a different model regenerates it.",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 102,
+              "line": 103,
               "title": "serves the agent brief without a model, exact ids included, and caches it [agent-doc]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 137,
+              "line": 138,
               "title": "generates with the docs pipeline, never shows claim ids to users, and caches by spec content [generate-and-cache]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 169,
+              "line": 170,
               "title": "a different model does not reuse the other model\\'s docs [model-in-key]",
               "origin": "source"
             }
@@ -1661,30 +1790,30 @@
         {
           "id": "single-flight-budget",
           "ref": "capabilities/documentation-api#single-flight-budget",
-          "text": "concurrent requests for the same uncached document share one LLM call (single-flight), and each request is limited by a per-request LLM budget that fails with a clear error instead of overspending.",
+          "text": "concurrent requests for the same uncached document share one LLM call (single-flight), different documents generate concurrently, and each generation runs in its own LLM scope with its own budget (a spent budget fails that request with a clear error and never affects or resets another) and with the requester's name sent to the model gateway for spend attribution.",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 178,
+              "line": 179,
               "title": "shares one model call between identical concurrent requests [single-flight]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 192,
-              "title": "runs model generations one at a time, so one request cannot reset another\\'s spend count [serialised]",
+              "line": 220,
+              "title": "runs generations for different documents concurrently, each in its own LLM scope [concurrent-scopes]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 209,
+              "line": 242,
               "title": "keeps serving after one generation fails [gate-survives-failure]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 229,
+              "line": 262,
               "title": "reports a spent LLM budget as a clear 429 instead of substituting another document [budget]",
               "origin": "source"
             }
@@ -1698,7 +1827,7 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 45,
+              "line": 46,
               "title": "serves the UI at / and 404s unknown paths [ui-and-404]",
               "origin": "source"
             }
@@ -1718,7 +1847,7 @@
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 249,
+              "line": 282,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -1752,13 +1881,13 @@
           "tests": [
             {
               "file": "tests/server/ui.test.ts",
-              "line": 29,
+              "line": 30,
               "title": "escapes HTML in model-written markdown so it cannot inject script [escapes]",
               "origin": "source"
             },
             {
               "file": "tests/server/ui.test.ts",
-              "line": 39,
+              "line": 40,
               "title": "links only http(s), site-relative and anchor URLs [links]",
               "origin": "source"
             }
@@ -1772,19 +1901,19 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 113,
+              "line": 114,
               "title": "renders user and dev docs straight from the spec, with a warning, when no model is configured [no-model]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 218,
+              "line": 251,
               "title": "falls back to the spec when the model fails, and tries again next time [model-failure]",
               "origin": "source"
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 229,
+              "line": 262,
               "title": "reports a spent LLM budget as a clear 429 instead of substituting another document [budget]",
               "origin": "source"
             }
@@ -1814,6 +1943,17 @@
       "ownedFiles": [
         "action.yml",
         "action/run-gates.mjs",
+        "extension/src/api/adapters.test.ts",
+        "extension/src/api/adapters.ts",
+        "extension/src/api/client.ts",
+        "extension/src/api/connection.test.ts",
+        "extension/src/api/connection.ts",
+        "extension/src/api/data.ts",
+        "extension/src/api/hub.ts",
+        "extension/src/api/local-server.test.ts",
+        "extension/src/api/local-server.ts",
+        "extension/src/api/shared.ts",
+        "extension/src/api/types.ts",
         "extension/src/cli-version.test.ts",
         "extension/src/cli-version.ts",
         "extension/src/commands.ts",
@@ -1885,6 +2025,9 @@
         "src/plugins/types.ts"
       ],
       "tests": [
+        "extension/src/api/adapters.test.ts",
+        "extension/src/api/connection.test.ts",
+        "extension/src/api/local-server.test.ts",
         "extension/src/cli-version.test.ts",
         "extension/src/dashboard/cli.test.ts",
         "extension/src/dashboard/coverage-parse.test.ts",
@@ -1894,6 +2037,7 @@
         "tests/action/run-gates.test.ts",
         "tests/cli/features.test.ts",
         "tests/core/cli.test.ts",
+        "tests/core/env.test.ts",
         "tests/core/exit-codes.test.ts",
         "tests/core/extension.test.ts",
         "tests/core/mcp-server.test.ts",
@@ -1910,10 +2054,13 @@
         "tests/pipelines/git-ops-changelog.test.ts",
         "tests/pipelines/git-ops-scope.test.ts",
         "tests/pipelines/init.test.ts",
+        "tests/pipelines/security-scan.test.ts",
         "tests/plugins/catalog.test.ts",
         "tests/plugins/commands.test.ts",
         "tests/plugins/discoverers.test.ts",
-        "tests/plugins/quality-fix.test.ts"
+        "tests/plugins/npm-plugins.test.ts",
+        "tests/plugins/quality-fix.test.ts",
+        "tests/server/api.test.ts"
       ],
       "docs": [
         "README.md",
@@ -2161,31 +2308,37 @@
         {
           "id": "mcp-tools-parity",
           "ref": "capabilities/integration-surfaces#mcp-tools-parity",
-          "text": "The MCP server runs over stdio, registers one tool per CLI command plus `read_spec` and `write_spec`, calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport",
+          "text": "The MCP server runs over stdio, registers one tool per core command plus `read_spec` and `write_spec` (the pre-0.2 names only with `SPECGUARD_MCP_LEGACY=1`), calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/core/mcp-server.test.ts",
-              "line": 123,
+              "line": 120,
               "title": "Module imports without starting transport",
               "origin": "source"
             },
             {
               "file": "tests/core/mcp-server.test.ts",
-              "line": 137,
+              "line": 134,
               "title": "A pipeline tool returns a formatted result",
               "origin": "source"
             },
             {
               "file": "tests/core/mcp-server.test.ts",
-              "line": 175,
+              "line": 172,
               "title": "Config missing — tool reports an error",
               "origin": "source"
             },
             {
               "file": "tests/core/mcp-server.test.ts",
-              "line": 206,
+              "line": 203,
               "title": "Utility read_spec returns content + parsed summary",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mcp-server.test.ts",
+              "line": 242,
+              "title": "registers only the core tools by default, and the legacy names only on request",
               "origin": "source"
             },
             {
@@ -2267,7 +2420,7 @@
         {
           "id": "action-gates",
           "ref": "capabilities/integration-surfaces#action-gates",
-          "text": "The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, deps), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state",
+          "text": "The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, check, test, verify, scan; `deps` is an alias of `scan`), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state",
           "proof": "proven",
           "tests": [
             {
@@ -2290,13 +2443,13 @@
             },
             {
               "file": "tests/action/run-gates.test.ts",
-              "line": 131,
+              "line": 135,
               "title": "runs gates, writes per-gate JSON and the summary, and exits 1 when a threshold trips",
               "origin": "source"
             },
             {
               "file": "tests/action/run-gates.test.ts",
-              "line": 160,
+              "line": 164,
               "title": "rejects an unknown gate",
               "origin": "source"
             }
@@ -2305,7 +2458,7 @@
         {
           "id": "action-fail-on",
           "ref": "capabilities/integration-surfaces#action-fail-on",
-          "text": "`fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, align-below:<n>, results, validate, security, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job",
+          "text": "`fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job",
           "proof": "proven",
           "tests": [
             {
@@ -2340,13 +2493,13 @@
             },
             {
               "file": "tests/action/run-gates.test.ts",
-              "line": 114,
+              "line": 118,
               "title": "trips the new gates on a non-zero exit, and only when they ran [new-gate-rules]",
               "origin": "source"
             },
             {
               "file": "tests/action/run-gates.test.ts",
-              "line": 131,
+              "line": 135,
               "title": "runs gates, writes per-gate JSON and the summary, and exits 1 when a threshold trips",
               "origin": "source"
             }
@@ -2360,7 +2513,7 @@
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
-              "line": 167,
+              "line": 171,
               "title": "action.yml exposes mode: remediate without merging",
               "origin": "source"
             }
@@ -2730,7 +2883,7 @@
           "tests": [
             {
               "file": "tests/plugins/quality-fix.test.ts",
-              "line": 22,
+              "line": 21,
               "title": "passes --fix to eslint and to ruff, and only then",
               "origin": "source"
             }
@@ -2765,9 +2918,16 @@
         {
           "id": "planned-reduced-surface",
           "ref": "capabilities/integration-surfaces#planned-reduced-surface",
-          "text": "Planned: the command set is reduced to about 14 top-level commands and the MCP server to about 15 tools that mirror them plus `read_spec`, `write_spec`, trace and history tools, with old gate and command names kept as aliases for a transition period",
-          "proof": "unproven",
-          "tests": []
+          "text": "The surface is small: `analyze`, `plan-fix` and `deps` are gone (`check`, `security scan` and the remediation plan replace them, and the Action's `deps` gate is an alias of `scan`), and the MCP server registers about 16 core tools (`check`, `spec_graph`, `read_spec`, `write_spec`, `history_add`, `history_log`, `test_run`, `verify`, `security_scan`, `security_plan`, `proof_status`, `results_ingest`, `impact`, `contracts`, `workspace_status`, `init`) while the pre-0.2 tool names register only when `SPECGUARD_MCP_LEGACY=1`; plugin tools always register",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/env.test.ts",
+              "line": 44,
+              "title": "accepts an optional server block and rejects a bad mode [schema]",
+              "origin": "source"
+            }
+          ]
         },
         {
           "id": "plugin-commands",
@@ -2828,9 +2988,52 @@
         {
           "id": "planned-plugin-extensions",
           "ref": "capabilities/integration-surfaces#planned-plugin-extensions",
-          "text": "Planned: plugins gain the extension points `detectors` and `docRenderers`, and npm plugins load only from an explicit `{name, package}` allowlist in config because importing a package runs its code",
-          "proof": "unproven",
-          "tests": []
+          "text": "Plugins can add `detectors` (their findings become `code` items in the remediation plan under the owning capability, reported but never auto-patched, and closed only when the detector ran without warnings) and `docRenderers` (the docs API tries them before the model; a renderer that declines or fails falls through), and npm plugins load only from an explicit `{name, package}` allowlist in config, resolved from the project's own `node_modules`, because importing a package runs its code",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/security-scan.test.ts",
+              "line": 240,
+              "title": "turns a plugin detector\\'s findings into code items under the owning capability [findings]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-scan.test.ts",
+              "line": 251,
+              "title": "closes its findings only when the detector ran cleanly, and never patches them [lifecycle]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-scan.test.ts",
+              "line": 272,
+              "title": "a detector that throws is reported and does not stop the scan [detector-crash]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/npm-plugins.test.ts",
+              "line": 8,
+              "title": "loads a package only when config lists it as { name, package }, resolving it from the project [allowlist]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/npm-plugins.test.ts",
+              "line": 19,
+              "title": "refuses a package name that is a path or URL, one that is not installed, and one whose id differs from the listed name [refusals]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/npm-plugins.test.ts",
+              "line": 30,
+              "title": "resolves from the project it is asked about, so two projects can use different versions [per-project]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/api.test.ts",
+              "line": 193,
+              "title": "lets a plugin renderer produce a document without a model call, and falls through when it declines or fails [doc-renderers]",
+              "origin": "source"
+            }
+          ]
         },
         {
           "id": "planned-history-hooks",
@@ -2918,13 +3121,13 @@
         {
           "id": "core-plugin-boundary",
           "ref": "capabilities/integration-surfaces#core-plugin-boundary",
-          "text": "Core reaches optional functionality only through enabled plugins: `analyze` runs code quality only when a plugin provides a `quality` command and says so when none does",
+          "text": "Core reaches optional functionality only through enabled plugins: `quality` exists only when a plugin provides it, and core commands never run code quality themselves",
           "proof": "proven",
           "tests": [
             {
-              "file": "tests/plugins/quality-fix.test.ts",
-              "line": 41,
-              "title": "runs quality --fix when it is recommended and leaves LLM pipelines as recommendations",
+              "file": "tests/plugins/commands.test.ts",
+              "line": 16,
+              "title": "are available only while the plugin is enabled in config [enabled-only]",
               "origin": "source"
             }
           ]
@@ -2932,13 +3135,13 @@
       ],
       "counts": {
         "claims": 23,
-        "proven": 20,
+        "proven": 22,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
-        "unproven": 3,
-        "withTests": 20
+        "unproven": 1,
+        "withTests": 22
       }
     },
     {
@@ -3206,31 +3409,31 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 96,
+              "line": 97,
               "title": "passes a timeout signal, retries retryable errors with growing backoff, and stops on auth errors",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 114,
+              "line": 115,
               "title": "does not retry a missing key",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 122,
+              "line": 123,
               "title": "gives up after the retry budget",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 130,
+              "line": 131,
               "title": "a real timeout aborts a hung call",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 198,
+              "line": 199,
               "title": "a budget error is never retried or sent to a fallback",
               "origin": "source"
             }
@@ -3244,19 +3447,19 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 76,
+              "line": 77,
               "title": "tries the fallback chain after the primary exhausts its attempts",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 87,
+              "line": 88,
               "title": "reports every target when all fail",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 198,
+              "line": 199,
               "title": "a budget error is never retried or sent to a fallback",
               "origin": "source"
             }
@@ -3296,7 +3499,7 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 65,
+              "line": 66,
               "title": "applies the override for the running pipeline, else the call-site target",
               "origin": "source"
             },
@@ -3311,31 +3514,55 @@
         {
           "id": "llm-budget-cap",
           "ref": "capabilities/platform-foundation#llm-budget-cap",
-          "text": "A hard spend cap on tokens, calls or estimated dollars applies per process run: once reached or projected to be crossed, every later call fails with a budget error and the CLI exits 8 and says why",
+          "text": "A hard spend cap on tokens, calls or estimated dollars applies per process run, or per request scope in a server (each scope has its own count, budget, config and user, so concurrent requests cannot spend or reset one another's): once reached or projected to be crossed, every later call in that run or scope fails with a budget error and the CLI exits 8 and says why; a scope's user and labels are sent to the provider, and its usage is reported to its callback",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 169,
+              "line": 170,
               "title": "maxCalls refuses the next call, flags the run, and carries exit code 8",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 183,
+              "line": 184,
               "title": "maxUsd stops after the call that crosses it",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 191,
+              "line": 192,
               "title": "maxTokens counts projected input as well as spent tokens",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 198,
+              "line": 199,
               "title": "a budget error is never retried or sent to a fallback",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/llm-layer.test.ts",
+              "line": 276,
+              "title": "gives each scope its own spend count and budget, so concurrent requests cannot spend or reset one another\\'s [isolated-budget]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/llm-layer.test.ts",
+              "line": 295,
+              "title": "uses the scope\\'s own config, including its budget and gateway [scope-config]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/llm-layer.test.ts",
+              "line": 309,
+              "title": "reports usage to the scope, and passes the user and tags to the provider [attribution]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/llm-layer.test.ts",
+              "line": 330,
+              "title": "a failing usage callback never fails the call [onusage-throws]",
               "origin": "source"
             }
           ]
@@ -3348,13 +3575,13 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 141,
+              "line": 142,
               "title": "records tokens, calls and estimated cost in total, per pipeline and per model",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 155,
+              "line": 156,
               "title": "uses overrides, counts unpriced models, and never charges for them",
               "origin": "source"
             }
@@ -3368,19 +3595,19 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 211,
+              "line": 212,
               "title": "records with a real provider, then replays the same request offline",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 233,
+              "line": 234,
               "title": "a miss names the hash and how to record; a changed prompt or image misses",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 245,
+              "line": 246,
               "title": "a recording that no longer fits the schema is an error, not a silent pass",
               "origin": "source"
             }
@@ -3394,13 +3621,13 @@
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 258,
+              "line": 259,
               "title": "none throws LlmDisabledError without touching the SDK",
               "origin": "source"
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 265,
+              "line": 266,
               "title": "allowImages:false rejects a call with images and lets text through",
               "origin": "source"
             }
@@ -3744,7 +3971,7 @@
             },
             {
               "file": "tests/core/llm-layer.test.ts",
-              "line": 169,
+              "line": 170,
               "title": "maxCalls refuses the next call, flags the run, and carries exit code 8",
               "origin": "source"
             }
@@ -3813,6 +4040,7 @@
       "unit": ".",
       "ownedFiles": [
         "specs/history/2026-10-15-functional-specs-and-four-pillars.md",
+        "specs/history/2026-10-15-local-first-specguard-with-an-optional-t.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -4127,7 +4355,7 @@
         {
           "id": "history-mcp-tool",
           "ref": "capabilities/requirement-history#history-mcp-tool",
-          "text": "Planned: the MCP server exposes `history_add` with the same behaviour as the CLI command so agents can record decisions directly",
+          "text": "The MCP server exposes `history_add` and `history_log` with the same behaviour as the CLI command so agents can record decisions directly",
           "proof": "unproven",
           "tests": []
         }
@@ -4149,7 +4377,7 @@
       "kind": "capability",
       "title": "Security Scanning and Remediation",
       "status": "active",
-      "value": "Security and risk teams find flaws in code, dependencies, secrets and (planned) the specs themselves, and get fixes proposed with proof that behaviour was preserved, in a form other systems can automate.",
+      "value": "Security and risk teams find flaws in code, dependencies, secrets and the specs themselves, and get fixes proposed with proof that behaviour was preserved, in a form other systems can automate.",
       "parent": "system",
       "unit": ".",
       "ownedFiles": [
@@ -4157,8 +4385,6 @@
         "src/adapters/docker.ts",
         "src/adapters/npm-audit.ts",
         "src/adapters/pip-audit.ts",
-        "src/cli/commands/deps.ts",
-        "src/cli/commands/plan-fix.ts",
         "src/cli/commands/remediate.ts",
         "src/cli/commands/security.ts",
         "src/core/advisory.ts",
@@ -4174,8 +4400,7 @@
         "src/core/git-scope.ts",
         "src/core/plan-writer.ts",
         "src/core/remediation-schema.ts",
-        "src/pipelines/dep-check.ts",
-        "src/pipelines/plan-fix.ts",
+        "src/core/state/plan-store.ts",
         "src/pipelines/remediate/apply.ts",
         "src/pipelines/remediate/baseline.ts",
         "src/pipelines/remediate/changelog.ts",
@@ -4208,7 +4433,8 @@
         "tests/pipelines/security-audit.test.ts",
         "tests/pipelines/security-plan.test.ts",
         "tests/pipelines/security-scan.test.ts",
-        "tests/pipelines/security.test.ts"
+        "tests/pipelines/security.test.ts",
+        "tests/server/projects.test.ts"
       ],
       "docs": [
         "README.md",
@@ -4270,6 +4496,12 @@
           "proof": "proven",
           "tests": [
             {
+              "file": "tests/adapters/npm-audit.test.ts",
+              "line": 66,
+              "title": "scenario 3: returns ok:false when npm unavailable",
+              "origin": "source"
+            },
+            {
               "file": "tests/adapters/python-adapters.test.ts",
               "line": 22,
               "title": "returns ok:false when ruff is unavailable",
@@ -4302,27 +4534,6 @@
               "origin": "source"
             }
           ]
-        },
-        {
-          "id": "deps-report-and-gate",
-          "ref": "capabilities/security-and-remediation#deps-report-and-gate",
-          "text": "`deps` runs npm audit and depcheck for every app (or one app with `--app`, an unknown app name being an error that lists the known ones), normalises severities (moderate and medium become medium, unknown becomes info), writes `.specguard/dep-check.json` with totals for vulnerabilities, unused and missing dependencies, exits 5 on any critical or high vulnerability, and treats an unavailable tool as a warning rather than a failure",
-          "proof": "proven",
-          "tests": [
-            {
-              "file": "tests/adapters/npm-audit.test.ts",
-              "line": 66,
-              "title": "scenario 3: returns ok:false when npm unavailable",
-              "origin": "source"
-            }
-          ]
-        },
-        {
-          "id": "plan-fix-readonly",
-          "ref": "capabilities/security-and-remediation#plan-fix-readonly",
-          "text": "`plan-fix` asks the LLM for a fix plan of at most ten uniquely identified steps (run-pipeline, edit-file or run-command) for a named pipeline's findings and writes it to `.specguard/fix-plan.json`; it never executes any step, and an LLM failure exits with an internal error and writes no file",
-          "proof": "unproven",
-          "tests": []
         },
         {
           "id": "unified-detection",
@@ -4368,7 +4579,7 @@
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 102,
+              "line": 104,
               "title": "drops findings below the minimum severity [threshold]",
               "origin": "source"
             }
@@ -4659,12 +4870,12 @@
         {
           "id": "unified-scan",
           "ref": "capabilities/security-and-remediation#unified-scan",
-          "text": "`security scan` runs the dependency-advisory, Semgrep and gitleaks detectors that `remediate` uses, as one detector set whose results share one finding shape; the older `security --with-sast` and `deps` commands remain for CI gates and are slated to call it",
+          "text": "`security scan` runs the dependency-advisory, Semgrep and gitleaks detectors that `remediate` uses, as one detector set whose results share one finding shape; the older `security --with-sast` command remains for CI gates, and the retired `deps` gate is an alias of it",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 61,
+              "line": 63,
               "title": "turns advisories, code findings and secrets into one valid plan [one-plan]",
               "origin": "source"
             }
@@ -4678,13 +4889,13 @@
           "tests": [
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 226,
+              "line": 301,
               "title": "adds a spec item per finding, grounded in the capability, with the real claim refs only [spec-items]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 260,
+              "line": 335,
               "title": "shows the model the code findings under the capability so it can spot a requirement gap [code-in-review]",
               "origin": "source"
             }
@@ -4693,24 +4904,24 @@
         {
           "id": "remediation-plan",
           "ref": "capabilities/security-and-remediation#remediation-plan",
-          "text": "Scans emit a `RemediationPlan` validated by one Zod schema and published as JSON Schema at `schemas/remediation-plan.v1.json`; each item carries finding references, severity, capability and claim links, affected files, a change type (code, spec, dependency or config), the claims that must stay proven, an optional external reference, and a status that moves open, planned, in-progress, fixed, then verified or wont-fix",
+          "text": "Scans emit a `RemediationPlan` validated by one Zod schema and published as JSON Schema at `schemas/remediation-plan.v1.json`; each item carries finding references, severity, capability and claim links, the workspace unit when the project has a manifest, affected files, a change type (code, spec, dependency or config), the claims that must stay proven, an optional external reference, and a status that moves open, planned, in-progress, fixed, then verified or wont-fix",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 152,
+              "line": 153,
               "title": "is generated from the zod definition and the committed file is current [schema-current]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 158,
+              "line": 159,
               "title": "describes the lifecycle and allows extra fields for consumers [schema-shape]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 61,
+              "line": 63,
               "title": "turns advisories, code findings and secrets into one valid plan [one-plan]",
               "origin": "source"
             }
@@ -4724,7 +4935,7 @@
           "tests": [
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 117,
+              "line": 118,
               "title": "resolves latest and cannot be walked out of the plans folder [latest-and-paths]",
               "origin": "source"
             }
@@ -4738,67 +4949,67 @@
           "tests": [
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 53,
+              "line": 54,
               "title": "keeps status, history and external reference for an item seen before [kept]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 62,
+              "line": 63,
               "title": "closes an unresolved item that is no longer detected, with a note [closed]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 69,
+              "line": 70,
               "title": "drops items that were already closed and are gone [dropped]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 112,
+              "line": 114,
               "title": "keeps item ids and statuses across scans and closes what is gone [carry-over]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 137,
+              "line": 139,
               "title": "does not close findings when the detector that found them did not run [no-detector]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 149,
+              "line": 151,
               "title": "closes only what the detectors that did run could have seen [partial-detectors]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 159,
+              "line": 161,
               "title": "does not close anything on a scan narrowed to one app or raised above an item severity [narrowed]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 170,
+              "line": 172,
               "title": "reopens a finding someone marked fixed when the scanner still reports it [reopen]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 182,
+              "line": 184,
               "title": "gives two findings of one rule in one file different identities, stable when lines move [fingerprints]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 193,
+              "line": 195,
               "title": "refuses to carry on when the latest plan cannot be read, rather than dropping every status [unreadable-latest]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 247,
+              "line": 322,
               "title": "keeps a spec finding as one item when the model rewords its title, and never auto-closes it [spec-identity]",
               "origin": "source"
             }
@@ -4807,37 +5018,85 @@
         {
           "id": "plan-transitions",
           "ref": "capabilities/security-and-remediation#plan-transitions",
-          "text": "`security plan set-status` enforces the lifecycle: any state can be reopened, verified is reachable only from fixed, an unknown status, plan or item is rejected, and a stored plan that does not match the schema is never trusted",
+          "text": "`security plan set-status` enforces the lifecycle: any state can be reopened, verified is reachable only from fixed, an unknown status, plan or item is rejected, and a stored plan that does not match the schema is never trusted; plans live behind one store interface (files by default) that serialises concurrent updates, and an update may carry the item version the caller last saw (the count of its recorded status changes), in which case a changed item is refused as a conflict and nothing is written",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 39,
+              "line": 40,
               "title": "allows the documented transitions and nothing else [transitions]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 89,
+              "line": 90,
               "title": "moves an item, records who and why, and keeps the plan valid [set-status]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 100,
+              "line": 101,
               "title": "refuses a transition the lifecycle forbids and leaves the plan alone [bad-transition]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 109,
+              "line": 110,
               "title": "rejects an unknown status, plan or item [unknowns]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 128,
+              "line": 129,
               "title": "rejects a stored plan that does not match the schema instead of trusting it [invalid-plan]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-plan.test.ts",
+              "line": 175,
+              "title": "rejects an update made against a stale item version and writes nothing [conflict]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-plan.test.ts",
+              "line": 189,
+              "title": "names why an update was refused: no plan, no item, bad status, bad transition [error-codes]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-plan.test.ts",
+              "line": 200,
+              "title": "serialises concurrent updates to different items of one plan, losing none [concurrent-items]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-plan.test.ts",
+              "line": 209,
+              "title": "lists plans oldest first and resolves latest, and skips temp files and invalid plans [list-latest]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 165,
+              "title": "moves an item, records who did it, and returns the new version [patch]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 178,
+              "title": "answers 409 for a stale If-Match and applies the update for the current one [if-match]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 189,
+              "title": "maps refusals to status codes: 401, 403, 400, 404, 422 [refusals]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/projects.test.ts",
+              "line": 202,
+              "title": "loses nothing when many items are updated at once [concurrent]",
               "origin": "source"
             }
           ]
@@ -4850,7 +5109,7 @@
           "tests": [
             {
               "file": "tests/pipelines/security-plan.test.ts",
-              "line": 135,
+              "line": 136,
               "title": "records requirement history when a spec-level finding is resolved [spec-fix-history]",
               "origin": "source"
             }
@@ -4870,7 +5129,7 @@
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 86,
+              "line": 88,
               "title": "never copies a secret\\'s message into the plan [no-secret-leak]",
               "origin": "source"
             }
@@ -4884,13 +5143,13 @@
           "tests": [
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 304,
+              "line": 379,
               "title": "moves each item by what happened to its branch, and never touches spec or secret items [statuses]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/security-scan.test.ts",
-              "line": 332,
+              "line": 407,
               "title": "keeps an update a tracker made while the fix ran, and restores items when the run crashes [concurrent-update]",
               "origin": "source"
             }
@@ -4898,14 +5157,14 @@
         }
       ],
       "counts": {
-        "claims": 24,
-        "proven": 23,
+        "claims": 22,
+        "proven": 22,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
-        "unproven": 1,
-        "withTests": 23
+        "unproven": 0,
+        "withTests": 22
       }
     },
     {
@@ -4932,6 +5191,7 @@
         "src/core/spec-render.ts",
         "src/core/test-declarations.ts",
         "src/pipelines/claims.ts",
+        "src/pipelines/import-capability.ts",
         "src/pipelines/import.ts",
         "src/pipelines/index-generate.ts",
         "src/pipelines/reverse-generate.ts",
@@ -4950,6 +5210,7 @@
         "tests/core/spec-key.test.ts",
         "tests/core/spec-parser.test.ts",
         "tests/core/test-declarations.test.ts",
+        "tests/pipelines/import-capability.test.ts",
         "tests/pipelines/import.test.ts",
         "tests/pipelines/reverse-generate.test.ts",
         "tests/pipelines/spec-consolidate.test.ts",
@@ -5399,6 +5660,30 @@
           "proof": "proven",
           "tests": [
             {
+              "file": "tests/pipelines/import-capability.test.ts",
+              "line": 36,
+              "title": "only prints the proposal without --yes, and writes nothing [dry-run]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/import-capability.test.ts",
+              "line": 47,
+              "title": "appends new requirements with unique claim ids, skips ones the capability already has, and records history [writes]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/import-capability.test.ts",
+              "line": 69,
+              "title": "reports an unknown capability and an unreadable source as failures, and an empty proposal as nothing to do [errors]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/import-capability.test.ts",
+              "line": 86,
+              "title": "inserts at the end of the Requirements section, before the next heading, and creates the section when missing",
+              "origin": "source"
+            },
+            {
               "file": "tests/pipelines/import.test.ts",
               "line": 80,
               "title": "scenario 1: imports a Markdown file and creates a spec",
@@ -5515,13 +5800,19 @@
               "line": 165,
               "title": "skips specs that exist unless --force, and caches file summaries by content [skip-and-cache]",
               "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-draft.test.ts",
+              "line": 206,
+              "title": "rewrites cached summaries when the summarising model changes, and reuses them otherwise [summary-cache-key]",
+              "origin": "source"
             }
           ]
         },
         {
           "id": "spec-index-refreshes-map",
           "ref": "capabilities/spec-authoring#spec-index-refreshes-map",
-          "text": "`spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; Planned: `import` can target an existing capability and record a history entry for what it changed",
+          "text": "`spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; `import <file> --capability <id>` adds only the requirements a document states that the capability does not already cover (a dry run unless `--yes`), appends them with unique claim anchors, and records a history entry for what it changed",
           "proof": "proven",
           "tests": [
             {
@@ -5777,6 +6068,514 @@
       }
     },
     {
+      "id": "team-server",
+      "specKey": "capabilities/team-server",
+      "kind": "capability",
+      "title": "Local-first operation with an optional team server",
+      "status": "active",
+      "value": "SpecGuard works fully on one machine, and when a team server exists it also gives everyone shared proof from CI, shared documents and shared plans, without anyone depending on it.",
+      "parent": "system",
+      "unit": ".",
+      "ownedFiles": [
+        "extension/src/api/adapters.test.ts",
+        "extension/src/api/adapters.ts",
+        "extension/src/api/client.ts",
+        "extension/src/api/connection.test.ts",
+        "extension/src/api/connection.ts",
+        "extension/src/api/data.ts",
+        "extension/src/api/hub.ts",
+        "extension/src/api/local-server.test.ts",
+        "extension/src/api/local-server.ts",
+        "extension/src/api/shared.ts",
+        "extension/src/api/types.ts",
+        "src/cli/commands/login.ts",
+        "src/cli/commands/publish.ts",
+        "src/cli/commands/server.ts",
+        "src/client/credentials.ts",
+        "src/client/index.ts",
+        "src/core/snapshot.ts",
+        "src/pipelines/publish.ts",
+        "src/pipelines/team.ts",
+        "src/server/central/auth.ts",
+        "src/server/central/backend.ts",
+        "src/server/central/config.ts",
+        "src/server/central/file-backend.ts",
+        "src/server/central/mcp.ts",
+        "src/server/central/pg-backend.ts",
+        "src/server/central/puller.ts",
+        "src/server/central/registry.ts",
+        "src/server/central/server.ts",
+        "src/server/project.ts"
+      ],
+      "tests": [
+        "extension/src/api/adapters.test.ts",
+        "extension/src/api/connection.test.ts",
+        "extension/src/api/local-server.test.ts",
+        "tests/client/client.test.ts",
+        "tests/pipelines/publish.test.ts",
+        "tests/pipelines/team.test.ts",
+        "tests/server/backend-contract.test.ts",
+        "tests/server/central.test.ts",
+        "tests/server/projects.test.ts",
+        "tests/server/puller.test.ts",
+        "tests/server/ui.test.ts"
+      ],
+      "docs": [
+        "docs/team-server.md"
+      ],
+      "history": [
+        "2026-10-15-local-first-specguard-with-an-optional-t"
+      ],
+      "claims": [
+        {
+          "id": "publish-snapshot",
+          "ref": "capabilities/team-server#publish-snapshot",
+          "text": "`specguard publish` writes one snapshot file holding the spec and history markdown, the trace model, the proof rows, the newest remediation plan and the contract graph, tagged with the project name, repository, branch, commit, origin and engine and hash versions; it never includes source code, working-tree files outside the spec tree, or prompts that were not committed as history, and it redacts credentials from every file; with `--push` or `--server` it also sends the snapshot to the project's team server, and a refusal or an unreachable server fails the command while the file is still written",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/publish.test.ts",
+              "line": 13,
+              "title": "writes a snapshot a server would accept: specs, history, trace, proofs, and no source code [snapshot]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/publish.test.ts",
+              "line": 36,
+              "title": "redacts credentials from every file and leaves the v1 archive out [redaction]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/publish.test.ts",
+              "line": 47,
+              "title": "names the project from the flag, then config, then the directory [project-name]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/publish.test.ts",
+              "line": 60,
+              "title": "rejects paths that leave the spec tree, non-markdown files and bad project names [paths]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/publish.test.ts",
+              "line": 76,
+              "title": "rejects malformed, oversized and wrong-version input without throwing [malformed]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "snapshot-validation",
+          "ref": "capabilities/team-server#snapshot-validation",
+          "text": "A snapshot is validated before it is written or accepted: the project name is a safe identifier, every file is a markdown file inside the spec tree (no absolute paths, `..` or backslashes), the trace model has its required shape, an unknown version is refused, and anything over the size limit is refused",
+          "proof": "unproven",
+          "tests": []
+        },
+        {
+          "id": "project-scoped-api",
+          "ref": "capabilities/team-server#project-scoped-api",
+          "text": "The API serves every project under `/api/v1/projects/:project/...`, lists projects at `/api/v1/projects`, and on a server with one project also serves the same routes without the prefix; a server with several projects answers an unprefixed route with a pointer to the prefixed form; besides the existing routes it serves specs with their file (and one spec's markdown), coverage per capability and unit, the document list, the contract graph and unresolved findings, and the web UI works under a path prefix and across projects",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 313,
+              "title": "serves one spec\\'s markdown from the snapshot [spec-file]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/ui.test.ts",
+              "line": 60,
+              "title": "is served under a path prefix, which only a plain path may be [base-path]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/ui.test.ts",
+              "line": 68,
+              "title": "asks the server which projects exist, and uses the prefixed API when there is no default [projects]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "version-handshake",
+          "ref": "capabilities/team-server#version-handshake",
+          "text": "The API reports `apiVersion`, `engineVersion`, `hashVersion` and whether it accepts writes on `/health` and `/version`, so a client can refuse to mix incompatible data",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 98,
+              "title": "refuses a server that is not SpecGuard or speaks another API version, and flags other hash rules [versions]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "guarded-writes",
+          "ref": "capabilities/team-server#guarded-writes",
+          "text": "A registry that is not writable (the local `serve`) answers every write with 405; on a writable one a plan item is changed with `PATCH` by a signed-in maintainer, the change is attributed to them, a stale `If-Match` version is refused with 409 and writes nothing, and a lifecycle violation is refused with 422",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 227,
+              "title": "requires a token for plan changes made through the API, attributing them to its owner, and the CSRF header for browser sessions [writes]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "team-server-storage",
+          "ref": "capabilities/team-server#team-server-storage",
+          "text": "A team server keeps its state behind one backend interface (snapshots, plans per project, a document cache per project, tokens, an audit trail and model usage), implemented for files and for Postgres and held to the same contract tests; a project is shown from its newest snapshot on the default branch, else its newest overall; concurrent edits to plans lose nothing, with Postgres using a revision check and retry instead of row locks",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 57,
+              "title": "shows a project from its newest snapshot on the default branch, else its newest overall [snapshots-latest]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 71,
+              "title": "lists projects, knows which commits it has, and prunes the oldest [snapshots-housekeeping]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 86,
+              "title": "stores plans per project, lists them in order, resolves latest, and ignores a plan that does not validate [plans]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 101,
+              "title": "loses no update when many items of one plan change at once, and none when the update throws [plan-updates]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 114,
+              "title": "caches by namespace and slot per project, replacing an entry in place [cache]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 126,
+              "title": "finds tokens by hash, lets only the owner revoke, and tracks use [tokens]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 145,
+              "title": "keeps the audit trail and the model usage in order [audit-usage]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/backend-contract.test.ts",
+              "line": 160,
+              "title": "refuses a project name that could leave its directory or break a path [project-names]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "team-server-auth",
+          "ref": "capabilities/team-server#team-server-auth",
+          "text": "Every route except `/health` needs a credential: a token (a person's, a project's CI token, or the operator's bootstrap token) or, for browsers, the sandbox's signed-in user header, which reads and mints a person's own tokens but never grants an administrative power; a bad token is refused even when the header is present; a project-scoped credential reaches only its project; nobody mints a token more powerful than their own, admin tokens come only from the admin route; tokens are stored as hashes, shown once, revocable by their owner, and audited; changes made from a browser session need the `X-Requested-With` header",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 83,
+              "title": "serves health to anyone and everything else only to a valid credential [auth-gate]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 100,
+              "title": "is mounted under its base path and nowhere else [base-path]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 113,
+              "title": "refuses a request target that is not a valid path, and an oversized body [bad-input]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 125,
+              "title": "lets a signed-in user mint their own token, never more power than they hold, and revoke it [own-tokens]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 147,
+              "title": "reserves administration for an admin token: the header never grants it, and the bootstrap token does [admin]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 159,
+              "title": "records who made and revoked tokens in the audit log [audit]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "team-server-publish",
+          "ref": "capabilities/team-server#team-server-publish",
+          "text": "A project's CI token or a maintainer publishes a snapshot over HTTP, creating the project on first publish; the snapshot's plan is merged with the stored one, so statuses and tracker references that people set on the server survive a republish, an item marked fixed that a scan sees again reopens, and unresolved items the new plan lacks are kept unless that plan was made from the stored one",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 174,
+              "title": "accepts a snapshot from a project\\'s CI token and serves the project from it [publish-and-read]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 191,
+              "title": "keeps a credential to its own project, and refuses viewers, bad snapshots and a mismatched name [publish-guards]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 208,
+              "title": "keeps what trackers changed when CI publishes a newer plan [plan-survives-republish]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "team-server-docs",
+          "ref": "capabilities/team-server#team-server-docs",
+          "text": "Documents on a team server are generated once per spec content, audience, prompt version and model and shared by everyone, and each generation runs in its own model scope with the requester's name, the project and the gateway's labels, so spend is attributed to the person who asked and recorded per user and project",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 246,
+              "title": "generates a document once for everyone, and attributes the model spend to whoever asked [docs-shared-and-attributed]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "artifact-puller",
+          "ref": "capabilities/team-server#artifact-puller",
+          "text": "The server fetches the `specguard-evidence` artifacts CI uploaded for each configured repository on a timer, publishes the snapshot inside under the configured project with the commit and branch taken from the workflow run, skips what it already has and artifacts that are expired, oversized, invalid or from forks, and reports one repository's failure without stopping the others",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/puller.test.ts",
+              "line": 53,
+              "title": "publishes each new artifact under the configured project, with commit and branch from the run [publish]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/puller.test.ts",
+              "line": 69,
+              "title": "does not fetch what it already has, and skips expired, forked, oversized and broken artifacts [skips]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/puller.test.ts",
+              "line": 93,
+              "title": "reports a GitHub error for one repository and carries on with the next [error-isolation]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/puller.test.ts",
+              "line": 109,
+              "title": "finds the snapshot wherever the upload put the archive root [zip-layouts]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "remote-mcp",
+          "ref": "capabilities/team-server#remote-mcp",
+          "text": "The server answers MCP over HTTP at `/mcp` for token holders only, as read-only tools (projects, system, capability, spec, audit, coverage, docs, history, findings, plans) that go through the same API as the same identity, so access rules, project scoping and redaction are the API's",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 287,
+              "title": "needs a token, lists read-only tools, and answers them through the API as the caller [mcp]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 303,
+              "title": "keeps a project-scoped token to its project even through MCP [mcp-scope]",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "local-first-fallback",
+          "ref": "capabilities/team-server#local-first-fallback",
+          "text": "Commands that can use a server resolve it from config or the environment, check its health with a short timeout and a compatible API version, and otherwise behave locally: reads fall back silently and say which source they used; a shared write goes to the server or, with none, is written locally and marked local-only; a server that answers but refuses (bad token, no permission, lifecycle violation) is an error and never a quiet switch to local; `server.mode: required` makes an unreachable server an error and `off` never contacts it; `check --team`, the plan commands, the MCP plan tool and the VS Code extension all follow this, and a token saved by `login` is checked against the server before it is kept",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/api/connection.test.ts",
+              "line": 42,
+              "title": "serves the workspace locally when no server is configured [no-server]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/connection.test.ts",
+              "line": 53,
+              "title": "uses the team server when it is configured, healthy and has the project, with the token it was given [server]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/connection.test.ts",
+              "line": 67,
+              "title": "falls back to the local server, with a reason, when the server is down, refuses, lacks the project or is another version [fallbacks]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/connection.test.ts",
+              "line": 86,
+              "title": "never contacts a server when the mode is off, and lets the editor setting win over the project\\'s [off-and-override]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/connection.test.ts",
+              "line": 100,
+              "title": "reads the project\\'s server block, names the project after the directory by default, and finds a token in order [resolve]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/local-server.test.ts",
+              "line": 27,
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/local-server.test.ts",
+              "line": 43,
+              "title": "reports a command line that does not exist, and one that exits at once, instead of hanging [failures]",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/api/local-server.test.ts",
+              "line": 51,
+              "title": "gives up when the server never says where it is listening [silent]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 38,
+              "title": "saves a token readable by its owner only, per server, and forgets it [save]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 56,
+              "title": "comes from config or the environment, takes the token from env or a saved login, and is absent when off [target]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 77,
+              "title": "connects to a healthy server, and returns null with the reason when there is none, in auto mode [auto]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 91,
+              "title": "treats an unusable server as an error only in required mode [required]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/client/client.test.ts",
+              "line": 112,
+              "title": "answers a slow server within the timeout by giving up on it [timeout]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 61,
+              "title": "sends the snapshot to the server and the project appears there [push]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 71,
+              "title": "fails, and says why, when the token is wrong, the server is down, or no server is configured [push-failures]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 90,
+              "title": "reads plans from the server when it answers, and from local files, saying so, when it does not [read-fallback]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 106,
+              "title": "reads locally, without trying a server, when none is configured [no-server]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 120,
+              "title": "writes to the server when it answers, and leaves the local plan alone [write-server]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 130,
+              "title": "writes locally and says it is local-only when the server does not answer [write-local]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 142,
+              "title": "does not hide a refusal by writing locally: a wrong token is an error and nothing changes [no-silent-switch]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 159,
+              "title": "writes locally when the plan has not been published yet, and reports a lifecycle violation instead of working around it [not-on-server]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 176,
+              "title": "shows CI\\'s proofs set against this working tree\\'s [lines]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 189,
+              "title": "says no server answered rather than failing [degraded]",
+              "origin": "source"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "claims": 12,
+        "proven": 11,
+        "failed": 0,
+        "stale": 0,
+        "unexercised": 0,
+        "error": 0,
+        "unproven": 1,
+        "withTests": 11
+      }
+    },
+    {
       "id": "traceability-and-drift",
       "specKey": "capabilities/traceability-and-drift",
       "kind": "capability",
@@ -5787,7 +6586,6 @@
       "unit": ".",
       "ownedFiles": [
         "src/cli/commands/align.ts",
-        "src/cli/commands/analyze.ts",
         "src/cli/commands/check.ts",
         "src/cli/commands/drift.ts",
         "src/cli/commands/gap-analysis.ts",
@@ -5801,7 +6599,6 @@
         "src/core/status.ts",
         "src/core/trace.ts",
         "src/pipelines/align.ts",
-        "src/pipelines/analyze.ts",
         "src/pipelines/check.ts",
         "src/pipelines/drift-capability.ts",
         "src/pipelines/drift.ts",
@@ -6209,13 +7006,6 @@
           ]
         },
         {
-          "id": "analyze-recommendations",
-          "ref": "capabilities/traceability-and-drift#analyze-recommendations",
-          "text": "Analyze runs status, drift, quality, dependency and gap checks, isolates a failing sub-check, returns a de-duplicated list of recommendations ordered high to low priority, writes `.specguard/analysis.json`, and exits 4 when recommendations exist and 0 when the workspace is healthy.",
-          "proof": "unproven",
-          "tests": []
-        },
-        {
           "id": "planned-unified-check",
           "ref": "capabilities/traceability-and-drift#planned-unified-check",
           "text": "one trace model (system, capability, claim) behind a single `check` command whose legacy aliases (`status`, `gap-analysis`, `drift`, `matrix`, `align`) return identical results.",
@@ -6391,13 +7181,13 @@
         }
       ],
       "counts": {
-        "claims": 24,
+        "claims": 23,
         "proven": 20,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
-        "unproven": 4,
+        "unproven": 3,
         "withTests": 20
       }
     },
@@ -6415,6 +7205,7 @@
         "src/cli/commands/impact.ts",
         "src/cli/commands/workspace.ts",
         "src/core/contracts.ts",
+        "src/core/env.ts",
         "src/core/monorepo.ts",
         "src/core/workspace-heuristics.ts",
         "src/core/workspace-units.ts",
@@ -6425,10 +7216,12 @@
       ],
       "tests": [
         "tests/core/claims.test.ts",
+        "tests/core/env.test.ts",
         "tests/core/monorepo.test.ts",
         "tests/core/workspace-heuristics.test.ts",
         "tests/core/workspace-units.test.ts",
         "tests/pipelines/init.test.ts",
+        "tests/pipelines/security-scan.test.ts",
         "tests/pipelines/workspaces.test.ts"
       ],
       "docs": [
@@ -6591,8 +7384,21 @@
           "id": "shared-env",
           "ref": "capabilities/workspaces#shared-env",
           "text": "A workspace-level `.specguard/.env` supplies shared keys to every repo in the workspace, with a per-repo `.specguard/.env` taking precedence and real environment variables never overwritten",
-          "proof": "unproven",
-          "tests": []
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/env.test.ts",
+              "line": 20,
+              "title": "applies the real environment first, then the repo file, then the workspace file [precedence]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/env.test.ts",
+              "line": 30,
+              "title": "does nothing without any env file, and ignores malformed lines [none]",
+              "origin": "source"
+            }
+          ]
         },
         {
           "id": "units",
@@ -6711,7 +7517,7 @@
         {
           "id": "unit-aware-pipelines",
           "ref": "capabilities/workspaces#unit-aware-pipelines",
-          "text": "`check` reports each unit's source files, unowned files and the capabilities touching it (a capability spanning packages appears in each, and gets one drift verdict); `test run` runs each package unit's own command, only named units with `--unit`, or with `--affected [--since <ref>]` the changed units plus every unit that depends on them, running everything when a changed file is outside every unit; `serve` exposes the rollup at `/api/v1/units`. Planned: security findings carry the unit key",
+          "text": "`check` reports each unit's source files, unowned files and the capabilities touching it (a capability spanning packages appears in each, and gets one drift verdict); `test run` runs each package unit's own command, only named units with `--unit`, or with `--affected [--since <ref>]` the changed units plus every unit that depends on them, running everything when a changed file is outside every unit; `serve` exposes the rollup at `/api/v1/units`, and security plan items carry the unit key",
           "proof": "proven",
           "tests": [
             {
@@ -6724,6 +7530,12 @@
               "file": "tests/core/workspace-units.test.ts",
               "line": 127,
               "title": "adds every unit that depends on a changed one, transitively [dependents]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/security-scan.test.ts",
+              "line": 209,
+              "title": "names the workspace unit each finding is in, and omits it outside a workspace [unit-key]",
               "origin": "source"
             },
             {
@@ -6841,29 +7653,29 @@
       ],
       "counts": {
         "claims": 19,
-        "proven": 9,
+        "proven": 10,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
-        "unproven": 10,
-        "withTests": 9
+        "unproven": 9,
+        "withTests": 10
       }
     }
   ],
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 213,
-    "proven": 178,
+    "claims": 223,
+    "proven": 192,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
-    "unproven": 35,
-    "withTests": 178,
-    "capabilities": 10,
-    "ownedFiles": 217,
-    "sourceFiles": 198
+    "unproven": 31,
+    "withTests": 192,
+    "capabilities": 11,
+    "ownedFiles": 248,
+    "sourceFiles": 228
   }
 }

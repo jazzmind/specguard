@@ -67,9 +67,6 @@ vi.mock("../../src/pipelines/doc-generate.js", () => ({ runDocGenerate: vi.fn() 
 vi.mock("../../src/pipelines/validate.js", () => ({ runValidate: vi.fn() }));
 vi.mock("../../src/pipelines/matrix.js", () => ({ runMatrix: vi.fn() }));
 vi.mock("../../src/pipelines/import.js", () => ({ runImport: vi.fn() }));
-vi.mock("../../src/pipelines/dep-check.js", () => ({ runDepCheck: vi.fn() }));
-vi.mock("../../src/pipelines/analyze.js", () => ({ runAnalyze: vi.fn() }));
-vi.mock("../../src/pipelines/plan-fix.js", () => ({ runPlanFix: vi.fn() }));
 
 import { buildServer } from "../../src/mcp/server.js";
 
@@ -122,7 +119,7 @@ describe("MCP Server", () => {
   // -------------------------------------------------------------------------
   // [claims: capabilities/integration-surfaces#mcp-tools-parity]
   it("Module imports without starting transport", () => {
-    buildServer();
+    buildServer({ legacy: true });
 
     // Tools should be registered when buildServer() is called.
     expect(mocks.registerTool).toHaveBeenCalled();
@@ -148,7 +145,7 @@ describe("MCP Server", () => {
     };
     mocks.runStatus.mockResolvedValue(fakePipelineResult);
 
-    buildServer();
+    buildServer({ legacy: true });
 
     const handler = getToolHandler("specguard_status");
     expect(handler, "specguard_status tool should be registered").toBeDefined();
@@ -179,7 +176,7 @@ describe("MCP Server", () => {
       new ConfigNotFoundError("/fake/root"),
     );
 
-    buildServer();
+    buildServer({ legacy: true });
 
     const handler = getToolHandler("specguard_status");
     expect(handler, "specguard_status tool should be registered").toBeDefined();
@@ -218,7 +215,7 @@ describe("MCP Server", () => {
       overview: "",
     });
 
-    buildServer();
+    buildServer({ legacy: true });
 
     const handler = getToolHandler("specguard_read_spec");
     expect(handler, "specguard_read_spec tool should be registered").toBeDefined();
@@ -237,5 +234,25 @@ describe("MCP Server", () => {
     expect(text).toMatch(/specguard-core\/mcp-server/);
     expect(text).toMatch(/3|scenario/i);
     expect(typedResult).not.toHaveProperty("isError", true);
+  });
+
+  // -------------------------------------------------------------------------
+  // Default tool list is the small core set; legacy names are opt-in
+  // -------------------------------------------------------------------------
+  // [claims: capabilities/integration-surfaces#mcp-tools-parity]
+  it("registers only the core tools by default, and the legacy names only on request", () => {
+    mocks.registerTool.mockClear();
+    buildServer({ legacy: false });
+    const core = mocks.registerTool.mock.calls.map((c: unknown[]) => c[0] as string);
+    expect(core.length).toBeLessThanOrEqual(16);
+    expect(core).toEqual(expect.arrayContaining(["specguard_check", "specguard_verify", "specguard_security_scan", "specguard_history_add", "specguard_test_run"]));
+    for (const legacyName of ["specguard_status", "specguard_reverse", "specguard_validate", "specguard_gap_analysis", "specguard_remediate"]) {
+      expect(core).not.toContain(legacyName);
+    }
+    mocks.registerTool.mockClear();
+    buildServer({ legacy: true });
+    const all = mocks.registerTool.mock.calls.map((c: unknown[]) => c[0] as string);
+    expect(all).toEqual(expect.arrayContaining(["specguard_status", "specguard_validate", "specguard_remediate"]));
+    expect(all.length).toBeGreaterThan(core.length);
   });
 });

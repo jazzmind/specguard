@@ -7,50 +7,14 @@
  * handler in `./commands/` which in turn calls a pipeline.
  */
 import { fileURLToPath } from 'node:url';
-import { readFileSync, existsSync, realpathSync } from 'node:fs';
-import { join, resolve, parse } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-// Auto-load .specguard/.env before any pipeline runs so secrets are available
-// even when the user hasn't exported them in their shell.
-// Loading order (later wins, because we only set vars not already in process.env):
-//   1. workspace-level  …/.specguard/.env  (lowest precedence)
-//   2. per-repo         {cwd}/.specguard/.env  (highest precedence — loaded last)
-(function loadSpecGuardEnv() {
-  function parseDotEnv(filePath: string): void {
-    try {
-      for (const raw of readFileSync(filePath, 'utf-8').split('\n')) {
-        const line = raw.trim();
-        if (!line || line.startsWith('#')) continue;
-        const eq = line.indexOf('=');
-        if (eq < 1) continue;
-        const key = line.slice(0, eq).trim();
-        const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
-        if (key && !(key in process.env)) process.env[key] = val;
-      }
-    } catch { /* best-effort */ }
-  }
+import { loadSpecGuardEnv } from '../core/env.js';
 
-  // 1. Walk up from cwd looking for a workspace-level .specguard/workspace.json,
-  //    then load its sibling .env (gives shared keys to all repos in the workspace).
-  try {
-    let dir = resolve(process.cwd());
-    const fsRoot = parse(dir).root;
-    while (true) {
-      if (existsSync(join(dir, '.specguard', 'workspace.json'))) {
-        const wsEnv = join(dir, '.specguard', '.env');
-        if (existsSync(wsEnv)) parseDotEnv(wsEnv);
-        break;
-      }
-      const parent = join(dir, '..');
-      if (parent === dir || dir === fsRoot) break;
-      dir = parent;
-    }
-  } catch { /* best-effort */ }
-
-  // 2. Per-repo .env — overrides workspace values for this specific repo.
-  const repoEnv = join(process.cwd(), '.specguard', '.env');
-  if (existsSync(repoEnv)) parseDotEnv(repoEnv);
-})();
+// Load .specguard/.env before any pipeline runs, so secrets are available even when the user
+// has not exported them in their shell (the repo's file wins over the workspace's).
+loadSpecGuardEnv();
 
 import { Command, CommanderError } from 'commander';
 import { SpecGuardError } from '../core/errors.js';
@@ -74,9 +38,6 @@ import { initCommand, scaffoldCommand } from './commands/init.js';
 import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
 import { importCommand } from './commands/import.js';
-import { depsCommand } from './commands/deps.js';
-import { analyzeCommand } from './commands/analyze.js';
-import { planFixCommand } from './commands/plan-fix.js';
 import { gapAnalysisCommand } from './commands/gap-analysis.js';
 import { alignCommand } from './commands/align.js';
 import { contractsCommand } from './commands/contracts.js';
@@ -89,7 +50,10 @@ import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import type { HistoryAddOpts } from '../pipelines/history.js';
 import { registerPluginCommands } from './plugin-commands.js';
 import { checkCommand } from './commands/check.js';
+import { publishCommand } from './commands/publish.js';
+import { loginCommand, logoutCommand } from './commands/login.js';
 import { serveCommand } from './commands/serve.js';
+import { serverCommand } from './commands/server.js';
 import { testRunCommand } from './commands/test.js';
 import { historyAddCommand, historyCaptureCommand, historyInboxCommand, historyLogCommand } from './commands/history.js';
 import { specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand } from './commands/spec.js';
@@ -188,7 +152,9 @@ program
   .option('--app <name>', 'target app from config')
   .option('--out <path>', 'override output spec path')
   .option('--force', 'overwrite existing spec')
-  .action(async (file: string, opts: { app?: string; out?: string; force?: boolean }, cmd: Command) => {
+  .option('--capability <id>', 'add what the document says to this capability spec instead of writing new specs (dry run unless --yes)')
+  .option('--yes', 'with --capability: write the proposed requirements')
+  .action(async (file: string, opts: { app?: string; out?: string; force?: boolean; capability?: string; yes?: boolean }, cmd: Command) => {
     await importCommand(file, withGlobals(cmd, opts));
   });
 
@@ -424,34 +390,6 @@ program
     },
   );
 
-// --- deps -----------------------------------------------------------------
-program
-  .command('deps')
-  .description('run npm-audit + depcheck dependency health checks (superseded by `security scan`)')
-  .option('--app <name>', 'limit to a single app')
-  .action(async (opts: { app?: string }, cmd: Command) => {
-    await depsCommand(withGlobals(cmd, opts));
-  });
-
-// --- analyze --------------------------------------------------------------
-program
-  .command('analyze')
-  .description('run all diagnostic checks and return recommendations (`check` is the one spec-health command)')
-  .option('--auto-fix', 'run the recommended pipelines that are safe unattended (quality --fix, matrix); the rest stay recommendations')
-  .action(async (opts: { autoFix?: boolean }, cmd: Command) => {
-    await analyzeCommand(withGlobals(cmd, opts));
-  });
-
-// --- plan-fix -------------------------------------------------------------
-program
-  .command('plan-fix')
-  .description('generate a fix plan from pipeline findings (superseded by `security scan` and its RemediationPlan)')
-  .requiredOption('--pipeline <name>', 'pipeline that produced the findings (e.g. validate, security)')
-  .requiredOption('--issues <text>', 'summary of issues to fix')
-  .action(async (opts: { pipeline: string; issues: string }, cmd: Command) => {
-    await planFixCommand(withGlobals(cmd, opts));
-  });
-
 // --- gap-analysis ---------------------------------------------------------
 program
   .command('gap-analysis')
@@ -504,6 +442,36 @@ program
     await statusCommand(withGlobals(cmd, {}));
   });
 
+// --- login / logout -------------------------------------------------------
+program
+  .command('login')
+  .description('remember a team server token on this machine (it is checked against the server first)')
+  .option('--server <url>', 'the server (default: server.url from config)')
+  .option('--token <token>', 'the token; or pipe it on stdin')
+  .action(async (opts: { server?: string; token?: string }, cmd: Command) => {
+    await loginCommand(withGlobals(cmd, opts));
+  });
+program
+  .command('logout')
+  .description('forget the saved token for a team server')
+  .option('--server <url>', 'the server (default: server.url from config)')
+  .action(async (opts: { server?: string }, cmd: Command) => {
+    await logoutCommand(withGlobals(cmd, opts));
+  });
+
+// --- publish --------------------------------------------------------------
+program
+  .command('publish')
+  .description('write a snapshot of this project (specs, history, trace, proofs, newest plan) for a team server; no source code is included')
+  .option('--out <file>', 'where to write it (default .specguard/publish/snapshot.json)')
+  .option('--project <name>', 'project name on the server (default: config server.project, the repository name, or the directory name)')
+  .option('--push', 'also send it to the project\'s team server (server.url in config, or SPECGUARD_SERVER)')
+  .option('--server <url>', 'push to this server (implies --push)')
+  .option('--token <token>', 'token for the push (default: SPECGUARD_TOKEN or a saved login)')
+  .action(async (opts: { out?: string; project?: string; push?: boolean; server?: string; token?: string }, cmd: Command) => {
+    await publishCommand(withGlobals(cmd, opts));
+  });
+
 // --- check ----------------------------------------------------------------
 program
   .command('check')
@@ -517,6 +485,7 @@ program
   .option('--since <ref>', 'with --drift: git ref to diff against (default: working tree against HEAD)')
   .option('--align', 'map spec scenarios and claims to test assertions with the LLM')
   .option('--spec <id>', 'restrict to one capability')
+  .option('--team', 'also show what the team server has proven (CI), set against this working tree')
   .action(async (opts: Record<string, unknown>, cmd: Command) => {
     await checkCommand(withGlobals(cmd, opts));
   });
@@ -530,6 +499,18 @@ program
   .option('--cors <origin>', 'origin allowed to read the API from a browser, or *')
   .action(async (opts: { port?: string; host?: string; cors?: string }, cmd: Command) => {
     await serveCommand(withGlobals(cmd, opts));
+  });
+
+// --- server ---------------------------------------------------------------
+program
+  .command('server')
+  .description('run the team server: published snapshots, shared proofs, plans and documents, with sign-in and tokens (configured by SPECGUARD_* environment variables)')
+  .option('--port <n>', 'port to listen on (default 4317, or PORT)')
+  .option('--host <addr>', 'address to bind (default 0.0.0.0)')
+  .option('--base-path <path>', 'path the server is mounted under, for example /specguard')
+  .option('--data-dir <dir>', 'where a file-backed server keeps its state (ignored when DATABASE_URL is set)')
+  .action(async (opts: { port?: string; host?: string; basePath?: string; dataDir?: string }) => {
+    await serverCommand(opts);
   });
 
 // --- history --------------------------------------------------------------

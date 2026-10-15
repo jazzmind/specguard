@@ -33,6 +33,8 @@ import { defaultDeps, parseSeverity } from './remediate/index.js';
 import { detect } from './remediate/detect.js';
 import type { DetectionReport, RemediateDeps } from './remediate/types.js';
 import { PLAN_DIR, carryOver, fingerprintOf, listPlanIds, readPlan, writePlan } from './security-plan.js';
+import { loadPlugins } from '../plugins/index.js';
+import { loadWorkspace, unitOfFile } from '../core/workspace.js';
 
 /** A detected item before it has a status. (`Omit` on a loose object collapses to an index signature, so pick the keys.) */
 type NewItem = Pick<PlanItem, 'id' | 'title' | 'severity' | 'type' | 'change' | 'summary' | 'findings' | 'capability' | 'claims' | 'files' | 'verify' | 'fingerprint'>;
@@ -163,10 +165,14 @@ export async function runSecurityScan(
   };
   const byLocation = <T extends { path: string; line?: number }>(rows: T[]): T[] => [...rows].sort((a, b) => a.path.localeCompare(b.path) || (a.line ?? 0) - (b.line ?? 0));
 
+  // In a workspace, each item also names the unit its files are in, so findings roll up per package or repo.
+  const unitOf = await unitResolver(root);
+
   const fresh: PlanItem[] = [];
   const add = (item: NewItem): void => {
     if (severityRank(item.severity) < floor) return;
-    fresh.push({ ...item, status: 'open', statusHistory: [] });
+    const unit = unitOf(item.files[0]);
+    fresh.push({ ...item, ...(unit ? { unit } : {}), status: 'open', statusHistory: [] });
   };
 
   for (const a of detection.advisories) {
@@ -226,6 +232,41 @@ export async function runSecurityScan(
     });
   }
 
+  // Detectors that plugins add. One that throws or warns did not run to completion, so it closes nothing.
+  const completedPluginDetectors = new Set<string>();
+  for (const plugin of await loadPlugins(config.plugins, root).catch((err: Error) => {
+    log(`[warn] plugins not loaded for detection: ${err.message}`);
+    return [];
+  })) {
+    for (const detector of plugin.detectors ?? []) {
+      try {
+        const found = await detector.detect({ config, rootDir: root });
+        for (const w of found.warnings ?? []) log(`[warn] ${detector.id}: ${w}`);
+        if (!found.warnings?.length) completedPluginDetectors.add(detector.id);
+        for (const f of byLocation(found.findings)) {
+          const cap = owner(f.path);
+          const fp = fingerprintOf('plugin', detector.id, f.ruleId, f.path, f.message, occurrence(`plugin\0${detector.id}\0${f.ruleId}\0${f.path}\0${f.message}`));
+          add({
+            id: `sec-${fp}`,
+            title: `${f.ruleId} in ${f.path}`,
+            severity: planSeverity(f.severity),
+            type: 'code',
+            change: 'code',
+            summary: f.message,
+            findings: [{ id: `${detector.id}:${f.ruleId}@${f.path}${f.line ? `:${f.line}` : ''}`, detector: 'plugin', source: detector.id, ruleId: f.ruleId, message: f.message, file: f.path, ...(f.line ? { line: f.line } : {}) }],
+            ...(cap ? { capability: cap.id } : {}),
+            claims: [],
+            files: [f.path],
+            verify: { scope: 'listed', claims: provenOf(cap) },
+            fingerprint: fp,
+          });
+        }
+      } catch (err) {
+        log(`[warn] detector ${detector.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
   if (!opts.noSpecReview) await reviewSpecs(config, graph, detection, owner, provenOf, add, occurrence, log);
   else log('[info] spec-level review skipped (--no-spec-review)');
 
@@ -247,7 +288,10 @@ export async function runSecurityScan(
     if (opts.app) return false;
     if (severityRank(item.severity) < floor) return false;
     if (item.type === 'dependency') return dependencyRan;
-    if (item.type === 'code') return detectorRan('semgrep');
+    if (item.type === 'code') {
+      const finding = item.findings[0] as { detector?: string; source?: string } | undefined;
+      return finding?.detector === 'plugin' ? completedPluginDetectors.has(finding.source ?? '') : detectorRan('semgrep');
+    }
     if (item.type === 'secret') return detectorRan('gitleaks');
     return false;
   };
@@ -271,6 +315,19 @@ export async function runSecurityScan(
   log(`security scan: ${items.length} item(s), ${unresolved.length} unresolved at or above ${threshold}; plan ${plan.id}`);
   result.exitCode = unresolved.length > 0 ? ExitCode.SecurityIssues : ExitCode.Success;
   return result;
+}
+
+/** Maps a repo-relative path to its workspace unit key; returns undefined when there is no workspace or no unit owns it. */
+async function unitResolver(root: string): Promise<(file: string | undefined) => string | undefined> {
+  let manifest: Awaited<ReturnType<typeof loadWorkspace>>;
+  try {
+    manifest = await loadWorkspace(root);
+  } catch {
+    return () => undefined;
+  }
+  if (Object.keys(manifest.units ?? {}).length === 0) return () => undefined;
+  const offset = path.relative(manifest.rootDir, root).split(path.sep).join('/');
+  return (file) => (file ? unitOfFile(manifest, offset ? path.posix.join(offset, file) : file) : undefined);
 }
 
 async function reviewSpecs(

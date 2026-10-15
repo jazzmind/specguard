@@ -195,7 +195,7 @@ export async function runCodeQuality(
   result.messages.push(`[quality] total: ${totalErrors} error(s), ${totalWarnings} warning(s), ${allFindings.length} finding(s)`);
 
   result.created = allFindings.length;
-  // `analyze` reads `failed` as the issue count; without this its quality recommendation could never fire.
+  // `failed` is the issue count, so callers (and the exit code) can act on it.
   result.failed = allFindings.length;
 
   // Fail gate: non-zero exit if there are ESLint errors

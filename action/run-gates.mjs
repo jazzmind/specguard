@@ -7,9 +7,9 @@
  * `fail-on`. The decision logic is exported so it can be unit tested.
  *
  * Environment (set by action.yml):
- *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan
+ *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan, publish
  *   SG_FAIL_ON     comma list: missing-specs, drift, proof-failed, proof-stale, proof-unexercised,
- *                  proof-unproven, align-below:<pct>, results, validate, security, deps, check, test, verify, scan, none
+ *                  proof-unproven, align-below:<pct>, results, validate, security, deps, check, test, verify, scan, publish, none
  *   SG_RESULTS     reporter files or globs for `results ingest`, comma or newline separated
  *   SG_RUN_ID      ledger run id for `results ingest`
  *   SG_DRIFT_SINCE git ref for `drift --since`
@@ -22,7 +22,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps', 'check', 'test', 'verify', 'scan'];
+export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps', 'check', 'test', 'verify', 'scan', 'publish'];
 export const DEFAULT_FAIL_ON = 'missing-specs,drift,proof-failed,proof-stale,results';
 
 /** Exit codes the CLI uses (src/core/exit-codes.ts). */
@@ -103,6 +103,7 @@ export function evaluate(runs, failOn) {
       case 'test':
       case 'verify':
       case 'scan':
+      case 'publish':
         if (runs[rule]?.ran && runs[rule].exitCode !== 0) tripped.push(rule);
         break;
       default: {
@@ -142,8 +143,8 @@ export function argsFor(gate, env) {
       return ['validate', '--all', ...(env.SG_VALIDATE_URL ? ['--url', env.SG_VALIDATE_URL] : [])];
     case 'security':
       return ['security', '--all', '--with-sast'];
-    case 'deps':
-      return ['deps'];
+    case 'deps': // retired with the `deps` command; `security scan` covers dependency advisories
+      return ['security', 'scan'];
     case 'check':
       return ['check'];
     case 'test':
@@ -152,6 +153,8 @@ export function argsFor(gate, env) {
       return ['verify', '--all', ...(env.SG_VALIDATE_URL ? ['--url', env.SG_VALIDATE_URL] : [])];
     case 'scan':
       return ['security', 'scan'];
+    case 'publish': // writes the snapshot a team server pulls from the uploaded evidence
+      return ['publish', '--out', '.specguard/publish/snapshot.json', ...(env.SG_SERVER_URL ? ['--server', env.SG_SERVER_URL] : [])];
     default:
       return null;
   }

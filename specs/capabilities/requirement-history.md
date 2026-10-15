@@ -28,7 +28,7 @@ Specs say what a system must do, but not why it says that. The reasoning lives i
 
 Requirement History keeps a committed, readable record of the prompts, approved plans and explicit decisions that shaped each capability, and links each entry to the capabilities it affects. Reviewers and auditors get the intent behind a change; new contributors and coding agents get context before they edit; and `check` can point at capabilities whose code changed with no recorded reason.
 
-This capability is planned and not yet built. The folder `specs/history/` and the `history:` frontmatter list already exist and are tolerated by the spec loader and proof hashing; the commands, hooks and reporting below are the work still to do.
+The folder `specs/history/` holds the entries, the `history:` frontmatter list back-links them from capabilities, and the commands, hooks and reporting below are built.
 
 ## Users & Journeys
 - A developer finishes a design discussion and runs `specguard history add --decision "Use per-request budgets in the docs server" --affects documentation-api` so the reasoning is committed with the code.
@@ -53,7 +53,7 @@ This capability is planned and not yet built. The folder `specs/history/` and th
 - [ ] a PostToolUse hook on ExitPlanMode runs `history capture`, which takes the approved plan from the tool input (falling back to the session transcript), pairs it with only the inbox prompts from the same `session_id`, and writes one committed prompt+plan entry; prompts from sessions that never reach an approved plan are never committed <!-- claim: history-plan-capture -->
 - [ ] prompt text is passed through the shared secret redactor both when it is written to the inbox and again when an entry is committed, so keys, tokens and personal data never reach `specs/history/` <!-- claim: history-redaction -->
 - [ ] `check` reports each capability whose owned sources changed since its last history entry or spec edit without either, as an advisory finding that does not by itself fail the build unless the project opts in <!-- claim: history-check-gap -->
-- [ ] Planned: the MCP server exposes `history_add` with the same behaviour as the CLI command so agents can record decisions directly <!-- claim: history-mcp-tool -->
+- [ ] The MCP server exposes `history_add` and `history_log` with the same behaviour as the CLI command so agents can record decisions directly <!-- claim: history-mcp-tool -->
 
 ## Scenarios
 ### Scenario 1: The worked example in this repository
@@ -120,10 +120,10 @@ This capability is planned and not yet built. The folder `specs/history/` and th
 Prompts routinely contain secrets, customer data and internal URLs. Redaction (the shared redactor) is applied twice: at inbox write and at commit time. The inbox lives under `.specguard/history/` and is gitignored; only a captured, redacted entry is ever committed. Hooks read untrusted JSON from stdin and must parse it, never interpolate it into a shell command. Entries are append-only records, so a leaked value that slips past redaction must be removed by editing the committed file and rotating the secret. Hooks are opt-in so a repo never records prompts without a deliberate choice.
 
 ## Interfaces
-- CLI (planned): `specguard history add [--prompt <text>|--plan <file>|--decision <text>] [--affects <ids>]`, `specguard history log [--capability <id>] [--json]`, `specguard history inbox` and `specguard history capture` (read hook JSON on stdin, print nothing), `specguard init --history-hooks`, `specguard check` (history-gap finding).
+- CLI: `specguard history add [--prompt <text>|--plan <file>|--decision <text>] [--affects <ids>]`, `specguard history log [--capability <id>] [--json]`, `specguard history inbox` and `specguard history capture` (read hook JSON on stdin, print nothing), `specguard init --history-hooks`, `specguard check` (history-gap finding).
 - Files: `specs/history/YYYY-MM-DD-<slug>.md` (committed), `.specguard/history/inbox.jsonl` (uncommitted), `history:` list in capability frontmatter.
-- Hooks (planned): `UserPromptSubmit` and `PostToolUse` with matcher `ExitPlanMode`, written to `.claude/settings.json`.
-- MCP (planned): `history_add`.
+- Hooks (opt-in with `init --history-hooks`): `UserPromptSubmit` and `PostToolUse` with matcher `ExitPlanMode`, written to `.claude/settings.local.json`.
+- MCP: `history_add`, `history_log`.
 - Exit codes: 0 success, 1 internal error, 2 validation failure (unknown capability id). Hook commands always exit 0.
 
 ## Out of Scope

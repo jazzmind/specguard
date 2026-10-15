@@ -18,13 +18,13 @@ import { loadConfig } from '../core/config.js';
 import { formatClaimRef, parseClaimRef } from '../core/claims.js';
 import { dependencyFingerprint } from '../core/dependency-fingerprint.js';
 import { fromRegistryKey, hashFile, hashString, loadRegistry, saveRegistry, toRegistryKey } from '../core/drift-registry.js';
-import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
-import { claimHashOf } from '../core/claim-hash.js';
+import { HASH_VERSION, claimHashOf } from '../core/claim-hash.js';
+import { detectProvenance, type Provenance } from '../core/provenance.js';
+import { fileLedgerStore, type LedgerStore } from '../core/state/ledger-store.js';
 import { fileChangeResolver, loadAssessments } from '../core/drift-assessments.js';
 import {
   effectiveVerdict,
-  emptyLedger,
   type ProofLedger,
   type ProofRecord,
 } from '../core/proof-ledger.js';
@@ -42,7 +42,6 @@ import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { loadWorkspace, loadWorkspaceWithConfigs } from '../core/workspace.js';
 import { canonicalClaimRef } from '../core/workspace-units.js';
-import { writeFile } from '../core/writer.js';
 
 const VerdictFileSchema = z.object({
   runId: z.string().min(1),
@@ -65,6 +64,10 @@ export type VerdictFile = z.infer<typeof VerdictFileSchema>;
 export interface ProofOpts {
   /** Ledger file. Overrides `paths.proofLedger`. Relative paths resolve from the cwd. */
   ledger?: string;
+  /** Keep the ledger somewhere other than a file (a team server's database). Overrides `ledger`. */
+  store?: LedgerStore;
+  /** Where these proofs were earned. Default: detected from the environment (GitHub Actions, other CI, or local). */
+  provenance?: Partial<Provenance>;
 }
 
 export function ledgerPath(rootDir: string, override?: string): string {
@@ -278,18 +281,14 @@ export function migrateLedgerPaths(ledger: ProofLedger, roots: string[]): boolea
   return changed;
 }
 
-async function readLedger(file: string, cwd: string): Promise<ProofLedger> {
-  if (!(await fileExists(file))) return emptyLedger();
-  const parsed = JSON.parse(await readFile(file)) as ProofLedger;
-  if (!parsed || typeof parsed !== 'object' || !parsed.proofs) return emptyLedger();
-  // A ledger written by a newer SpecGuard must not be read as empty and then overwritten.
-  if (parsed.version !== 1) {
-    throw new SpecGuardError(`proof ledger ${file} has version ${String(parsed.version)}; this SpecGuard reads version 1. Upgrade SpecGuard rather than overwrite it.`, ExitCode.InternalError);
-  }
-  if (migrateLedgerPaths(parsed, await candidateRoots(cwd))) {
-    await writeFile(file, JSON.stringify(parsed, null, 2) + '\n');
-  }
-  return parsed;
+/** The file-backed ledger store for `file`, rewriting absolute paths from another machine on read. */
+async function fileStoreFor(file: string, cwd: string): Promise<LedgerStore> {
+  const roots = await candidateRoots(cwd);
+  return fileLedgerStore(file, { migrate: (ledger) => migrateLedgerPaths(ledger, roots) });
+}
+
+async function storeFor(cwd: string, opts: ProofOpts, file: string): Promise<LedgerStore> {
+  return opts.store ?? (await fileStoreFor(file, cwd));
 }
 
 export async function runProofIngest(
@@ -329,57 +328,64 @@ export async function ingestVerdicts(
   result: PipelineResult = emptyResult('proof-ingest'),
 ): Promise<PipelineResult> {
   const { file } = await resolveLedgerFile(cwd, opts);
-  const ledger = await readLedger(file, cwd);
+  const store = await storeFor(cwd, opts, file);
   const appNames = await appNamesFor(cwd);
   // Claims that name a package unit are claims of the workspace root's specs.
   const packageUnits = await workspaceUnits(cwd);
+  const provenance: Provenance = { ...detectProvenance(cwd), ...opts.provenance };
 
-  for (const row of body.verdicts.map((r) => ({ ...r, claim: canonicalClaimRef(r.claim, packageUnits) }))) {
-    if (!parseClaimRef(row.claim)) {
-      result.failed += 1;
-      result.items.push({ key: row.claim, status: 'failed', message: 'claim ref is not repo:spec#id' });
-      result.messages.push(`${row.claim}: malformed claim ref`);
-      continue;
+  await store.update(async (ledger) => {
+    for (const row of body.verdicts.map((r) => ({ ...r, claim: canonicalClaimRef(r.claim, packageUnits) }))) {
+      if (!parseClaimRef(row.claim)) {
+        result.failed += 1;
+        result.items.push({ key: row.claim, status: 'failed', message: 'claim ref is not repo:spec#id' });
+        result.messages.push(`${row.claim}: malformed claim ref`);
+        continue;
+      }
+      const located = await locateSpec(cwd, row.claim);
+      if (!located) {
+        result.failed += 1;
+        result.items.push({ key: row.claim, status: 'failed', message: 'spec for claim was not found' });
+        result.messages.push(`${row.claim}: spec not found`);
+        continue;
+      }
+      const ref = parseClaimRef(row.claim);
+      if (ref && !new RegExp(`<!--\\s*claim:\\s*${ref.claimId}\\s*-->`, 'i').test(located.content)) {
+        result.failed += 1;
+        result.items.push({ key: row.claim, status: 'failed', message: 'claim id is not anchored in the spec' });
+        result.messages.push(`${row.claim}: claim id not found in spec`);
+        continue;
+      }
+      const repoSha = (ref?.repo && body.repoShas?.[ref.repo]) || gitHead(located.repoDir);
+      const record: ProofRecord = {
+        claim: row.claim,
+        verdict: row.verdict,
+        runId: body.runId,
+        specHash: hashString(located.content),
+        claimHash: ref ? claimHashInContent(located.content, located.abs, ref.claimId) : undefined,
+        repoSha,
+        fileHashes: await recordedFileHashes(located, ref?.specKey ?? '', appNames, result),
+        dependencyFingerprint: dependencyFingerprint(located.repoDir),
+        exercised: row.exercised ?? 0,
+        counterexamples: row.counterexamples ?? 0,
+        evidencePath: row.evidencePath,
+        evidence: row.evidence,
+        origin: provenance.origin,
+        ...(provenance.repo ? { repo: provenance.repo } : {}),
+        ...(provenance.branch ? { branch: provenance.branch } : {}),
+        ...(provenance.actor ? { actor: provenance.actor } : {}),
+        hashVersion: HASH_VERSION,
+        ingestedAt: new Date().toISOString(),
+      };
+      ledger.proofs[row.claim] = record;
+      result.updated += 1;
+      result.items.push({ key: row.claim, status: 'updated', message: row.verdict });
+      result.messages.push(`${row.claim}: ${row.verdict}`);
     }
-    const located = await locateSpec(cwd, row.claim);
-    if (!located) {
-      result.failed += 1;
-      result.items.push({ key: row.claim, status: 'failed', message: 'spec for claim was not found' });
-      result.messages.push(`${row.claim}: spec not found`);
-      continue;
-    }
-    const ref = parseClaimRef(row.claim);
-    if (ref && !new RegExp(`<!--\\s*claim:\\s*${ref.claimId}\\s*-->`, 'i').test(located.content)) {
-      result.failed += 1;
-      result.items.push({ key: row.claim, status: 'failed', message: 'claim id is not anchored in the spec' });
-      result.messages.push(`${row.claim}: claim id not found in spec`);
-      continue;
-    }
-    const repoSha = (ref?.repo && body.repoShas?.[ref.repo]) || gitHead(located.repoDir);
-    const record: ProofRecord = {
-      claim: row.claim,
-      verdict: row.verdict,
-      runId: body.runId,
-      specHash: hashString(located.content),
-      claimHash: ref ? claimHashInContent(located.content, located.abs, ref.claimId) : undefined,
-      repoSha,
-      fileHashes: await recordedFileHashes(located, ref?.specKey ?? '', appNames, result),
-      dependencyFingerprint: dependencyFingerprint(located.repoDir),
-      exercised: row.exercised ?? 0,
-      counterexamples: row.counterexamples ?? 0,
-      evidencePath: row.evidencePath,
-      evidence: row.evidence,
-      ingestedAt: new Date().toISOString(),
-    };
-    ledger.proofs[row.claim] = record;
-    result.updated += 1;
-    result.items.push({ key: row.claim, status: 'updated', message: row.verdict });
-    result.messages.push(`${row.claim}: ${row.verdict}`);
-  }
 
-  await writeFile(file, JSON.stringify(ledger, null, 2) + '\n');
+  });
   result.exitCode = result.failed > 0 ? ExitCode.ValidationFailed : ExitCode.Success;
-  result.messages.push(`proof ingest: ${result.updated} stored, ${result.failed} failed, ledger ${file}`);
+  result.messages.push(`proof ingest: ${result.updated} stored, ${result.failed} failed, ledger ${store.location}`);
   return result;
 }
 
@@ -440,8 +446,8 @@ async function walkClaims(
   opts: ProofOpts = {},
 ): Promise<CoverageCounts | null> {
   const { file } = await resolveLedgerFile(cwd, opts);
-  if (!(await fileExists(file))) return null;
-  const ledger = await readLedger(file, cwd);
+  if (!opts.store && !(await fileExists(file))) return null;
+  const ledger = await (await storeFor(cwd, opts, file)).read();
   const fingerprint = dependencyFingerprint(cwd);
   const assessments = loadAssessments(cwd);
   const repoKey = await repoKeyFor(cwd);

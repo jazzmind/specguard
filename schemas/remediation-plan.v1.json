@@ -94,10 +94,15 @@
                     "advisory",
                     "semgrep",
                     "gitleaks",
-                    "spec-review"
+                    "spec-review",
+                    "plugin"
                   ]
                 },
                 "ruleId": {
+                  "type": "string"
+                },
+                "source": {
+                  "description": "For detector `plugin`: the id of the plugin detector that found it.",
                   "type": "string"
                 },
                 "message": {
@@ -123,6 +128,10 @@
           },
           "capability": {
             "description": "Id of the capability spec the finding falls under.",
+            "type": "string"
+          },
+          "unit": {
+            "description": "Key of the workspace unit (a repo or a monorepo package) the affected files are in, when the project has a workspace manifest.",
             "type": "string"
           },
           "claims": {

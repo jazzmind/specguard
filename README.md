@@ -46,9 +46,17 @@ specguard test run [--affected]         # run tests, ingest results into the pro
 specguard verify --all --url <base>     # browser-verify each capability against its value
 specguard serve                         # docs and audit API at /api/v1, plus a web UI
 specguard security scan|fix|plan        # one plan of findings, fixes, and status tracking
+specguard publish [--push]              # a snapshot of this project for a team server (CI runs this)
+specguard check --team                  # what the team server has proven, set against this working tree
+specguard login --server <url>          # remember a team server token on this machine
+specguard server                        # run the team server (optional; see docs/team-server.md)
 ```
 
 `status`, `drift`, `matrix` and `gap-analysis` keep working, with the same exit codes, and delegate to the same model in a repo that uses capability specs. Specs are described in [specs/README.md](specs/README.md).
+
+### Local first, with an optional team server
+
+Everything above runs on your machine and needs nothing else. A **team server** is optional: CI publishes a snapshot of each commit (`publish`), and the server then shows everyone the same proof state, generates each document once for the whole team, and holds the remediation plans that trackers update. The command line, the MCP server and the VS Code extension all use the server when one answers and fall back to local files when it does not, and tell you which they used. Only specs, history, the trace, proof rows and the newest plan ever leave a machine. See [docs/team-server.md](docs/team-server.md).
 
 ---
 
@@ -885,7 +893,7 @@ jobs:
       - uses: jazzmind/specguard@v0
         with:
           version: latest                     # or an exact version
-          gates: status,drift,proof,results   # also: align, validate, security, deps
+          gates: status,drift,proof,results   # also: align, validate, security, check, test, verify, scan
           results: reports/vitest.json        # Vitest/Jest/Playwright JSON, JUnit XML, ...
           drift-since: origin/${{ github.base_ref }}
           fail-on: missing-specs,drift,proof-failed,proof-stale,results
@@ -947,7 +955,7 @@ The [QA-Agent](./QA-Agent-README.md) project is an autonomous browser-driven QA 
 | Per-domain feature memory | Validation history tracks what's been tested per host, when, and result |
 
 **Not adopted** (different architectural goals):
-- Multi-tenant SaaS deployment — SpecGuard is a dev tool, not a hosted service
+- A required hosted service — SpecGuard is a dev tool that works fully offline; the [team server](docs/team-server.md) is an optional shared layer
 - Human-in-the-loop steering — contradicts the parallel-agent autonomous design
 - DeepAgents/LangGraph framework — SpecGuard uses ai-sdk directly
 - Web UI / SPA — SpecGuard's UI is the IDE extension

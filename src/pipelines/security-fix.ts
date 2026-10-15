@@ -15,7 +15,7 @@ import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { runRemediate, type RemediateResult } from './remediate/index.js';
 import type { ItemReport, RemediateDeps } from './remediate/types.js';
-import { readPlan, writePlan } from './security-plan.js';
+import { planStoreFor, readPlan } from './security-plan.js';
 
 /**
  * Apply status moves to the plan as it is now on disk. `fix` runs for minutes; a tracker may
@@ -28,18 +28,18 @@ async function applyMoves(
   moves: Array<{ id: string; expect: ItemStatus; to: ItemStatus; note: string }>,
   log: (line: string) => void,
 ): Promise<void> {
-  const current = readPlan(config, planId);
-  if (!current) throw new Error(`plan ${planId} can no longer be read; its items were not updated`);
-  for (const m of moves) {
-    const item = current.items.find((i) => i.id === m.id);
-    if (!item) continue;
-    if (item.status !== m.expect) {
-      log(`[note] ${item.id} was moved to ${item.status} while the fix ran; left as is (${m.note})`);
-      continue;
+  const updated = await planStoreFor(config).update(planId, (current) => {
+    for (const m of moves) {
+      const item = current.items.find((i) => i.id === m.id);
+      if (!item) continue;
+      if (item.status !== m.expect) {
+        log(`[note] ${item.id} was moved to ${item.status} while the fix ran; left as is (${m.note})`);
+        continue;
+      }
+      move(item, m.to, m.note);
     }
-    move(item, m.to, m.note);
-  }
-  await writePlan(config, current);
+  });
+  if (updated === null) throw new Error(`plan ${planId} can no longer be read; its items were not updated`);
 }
 
 export interface SecurityFixOpts {
@@ -102,10 +102,12 @@ export async function runSecurityFix(
     log(`no item "${opts.item}" in plan ${plan.id}`);
     return result;
   }
-  const selected = chosen.filter((i) => FIXABLE.includes(i.type) && (i.status === 'open' || i.status === 'planned'));
+  const fromPlugin = (i: PlanItem): boolean => (i.findings[0] as { detector?: string } | undefined)?.detector === 'plugin';
+  const fixable = (i: PlanItem): boolean => FIXABLE.includes(i.type) && !fromPlugin(i);
+  const selected = chosen.filter((i) => fixable(i) && (i.status === 'open' || i.status === 'planned'));
   for (const i of chosen) {
-    if (FIXABLE.includes(i.type)) continue;
-    log(`[skip] ${i.id}: ${i.type === 'spec' ? 'a spec-level finding is fixed by changing the spec; then `security plan set-status`' : 'a secret needs rotation by a person; it is reported, never patched'}`);
+    if (fixable(i)) continue;
+    log(`[skip] ${i.id}: ${i.type === 'spec' ? 'a spec-level finding is fixed by changing the spec; then `security plan set-status`' : fromPlugin(i) ? 'found by a plugin detector, which reports but does not patch; fix it by hand, then `security plan set-status`' : 'a secret needs rotation by a person; it is reported, never patched'}`);
     result.skipped += 1;
   }
   if (selected.length === 0) {

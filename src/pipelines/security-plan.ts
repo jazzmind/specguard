@@ -9,14 +9,12 @@
  * Spec: specs/capabilities/security-and-remediation.md
  */
 import { createHash } from 'node:crypto';
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { ExitCode } from '../core/exit-codes.js';
 import {
   canTransition,
   ITEM_STATUSES,
-  RemediationPlanSchema,
   UNRESOLVED,
   type ItemStatus,
   type PlanItem,
@@ -24,7 +22,7 @@ import {
 } from '../core/remediation-schema.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
-import { writeFile } from '../core/writer.js';
+import { filePlanStore, listPlanFiles, readPlanFile, type PlanStore } from '../core/state/plan-store.js';
 import { writeHistory } from './history.js';
 
 export const PLAN_DIR = '.specguard/security/plans';
@@ -32,40 +30,26 @@ export const PLAN_DIR = '.specguard/security/plans';
 const rootOf = (config: SpecGuardConfig): string => config.rootDir ?? process.cwd();
 const dirOf = (config: SpecGuardConfig): string => path.join(rootOf(config), PLAN_DIR);
 
-/** Safe file stem for a plan id: no path separators or dots that could leave the plans folder. */
-const stem = (id: string): string => id.replace(/[^A-Za-z0-9_-]/g, '');
+/** The plans of this project as files under `.specguard/security/plans/`. */
+export function planStoreFor(config: SpecGuardConfig): PlanStore {
+  return filePlanStore(dirOf(config));
+}
 
 export function fingerprintOf(...parts: Array<string | number | undefined>): string {
   return createHash('sha256').update(parts.map((p) => String(p ?? '')).join('\u0000')).digest('hex').slice(0, 12);
 }
 
 export function listPlanIds(config: SpecGuardConfig): string[] {
-  const dir = dirOf(config);
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => f.replace(/\.json$/, ''))
-    .sort();
+  return listPlanFiles(dirOf(config));
 }
 
 /** `latest` resolves to the newest plan. Returns null when the plan does not exist or does not validate. */
 export function readPlan(config: SpecGuardConfig, id: string): RemediationPlan | null {
-  const resolved = id === 'latest' ? listPlanIds(config).pop() : stem(id);
-  if (!resolved) return null;
-  const file = path.join(dirOf(config), `${resolved}.json`);
-  try {
-    const parsed = RemediationPlanSchema.safeParse(JSON.parse(fs.readFileSync(file, 'utf8')));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  return readPlanFile(dirOf(config), id);
 }
 
 export async function writePlan(config: SpecGuardConfig, plan: RemediationPlan): Promise<string> {
-  const file = path.join(dirOf(config), `${stem(plan.id)}.json`);
-  await writeFile(file, `${JSON.stringify(plan, null, 2)}\n`);
-  return file;
+  return planStoreFor(config).write(plan);
 }
 
 /**
@@ -118,6 +102,61 @@ export interface SetStatusOpts {
   note?: string;
   by?: string;
   externalRef?: string;
+  /**
+   * The item's version as the caller last saw it (`itemVersion`). When it no longer matches, nothing is
+   * written: someone else changed the item first.
+   */
+  expectedVersion?: number;
+  store?: PlanStore;
+}
+
+export type PlanStatusErrorCode = 'no-plan' | 'no-item' | 'bad-status' | 'bad-transition' | 'conflict';
+
+export class PlanStatusError extends Error {
+  constructor(
+    readonly code: PlanStatusErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'PlanStatusError';
+  }
+}
+
+/** An item's version: it changes with every recorded status change or note, so it detects a lost update. */
+export const itemVersion = (item: PlanItem): number => item.statusHistory.length;
+
+export interface StatusChange {
+  plan: RemediationPlan;
+  item: PlanItem;
+  was: ItemStatus;
+}
+
+/**
+ * Move one item to `status`, enforcing the lifecycle, under the store's read-modify-write. Throws
+ * `PlanStatusError`; nothing is written then. Shared by the CLI and the team server's PATCH route.
+ */
+export async function setItemStatus(store: PlanStore, planId: string, itemId: string, status: string, opts: SetStatusOpts = {}): Promise<StatusChange> {
+  if (!(ITEM_STATUSES as readonly string[]).includes(status)) throw new PlanStatusError('bad-status', `status must be one of ${ITEM_STATUSES.join(', ')}`);
+  const next = status as ItemStatus;
+  let change: StatusChange | undefined;
+  const found = await store.update(planId, (plan) => {
+    const item = plan.items.find((i) => i.id === itemId);
+    if (!item) throw new PlanStatusError('no-item', `no item "${itemId}" in plan ${plan.id}`);
+    if (opts.expectedVersion !== undefined && opts.expectedVersion !== itemVersion(item)) {
+      throw new PlanStatusError('conflict', `${item.id} changed since you read it (version ${itemVersion(item)}, you had ${opts.expectedVersion}); read it again and retry`);
+    }
+    if (!canTransition(item.status, next)) throw new PlanStatusError('bad-transition', `cannot move ${item.id} from ${item.status} to ${next}`);
+    if (opts.externalRef !== undefined) item.externalRef = opts.externalRef;
+    if (next !== item.status || opts.note) {
+      item.statusHistory.push({ status: next, at: new Date().toISOString(), ...(opts.by ? { by: opts.by } : {}), ...(opts.note ? { note: opts.note } : {}) });
+    }
+    const was = item.status;
+    item.status = next;
+    change = { plan, item, was };
+    return true;
+  });
+  if (found === null || !change) throw new PlanStatusError('no-plan', `no plan "${planId}"`);
+  return change;
 }
 
 export async function runPlanSetStatus(
@@ -134,21 +173,15 @@ export async function runPlanSetStatus(
     result.messages.push(message);
     return result;
   };
-  if (!(ITEM_STATUSES as readonly string[]).includes(status)) return fail(`status must be one of ${ITEM_STATUSES.join(', ')}`);
-  const plan = readPlan(config, planId);
-  if (!plan) return fail(`no plan "${planId}"`, ExitCode.InternalError);
-  const item = plan.items.find((i) => i.id === itemId);
-  if (!item) return fail(`no item "${itemId}" in plan ${plan.id}`, ExitCode.InternalError);
-  const next = status as ItemStatus;
-  if (!canTransition(item.status, next)) return fail(`cannot move ${item.id} from ${item.status} to ${next}`);
-
-  if (opts.externalRef !== undefined) item.externalRef = opts.externalRef;
-  if (next !== item.status || opts.note) {
-    item.statusHistory.push({ status: next, at: new Date().toISOString(), ...(opts.by ? { by: opts.by } : {}), ...(opts.note ? { note: opts.note } : {}) });
+  let change: StatusChange;
+  try {
+    change = await setItemStatus(opts.store ?? planStoreFor(config), planId, itemId, status, opts);
+  } catch (err) {
+    if (!(err instanceof PlanStatusError)) throw err;
+    return fail(err.message, err.code === 'no-plan' || err.code === 'no-item' ? ExitCode.InternalError : ExitCode.ValidationFailed);
   }
-  const was = item.status;
-  item.status = next;
-  await writePlan(config, plan);
+  const { item, was } = change;
+  const next = item.status;
   result.updated = 1;
   result.items.push({ key: item.id, status: 'updated', message: `${was} -> ${next}` });
   result.messages.push(`${item.id}: ${was} -> ${next}`);
@@ -167,11 +200,10 @@ export async function runPlanSetStatus(
   return result;
 }
 
-export function runPlanList(config: SpecGuardConfig): PipelineResult {
+/** The lines `plan list` prints, for plans from any source. Newest first. */
+export function describePlans(plans: RemediationPlan[]): PipelineResult {
   const result = emptyResult('security-plan');
-  for (const id of listPlanIds(config).reverse()) {
-    const plan = readPlan(config, id);
-    if (!plan) continue;
+  for (const plan of [...plans].sort((a, b) => b.id.localeCompare(a.id))) {
     const open = plan.items.filter((i) => UNRESOLVED.includes(i.status)).length;
     result.messages.push(`${plan.id}  ${plan.createdAt}  ${plan.items.length} item(s), ${open} unresolved`);
     result.items.push({ key: plan.id, status: 'ok', message: `${plan.items.length} items, ${open} unresolved` });
@@ -180,19 +212,29 @@ export function runPlanList(config: SpecGuardConfig): PipelineResult {
   return result;
 }
 
-export function runPlanShow(config: SpecGuardConfig, planId: string): PipelineResult {
+/** The lines `plan show` prints, for a plan from any source. */
+export function describePlan(plan: RemediationPlan): PipelineResult {
   const result = emptyResult('security-plan');
+  result.messages.push(`${plan.id}  ${plan.createdAt}${plan.previous ? `  (carried over from ${plan.previous})` : ''}`);
+  for (const i of plan.items) {
+    result.messages.push(`  ${i.id}  [${i.severity}] [${i.status}] ${i.type}/${i.change}  ${i.title}${i.capability ? `  (${i.capability})` : ''}${i.unit ? `  [${i.unit}]` : ''}${i.externalRef ? `  ext:${i.externalRef}` : ''}`);
+    result.items.push({ key: i.id, status: UNRESOLVED.includes(i.status) ? 'failed' : 'ok', message: i.title });
+  }
+  return result;
+}
+
+export function runPlanList(config: SpecGuardConfig): PipelineResult {
+  return describePlans(listPlanIds(config).map((id) => readPlan(config, id)).filter((p): p is RemediationPlan => Boolean(p)));
+}
+
+export function runPlanShow(config: SpecGuardConfig, planId: string): PipelineResult {
   const plan = readPlan(config, planId);
   if (!plan) {
+    const result = emptyResult('security-plan');
     result.failed = 1;
     result.exitCode = ExitCode.InternalError;
     result.messages.push(`no plan "${planId}"`);
     return result;
   }
-  result.messages.push(`${plan.id}  ${plan.createdAt}${plan.previous ? `  (carried over from ${plan.previous})` : ''}`);
-  for (const i of plan.items) {
-    result.messages.push(`  ${i.id}  [${i.severity}] [${i.status}] ${i.type}/${i.change}  ${i.title}${i.capability ? `  (${i.capability})` : ''}${i.externalRef ? `  ext:${i.externalRef}` : ''}`);
-    result.items.push({ key: i.id, status: UNRESOLVED.includes(i.status) ? 'failed' : 'ok', message: i.title });
-  }
-  return result;
+  return describePlan(plan);
 }

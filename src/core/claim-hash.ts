@@ -13,6 +13,12 @@ import { createHash } from 'node:crypto';
 
 import type { ParsedSpec } from './types.js';
 
+/**
+ * Version of the hashing rules below. Proofs record it, and a client refuses to compare proofs made under
+ * different rules. Bump it whenever `claimHashOf` would return a different value for the same spec.
+ */
+export const HASH_VERSION = 1;
+
 function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }

@@ -109,12 +109,16 @@ describe('gate evaluation', () => {
     expect(argsFor('test', { SG_AFFECTED: 'false' })).toEqual(['test', 'run']);
     expect(argsFor('verify', { SG_VALIDATE_URL: 'https://stg' })).toEqual(['verify', '--all', '--url', 'https://stg']);
     expect(argsFor('scan', {})).toEqual(['security', 'scan']);
+    // The retired deps gate now runs the unified scan; publish writes the snapshot a team server pulls.
+    expect(argsFor('deps', {})).toEqual(['security', 'scan']);
+    expect(argsFor('publish', {})).toEqual(['publish', '--out', '.specguard/publish/snapshot.json']);
+    expect(argsFor('publish', { SG_SERVER_URL: 'http://sandbox/specguard' })).toEqual(['publish', '--out', '.specguard/publish/snapshot.json', '--server', 'http://sandbox/specguard']);
   });
 
   // [claims: capabilities/integration-surfaces#action-fail-on]
   it('trips the new gates on a non-zero exit, and only when they ran [new-gate-rules]', () => {
-    const runs = { check: { ran: true, exitCode: 4 }, test: { ran: true, exitCode: 0 }, verify: { ran: false, exitCode: 2 }, scan: { ran: true, exitCode: 5 } };
-    expect(evaluate(runs, ['check', 'test', 'verify', 'scan']).tripped).toEqual(['check', 'scan']);
+    const runs = { check: { ran: true, exitCode: 4 }, test: { ran: true, exitCode: 0 }, verify: { ran: false, exitCode: 2 }, scan: { ran: true, exitCode: 5 }, publish: { ran: true, exitCode: 1 } };
+    expect(evaluate(runs, ['check', 'test', 'verify', 'scan', 'publish']).tripped).toEqual(['check', 'scan', 'publish']);
     expect(evaluate(runs, ['none']).tripped).toEqual([]);
   });
 });

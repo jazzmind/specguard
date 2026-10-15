@@ -12,6 +12,7 @@ sources:
   - "src/core/spec-graph.ts"
   - "src/pipelines/reverse-generate.ts"
   - "src/pipelines/import.ts"
+  - "src/pipelines/import-capability.ts"
   - "src/pipelines/index-generate.ts"
   - "src/pipelines/claims.ts"
   - "src/pipelines/spec-graph-report.ts"
@@ -40,6 +41,7 @@ tests:
   - "tests/pipelines/spec-*.test.ts"
   - "tests/pipelines/reverse-generate.test.ts"
   - "tests/pipelines/import.test.ts"
+  - "tests/pipelines/import-capability.test.ts"
 docs:
   - "README.md"
   - "docs/user/spec-parser.md"
@@ -84,7 +86,7 @@ Spec Authoring gives every other SpecGuard capability something solid to stand o
 - [ ] `import` converts a local markdown or text file, or an http(s) URL, into spec files: a multi-section document is decomposed into a set of focused specs unless `--single` or `--out` is given, existing specs are skipped unless `--force`, and the result summary and exit code reflect created, skipped and failed items <!-- claim: import-documents -->
 - [ ] `index` writes an architecture index at the root of the specs tree listing routes or endpoints grouped by area plus a spec directory map, finds the routing source through the app's entry points or detected framework, leaves an existing index alone unless `--force`, and writes a skeleton index instead of failing when the model call fails <!-- claim: index-generation -->
 - [ ] `spec draft` inventories the code, summarises each file with the fast model (cached by content hash), clusters it into about 8 to 15 functional capabilities (honouring `granularity.target` and any `--guidance` the maintainers give, retrying once when the count misses it without losing the guidance), writes a reviewable capability map to `.specguard/spec-map.json` and `.md` outside `plans/`, and stops there unless `--yes` is given; `--from-map` continues from the edited map and writes one spec per capability plus the system spec <!-- claim: spec-draft-proposes-map -->
-- [ ] `spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; Planned: `import` can target an existing capability and record a history entry for what it changed <!-- claim: spec-index-refreshes-map -->
+- [ ] `spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; `import <file> --capability <id>` adds only the requirements a document states that the capability does not already cover (a dry run unless `--yes`), appends them with unique claim anchors, and records a history entry for what it changed <!-- claim: spec-index-refreshes-map -->
 - [ ] `spec consolidate` clusters existing per-file specs into capability specs, assigns every old spec to exactly one capability (otherwise it stops and lists the unassigned ones), merges their requirements with unique claim ids that never use numeric suffixes, carries over every old claim with an id that the model did not absorb (a bullet that never had an id has no reference to preserve and is superseded by the model's functional requirements), then rewrites claim tags in tests, rekeys the proof ledger and drift registry, archives the old specs under `_archive/v1`, and writes `.specguard/claim-migration.json` so results carrying old tags are still accepted on ingest <!-- claim: spec-consolidate-migrates-state -->
 - [ ] `spec tag` links existing tests to requirements: for each capability the model is shown its requirements and the leaf tests in the files its `tests:` globs name, and says which requirements each test clearly exercises; only real requirement ids and test numbers survive, a `[claims: ...]` comment is written above the test in the file's comment style (a test already tagged is never touched, and two capabilities citing one test are merged into one comment), the run is a dry run unless `--yes`, and it reports which requirements no test covers <!-- claim: spec-tag-links-tests -->
 

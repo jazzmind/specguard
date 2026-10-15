@@ -3,7 +3,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The LLM chokepoint is mocked per pipeline name: summarize, cluster, spec-draft.
-vi.mock('../../src/core/llm.js', () => ({ llmGenerateObject: vi.fn(), llmGenerateText: vi.fn() }));
+vi.mock('../../src/core/llm.js', () => ({ llmGenerateObject: vi.fn(), llmGenerateText: vi.fn(), resolveTargets: vi.fn(() => [{ model: 'm' }]) }));
 
 import { loadConfig } from '../../src/core/config.js';
 import { llmGenerateObject } from '../../src/core/llm.js';
@@ -201,5 +201,21 @@ describe('spec index [spec-index]', () => {
     const r = await runSpecIndex(await loadConfig(repo.dir));
     expect(r.exitCode).toBe(1);
     expect(r.messages.join(' ')).toContain('system.md');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-draft-proposes-map]
+  it('rewrites cached summaries when the summarising model changes, and reuses them otherwise [summary-cache-key]', async () => {
+    const resolve = (await import('../../src/core/llm.js')).resolveTargets as unknown as ReturnType<typeof vi.fn>;
+    clusterReturns(cluster([cap('identity', ['src/auth/**']), cap('commerce', ['src/shop/**'])]));
+    const summarizeCalls = () => mocked.mock.calls.filter((c) => (c[0] as { pipeline: string }).pipeline === 'summarize').length;
+    await runSpecDraft(await loadConfig(repo.dir), {});
+    const first = summarizeCalls();
+    expect(first).toBeGreaterThan(0);
+    await runSpecDraft(await loadConfig(repo.dir), {});
+    expect(summarizeCalls()).toBe(first);
+    resolve.mockReturnValue([{ model: 'a-better-model' }]);
+    await runSpecDraft(await loadConfig(repo.dir), {});
+    expect(summarizeCalls()).toBe(first * 2);
+    resolve.mockReturnValue([{ model: 'm' }]);
   });
 });

@@ -9,7 +9,6 @@ vi.mock('../../src/core/llm.js', () => ({
 
 import { pipAuditRunner, pipSeverity, runPipAudit } from '../../src/adapters/pip-audit.js';
 import { npmAuditRunner, runNpmAudit } from '../../src/adapters/npm-audit.js';
-import { normalizeAudit } from '../../src/pipelines/dep-check.js';
 import { runSecurity, sast, type SecurityReport } from '../../src/pipelines/security.js';
 import type { SpecGuardConfig } from '../../src/core/types.js';
 
@@ -69,20 +68,6 @@ describe('pip-audit keeps fix versions and a real severity', () => {
     expect(pipSeverity({ severity: { score: 4.3 } })).toBe('MEDIUM');
     expect(pipSeverity({ severity: [{ type: 'CVSS_V3', score: 2.1 }] })).toBe('LOW');
     expect(pipSeverity({})).toBe('UNKNOWN');
-  });
-});
-
-describe('dep-check labels findings by their tool', () => {
-  it('uses the finding source, else the runner, and rates unknown as medium', () => {
-    const out = normalizeAudit(
-      [
-        { ruleId: 'a', path: 'x', message: 'm', severity: 'UNKNOWN', source: 'pip-audit', fixVersions: ['1'], via: [{ url: 'u' }] },
-        { ruleId: 'b', path: 'x', message: 'm', severity: 'HIGH' },
-      ],
-      'npm-audit',
-    );
-    expect(out.map((f) => [f.source, f.severity])).toEqual([['pip-audit', 'medium'], ['npm-audit', 'high']]);
-    expect(out[0]).toMatchObject({ fixVersions: ['1'], references: ['u'] });
   });
 });
 

@@ -36,7 +36,7 @@ describe('server [serve]', () => {
     expect(s.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
     const health = await request(s.port, { path: '/api/v1/health' });
     expect(health.status).toBe(200);
-    expect(JSON.parse(health.body)).toEqual({ ok: true, version: 1 });
+    expect(JSON.parse(health.body)).toMatchObject({ ok: true, version: 1, apiVersion: 1, hashVersion: 1 });
     const ui = await request(s.port, { path: '/' });
     expect(ui.headers['content-type']).toContain('text/html');
     expect(ui.headers['content-security-policy']).toContain("default-src 'self'");
