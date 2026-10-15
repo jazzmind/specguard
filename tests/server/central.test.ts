@@ -1,4 +1,5 @@
 import { mkdtempSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -120,6 +121,25 @@ describe('team server: access [central-access]', () => {
     expect((await call(base, '/api/v1/projects/demo/snapshots', { method: 'POST', headers: bearer(token), body: 'x'.repeat(50_000) })).status).toBe(413);
     expect((await call(base, '/api/v1/projects/demo/snapshots', { method: 'POST', headers: bearer(token), body: '{ nope' })).status).toBe(400);
     expect((await call(base, '/api/v1/projects/%E0%A4%A', { headers: ADA })).status).toBeLessThan(500);
+  });
+});
+
+describe('team server: compressed uploads [central-gzip]', () => {
+  // [claims: capabilities/team-server#publish-snapshot]
+  it('accepts a gzip-encoded snapshot, because proxies cap uploads at 1 MB, and refuses an expansion bomb or another encoding [gzip]', async () => {
+    const { base } = await start({ maxBodyBytes: 4_000_000 });
+    const ci = await adminMint(base, { name: 'ci', role: 'maintainer', project: 'demo', owner: 'ci:demo' });
+    const snap = await snapshotOf('demo');
+    const post = (body: Buffer | string, encoding?: string) =>
+      fetch(`${base}/api/v1/projects/demo/snapshots`, { method: 'POST', headers: { ...bearer(ci), 'content-type': 'application/json', ...(encoding ? { 'content-encoding': encoding } : {}) }, body: body as never });
+    const sent = gzipSync(JSON.stringify(snap));
+    expect(sent.length).toBeLessThan(JSON.stringify(snap).length / 3);
+    expect((await post(sent, 'gzip')).status).toBe(201);
+    expect((await call(base, '/api/v1/projects/demo/system', { headers: BOB })).json.capabilities).toHaveLength(2);
+    // Small on the wire, enormous once expanded.
+    expect((await post(gzipSync(Buffer.alloc(20_000_000, 'a')), 'gzip')).status).toBe(413);
+    expect((await post(Buffer.from('not gzip at all'), 'gzip')).status).toBe(400);
+    expect((await post(JSON.stringify(snap), 'br')).status).toBe(415);
   });
 });
 

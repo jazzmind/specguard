@@ -9,6 +9,7 @@
  */
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { gunzipSync } from 'node:zlib';
 
 import type { LlmConfig } from '../../core/types.js';
 import { MAX_SNAPSHOT_BYTES } from '../../core/snapshot.js';
@@ -50,7 +51,27 @@ const PUBLIC = new Set(['/api/v1/health', '/api/v1/version']);
 /** How much of an oversized upload is read and thrown away after the refusal, so the client sees the 413 rather than a reset. */
 const DRAIN_LIMIT = 200 * 1024 * 1024;
 
-function readBody(req: http.IncomingMessage, limit: number): Promise<{ ok: true; body: string } | { ok: false }> {
+type Body = { ok: true; body: string } | { ok: false; status: 413 | 415 | 400 };
+
+/**
+ * Read a request body, up to `limit` bytes as sent and again as decompressed. A gzip body is accepted because proxies
+ * commonly cap uploads at 1 MB, and a snapshot is JSON that shrinks about tenfold; the decompressed size is capped too,
+ * so a small body cannot expand without bound.
+ */
+async function readBody(req: http.IncomingMessage, limit: number): Promise<Body> {
+  const raw = await readRaw(req, limit);
+  if (!raw.ok) return { ok: false, status: 413 };
+  const encoding = (req.headers['content-encoding'] ?? 'identity').toString().toLowerCase();
+  if (encoding === 'identity' || encoding === '') return { ok: true, body: raw.buffer.toString('utf8') };
+  if (encoding !== 'gzip') return { ok: false, status: 415 };
+  try {
+    return { ok: true, body: gunzipSync(raw.buffer, { maxOutputLength: limit }).toString('utf8') };
+  } catch (err) {
+    return { ok: false, status: (err as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE' ? 413 : 400 };
+  }
+}
+
+function readRaw(req: http.IncomingMessage, limit: number): Promise<{ ok: true; buffer: Buffer } | { ok: false }> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -69,7 +90,7 @@ function readBody(req: http.IncomingMessage, limit: number): Promise<{ ok: true;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolve(refused ? { ok: false } : { ok: true, body: Buffer.concat(chunks).toString('utf8') }));
+    req.on('end', () => resolve(refused ? { ok: false } : { ok: true, buffer: Buffer.concat(chunks) }));
     req.on('error', () => resolve({ ok: false }));
   });
 }
@@ -145,7 +166,10 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
       let body: string | undefined;
       if (!reading) {
         const read = await readBody(req, opts.maxBodyBytes ?? BODY_LIMIT);
-        if (!read.ok) return sendJson(413, { error: 'the request body is too large' }, { Connection: 'close' });
+        if (!read.ok) {
+          const why = { 413: 'the request body is too large', 415: 'send the body as is or gzip-encoded', 400: 'the gzip body could not be read' }[read.status];
+          return sendJson(read.status, { error: why }, read.status === 413 ? { Connection: 'close' } : undefined);
+        }
         body = read.body;
       }
 

@@ -86,6 +86,29 @@ describe('publish --push [publish-push]', () => {
   });
 });
 
+describe('large uploads [publish-gzip]', () => {
+  // [claims: capabilities/team-server#publish-snapshot]
+  it('sends a large snapshot gzip-encoded, so a proxy with a 1 MB cap lets it through [gzip-push]', async () => {
+    const { config } = await project({ publish: false });
+    // Make the snapshot bigger than the client's threshold.
+    repo.write('specs/capabilities/auth.md', readFileSync(path.join(repo.dir, 'specs/capabilities/auth.md'), 'utf8') + `\n${'Filler text that makes this spec long enough to matter. '.repeat(6000)}\n`);
+    const seen: Array<string | null> = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith('/snapshots')) seen.push(new Headers(init?.headers).get('content-encoding'));
+      return original(url, init);
+    }) as typeof fetch;
+    try {
+      const res = await runPublish(await loadConfig(repo.dir), { push: true });
+      expect(res.exitCode, res.messages.join('\n')).toBe(0);
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(seen).toEqual(['gzip']);
+    expect(config).toBeTruthy();
+  });
+});
+
 describe('plan reads [team-plan-reads]', () => {
   // [claims: capabilities/team-server#local-first-fallback]
   it('reads plans from the server when it answers, and from local files, saying so, when it does not [read-fallback]', async () => {

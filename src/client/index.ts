@@ -5,6 +5,7 @@
  * Spec: specs/capabilities/team-server.md
  */
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 import { HASH_VERSION } from '../core/claim-hash.js';
 import { SpecGuardError } from '../core/errors.js';
@@ -80,17 +81,22 @@ export class SpecGuardClient {
     return `${this.target.url}/api/v1/projects/${encodeURIComponent(this.target.project)}${suffix}`;
   }
 
-  async request<T>(method: string, url: string, init: { body?: unknown; headers?: Record<string, string>; timeoutMs?: number } = {}): Promise<T> {
+  async request<T>(method: string, url: string, init: { body?: unknown; headers?: Record<string, string>; timeoutMs?: number; gzip?: boolean } = {}): Promise<T> {
+    const json = init.body === undefined ? undefined : JSON.stringify(init.body);
+    // A proxy in front of a server often caps uploads at 1 MB; JSON compresses well, so large bodies are sent gzipped.
+    const compress = json !== undefined && (init.gzip ?? json.length > 256 * 1024);
+    const payload = json === undefined ? undefined : compress ? gzipSync(json) : json;
     const headers: Record<string, string> = {
       Accept: 'application/json',
       ...(this.target.token ? { Authorization: `Bearer ${this.target.token}` } : {}),
       ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(compress ? { 'Content-Encoding': 'gzip' } : {}),
       ...init.headers,
     };
     const res = await this.fetchImpl(url, {
       method,
       headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: payload as RequestInit['body'],
       signal: AbortSignal.timeout(init.timeoutMs ?? Math.max(this.target.timeoutMs, 10_000)),
     });
     const text = await res.text();
