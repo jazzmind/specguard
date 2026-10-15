@@ -6,7 +6,6 @@
       "description": "Shared proof, documents and remediation plans for every project that publishes to it. Optional: SpecGuard works fully without it.",
       "source_type": "local",
       "local_folder": ".",
-      "dockerfile": "deploy/sandbox/Dockerfile",
       "port": 4317,
       "path_prefix": "/specguard",
       "health_endpoint": "/specguard/api/v1/health",

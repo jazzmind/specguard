@@ -57,7 +57,7 @@ All settings come from environment variables; flags override them.
 
 ### Deploying to the sandbox
 
-`.deploykit/apps.json` and `deploy/sandbox/Dockerfile` describe the app. Set `SPECGUARD_BOOTSTRAP_TOKEN`,
+`.deploykit/apps.json` and the `Dockerfile` at the repository root describe the app. Set `SPECGUARD_BOOTSTRAP_TOKEN`,
 `LITELLM_API_KEY` and `GITHUB_TOKEN` at deploy time. The sandbox gives the app a Postgres database through
 `{{DK_DB_URL}}`.
 

@@ -1,5 +1,5 @@
 # The SpecGuard team server, for the sandbox. Build context is the repository root:
-#   docker build -f deploy/sandbox/Dockerfile .
+#   docker build .
 #
 # Node 20, like the other sandbox apps, so the base image is one the sandbox already has. (Node 24 would also honour
 # HTTP(S)_PROXY for `fetch` via NODE_USE_ENV_PROXY=1, which the artifact puller needs if GitHub is only reachable
