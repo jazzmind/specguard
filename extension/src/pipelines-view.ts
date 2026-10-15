@@ -114,10 +114,10 @@ const PIPELINE_GROUPS: PipelineGroup[] = [
     icon: 'shield',
     actions: [
       {
-        label: 'Dependency Audit',
-        description: 'check for vulnerable deps',
+        label: 'Security Scan',
+        description: 'findings as a remediation plan',
         icon: 'package',
-        command: 'specguard.depsAudit',
+        command: 'specguard.securityPlan',
       },
       {
         label: 'SAST Scan',

@@ -35,6 +35,8 @@ const targets = {
     // import.meta.url does not exist in CJS: map it to the bundle's own file URL.
     define: { 'import.meta.url': '__importMetaUrl', __SPECGUARD_VERSION__: version },
     banner: { js: "const __importMetaUrl=require('url').pathToFileURL(__filename).href;" },
+    // `pg` is loaded only by the team server (`specguard server` with DATABASE_URL), which the extension never runs.
+    external: ['pg', 'pg-native'],
     // Plugins are found by esbuild's glob import (src/plugins/<name>/index.ts); the .js probe finds none.
     logOverride: { 'empty-glob': 'silent' },
   },

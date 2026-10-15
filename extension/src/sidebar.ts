@@ -12,6 +12,9 @@ import * as path from 'path';
 import type { AppCoverage } from './dashboard/protocol.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
+import { loadProjectData } from './api/data.js';
+import { getHub } from './api/shared.js';
+import { projectNameOf } from './api/hub.js';
 import {
   getActiveWorkspaceRoot,
   getWorkspaceManifestRoot,
@@ -64,6 +67,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   private _apps: AppCoverage[] = [];
   private _loading = false;
   private _error: string | undefined;
+  /** Where the numbers came from: the team server or this machine, and why not the server if it was configured. */
+  private _source: { label: string; notice?: string } | undefined;
 
   /** Section sentinel nodes at the root level. */
   private readonly _outputsSection = this._makeSection('Outputs', '$(package)');
@@ -71,7 +76,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
   private _getCoverageSection(): CoverageTreeItem {
     const root = getActiveWorkspaceRoot();
-    const label = root ? `Coverage — ${path.basename(root)}` : 'Coverage';
+    const label = root ? `Coverage — ${path.basename(root)}${this._source ? ` · ${this._source.label}` : ''}` : 'Coverage';
     const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
     item.iconPath = new vscode.ThemeIcon('shield');
     item.isSectionNode = true;
@@ -120,7 +125,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       if (this._apps.length === 0) {
         return [new CoverageTreeItem('No specs found', vscode.TreeItemCollapsibleState.None, 'info')];
       }
-      return this._apps.map((app) => {
+      const notice = this._source?.notice ? [Object.assign(new CoverageTreeItem(this._source.notice, vscode.TreeItemCollapsibleState.None, 'info'), { iconPath: new vscode.ThemeIcon('info') })] : [];
+      return [...notice, ...this._apps.map((app) => {
         const label = `${app.name} (${app.percentage}%)`;
         const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'app');
         item.description = `${app.specCount}/${app.sourceCount} specs`;
@@ -129,7 +135,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
           : new vscode.ThemeIcon('warning', new vscode.ThemeColor('testing.iconFailed'));
         item.appData = app;
         return item;
-      });
+      })];
     }
 
     // Outputs section
@@ -473,6 +479,23 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     this._onDidChangeTreeData.fire();
 
     try {
+      // Functional specs are read through the API: the team server if one answers, else a local `serve`.
+      const hub = getHub();
+      if (hub) {
+        try {
+          const live = await hub.get(workspaceRoot);
+          const data = await loadProjectData(live.client, { name: projectNameOf(workspaceRoot, live), workspaceRoot });
+          if (data.functional) {
+            this._apps = data.apps;
+            this._source = { label: live.source === 'server' ? `team server · ${live.project}` : 'local', ...(live.notice ? { notice: live.notice } : {}) };
+            return;
+          }
+        } catch {
+          /* the API is not available: use the command line below */
+        }
+      }
+      // Per-file specs (or no API): the command line's coverage report.
+      this._source = undefined;
       const cli = await resolveCliPath(workspaceRoot);
       const raw = await runCli(cli, ['status'], workspaceRoot);
       this._apps = parseCoverageText(raw);

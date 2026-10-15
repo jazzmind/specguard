@@ -150,17 +150,6 @@ export function FindingsView({ vm }: { vm: ViewModel }) {
     vscodeApi.postMessage({ type: 'run', pipeline: 'quality', args: ['--fix'] });
   };
 
-  const handlePlanAll = () => {
-    const issues = filtered.slice(0, 20)
-      .map((f) => `${f.severity} ${f.category}: ${f.message} (${f.file}${f.line ? `:${f.line}` : ''})`)
-      .join('; ');
-    vscodeApi.postMessage({
-      type: 'run',
-      pipeline: 'plan-fix',
-      args: ['--pipeline', 'quality', '--issues', issues],
-    });
-  };
-
   // Filter
   const base = vm.findings.filter((f) => {
     if (catFilter !== 'all' && f.category !== catFilter) return false;
@@ -188,7 +177,7 @@ export function FindingsView({ vm }: { vm: ViewModel }) {
   if (vm.findings.length === 0) {
     return (
       <div style={{ padding: '16px', color: '#555', fontStyle: 'italic', fontSize: 13 }}>
-        No findings yet. Run <code>quality</code> or <code>deps</code> to see results.
+        No findings yet. Run <code>quality</code> or <code>security scan</code> to see results.
       </div>
     );
   }
@@ -232,13 +221,6 @@ export function FindingsView({ vm }: { vm: ViewModel }) {
               Fix All
             </button>
           )}
-          <button
-            style={{ ...actionBtnStyle, borderColor: '#3a3a6a', color: '#9d9dff' }}
-            onClick={handlePlanAll}
-            title="Generate an agent-consumable fix plan for visible findings"
-          >
-            Plan
-          </button>
         </div>
       </div>
 

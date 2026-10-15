@@ -154,10 +154,11 @@ export function registerCommands(
     }),
   );
 
-  // --- specguard.depsAudit --------------------------------------------------
+  // --- specguard.securityPlan -----------------------------------------------
+  // Code, dependency, secret and spec-level findings as one remediation plan (replaces the old deps audit).
   context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.depsAudit', () => {
-      void openAndRun(context, 'deps');
+    vscode.commands.registerCommand('specguard.securityPlan', () => {
+      void openAndRun(context, 'security-scan');
     }),
   );
 

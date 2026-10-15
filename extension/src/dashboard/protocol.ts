@@ -49,32 +49,6 @@ export interface WorkspaceInfo {
   configApps: string[];
 }
 
-/** A recommended action from the analyze pipeline. */
-export interface AnalysisRecommendation {
-  pipeline: string;
-  reason: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
-/** A single step in a fix plan produced by the plan-fix pipeline. */
-export interface FixPlanStep {
-  id: string;
-  description: string;
-  action: 'run-pipeline' | 'edit-file' | 'run-command';
-  pipeline?: string;
-  file?: string;
-  content?: string;
-  command?: string;
-}
-
-export interface FixPlan {
-  title: string;
-  summary: string;
-  steps: FixPlanStep[];
-  /** Pipeline that produced the failures this plan addresses. */
-  sourcePipeline: string;
-}
-
 /** A plan file found in .specguard/plans/. */
 export interface PlanItem {
   filePath: string;
@@ -113,8 +87,6 @@ export type DashboardEvent =
   | { type: 'activity'; entries: ActivityEntry[] }
   | { type: 'findings'; data: FindingItem[] }
   | { type: 'workspace'; info: WorkspaceInfo }
-  | { type: 'analyze:result'; recommendations: AnalysisRecommendation[] }
-  | { type: 'fix-plan'; plan: FixPlan | null }
   | { type: 'plans'; items: PlanItem[] }
   | { type: 'clearArtifacts' }
   | { type: 'error'; scope: string; message: string }
@@ -215,10 +187,6 @@ export const PIPELINE_NODES: PipelineNode[] = [
     description: 'Run ESLint and dead-code checks (Knip)',
   },
   {
-    id: 'deps', label: 'deps', kind: 'pipeline', from: ['code'],
-    description: 'Audit dependencies for vulnerabilities and unused packages',
-  },
-  {
     id: 'commit', label: 'commit', kind: 'pipeline', from: ['tests', 'user-docs', 'traceability'],
     description: 'Stage and commit all SpecGuard-generated files',
   },
@@ -227,12 +195,16 @@ export const PIPELINE_NODES: PipelineNode[] = [
     description: 'Detect unimplemented specs and generate implementation plans',
   },
   {
-    id: 'analyze', label: 'analyze', kind: 'pipeline', from: ['specs', 'code'],
-    description: 'Run all diagnostic checks and get prioritised pipeline recommendations',
+    id: 'check', label: 'check', kind: 'pipeline', from: ['specs', 'code'],
+    description: 'Spec health for the whole system: ownership, tests, proofs, gaps and drift',
   },
   {
-    id: 'plan-fix', label: 'plan-fix', kind: 'pipeline', from: ['specs'],
-    description: 'Generate an agent-consumable fix plan from pipeline findings',
+    id: 'test-run', label: 'test run', kind: 'pipeline', from: ['tests'],
+    description: 'Run the tests and record the results as proof of each requirement',
+  },
+  {
+    id: 'security-scan', label: 'security scan', kind: 'pipeline', from: ['specs', 'code'],
+    description: 'Code, dependency, secret and spec-level findings as one remediation plan',
   },
 ];
 
@@ -243,8 +215,9 @@ export const RUNNABLE_PIPELINES: { id: string; destructive: boolean; label?: str
   { id: 'matrix', destructive: false },
   { id: 'align', destructive: false, label: 'align (map existing tests to spec scenarios)' },
   { id: 'quality', destructive: false, label: 'quality (lint + dead code)' },
-  { id: 'deps', destructive: false, label: 'deps (audit + unused)' },
-  { id: 'analyze', destructive: false, label: 'analyze (smart diagnostics)' },
+  { id: 'check', destructive: false, label: 'check (spec health)' },
+  { id: 'test-run', destructive: false, label: 'test run (record proof)' },
+  { id: 'security-scan', destructive: false, label: 'security scan (remediation plan)' },
   { id: 'gap-analysis', destructive: true, label: 'gap-analysis (unimplemented specs → plans)' },
   { id: 'reverse', destructive: true },
   { id: 'generate', destructive: true },

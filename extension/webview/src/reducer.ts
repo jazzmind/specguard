@@ -1,4 +1,4 @@
-import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, FixPlan, PlanItem, ProjectConfig } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, PlanItem, ProjectConfig } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
@@ -14,10 +14,6 @@ export interface ViewModel {
   errors: string[];
   /** Which pipeline's log panel is currently expanded in the FlowView. */
   selectedLogPipeline: string | null;
-  /** Latest recommendations from the analyze pipeline. */
-  analysisRecommendations: AnalysisRecommendation[];
-  /** Fix plan awaiting human approval. */
-  pendingFixPlan: FixPlan | null;
   /** All plan files in .specguard/plans/ with their metadata. */
   plans: PlanItem[];
   /** LLM config and env vars from .specguard/ (null until first push). */
@@ -37,8 +33,6 @@ export function initialViewModel(): ViewModel {
     workspace: null,
     errors: [],
     selectedLogPipeline: null,
-    analysisRecommendations: [],
-    pendingFixPlan: null,
     plans: [],
     projectConfig: null,
   };
@@ -74,10 +68,6 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, workspace: e.info };
     case 'clearArtifacts':
       return { ...vm, artifacts: [] };
-    case 'analyze:result':
-      return { ...vm, analysisRecommendations: e.recommendations };
-    case 'fix-plan':
-      return { ...vm, pendingFixPlan: e.plan };
     case 'plans':
       return { ...vm, plans: e.items };
     case 'projectConfig':

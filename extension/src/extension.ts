@@ -12,6 +12,9 @@ import { registerMcpForCursor } from './mcp-registration.js';
 import { initWorkspaceState } from './workspace-state.js';
 import { resolveCliPath, setExtensionPath } from './dashboard/cli.js';
 import { expectedCliVersion, mismatchMessage, queryCliVersion } from './cli-version.js';
+import { ApiHub } from './api/hub.js';
+import { setHub } from './api/shared.js';
+import { getActiveWorkspaceRoot } from './workspace-state.js';
 import * as path from 'path';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
@@ -20,6 +23,24 @@ let coverageProvider: CoverageProvider | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   initWorkspaceState(context);
   setExtensionPath(context.extensionPath);
+
+  // One connection to SpecGuard's API: the team server when configured and reachable, else a local `serve`.
+  const hub = new ApiHub(context.secrets);
+  setHub(hub);
+  context.subscriptions.push(
+    hub,
+    { dispose: () => setHub(undefined) },
+    hub.onDidChange(() => void coverageProvider?.refresh()),
+    vscode.commands.registerCommand('specguard.signIn', async () => {
+      const root = getActiveWorkspaceRoot();
+      if (root) await hub.signIn(root);
+      else void vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.');
+    }),
+    vscode.commands.registerCommand('specguard.signOut', async () => {
+      const root = getActiveWorkspaceRoot();
+      if (root) await hub.signOut(root);
+    }),
+  );
 
   // Coverage tree view
   coverageProvider = new CoverageProvider();

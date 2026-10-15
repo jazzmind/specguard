@@ -1,13 +1,21 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, AnalysisRecommendation, ProjectConfig } from './protocol.js';
+import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, ProjectConfig } from './protocol.js';
 import { RUNNABLE_PIPELINES } from './protocol.js';
 import { resolveCliPath, spawnCli, SpawnHandle, loadDotEnv } from './cli.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';
 import { ActivityLogService } from './activity-log.js';
+import { loadProjectData, type ProjectData } from '../api/data.js';
+import { getHub } from '../api/shared.js';
+import { projectNameOf } from '../api/hub.js';
+
+/** 4 means "specs missing" and, for a security scan, 5 means "findings exist": the command ran, and the result is the finding. */
+function isSuccess(pipeline: string, code: number): boolean {
+  return code === 0 || code === 4 || (pipeline === 'security-scan' && code === 5);
+}
 
 export class DashboardHost {
   private watcher?: vscode.FileSystemWatcher;
@@ -259,7 +267,7 @@ export class DashboardHost {
       this.activeRuns.delete(pipeline);
 
       const cancelled = code === -1;
-      const ok = !cancelled && (code === 0 || code === 4);
+      const ok = !cancelled && isSuccess(pipeline, code);
 
       this.post({ type: 'pipeline:done', pipeline, exitCode: code });
 
@@ -287,11 +295,7 @@ export class DashboardHost {
 
       // Pipeline-specific post-run: read JSON output files and push rich events
       if (!cancelled) {
-        if (pipeline === 'analyze') {
-          this._pushAnalysisResult();
-        } else if (pipeline === 'plan-fix') {
-          this._pushFixPlan();
-        } else if (pipeline === 'heal' && ok) {
+        if (pipeline === 'heal' && ok) {
           // Auto-commit after a successful heal — no user action needed.
           this.post({ type: 'pipeline:log', pipeline: 'commit', line: '[auto] committing heal output…' });
           await this.run('commit', ['--pipeline', 'heal']);
@@ -373,7 +377,7 @@ export class DashboardHost {
         const code = await handle.promise;
         this.activeRuns.delete(p);
         const cancelled = code === -1;
-        const ok = !cancelled && (code === 0 || code === 4);
+        const ok = !cancelled && isSuccess(p, code);
         this.post({ type: 'pipeline:done', pipeline: p, exitCode: code });
         this.post({
           type: 'pipeline:lastRun',
@@ -391,40 +395,6 @@ export class DashboardHost {
     await this.refresh();
   }
 
-  private _pushAnalysisResult(): void {
-    try {
-      const analysisFile = path.join(this.workspaceRoot, '.specguard', 'analysis.json');
-      if (!fs.existsSync(analysisFile)) return;
-      const data = JSON.parse(fs.readFileSync(analysisFile, 'utf-8')) as {
-        recommendations: AnalysisRecommendation[];
-      };
-      this.post({ type: 'analyze:result', recommendations: data.recommendations ?? [] });
-    } catch { /* best-effort */ }
-  }
-
-  private _pushFixPlan(): void {
-    try {
-      const planFile = path.join(this.workspaceRoot, '.specguard', 'fix-plan.json');
-      if (!fs.existsSync(planFile)) return;
-      const data = JSON.parse(fs.readFileSync(planFile, 'utf-8')) as {
-        title: string;
-        summary: string;
-        sourcePipeline: string;
-        steps: Array<{ id: string; description: string; action: string; pipeline?: string; file?: string; command?: string }>;
-      };
-      this.post({
-        type: 'fix-plan',
-        plan: {
-          title: data.title,
-          summary: data.summary,
-          sourcePipeline: data.sourcePipeline ?? 'unknown',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          steps: data.steps as any,
-        },
-      });
-    } catch { /* best-effort */ }
-  }
-
   // ---------------------------------------------------------------------------
   // Refresh
   // ---------------------------------------------------------------------------
@@ -435,8 +405,26 @@ export class DashboardHost {
     // Clear accumulated artifacts from any previous project before re-populating.
     this.post({ type: 'clearArtifacts' });
 
-    // Coverage (best-effort, lenient text parse)
+    // Functional specs come through the API (the team server if one answers, else a local `serve`).
+    let api: ProjectData | undefined;
     try {
+      const hub = getHub();
+      if (hub) {
+        const live = await hub.get(this.workspaceRoot);
+        const data = await loadProjectData(live.client, { name: projectNameOf(this.workspaceRoot, live), workspaceRoot: this.workspaceRoot });
+        if (data.functional) api = data;
+        if (live.notice) this.post({ type: 'error', scope: 'server', message: live.notice });
+      }
+    } catch {
+      /* the API is not available: the command line and files below are used */
+    }
+    if (api) {
+      this.post({ type: 'coverage', data: api.apps });
+      this.post({ type: 'matrix', data: api.matrix });
+    }
+
+    // Coverage (best-effort, lenient text parse) for projects still on per-file specs
+    if (!api) try {
       const cli = await resolveCliPath(this.workspaceRoot);
       let out = '';
       const h = spawnCli(cli, ['status'], this.workspaceRoot, (l) => { out += l + '\n'; });
@@ -450,7 +438,7 @@ export class DashboardHost {
       this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
     }
     // Matrix from traceability.json (if present)
-    try {
+    if (!api) try {
       const file = path.join(this.workspaceRoot, '.specguard', 'traceability.json');
       if (fs.existsSync(file)) {
         const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
@@ -463,11 +451,8 @@ export class DashboardHost {
     this._pushExistingDocs();
     // Emit existing spec artifacts so Docs → Specs tab is populated on open
     this._pushExistingSpecs();
-    // Push last analysis result and fix plan if present
-    this._pushAnalysisResult();
-    this._pushFixPlan();
     // Findings from quality/dep JSON outputs (if present)
-    this._pushFindings();
+    this._pushFindings(api?.findings ?? []);
     // Plans from .specguard/plans/
     this._pushPlans();
     // Activity log entries (also syncs MCP-driven nodeStates)
@@ -879,8 +864,9 @@ export class DashboardHost {
   // Findings push
   // ---------------------------------------------------------------------------
 
-  private _pushFindings(): void {
-    const findings: FindingItem[] = [];
+  /** `shared` are the team's security findings from the API; lint findings from this machine's quality run are added to them. */
+  private _pushFindings(shared: FindingItem[] = []): void {
+    const findings: FindingItem[] = [...shared];
 
     const tryLoad = (file: string, category: string) => {
       try {
@@ -908,7 +894,6 @@ export class DashboardHost {
     };
 
     tryLoad(path.join(this.workspaceRoot, '.specguard', 'code-quality.json'), 'lint');
-    tryLoad(path.join(this.workspaceRoot, '.specguard', 'dep-check.json'), 'deps');
 
     if (findings.length > 0) {
       this.post({ type: 'findings', data: findings });
@@ -1007,9 +992,8 @@ export class DashboardHost {
  * this pipeline does not report findings in that format.
  *
  * Examples matched:
- *   "deps: 54 finding(s)"
+ *   "security scan: 54 finding(s)"
  *   "quality: 3 finding(s)"
- *   "[deps] 42 vulnerability(ies), 0 unused dep(s), 12 missing dep(s)"  → summed
  */
 function parseFindingCount(lines: string[], pipeline: string): number | undefined {
   // Primary: "<pipeline>: N finding(s)" on its own line.
@@ -1017,22 +1001,6 @@ function parseFindingCount(lines: string[], pipeline: string): number | undefine
   for (const line of lines) {
     const m = summaryRe.exec(line.trim());
     if (m) return parseInt(m[1], 10);
-  }
-
-  // Secondary: lines starting with "[deps]" that list counts (e.g. "42 vulnerability(ies)").
-  // Sum all numbers found in bracketed lines for the pipeline.
-  if (pipeline === 'deps') {
-    const bracketRe = /^\[deps\]\s+(.+)$/i;
-    for (const line of lines) {
-      const m = bracketRe.exec(line.trim());
-      if (m) {
-        let total = 0;
-        for (const numMatch of m[1].matchAll(/(\d+)\s+\w/g)) {
-          total += parseInt(numMatch[1], 10);
-        }
-        if (total > 0) return total;
-      }
-    }
   }
 
   return undefined;

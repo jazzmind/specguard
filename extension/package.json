@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.1.29",
+  "version": "0.2.0",
   "publisher": "WesSonnenreich",
   "repository": {
     "type": "git",
@@ -98,11 +98,6 @@
         "icon": "$(search)"
       },
       {
-        "command": "specguard.depsAudit",
-        "title": "SpecGuard: Dependency Audit",
-        "icon": "$(package)"
-      },
-      {
         "command": "specguard.runSast",
         "title": "SpecGuard: SAST Scan",
         "icon": "$(bug)"
@@ -176,6 +171,19 @@
         "command": "specguard.impact",
         "title": "SpecGuard: Show Impact",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "specguard.signIn",
+        "title": "SpecGuard: Sign in to Team Server"
+      },
+      {
+        "command": "specguard.signOut",
+        "title": "SpecGuard: Sign out of Team Server"
+      },
+      {
+        "command": "specguard.securityPlan",
+        "title": "SpecGuard: Security Scan (Remediation Plan)",
+        "icon": "$(package)"
       }
     ],
     "menus": {
@@ -285,6 +293,25 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically regenerate documentation when a spec file changes (debounced 3s)."
+        },
+        "specguard.serverUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Address of a SpecGuard team server, for example `http://ae1pocltv03/specguard`. Leave empty to use the project's own `server.url` in `.specguard/config.json`. When no server is set, or it does not answer, SpecGuard reads this workspace locally."
+        },
+        "specguard.serverProject": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "This project's name on the team server. Default: `server.project` in `.specguard/config.json`, else the folder name."
+        },
+        "specguard.serverMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "off"
+          ],
+          "default": "auto",
+          "markdownDescription": "`auto`: use the team server when it answers and the local files otherwise. `off`: never contact a server."
         }
       }
     }
