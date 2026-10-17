@@ -133,7 +133,8 @@ describe('team server: compressed uploads [central-gzip]', () => {
     const post = (body: Buffer | string, encoding?: string) =>
       fetch(`${base}/api/v1/projects/demo/snapshots`, { method: 'POST', headers: { ...bearer(ci), 'content-type': 'application/json', ...(encoding ? { 'content-encoding': encoding } : {}) }, body: body as never });
     const sent = gzipSync(JSON.stringify(snap));
-    expect(sent.length).toBeLessThan(JSON.stringify(snap).length / 3);
+    // A ~3 KB snapshot compresses to just about a third, and zlib builds differ by a few bytes: keep headroom.
+    expect(sent.length).toBeLessThan(JSON.stringify(snap).length / 2);
     expect((await post(sent, 'gzip')).status).toBe(201);
     expect((await call(base, '/api/v1/projects/demo/system', { headers: BOB })).json.capabilities).toHaveLength(2);
     // Small on the wire, enormous once expanded.
