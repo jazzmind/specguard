@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-15T20:26:30.740Z",
+  "generated": "2026-10-17T12:14:41.350Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -1551,7 +1551,7 @@
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 282,
+              "line": 287,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -1666,7 +1666,7 @@
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 297,
+              "line": 302,
               "title": "lists and reads security plans, and cannot be walked out of the plans folder [plans]",
               "origin": "source"
             },
@@ -1847,7 +1847,7 @@
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 282,
+              "line": 287,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -6162,6 +6162,18 @@
               "line": 92,
               "title": "rejects malformed, oversized and wrong-version input without throwing [malformed]",
               "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 90,
+              "title": "sends a large snapshot gzip-encoded, so a proxy with a 1 MB cap lets it through [gzip-push]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 128,
+              "title": "accepts a gzip-encoded snapshot, because proxies cap uploads at 1 MB, and refuses an expansion bomb or another encoding [gzip]",
+              "origin": "source"
             }
           ]
         },
@@ -6180,7 +6192,7 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 313,
+              "line": 336,
               "title": "serves one spec\\'s markdown from the snapshot [spec-file]",
               "origin": "source"
             },
@@ -6220,7 +6232,7 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 227,
+              "line": 250,
               "title": "requires a token for plan changes made through the API, attributing them to its owner, and the CSRF header for browser sessions [writes]",
               "origin": "source"
             }
@@ -6290,37 +6302,37 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 83,
+              "line": 84,
               "title": "serves health to anyone and everything else only to a valid credential [auth-gate]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 100,
+              "line": 101,
               "title": "is mounted under its base path and nowhere else [base-path]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 113,
+              "line": 116,
               "title": "refuses a request target that is not a valid path, and an oversized body [bad-input]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 125,
+              "line": 148,
               "title": "lets a signed-in user mint their own token, never more power than they hold, and revoke it [own-tokens]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 147,
+              "line": 170,
               "title": "reserves administration for an admin token: the header never grants it, and the bootstrap token does [admin]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 159,
+              "line": 182,
               "title": "records who made and revoked tokens in the audit log [audit]",
               "origin": "source"
             }
@@ -6334,19 +6346,19 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 174,
+              "line": 197,
               "title": "accepts a snapshot from a project\\'s CI token and serves the project from it [publish-and-read]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 191,
+              "line": 214,
               "title": "keeps a credential to its own project, and refuses viewers, bad snapshots and a mismatched name [publish-guards]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 208,
+              "line": 231,
               "title": "keeps what trackers changed when CI publishes a newer plan [plan-survives-republish]",
               "origin": "source"
             }
@@ -6360,7 +6372,7 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 246,
+              "line": 269,
               "title": "generates a document once for everyone, and attributes the model spend to whoever asked [docs-shared-and-attributed]",
               "origin": "source"
             }
@@ -6406,13 +6418,13 @@
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 287,
+              "line": 310,
               "title": "needs a token, lists read-only tools, and answers them through the API as the caller [mcp]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 303,
+              "line": 326,
               "title": "keeps a project-scoped token to its project even through MCP [mcp-scope]",
               "origin": "source"
             }
@@ -6515,49 +6527,49 @@
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 90,
+              "line": 113,
               "title": "reads plans from the server when it answers, and from local files, saying so, when it does not [read-fallback]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 106,
+              "line": 129,
               "title": "reads locally, without trying a server, when none is configured [no-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 120,
+              "line": 143,
               "title": "writes to the server when it answers, and leaves the local plan alone [write-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 130,
+              "line": 153,
               "title": "writes locally and says it is local-only when the server does not answer [write-local]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 142,
+              "line": 165,
               "title": "does not hide a refusal by writing locally: a wrong token is an error and nothing changes [no-silent-switch]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 159,
+              "line": 182,
               "title": "writes locally when the plan has not been published yet, and reports a lifecycle violation instead of working around it [not-on-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 176,
+              "line": 199,
               "title": "shows CI\\'s proofs set against this working tree\\'s [lines]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 189,
+              "line": 212,
               "title": "says no server answered rather than failing [degraded]",
               "origin": "source"
             }
