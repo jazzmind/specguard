@@ -39,7 +39,8 @@ jobs:
         uses: ./
         with:
           version: local
-          gates: status,proof
+          # `test` records proofs for the checked-out code, so `proof` never judges a ledger left stale by a commit.
+          gates: test,status,proof
           # `missing-specs` stays off until every source file has a spec; proofs must never be failed or stale.
           fail-on: proof-failed,proof-stale
           artifact-name: specguard-self-check
