@@ -17,7 +17,19 @@ export interface ActivityEntry {
 }
 
 export interface CoverageItem { app: string; key: string; hasSpec: boolean; hasTest: boolean; specPath?: string; }
-export interface AppCoverage { name: string; specCount: number; sourceCount: number; testCount: number; percentage: number; items: CoverageItem[]; }
+export interface AppCoverage {
+  name: string;
+  specCount: number;
+  sourceCount: number;
+  testCount: number;
+  percentage: number;
+  items: CoverageItem[];
+  /**
+   * `capability` — specCount is capabilities and percentage is source-file coverage.
+   * `file` — specCount and sourceCount are the per-file status report.
+   */
+  basis?: 'capability' | 'file';
+}
 
 export interface MatrixRow { specKey: string; title: string; appName: string; sourceModule: string; hasTests: boolean; testCount: number; hasDocs: boolean; }
 export interface MatrixModel { generatedAt: string | null; rows: MatrixRow[]; }

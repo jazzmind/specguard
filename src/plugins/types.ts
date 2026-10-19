@@ -95,6 +95,8 @@ export interface CatalogContext {
   rootDir: string;
   /** Catalog directory from config or the workspace manifest, when set. */
   dir?: string;
+  /** File-name globs in that directory that are not feature lists. */
+  exclude?: string[];
 }
 
 /** Loads the feature catalog. The generic provider reads versioned YAML. */

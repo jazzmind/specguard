@@ -341,15 +341,15 @@ function buildHtml(_webview: vscode.Webview): string {
           <div class="sub">\${active.length - specced} need specs</div>
         </div>
         <div class="stat-card">
-          <div class="label">Total Specs</div>
+          <div class="label">Current specs</div>
           <div class="value">\${active.reduce((s, r) => s + r.specCount, 0)}</div>
-          <div class="sub">across \${active.length} repos</div>
+          <div class="sub">across \${active.length} repos, archived v1 excluded</div>
         </div>
         \${contracts ? \`
         <div class="stat-card">
           <div class="label">Contract Edges</div>
           <div class="value">\${edgeCount}</div>
-          <div class="sub">\${nodeCount} nodes\${staleCount > 0 ? ' · <span style=\\"color:var(--vscode-testing-iconFailed)\\">' + staleCount + ' stale</span>' : ''}</div>
+          <div class="sub">\${nodeCount} nodes\${staleCount > 0 ? ' · <span style=\\"color:var(--vscode-testing-iconFailed)\\">' + staleCount + ' unverified &gt;30d</span>' : ''}</div>
         </div>\` : \`
         <div class="stat-card">
           <div class="label">Contracts</div>
@@ -376,7 +376,7 @@ function buildHtml(_webview: vscode.Webview): string {
       <div class="contracts-bar">
         <div class="c-stat"><strong>\${edgeCount}</strong> contract edges</div>
         <div class="c-stat"><strong>\${nodeCount}</strong> nodes</div>
-        \${staleCount > 0 ? \`<span class="stale">⚠ \${staleCount} stale edges</span>\` : ''}
+        \${staleCount > 0 ? \`<span class="stale">⚠ \${staleCount} unverified &gt;30d</span>\` : ''}
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
           <button id="btn-contracts" class="btn secondary" onclick="runContracts()">Rebuild Contracts</button>
@@ -401,7 +401,7 @@ function buildHtml(_webview: vscode.Webview): string {
 
   function repoCard(repo, ignored) {
     const dotClass = !repo.hasConfig ? 'gray' : repo.specCount > 0 ? 'green' : 'yellow';
-    const specLabel = !repo.hasConfig ? 'no config' : repo.specCount > 0 ? repo.specCount + ' specs' : 'no specs';
+    const specLabel = !repo.hasConfig ? 'no config' : repo.specCount > 0 ? (repo.specLabel || repo.specCount + ' specs') : 'no specs';
     const roleClass = ['provider','consumer','test','docs'].includes(repo.role) ? repo.role : '';
     const activeClass = repo._isActive ? 'active-repo' : '';
     const ignoredClass = ignored ? 'ignored' : '';

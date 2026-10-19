@@ -129,15 +129,30 @@ export function parseFeatureList(text: string, label = 'catalog'): CatalogFeatur
   return out;
 }
 
+/** True when a catalog file name matches an exclude glob. Only `*` and `?` are special. */
+export function excludedCatalogName(name: string, patterns: readonly string[] | undefined): boolean {
+  if (!patterns || patterns.length === 0) return false;
+  return patterns.some((pattern) => {
+    let source = '^';
+    for (const ch of pattern) {
+      if (ch === '*') source += '.*';
+      else if (ch === '?') source += '.';
+      else source += /[\\^$+?.()|[\]{}]/.test(ch) ? `\\${ch}` : ch;
+    }
+    return new RegExp(`${source}$`).test(name);
+  });
+}
+
 /** Read every `*.yaml` / `*.yml` in a directory with `parse`. Missing directory means an empty catalog. */
 export function loadCatalogDir(
   dir: string,
   parse: (text: string, label: string) => CatalogFeatureInput[] = parseCatalogYaml,
+  exclude?: readonly string[],
 ): CatalogFeatureInput[] {
   if (!existsSync(dir)) return [];
   const features: CatalogFeatureInput[] = [];
   const seen = new Set<string>();
-  for (const name of readdirSync(dir).filter((n) => /\.ya?ml$/i.test(n)).sort()) {
+  for (const name of readdirSync(dir).filter((n) => /\.ya?ml$/i.test(n) && !excludedCatalogName(n, exclude)).sort()) {
     for (const feature of parse(readFileSync(path.join(dir, name), 'utf8'), name)) {
       if (seen.has(feature.id)) throw new CatalogError(`${name}: duplicate feature id '${feature.id}'`);
       seen.add(feature.id);
@@ -152,7 +167,7 @@ export const yamlCatalogProvider: CatalogProvider = {
   id: 'yaml',
   async load(ctx: CatalogContext): Promise<CatalogFeatureInput[]> {
     if (!ctx.dir) return [];
-    return loadCatalogDir(path.resolve(ctx.rootDir, ctx.dir));
+    return loadCatalogDir(path.resolve(ctx.rootDir, ctx.dir), parseCatalogYaml, ctx.exclude);
   },
 };
 
@@ -161,6 +176,6 @@ export const listCatalogProvider: CatalogProvider = {
   id: 'list',
   async load(ctx: CatalogContext): Promise<CatalogFeatureInput[]> {
     if (!ctx.dir) return [];
-    return loadCatalogDir(path.resolve(ctx.rootDir, ctx.dir), parseFeatureList);
+    return loadCatalogDir(path.resolve(ctx.rootDir, ctx.dir), parseFeatureList, ctx.exclude);
   },
 };

@@ -83,4 +83,17 @@ describe('catalog', () => {
     expect(f).toMatchObject({ id: 'a.b.c', title: 'T: x', requires: ['ui'] });
     expect(parseFeatureList('- id: z\n')[0].id).toBe('z');
   });
+
+  // [claims: capabilities/integration-surfaces#feature-catalog, capabilities/integration-surfaces#catalog-layout-config]
+  it('catalogExclude skips matching file names before they are parsed', async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'sg-cat-'));
+    const dir = path.join(root, 'catalog');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, 'features.yaml'), '- id: kept\n');
+    writeFileSync(path.join(dir, 'tours.yaml'), '- id: skipped\n  not: [valid\n');
+    await expect(listCatalogProvider.load({ rootDir: root, dir: 'catalog' })).rejects.toThrow(CatalogError);
+    const kept = await listCatalogProvider.load({ rootDir: root, dir: 'catalog', exclude: ['tours.yaml', 'other*.yaml'] });
+    expect(kept.map((feature) => feature.id)).toEqual(['kept']);
+    expect(loadCatalogDir(dir, parseFeatureList, ['tour?.yaml']).map((feature) => feature.id)).toEqual(['kept']);
+  });
 });

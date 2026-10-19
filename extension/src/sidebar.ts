@@ -10,6 +10,18 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AppCoverage } from './dashboard/protocol.js';
+import {
+  ageLabel,
+  contractsDescription,
+  coveragePercent,
+  coverageRowDescription,
+  coverageRowLabel,
+  docsOutputDescription,
+  outputBasis,
+  specsOutputDescription,
+  testsOutputDescription,
+  traceRow,
+} from './coverage-label.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
 import { loadProjectData } from './api/data.js';
@@ -67,31 +79,38 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   private _apps: AppCoverage[] = [];
   private _loading = false;
   private _error: string | undefined;
+  /** No `.specguard/config.json` in the active folder. The view stays empty so its welcome (Initialize) shows. */
+  private _noConfig = false;
   /** Where the numbers came from: the team server or this machine, and why not the server if it was configured. */
   private _source: { label: string; notice?: string } | undefined;
 
-  /** Section sentinel nodes at the root level. */
-  private readonly _outputsSection = this._makeSection('Outputs', '$(package)');
-  private _workspaceSection = this._makeSection('Workspace', '$(globe)');
+  /**
+   * Stable section nodes. Replacing them on every root `getChildren` call makes
+   * VS Code ask for children of the previous object, which no longer matches and
+   * comes back empty.
+   */
+  private readonly _coverageSection = this._makeSection('coverage', 'Coverage', 'shield');
+  private readonly _outputsSection = this._makeSection('outputs', 'Outputs', 'package');
+  private readonly _workspaceSection = this._makeSection('workspace', 'Workspace', 'globe');
 
-  private _getCoverageSection(): CoverageTreeItem {
-    const root = getActiveWorkspaceRoot();
-    const label = root ? `Coverage — ${path.basename(root)}${this._source ? ` · ${this._source.label}` : ''}` : 'Coverage';
+  private _makeSection(id: string, label: string, iconId: string): CoverageTreeItem {
     const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
-    item.iconPath = new vscode.ThemeIcon('shield');
+    item.id = `specguard.section.${id}`;
+    item.iconPath = new vscode.ThemeIcon(iconId);
     item.isSectionNode = true;
     return item;
   }
 
-  private _makeSection(label: string, iconId: string): CoverageTreeItem {
-    const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
-    item.iconPath = new vscode.ThemeIcon(iconId.replace('$(', '').replace(')', ''));
-    item.isSectionNode = true;
-    return item;
+  private _labelSections(): void {
+    const root = getActiveWorkspaceRoot();
+    this._coverageSection.label = root
+      ? `Coverage — ${path.basename(root)}${this._source ? ` · ${this._source.label}` : ''}`
+      : 'Coverage';
+    const manifest = loadWorkspaceManifest();
+    this._workspaceSection.label = manifest ? `Workspace — ${manifest.name}` : 'Workspace';
   }
 
   refresh(): Promise<void> {
-    this._onDidChangeTreeData.fire();
     return this.loadCoverage();
   }
 
@@ -99,24 +118,17 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     return element;
   }
 
-  private _coverageSection: CoverageTreeItem | undefined;
-
   getChildren(element?: CoverageTreeItem): CoverageTreeItem[] {
     // Root level: sections
     if (!element) {
+      if (this._noConfig) return [];
       if (this._loading) {
         return [new CoverageTreeItem('Loading…', vscode.TreeItemCollapsibleState.None, 'loading')];
       }
       if (this._error) {
         return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error')];
       }
-      this._coverageSection = this._getCoverageSection();
-      const manifest = loadWorkspaceManifest();
-      const wsLabel = manifest ? `Workspace — ${manifest.name}` : 'Workspace';
-      const wsSection = this._makeSection(wsLabel, '$(globe)');
-      wsSection.isSectionNode = true;
-      // Store for identity check in getChildren
-      this._workspaceSection = wsSection;
+      this._labelSections();
       return [this._coverageSection, this._outputsSection, ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];
     }
 
@@ -127,9 +139,11 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       }
       const notice = this._source?.notice ? [Object.assign(new CoverageTreeItem(this._source.notice, vscode.TreeItemCollapsibleState.None, 'info'), { iconPath: new vscode.ThemeIcon('info') })] : [];
       return [...notice, ...this._apps.map((app) => {
-        const label = `${app.name} (${app.percentage}%)`;
-        const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Collapsed, 'app');
-        item.description = `${app.specCount}/${app.sourceCount} specs`;
+        const item = new CoverageTreeItem(coverageRowLabel(app), vscode.TreeItemCollapsibleState.Collapsed, 'app');
+        item.description = coverageRowDescription(app);
+        item.tooltip = app.basis === 'capability'
+          ? `${app.percentage}% of ${app.sourceCount} source files are owned by a capability`
+          : `${app.specCount} of ${app.sourceCount} source files have a spec`;
         item.iconPath = app.percentage >= 80
           ? new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'))
           : new vscode.ThemeIcon('warning', new vscode.ThemeColor('testing.iconFailed'));
@@ -247,18 +261,11 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
           ? new vscode.ThemeColor('testing.iconFailed')
           : new vscode.ThemeColor('testing.iconPassed'),
       );
-      contractsItem.description = contractSummary.staleCount > 0
-        ? `${contractSummary.staleCount} stale`
-        : `${contractSummary.nodeCount} nodes`;
+      contractsItem.description = contractsDescription(contractSummary.staleCount, contractSummary.nodeCount);
       const ageStr = contractSummary.generatedAt
-        ? (() => {
-            const ageMs = Date.now() - new Date(contractSummary.generatedAt!).getTime();
-            return ageMs < 3_600_000
-              ? `${Math.floor(ageMs / 60_000)}m ago`
-              : `${Math.floor(ageMs / 3_600_000)}h ago`;
-          })()
+        ? ageLabel(Date.now() - new Date(contractSummary.generatedAt).getTime())
         : 'not generated';
-      contractsItem.tooltip = `Last built: ${ageStr}. Click to open contracts.json`;
+      contractsItem.tooltip = `An edge is unverified when lastVerified is missing or older than 30 days. Last built: ${ageStr}. Click to open contracts.json`;
       const contractsPath = path.join(manifestRoot, '.specguard', 'contracts.json');
       if (fs.existsSync(contractsPath)) {
         contractsItem.command = {
@@ -355,14 +362,15 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         );
         item.tooltip = `${repo.absPath}\n0 specs — run specguard reverse or gap-analysis`;
       } else {
-        item.description = isActive
-          ? `${repo.specCount} specs  (active)`
-          : `${repo.specCount} specs`;
+        const activeMark = isActive ? '  (active)' : '';
+        item.description = `${repo.specLabel}${activeMark}`;
         item.iconPath = new vscode.ThemeIcon(
           'pass-filled',
           new vscode.ThemeColor('testing.iconPassed'),
         );
-        item.tooltip = `${repo.absPath}\n${repo.specCount} spec files`;
+        const archived = repo.archivedSpecs > 0 ? `\n${repo.archivedSpecs} archived v1 specs are not counted` : '';
+        const system = repo.hasSystemSpec ? '\nincludes a system spec' : '';
+        item.tooltip = `${repo.absPath}\n${repo.specLabel}${system}${archived}`;
       }
 
       if (!isActive) {
@@ -384,10 +392,11 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     const items: CoverageTreeItem[] = [];
 
     // Spec count — click opens specs/ folder
+    const basis = outputBasis(this._apps);
     const totalSpecs = this._apps.reduce((s, a) => s + a.specCount, 0);
     const specItem = new CoverageTreeItem(`Specs: ${totalSpecs}`, vscode.TreeItemCollapsibleState.None, 'output-item');
     specItem.iconPath = new vscode.ThemeIcon('book');
-    specItem.description = totalSpecs > 0 ? 'Living Specs' : 'run reverse or import';
+    specItem.description = totalSpecs > 0 ? specsOutputDescription(basis) : 'run reverse or import';
     specItem.tooltip = 'Click to open specs directory';
     const specsDir = path.join(root, 'specs');
     if (fs.existsSync(specsDir)) {
@@ -402,7 +411,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     // Test count — click opens the generated tests directory
     const totalTests = this._apps.reduce((s, a) => s + a.testCount, 0);
     const testItem = new CoverageTreeItem(`Tests: ${totalTests}`, vscode.TreeItemCollapsibleState.None, 'output-item');
-    testItem.description = totalTests > 0 ? 'generated tests' : 'run generate';
+    testItem.description = testsOutputDescription(totalTests, basis);
     testItem.iconPath = new vscode.ThemeIcon(totalTests > 0 ? 'pass-filled' : 'circle-outline');
     testItem.tooltip = 'Click to open tests directory';
     const testsDir = path.join(root, 'tests');
@@ -425,7 +434,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     } catch { /* ignore */ }
     const docItem = new CoverageTreeItem(`Docs: ${docCount}`, vscode.TreeItemCollapsibleState.None, 'output-item');
     docItem.iconPath = new vscode.ThemeIcon(docCount > 0 ? 'file-text' : 'circle-outline');
-    docItem.description = docCount > 0 ? 'user-facing docs' : 'run docs';
+    docItem.description = docsOutputDescription(docCount, basis);
     docItem.tooltip = 'Click to open docs directory';
     if (docCount > 0 && fs.existsSync(docsDir)) {
       docItem.command = {
@@ -437,30 +446,22 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     items.push(docItem);
 
     // Traceability matrix — click opens the JSON file
-    const traceFile = path.join(root, '.specguard', 'traceability.json');
-    const hasTrace = fs.existsSync(traceFile);
-    const traceItem = new CoverageTreeItem(
-      `Traceability: ${hasTrace ? 'present' : 'missing'}`,
-      vscode.TreeItemCollapsibleState.None,
-      'output-item',
-    );
-    traceItem.iconPath = new vscode.ThemeIcon(hasTrace ? 'list-tree' : 'circle-outline');
-    if (hasTrace) {
-      try {
-        const stat = fs.statSync(traceFile);
-        const ageMs = Date.now() - stat.mtimeMs;
-        const ageStr = ageMs < 3_600_000 ? `${Math.floor(ageMs / 60_000)}m ago` : `${Math.floor(ageMs / 3_600_000)}h ago`;
-        traceItem.description = `updated ${ageStr}`;
-      } catch { /* ignore */ }
-      traceItem.tooltip = 'Click to open traceability.json';
+    const traceJson = path.join(root, '.specguard', 'trace.json');
+    const matrixFile = path.join(root, '.specguard', 'traceability.json');
+    const traceAge = fs.existsSync(traceJson) ? Date.now() - fs.statSync(traceJson).mtimeMs : undefined;
+    const matrixAge = traceAge === undefined && fs.existsSync(matrixFile) ? Date.now() - fs.statSync(matrixFile).mtimeMs : undefined;
+    const trace = traceRow({ traceAgeMs: traceAge, matrixAgeMs: matrixAge });
+    const traceFile = traceAge !== undefined ? traceJson : matrixFile;
+    const traceItem = new CoverageTreeItem(trace.title, vscode.TreeItemCollapsibleState.None, 'output-item');
+    traceItem.iconPath = new vscode.ThemeIcon(traceAge !== undefined || matrixAge !== undefined ? 'list-tree' : 'circle-outline');
+    traceItem.description = trace.description;
+    traceItem.tooltip = trace.tooltip;
+    if ((traceAge !== undefined || matrixAge !== undefined) && fs.existsSync(traceFile)) {
       traceItem.command = {
         command: 'vscode.open',
-        title: 'Open traceability.json',
+        title: 'Open traceability',
         arguments: [vscode.Uri.file(traceFile)],
       };
-    } else {
-      traceItem.description = 'run matrix';
-      traceItem.tooltip = 'Run "SpecGuard: Traceability Matrix" to generate';
     }
     items.push(traceItem);
 
@@ -469,10 +470,15 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
   private async loadCoverage(): Promise<void> {
     const workspaceRoot = getActiveWorkspaceRoot();
-    if (!workspaceRoot) {
+    if (!workspaceRoot || !fs.existsSync(path.join(workspaceRoot, '.specguard', 'config.json'))) {
       this._apps = [];
+      this._error = undefined;
+      this._noConfig = true;
+      this._loading = false;
+      this._onDidChangeTreeData.fire();
       return;
     }
+    this._noConfig = false;
 
     this._loading = true;
     this._error = undefined;
@@ -510,11 +516,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   }
 
   getCoveragePercent(): number {
-    if (this._apps.length === 0) return 0;
-    const total = this._apps.reduce((s, a) => s + a.sourceCount, 0);
-    const covered = this._apps.reduce((s, a) => s + a.specCount, 0);
-    if (total === 0) return 100;
-    return Math.round((covered / total) * 100);
+    return coveragePercent(this._apps);
   }
 }
 
@@ -526,9 +528,10 @@ function runCli(cliPath: string, args: string[], cwd: string): Promise<string> {
   const chunks: string[] = [];
   const handle = spawnCli(cliPath, args, cwd, (line) => chunks.push(line));
   return handle.promise.then((code) => {
+    const text = chunks.join('\n').trim();
     if (code !== 0 && code !== 4) {
-      throw new Error(`specguard status exited with code ${code}`);
+      throw new Error(text || `specguard status exited with code ${code}`);
     }
-    return chunks.join('\n');
+    return text;
   });
 }

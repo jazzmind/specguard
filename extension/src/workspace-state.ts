@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { inventorySpecs, specCountLabel, type SpecInventory } from './spec-inventory.js';
 
 const STATE_KEY = 'specguard.activeWorkspaceRoot';
 
@@ -142,32 +143,17 @@ export interface WorkspaceRepo {
   ignore: boolean;
   hasConfig: boolean;
   specCount: number;
+  /** Sidebar and dashboard text, e.g. "9 capabilities" or "12 spec files". */
+  specLabel: string;
+  /** Retired v1 specs under specs/_archive. Not included in specCount. */
+  archivedSpecs: number;
+  hasSystemSpec: boolean;
 }
 
 export interface WorkspaceManifestData {
   name: string;
   repos: WorkspaceRepo[];
   manifestRoot: string;
-}
-
-/** Recursively count *.md files under `dir`, excluding README.md at any depth. */
-function countSpecFiles(dir: string): number {
-  let count = 0;
-  try {
-    if (!fs.existsSync(dir)) return 0;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        count += countSpecFiles(path.join(dir, entry.name));
-      } else if (
-        entry.isFile() &&
-        entry.name.toLowerCase().endsWith('.md') &&
-        entry.name.toLowerCase() !== 'readme.md'
-      ) {
-        count++;
-      }
-    }
-  } catch { /* ignore permission errors */ }
-  return count;
 }
 
 /**
@@ -180,7 +166,9 @@ function countSpecFiles(dir: string): number {
  * Falls back to counting `{absPath}/specs` for repos without a config or with
  * no apps defined.
  */
-function countSpecsForRepo(absPath: string): number {
+function inventoryForRepo(absPath: string): SpecInventory {
+  const empty: SpecInventory = { capabilities: 0, hasSystem: false, livingFiles: 0, archivedFiles: 0 };
+  const dirs: string[] = [];
   const configPath = path.join(absPath, '.specguard', 'config.json');
   if (fs.existsSync(configPath)) {
     try {
@@ -188,33 +176,34 @@ function countSpecsForRepo(absPath: string): number {
         apps?: Array<{ specDir?: string }>;
       };
       const apps = config.apps ?? [];
-      if (apps.length > 0) {
-        const seen = new Set<string>();
-        let total = 0;
-        for (const app of apps) {
-          if (!app.specDir) continue;
-          // Resolve specDir the same way the CLI does: path.resolve(rootDir, specDir)
-          const resolved = path.normalize(path.resolve(absPath, app.specDir));
-          if (!seen.has(resolved)) {
-            seen.add(resolved);
-            total += countSpecFiles(resolved);
-          }
+      const seen = new Set<string>();
+      for (const app of apps) {
+        if (!app.specDir) continue;
+        const resolved = path.normalize(path.resolve(absPath, app.specDir));
+        if (!seen.has(resolved)) {
+          seen.add(resolved);
+          dirs.push(resolved);
         }
-        // Return config-derived count (may be 0 if specs haven't been generated yet,
-        // but that's accurate — don't fall back to avoid double-counting).
-        return total;
       }
-    } catch { /* fall through to default */ }
+    } catch { /* fall through to the default specs directory */ }
   }
-  // Default for repos without a config: look for a top-level specs/ directory.
-  return countSpecFiles(path.join(absPath, 'specs'));
+  if (dirs.length === 0) dirs.push(path.join(absPath, 'specs'));
+  return dirs.reduce((sum, dir) => {
+    const inv = inventorySpecs(dir);
+    return {
+      capabilities: sum.capabilities + inv.capabilities,
+      hasSystem: sum.hasSystem || inv.hasSystem,
+      livingFiles: sum.livingFiles + inv.livingFiles,
+      archivedFiles: sum.archivedFiles + inv.archivedFiles,
+    };
+  }, empty);
 }
 
 /**
  * Load workspace.json and augment each repo entry with disk-derived metadata:
  * - `absPath` resolved from manifestRoot + repo.path
  * - `hasConfig` — .specguard/config.json exists
- * - `specCount` — fast recursive count of non-README *.md files under specs/
+ * - `specCount` — capabilities when the repo has them, otherwise living spec files. Archived v1 specs are excluded.
  * Returns null when no workspace.json is found.
  */
 export function loadWorkspaceManifest(): WorkspaceManifestData | null {
@@ -242,7 +231,8 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
       const relPath = entry.path ?? key;
       const absPath = path.resolve(manifestRoot, relPath);
       const hasConfig = fs.existsSync(path.join(absPath, '.specguard', 'config.json'));
-      const specCount = countSpecsForRepo(absPath);
+      const inventory = inventoryForRepo(absPath);
+      const counted = specCountLabel(inventory);
       return {
         key,
         path: relPath,
@@ -251,7 +241,10 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         description: entry.description ?? '',
         ignore: entry.ignore === true,
         hasConfig,
-        specCount,
+        specCount: counted.specCount,
+        specLabel: counted.specLabel,
+        archivedSpecs: inventory.archivedFiles,
+        hasSystemSpec: inventory.hasSystem,
       };
     });
 

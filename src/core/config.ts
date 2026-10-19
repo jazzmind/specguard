@@ -224,6 +224,7 @@ const featureStateSchema = z
     repoChannels: z.record(z.string(), z.string()).optional(),
     externalIds: z.array(z.string()).optional(),
     catalogFormat: z.enum(['document', 'list']).optional(),
+    catalogExclude: z.array(z.string()).optional(),
     moduleStems: z.array(z.string()).optional(),
     idSkipSegments: z.number().int().min(0).optional(),
     placeholderSummaryPattern: z.string().optional(),

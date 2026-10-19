@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-15T20:26:30.740Z",
+  "generated": "2026-10-16T11:30:16.471Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -1453,7 +1453,7 @@
           "id": "docs-per-spec",
           "ref": "capabilities/documentation-api#docs-per-spec",
           "text": "`docs` rewrites a single spec, all specs or one app's specs into user-facing Markdown pages under `docs/user/` (or a chosen output directory), mirroring the spec's relative path.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/doc-generate.test.ts",
@@ -1485,7 +1485,7 @@
           "id": "docs-strip-internal",
           "ref": "capabilities/documentation-api#docs-strip-internal",
           "text": "Internal-only content (the metadata comment, scenarios and security notes) is removed before the LLM sees the spec, and the rewrite must stay accurate to the supplied spec without inventing features.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/doc-generate.test.ts",
@@ -1499,7 +1499,7 @@
           "id": "docs-frontmatter",
           "ref": "capabilities/documentation-api#docs-frontmatter",
           "text": "Each generated page starts with frontmatter holding a title, sidebar label, description, category, reading order and a flag marking it as generated.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/doc-generate.test.ts",
@@ -1513,7 +1513,7 @@
           "id": "docs-failure-isolation",
           "ref": "capabilities/documentation-api#docs-failure-isolation",
           "text": "Generated docs are regenerable artifacts that overwrite existing files, an LLM failure on one spec is recorded and does not stop the others, and the command fails only if every attempted spec failed.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/doc-generate.test.ts",
@@ -1547,11 +1547,11 @@
           "id": "docs-no-secrets",
           "ref": "capabilities/documentation-api#docs-no-secrets",
           "text": "LLM credentials never appear in any generated page or synchronised section.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
-              "line": 282,
+              "line": 287,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -1568,7 +1568,7 @@
           "id": "serve-readonly",
           "ref": "capabilities/documentation-api#serve-readonly",
           "text": "`specguard serve` starts a read-only HTTP server on `node:http` bound to localhost under `/api/v1`, with no endpoint that writes, runs a pipeline or executes code; a malformed request target or percent-encoding is answered with 400 and never stops the server.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1606,7 +1606,7 @@
           "id": "spec-endpoints",
           "ref": "capabilities/documentation-api#spec-endpoints",
           "text": "`GET /system`, `/capabilities`, `/capabilities/:id` and `/capabilities/:id/history` return the system spec, the capability list with their value statements, one capability's parsed content, and its requirement history.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1656,7 +1656,7 @@
           "id": "audit-endpoints",
           "ref": "capabilities/documentation-api#audit-endpoints",
           "text": "`GET /trace`, `/audit` and `/security/plans` return the traceability data, the audit views and the stored remediation plans in their existing stable JSON shapes.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1666,7 +1666,7 @@
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 297,
+              "line": 302,
               "title": "lists and reads security plans, and cannot be walked out of the plans folder [plans]",
               "origin": "source"
             },
@@ -1694,7 +1694,7 @@
           "id": "docs-endpoints",
           "ref": "capabilities/documentation-api#docs-endpoints",
           "text": "`GET /docs/:audience/:id` and `/docs/:audience/system` return generated documentation for the audience `user`, `dev` or `agent`, and an unknown audience or capability returns a clear 400 or 404 error.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1732,7 +1732,7 @@
           "id": "audience-shapes",
           "ref": "capabilities/documentation-api#audience-shapes",
           "text": "the user audience omits claims and internals, the dev audience adds sources, interfaces and tests, and the agent audience is a compact structured form that can be parsed without reading prose.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1765,7 +1765,7 @@
           "id": "cache-key",
           "ref": "capabilities/documentation-api#cache-key",
           "text": "generated documents are cached (behind a cache interface, files by default) by spec content hash, audience, prompt version, model and the enabled plugin renderers, so an unchanged spec is served from cache and an edited spec, a changed prompt version or a different model regenerates it.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1791,7 +1791,7 @@
           "id": "single-flight-budget",
           "ref": "capabilities/documentation-api#single-flight-budget",
           "text": "concurrent requests for the same uncached document share one LLM call (single-flight), different documents generate concurrently, and each generation runs in its own LLM scope with its own budget (a spent budget fails that request with a clear error and never affects or resets another) and with the requester's name sent to the model gateway for spend attribution.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1823,7 +1823,7 @@
           "id": "static-ui",
           "ref": "capabilities/documentation-api#static-ui",
           "text": "a small static web UI served at `/` lets a person browse the system, capabilities, trace and generated docs using only the API.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1837,7 +1837,7 @@
           "id": "served-redaction",
           "ref": "capabilities/documentation-api#served-redaction",
           "text": "served documents and data are redacted so credentials and secret values from specs, config or history never leave the server.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/redact.test.ts",
@@ -1847,7 +1847,7 @@
             },
             {
               "file": "tests/server/api.test.ts",
-              "line": 282,
+              "line": 287,
               "title": "never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]",
               "origin": "source"
             }
@@ -1857,7 +1857,7 @@
           "id": "serve-host-guard",
           "ref": "capabilities/documentation-api#serve-host-guard",
           "text": "On a loopback address the server rejects any request whose Host header is not a local name (blocking DNS-rebinding reads from a hostile page), answers with `nosniff`, no-store and a content security policy on the UI, and sends cross-origin headers only when `--cors` names an origin",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/server.test.ts",
@@ -1877,7 +1877,7 @@
           "id": "ui-escapes-markdown",
           "ref": "capabilities/documentation-api#ui-escapes-markdown",
           "text": "The web UI escapes all HTML in model-written markdown and links only http(s), site-relative and anchor URLs, so generated docs cannot inject script",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/ui.test.ts",
@@ -1897,7 +1897,7 @@
           "id": "docs-model-fallback",
           "ref": "capabilities/documentation-api#docs-model-fallback",
           "text": "When the model is unavailable the user and dev audiences are rendered directly from the spec with a warning and are not cached, so the next request tries the model again; a spent LLM budget is reported as HTTP 429 instead",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/api.test.ts",
@@ -1922,9 +1922,9 @@
       ],
       "counts": {
         "claims": 21,
-        "proven": 17,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 17,
         "unexercised": 0,
         "error": 0,
         "unproven": 4,
@@ -2076,14 +2076,15 @@
         "extension/README.md"
       ],
       "history": [
-        "2026-10-15-functional-specs-and-four-pillars"
+        "2026-10-15-functional-specs-and-four-pillars",
+        "2026-10-15-catalog-exclude"
       ],
       "claims": [
         {
           "id": "cli-routing-and-flags",
           "ref": "capabilities/integration-surfaces#cli-routing-and-flags",
           "text": "The `specguard` command routes each subcommand to its pipeline and prints help for every subcommand; `--version` prints the package version and `--version --json` prints one JSON line with name, version and Node version; an unknown subcommand exits non-zero with a usage hint; global options `--config <path>` (a file, a directory, or a path containing `/.specguard/`), `--json` (machine-readable result with the exit code, human output suppressed) and `--record` reach every command",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "extension/src/cli-version.test.ts",
@@ -2121,7 +2122,7 @@
           "id": "exit-codes-and-env",
           "ref": "capabilities/integration-surfaces#exit-codes-and-env",
           "text": "Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, and a refused LLM call for budget forces exit 8; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/cli.test.ts",
@@ -2165,7 +2166,7 @@
           "id": "init-bootstrap",
           "ref": "capabilities/integration-surfaces#init-bootstrap",
           "text": "`init` creates `.specguard/config.json`, `specs/README.md` and a `.specguard/.env` containing only a placeholder key, detects the language and test framework (Playwright forced by `--with-playwright`), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/cli.test.ts",
@@ -2203,7 +2204,7 @@
           "id": "harness-files",
           "ref": "capabilities/integration-surfaces#harness-files",
           "text": "`init` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/scaffold.test.ts",
@@ -2241,7 +2242,7 @@
           "id": "agent-wiring-and-runner",
           "ref": "capabilities/integration-surfaces#agent-wiring-and-runner",
           "text": "Setup merges an MCP server entry and a post-edit status hook into the agent's settings without removing unrelated keys (malformed existing JSON is reported and left unchanged); the generated commands use a resolved runner (`--runner node|npx|path`, otherwise `SPECGUARD_CLI`, a local binary, a global binary, then `npx -p specguard-ai specguard`); an entry written in an older broken form is repaired, and any other differing existing entry is never rewritten silently: a diff is printed and the file left alone unless `--update-hooks` is given",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/runner.test.ts",
@@ -2309,7 +2310,7 @@
           "id": "mcp-tools-parity",
           "ref": "capabilities/integration-surfaces#mcp-tools-parity",
           "text": "The MCP server runs over stdio, registers one tool per core command plus `read_spec` and `write_spec` (the pre-0.2 names only with `SPECGUARD_MCP_LEGACY=1`), calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/mcp-server.test.ts",
@@ -2407,7 +2408,7 @@
           "id": "mcp-activity-and-limits",
           "ref": "capabilities/integration-surfaces#mcp-activity-and-limits",
           "text": "Every MCP tool call appends a running entry and then a pass, fail or error entry with duration to `.specguard/activity-log.json`, which is bounded to the latest 200 entries once it exceeds 1 MB, recovers from invalid JSON and never throws; `read_spec` needs a spec key or path; MCP tools never perform effects outside the machine (remediate is scan-only and dry-run only, commit stages only SpecGuard-generated files)",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/ingest-tools.test.ts",
@@ -2421,7 +2422,7 @@
           "id": "action-gates",
           "ref": "capabilities/integration-surfaces#action-gates",
           "text": "The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, check, test, verify, scan; `deps` is an alias of `scan`), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -2459,7 +2460,7 @@
           "id": "action-fail-on",
           "ref": "capabilities/integration-surfaces#action-fail-on",
           "text": "`fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -2509,7 +2510,7 @@
           "id": "action-remediate-and-release",
           "ref": "capabilities/integration-surfaces#action-remediate-and-release",
           "text": "`mode: remediate` runs `specguard remediate` instead of the gates, adds `--pr` when asked, exposes the exit code, fails only on exit 1 or 11, and never merges; a release tag must equal the package version with the CLI published before the extension",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -2523,7 +2524,7 @@
           "id": "vscode-dashboard",
           "ref": "capabilities/integration-surfaces#vscode-dashboard",
           "text": "The VS Code extension adds an activity-bar sidebar and a singleton dashboard panel that run the CLI (resolved from a setting, a local binary or npx) and read `.specguard` files for coverage, pipeline status, drift, traceability and agent activity; commands needing a workspace report when none is open, the project can be switched, and no secrets are passed through",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "extension/src/cli-version.test.ts",
@@ -2634,6 +2635,12 @@
               "origin": "source"
             },
             {
+              "file": "extension/src/dashboard/coverage-parse.test.ts",
+              "line": 21,
+              "title": "folds a functional status report into one capability list",
+              "origin": "source"
+            },
+            {
               "file": "extension/src/dashboard/flow-events.test.ts",
               "line": 5,
               "title": "classifies a spec path",
@@ -2711,7 +2718,7 @@
           "id": "plugin-contract",
           "ref": "capabilities/integration-surfaces#plugin-contract",
           "text": "Optional behaviour is added through plugins named in `config.plugins`: a plugin may supply commands, catalog providers, implementation discoverers, external-id adapters, result sources, feature-state tuning, module stems and contract importers; an unknown or malformed plugin name is a configuration error where a pipeline loads it, and core never imports a plugin by name",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/feature-state-collect.test.ts",
@@ -2730,8 +2737,8 @@
         {
           "id": "feature-catalog",
           "ref": "capabilities/integration-surfaces#feature-catalog",
-          "text": "The feature catalog (the `feature-catalog` plugin) is a directory of YAML parsed with a real YAML parser and validated against a schema (an unversioned or malformed file or a duplicate feature id is an error naming the file; `catalogFormat: list` reads bare lists); built-in GraphQL, REST and tRPC discoverers and the generic, Zephyr and Jira external-id adapters need no other plugin, and `specguard features` lists each spec's feature back-references",
-          "proof": "proven",
+          "text": "The feature catalog (the `feature-catalog` plugin) is a directory of YAML parsed with a real YAML parser and validated against a schema (an unversioned or malformed file or a duplicate feature id is an error naming the file; `catalogFormat: list` reads bare lists; `catalogExclude` skips file names that match its globs before they are parsed); built-in GraphQL, REST and tRPC discoverers and the generic, Zephyr and Jira external-id adapters need no other plugin, and `specguard features` lists each spec's feature back-references",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/cli/features.test.ts",
@@ -2776,6 +2783,12 @@
               "origin": "source"
             },
             {
+              "file": "tests/plugins/catalog.test.ts",
+              "line": 87,
+              "title": "catalogExclude skips matching file names before they are parsed",
+              "origin": "source"
+            },
+            {
               "file": "tests/plugins/commands.test.ts",
               "line": 68,
               "title": "maps specs to catalog feature ids, as JSON a script can parse [features-json]",
@@ -2787,7 +2800,7 @@
           "id": "feature-state",
           "ref": "capabilities/integration-surfaces#feature-state",
           "text": "`features --state` reports per feature a summary, required channels and a state for UI, API and MCP (no, stub, built, broken, passing, proven) from specs, discovered implementations and test results matched by feature id, tag or external id, plus an agent gate that opens only on a latest passing unit or integration test; with no catalog it prints `[]` with a note and does not fail",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/feature-state-collect.test.ts",
@@ -2879,7 +2892,7 @@
           "id": "code-quality",
           "ref": "capabilities/integration-surfaces#code-quality",
           "text": "`quality` runs ESLint and Knip (and Ruff for Python) for every app or one app, can auto-fix lint issues, normalises findings into `.specguard/code-quality.json` with error and warning totals, exits 2 only when lint errors exist, treats an unavailable tool as a warning, and rejects an unknown app name with the list of known ones",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/quality-fix.test.ts",
@@ -2893,7 +2906,7 @@
           "id": "git-helpers",
           "ref": "capabilities/integration-surfaces#git-helpers",
           "text": "`commit` stages and commits only SpecGuard-generated paths (tests, docs, specs, `.specguard/` and the directories the config writes to), supports `--dry-run`, a custom message and an originating pipeline, reports a clean tree or nothing to commit with success, fails with exit 1 when git is missing or git add or commit fails, and appends each commit to `.specguard/changelog.md`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/git-ops-changelog.test.ts",
@@ -2919,7 +2932,7 @@
           "id": "planned-reduced-surface",
           "ref": "capabilities/integration-surfaces#planned-reduced-surface",
           "text": "The surface is small: `analyze`, `plan-fix` and `deps` are gone (`check`, `security scan` and the remediation plan replace them, and the Action's `deps` gate is an alias of `scan`), and the MCP server registers about 16 core tools (`check`, `spec_graph`, `read_spec`, `write_spec`, `history_add`, `history_log`, `test_run`, `verify`, `security_scan`, `security_plan`, `proof_status`, `results_ingest`, `impact`, `contracts`, `workspace_status`, `init`) while the pre-0.2 tool names register only when `SPECGUARD_MCP_LEGACY=1`; plugin tools always register",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/env.test.ts",
@@ -2933,7 +2946,7 @@
           "id": "plugin-commands",
           "ref": "capabilities/integration-surfaces#plugin-commands",
           "text": "Plugin commands are registered on the CLI as `specguard <name>` and on the MCP server as `specguard_<name>` (with typed inputs when the command declares them), only while the plugin is enabled; config is read before commands are parsed, core commands and tools win a name clash, and a plugin that cannot be loaded is reported once and skipped so `init` still works with a broken config",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/functional-tools.test.ts",
@@ -2989,7 +3002,7 @@
           "id": "planned-plugin-extensions",
           "ref": "capabilities/integration-surfaces#planned-plugin-extensions",
           "text": "Plugins can add `detectors` (their findings become `code` items in the remediation plan under the owning capability, reported but never auto-patched, and closed only when the detector ran without warnings) and `docRenderers` (the docs API tries them before the model; a renderer that declines or fails falls through), and npm plugins load only from an explicit `{name, package}` allowlist in config, resolved from the project's own `node_modules`, because importing a package runs its code",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/security-scan.test.ts",
@@ -3045,8 +3058,8 @@
         {
           "id": "catalog-layout-config",
           "ref": "capabilities/integration-surfaces#catalog-layout-config",
-          "text": "The feature catalog's layout is entirely `featureState` config (catalog directory and format, results directories, id rules, placeholder and MCP patterns, repo channels, module stems, and where agent tools are declared and which of them do not count); no platform's layout is built in, and a test fails if a customer platform is named anywhere in code, docs or specs",
-          "proof": "proven",
+          "text": "The feature catalog's layout is entirely `featureState` config (catalog directory and format, file-name globs to leave out, results directories, id rules, placeholder and MCP patterns, repo channels, module stems, and where agent tools are declared and which of them do not count); no platform's layout is built in, and a test fails if a customer platform is named anywhere in code, docs or specs",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/neutral.test.ts",
@@ -3079,6 +3092,12 @@
               "origin": "source"
             },
             {
+              "file": "tests/plugins/catalog.test.ts",
+              "line": 87,
+              "title": "catalogExclude skips matching file names before they are parsed",
+              "origin": "source"
+            },
+            {
               "file": "tests/plugins/discoverers.test.ts",
               "line": 179,
               "title": "finds the tool in the configured repo and directory, with the default declaration pattern [found]",
@@ -3102,7 +3121,7 @@
           "id": "contract-mappings-importer",
           "ref": "capabilities/integration-surfaces#contract-mappings-importer",
           "text": "The `contract-mappings` plugin adds contract edges from a JSON file of spec-to-provider mappings whose location and key names are `contractMappings` config, with plain defaults, and yields nothing for a missing or malformed file",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/commands.test.ts",
@@ -3122,7 +3141,7 @@
           "id": "core-plugin-boundary",
           "ref": "capabilities/integration-surfaces#core-plugin-boundary",
           "text": "Core reaches optional functionality only through enabled plugins: `quality` exists only when a plugin provides it, and core commands never run code quality themselves",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/commands.test.ts",
@@ -3135,9 +3154,9 @@
       ],
       "counts": {
         "claims": 23,
-        "proven": 22,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 22,
         "unexercised": 0,
         "error": 0,
         "unproven": 1,
@@ -3201,7 +3220,7 @@
           "id": "config-discovery",
           "ref": "capabilities/platform-foundation#config-discovery",
           "text": "Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config yields a not-found error that names the search start and suggests `specguard init`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3233,7 +3252,7 @@
           "id": "config-validation",
           "ref": "capabilities/platform-foundation#config-validation",
           "text": "Configuration is validated against one schema: invalid JSON or an invalid field fails with a readable invalid-config error, unknown keys and `_comment` are tolerated, and the directory that holds `.specguard/` is exposed to every pipeline as the root",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3253,7 +3272,7 @@
           "id": "config-extends",
           "ref": "capabilities/platform-foundation#config-extends",
           "text": "A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3273,7 +3292,7 @@
           "id": "config-apps-and-defaults",
           "ref": "capabilities/platform-foundation#config-apps-and-defaults",
           "text": "Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3287,7 +3306,7 @@
           "id": "default-glob-excludes",
           "ref": "capabilities/platform-foundation#default-glob-excludes",
           "text": "Glob expansion never descends into dependency, build or VCS directories (node_modules, dist, build, coverage, .next, .git) even when a pattern would reach them, returns only sorted, de-duplicated absolute file paths, and skips dot-files",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3331,7 +3350,7 @@
           "id": "llm-provider-layer",
           "ref": "capabilities/platform-foundation#llm-provider-layer",
           "text": "Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm.test.ts",
@@ -3405,7 +3424,7 @@
           "id": "llm-timeout-retry",
           "ref": "capabilities/platform-foundation#llm-timeout-retry",
           "text": "Each model attempt has a timeout; retryable failures (timeouts, rate limits, server errors, network resets) are retried with exponential backoff and jitter a configurable number of times, while authentication, validation and missing-key failures are never retried",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3443,7 +3462,7 @@
           "id": "llm-fallback-chain",
           "ref": "capabilities/platform-foundation#llm-fallback-chain",
           "text": "After a target exhausts its attempts, an ordered fallback chain (global or per pipeline) is tried; a budget or disabled-model error never triggers fallback",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3469,7 +3488,7 @@
           "id": "llm-model-tiers",
           "ref": "capabilities/platform-foundation#llm-model-tiers",
           "text": "Named model tiers `fast` and `frontier` can be configured; pipelines that summarise, document or propose history use `fast` and those that cluster or review specs use `frontier`, a pipeline's own override wins over its tier, and the tier wins over the global default",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-tiers.test.ts",
@@ -3495,7 +3514,7 @@
           "id": "llm-pipeline-overrides",
           "ref": "capabilities/platform-foundation#llm-pipeline-overrides",
           "text": "A per-pipeline override can set provider, model, key variable, tier and fallback for one named pipeline, where the pipeline name comes from the running CLI command or MCP tool",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3515,7 +3534,7 @@
           "id": "llm-budget-cap",
           "ref": "capabilities/platform-foundation#llm-budget-cap",
           "text": "A hard spend cap on tokens, calls or estimated dollars applies per process run, or per request scope in a server (each scope has its own count, budget, config and user, so concurrent requests cannot spend or reset one another's): once reached or projected to be crossed, every later call in that run or scope fails with a budget error and the CLI exits 8 and says why; a scope's user and labels are sent to the provider, and its usage is reported to its callback",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3571,7 +3590,7 @@
           "id": "llm-usage-log",
           "ref": "capabilities/platform-foundation#llm-usage-log",
           "text": "Every real call adds tokens, call count and estimated cost to a usage log, in total and per pipeline and model, using a built-in price table that config can override",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3591,7 +3610,7 @@
           "id": "llm-replay-record",
           "ref": "capabilities/platform-foundation#llm-replay-record",
           "text": "A replay provider serves recorded responses keyed by a hash of the prompt, system text and image bytes with no network call; a miss names the hash and how to record, and `--record` or config writes every real response so a later run reproduces it",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3617,7 +3636,7 @@
           "id": "llm-disabled-and-images",
           "ref": "capabilities/platform-foundation#llm-disabled-and-images",
           "text": "Setting the provider to `none` makes every model call fail with a disabled error without touching the network so deterministic-only runs work, and disallowing images rejects any call that carries them",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -3637,7 +3656,7 @@
           "id": "secret-redaction",
           "ref": "capabilities/platform-foundation#secret-redaction",
           "text": "The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as \"basic requirements\"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/redact.test.ts",
@@ -3717,7 +3736,7 @@
           "id": "filesystem-access",
           "ref": "capabilities/platform-foundation#filesystem-access",
           "text": "File access goes through small reader and writer helpers: reads return UTF-8 text and reject on a missing file, existence checks return false instead of throwing, and writes create intermediate directories and replace the file atomically (a temp file renamed over it, so a reader never sees half a write); sentinel-delimited regions let SpecGuard own part of a hand-written file without touching the rest, and generated run state is kept out of version control through a managed ignore block",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -3791,7 +3810,7 @@
           "id": "language-profiles",
           "ref": "capabilities/platform-foundation#language-profiles",
           "text": "Language and framework profiles describe source globs, test file naming, test command and result parsing for TypeScript, Python, Go, Rust and Java, detect the language from marker files with a fixed tie-break, and honour per-app prefix stripping when deriving feature names",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/language-profiles.test.ts",
@@ -3907,7 +3926,7 @@
           "id": "errors-and-exit-codes",
           "ref": "capabilities/platform-foundation#errors-and-exit-codes",
           "text": "Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, with remediation-specific codes 8 to 11 scoped to that command",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/errors.test.ts",
@@ -3981,7 +4000,7 @@
           "id": "single-version-source",
           "ref": "capabilities/platform-foundation#single-version-source",
           "text": "One build version is reported everywhere: `--version` prints it, `--version --json` prints name, version and Node version on one line, and the MCP server and extension report the same value",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/version.test.ts",
@@ -4001,7 +4020,7 @@
           "id": "glob-literal-parens",
           "ref": "capabilities/platform-foundation#glob-literal-parens",
           "text": "A glob names a path literally where it can: a parenthesised segment such as the Next.js route group `app/(authenticated)/page.tsx` matches the folder `(authenticated)` instead of being read as a glob group, while extglob forms (`!(a|b)`, `@(a|b)`) and already-escaped characters keep their meaning",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/reader.test.ts",
@@ -4020,9 +4039,9 @@
       ],
       "counts": {
         "claims": 20,
-        "proven": 20,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 20,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
@@ -4039,6 +4058,7 @@
       "parent": "system",
       "unit": ".",
       "ownedFiles": [
+        "specs/history/2026-10-15-catalog-exclude.md",
         "specs/history/2026-10-15-functional-specs-and-four-pillars.md",
         "specs/history/2026-10-15-local-first-specguard-with-an-optional-t.md",
         "src/cli/commands/history.ts",
@@ -6131,7 +6151,7 @@
           "id": "publish-snapshot",
           "ref": "capabilities/team-server#publish-snapshot",
           "text": "`specguard publish` writes one snapshot file holding the spec and history markdown, the trace model, the proof rows, the newest remediation plan and the contract graph, tagged with the project name, repository, branch, commit, origin and engine and hash versions; it never includes source code, working-tree files outside the spec tree, or prompts that were not committed as history, and it redacts credentials from every file; with `--push` or `--server` it also sends the snapshot to the project's team server, and a refusal or an unreachable server fails the command while the file is still written",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/publish.test.ts",
@@ -6162,6 +6182,18 @@
               "line": 92,
               "title": "rejects malformed, oversized and wrong-version input without throwing [malformed]",
               "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/team.test.ts",
+              "line": 90,
+              "title": "sends a large snapshot gzip-encoded, so a proxy with a 1 MB cap lets it through [gzip-push]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/server/central.test.ts",
+              "line": 128,
+              "title": "accepts a gzip-encoded snapshot, because proxies cap uploads at 1 MB, and refuses an expansion bomb or another encoding [gzip]",
+              "origin": "source"
             }
           ]
         },
@@ -6176,11 +6208,11 @@
           "id": "project-scoped-api",
           "ref": "capabilities/team-server#project-scoped-api",
           "text": "The API serves every project under `/api/v1/projects/:project/...`, lists projects at `/api/v1/projects`, and on a server with one project also serves the same routes without the prefix; a server with several projects answers an unprefixed route with a pointer to the prefixed form; besides the existing routes it serves specs with their file (and one spec's markdown), coverage per capability and unit, the document list, the contract graph and unresolved findings, and the web UI works under a path prefix and across projects",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 313,
+              "line": 335,
               "title": "serves one spec\\'s markdown from the snapshot [spec-file]",
               "origin": "source"
             },
@@ -6202,7 +6234,7 @@
           "id": "version-handshake",
           "ref": "capabilities/team-server#version-handshake",
           "text": "The API reports `apiVersion`, `engineVersion`, `hashVersion` and whether it accepts writes on `/health` and `/version`, so a client can refuse to mix incompatible data",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/client/client.test.ts",
@@ -6216,11 +6248,11 @@
           "id": "guarded-writes",
           "ref": "capabilities/team-server#guarded-writes",
           "text": "A registry that is not writable (the local `serve`) answers every write with 405; on a writable one a plan item is changed with `PATCH` by a signed-in maintainer, the change is attributed to them, a stale `If-Match` version is refused with 409 and writes nothing, and a lifecycle violation is refused with 422",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 227,
+              "line": 249,
               "title": "requires a token for plan changes made through the API, attributing them to its owner, and the CSRF header for browser sessions [writes]",
               "origin": "source"
             }
@@ -6230,7 +6262,7 @@
           "id": "team-server-storage",
           "ref": "capabilities/team-server#team-server-storage",
           "text": "A team server keeps its state behind one backend interface (snapshots, plans per project, a document cache per project, tokens, an audit trail and model usage), implemented for files and for Postgres and held to the same contract tests; a project is shown from its newest snapshot on the default branch, else its newest overall; concurrent edits to plans lose nothing, with Postgres using a revision check and retry instead of row locks",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/backend-contract.test.ts",
@@ -6286,41 +6318,41 @@
           "id": "team-server-auth",
           "ref": "capabilities/team-server#team-server-auth",
           "text": "Every route except `/health` needs a credential: a token (a person's, a project's CI token, or the operator's bootstrap token) or, for browsers, the sandbox's signed-in user header, which reads and mints a person's own tokens but never grants an administrative power; a bad token is refused even when the header is present; a project-scoped credential reaches only its project; nobody mints a token more powerful than their own, admin tokens come only from the admin route; tokens are stored as hashes, shown once, revocable by their owner, and audited; changes made from a browser session need the `X-Requested-With` header",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 83,
+              "line": 84,
               "title": "serves health to anyone and everything else only to a valid credential [auth-gate]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 100,
+              "line": 101,
               "title": "is mounted under its base path and nowhere else [base-path]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 113,
+              "line": 116,
               "title": "refuses a request target that is not a valid path, and an oversized body [bad-input]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 125,
+              "line": 147,
               "title": "lets a signed-in user mint their own token, never more power than they hold, and revoke it [own-tokens]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 147,
+              "line": 169,
               "title": "reserves administration for an admin token: the header never grants it, and the bootstrap token does [admin]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 159,
+              "line": 181,
               "title": "records who made and revoked tokens in the audit log [audit]",
               "origin": "source"
             }
@@ -6330,23 +6362,23 @@
           "id": "team-server-publish",
           "ref": "capabilities/team-server#team-server-publish",
           "text": "A project's CI token or a maintainer publishes a snapshot over HTTP, creating the project on first publish; the snapshot's plan is merged with the stored one, so statuses and tracker references that people set on the server survive a republish, an item marked fixed that a scan sees again reopens, and unresolved items the new plan lacks are kept unless that plan was made from the stored one",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 174,
+              "line": 196,
               "title": "accepts a snapshot from a project\\'s CI token and serves the project from it [publish-and-read]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 191,
+              "line": 213,
               "title": "keeps a credential to its own project, and refuses viewers, bad snapshots and a mismatched name [publish-guards]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 208,
+              "line": 230,
               "title": "keeps what trackers changed when CI publishes a newer plan [plan-survives-republish]",
               "origin": "source"
             }
@@ -6356,11 +6388,11 @@
           "id": "team-server-docs",
           "ref": "capabilities/team-server#team-server-docs",
           "text": "Documents on a team server are generated once per spec content, audience, prompt version and model and shared by everyone, and each generation runs in its own model scope with the requester's name, the project and the gateway's labels, so spend is attributed to the person who asked and recorded per user and project",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 246,
+              "line": 268,
               "title": "generates a document once for everyone, and attributes the model spend to whoever asked [docs-shared-and-attributed]",
               "origin": "source"
             }
@@ -6370,7 +6402,7 @@
           "id": "artifact-puller",
           "ref": "capabilities/team-server#artifact-puller",
           "text": "The server fetches the `specguard-evidence` artifacts CI uploaded for each configured repository on a timer, publishes the snapshot inside under the configured project with the commit and branch taken from the workflow run, skips what it already has and artifacts that are expired, oversized, invalid or from forks, and reports one repository's failure without stopping the others",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/puller.test.ts",
@@ -6402,17 +6434,17 @@
           "id": "remote-mcp",
           "ref": "capabilities/team-server#remote-mcp",
           "text": "The server answers MCP over HTTP at `/mcp` for token holders only, as read-only tools (projects, system, capability, spec, audit, coverage, docs, history, findings, plans) that go through the same API as the same identity, so access rules, project scoping and redaction are the API's",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/server/central.test.ts",
-              "line": 287,
+              "line": 309,
               "title": "needs a token, lists read-only tools, and answers them through the API as the caller [mcp]",
               "origin": "source"
             },
             {
               "file": "tests/server/central.test.ts",
-              "line": 303,
+              "line": 325,
               "title": "keeps a project-scoped token to its project even through MCP [mcp-scope]",
               "origin": "source"
             }
@@ -6422,7 +6454,7 @@
           "id": "local-first-fallback",
           "ref": "capabilities/team-server#local-first-fallback",
           "text": "Commands that can use a server resolve it from config or the environment, check its health with a short timeout and a compatible API version, and otherwise behave locally: reads fall back silently and say which source they used; a shared write goes to the server or, with none, is written locally and marked local-only; a server that answers but refuses (bad token, no permission, lifecycle violation) is an error and never a quiet switch to local; `server.mode: required` makes an unreachable server an error and `off` never contacts it; `check --team`, the plan commands, the MCP plan tool and the VS Code extension all follow this, and a token saved by `login` is checked against the server before it is kept",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "extension/src/api/connection.test.ts",
@@ -6515,49 +6547,49 @@
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 90,
+              "line": 113,
               "title": "reads plans from the server when it answers, and from local files, saying so, when it does not [read-fallback]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 106,
+              "line": 129,
               "title": "reads locally, without trying a server, when none is configured [no-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 120,
+              "line": 143,
               "title": "writes to the server when it answers, and leaves the local plan alone [write-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 130,
+              "line": 153,
               "title": "writes locally and says it is local-only when the server does not answer [write-local]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 142,
+              "line": 165,
               "title": "does not hide a refusal by writing locally: a wrong token is an error and nothing changes [no-silent-switch]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 159,
+              "line": 182,
               "title": "writes locally when the plan has not been published yet, and reports a lifecycle violation instead of working around it [not-on-server]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 176,
+              "line": 199,
               "title": "shows CI\\'s proofs set against this working tree\\'s [lines]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/team.test.ts",
-              "line": 189,
+              "line": 212,
               "title": "says no server answered rather than failing [degraded]",
               "origin": "source"
             }
@@ -6566,9 +6598,9 @@
       ],
       "counts": {
         "claims": 12,
-        "proven": 11,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 11,
         "unexercised": 0,
         "error": 0,
         "unproven": 1,
@@ -7667,15 +7699,15 @@
   "issues": [],
   "totals": {
     "claims": 223,
-    "proven": 192,
+    "proven": 122,
     "failed": 0,
-    "stale": 0,
+    "stale": 70,
     "unexercised": 0,
     "error": 0,
     "unproven": 31,
     "withTests": 192,
     "capabilities": 11,
-    "ownedFiles": 248,
+    "ownedFiles": 249,
     "sourceFiles": 228
   }
 }

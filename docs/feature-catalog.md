@@ -23,6 +23,7 @@ All keys are under `featureState`.
 |---|---|
 | `catalog` | Directory of catalog YAML files, relative to the config or workspace root. |
 | `catalogFormat` | `document` (default): files with `version: 1` and a `features:` list. `list`: files that are a bare list of features. |
+| `catalogExclude` | File-name globs (`*` and `?`) in the catalog directory that are not features. Matching files are skipped before they are parsed. |
 | `resultsDirs` | Directories of normalized test cases (JSON). |
 | `reporters` | Test-runner report files or globs read as results (`{ path, kind?, format? }`). |
 | `externalIds` | Adapters that read a test-management id from a result: `generic`, `zephyr`, `jira`. |

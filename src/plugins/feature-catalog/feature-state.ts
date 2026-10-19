@@ -497,7 +497,7 @@ export async function collectFeatureState(
   for (const provider of providers) {
     const dir = configured ?? provider.defaultDir;
     if (!dir) continue;
-    for (const feature of await provider.load({ rootDir, dir })) {
+    for (const feature of await provider.load({ rootDir, dir, exclude: fs.catalogExclude })) {
       if (seen.has(feature.id)) continue;
       seen.add(feature.id);
       features.push(feature);

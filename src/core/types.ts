@@ -447,6 +447,8 @@ export interface FeatureStateConfig {
   externalIds?: string[];
   /** `list`: catalog files are bare feature lists (no `version:` wrapper). Default `document`. */
   catalogFormat?: 'document' | 'list';
+  /** File-name globs in the catalog directory that are not features (`*` and `?`). */
+  catalogExclude?: string[];
   /** Extra directory stems tried when resolving a spec `module:` to a source file. */
   moduleStems?: string[];
   /** Ignore the first N dot-separated segments of a feature id when deciding which sibling a test file belongs to. */

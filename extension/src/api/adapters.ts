@@ -24,6 +24,7 @@ export function coverageFromApi(cov: CoverageResponse, specs: SpecsResponse, opt
       sourceCount: cov.totals.sourceFiles,
       testCount: cov.capabilities.filter((c) => c.tests > 0).length,
       percentage: cov.sourceCoverage,
+      basis: 'capability',
       items,
     },
   ];

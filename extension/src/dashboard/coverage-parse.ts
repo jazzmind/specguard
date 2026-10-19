@@ -2,8 +2,40 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { AppCoverage, CoverageItem } from './protocol.js';
 
+const V2_CAPABILITY = /^# (\S+) \[(capability|component)\] (\d+) files, (\d+) tests, (\d+) claims/;
+const V2_TOTAL = /TOTAL: (\d+) source files, (\d+) specs \((\d+)%\), (\d+) tests/;
+
+/**
+ * `specguard status` on a repo with functional specs prints one line per capability,
+ * not the per-file `# app (specDir)` report. Fold those into one coverage node.
+ */
+function parseV2Coverage(raw: string): AppCoverage[] {
+  const items: CoverageItem[] = [];
+  for (const line of raw.split('\n')) {
+    const header = line.match(V2_CAPABILITY);
+    if (header) {
+      items.push({ app: 'capabilities', key: header[1], hasSpec: true, hasTest: parseInt(header[4], 10) > 0 });
+      continue;
+    }
+    const missing = line.match(/^\s+\[missing-spec\]\s+(\S+)/);
+    if (missing) items.push({ app: 'capabilities', key: missing[1], hasSpec: false, hasTest: false });
+  }
+  const total = raw.match(V2_TOTAL);
+  const specs = items.filter((item) => item.hasSpec);
+  return [{
+    name: 'capabilities',
+    specCount: specs.length,
+    sourceCount: total ? parseInt(total[1], 10) : specs.length,
+    testCount: specs.filter((item) => item.hasTest).length,
+    percentage: total ? parseInt(total[3], 10) : (specs.length > 0 ? 100 : 0),
+    basis: 'capability',
+    items,
+  }];
+}
+
 /** Lenient parser for the text output of `specguard status` (no --json yet). */
 export function parseCoverageText(raw: string): AppCoverage[] {
+  if (/^# \S+ \[(?:capability|component)\]/m.test(raw)) return parseV2Coverage(raw);
   const apps: AppCoverage[] = [];
   const appSections = raw.split(/^# /m).filter(Boolean);
 
@@ -41,7 +73,7 @@ export function parseCoverageText(raw: string): AppCoverage[] {
       : specFirstSummary
         ? parseInt(specFirstSummary[2], 10)
         : items.filter((i) => i.hasTest).length;
-    apps.push({ name, specCount, sourceCount, testCount, percentage, items });
+    apps.push({ name, specCount, sourceCount, testCount, percentage, basis: 'file', items });
   }
   return apps;
 }
@@ -57,6 +89,7 @@ function walkMdFiles(dir: string): string[] {
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
+      if (e.name === '_archive') continue;
       results.push(...walkMdFiles(full));
     } else if (e.isFile() && e.name.endsWith('.md') && e.name !== 'README.md') {
       results.push(full);
