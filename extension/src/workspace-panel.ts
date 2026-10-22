@@ -14,6 +14,7 @@ import {
   getActiveWorkspaceRoot,
 } from './workspace-state.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
+import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 
 // ---------------------------------------------------------------------------
 // Panel singleton
@@ -26,7 +27,22 @@ type PanelMsg =
   | { type: 'ready' }
   | { type: 'runDrift' }
   | { type: 'runContracts' }
+  | { type: 'refreshAll' }
+  | { type: 'syncNow' }
+  | { type: 'setIgnore'; key: string; ignore: boolean }
   | { type: 'switchRepo'; absPath: string; key: string };
+
+/** Commands other parts of the extension use to drive an open panel. */
+export function registerWorkspacePanelCommands(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.workspacePanel.refresh', () => {
+      if (_panel) refreshStatus(_panel.webview);
+    }),
+    vscode.commands.registerCommand('specguard.workspacePanel.refreshAll', async () => {
+      if (_panel) await handleMessage({ type: 'refreshAll' });
+    }),
+  );
+}
 
 export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab: 'status' | 'drift' = 'status'): void {
   _context = context;
@@ -81,6 +97,26 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
   if (msg.type === 'runContracts') {
     // --force so the button actually rebuilds rather than merging into stale data
     await streamCommand('contracts', ['contracts', '--force'], 'contracts');
+    return;
+  }
+
+  if (msg.type === 'refreshAll') {
+    const root = getWorkspaceManifestRoot();
+    // Runs `check` in every active repo, then writes .specguard/rollup.json
+    if (root) await streamCommand('workspace check', ['check', '--workspace', root, '--refresh'], 'refresh');
+    if (_panel) refreshStatus(_panel.webview);
+    return;
+  }
+
+  if (msg.type === 'syncNow') {
+    if (_context) await syncCodeWorkspace(_context, { interactive: true });
+    if (_panel) refreshStatus(_panel.webview);
+    return;
+  }
+
+  if (msg.type === 'setIgnore') {
+    const root = getWorkspaceManifestRoot();
+    if (root && (await setRepoIgnored(root, msg.key, msg.ignore))) refreshStatus(_panel.webview);
     return;
   }
 
@@ -392,7 +428,18 @@ function buildHtml(_webview: vscode.Webview): string {
       </div>
     \`;
 
+    const toolbarHtml = \`
+      <div class="contracts-bar">
+        <div class="c-stat" style="opacity:.7">\${manifest.rollupAt ? 'Checked ' + new Date(manifest.rollupAt).toLocaleString() : 'Not checked yet'}\${manifest.codeWorkspace ? ' · follows ' + manifest.codeWorkspace.split('/').pop() : ''}</div>
+        <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
+          \${manifest.codeWorkspace ? '<button class="btn secondary" onclick="syncNow()">Sync folders</button>' : ''}
+          <button class="btn" onclick="refreshAll()">Refresh all repos</button>
+        </div>
+      </div>
+    \`;
+
     document.getElementById('status-content').innerHTML =
+      toolbarHtml +
       statsHtml +
       \`<div class="section-title">Repos</div><div class="repo-grid">\${activeCardsHtml}</div>\` +
       ignoredCardsHtml +
@@ -415,18 +462,38 @@ function buildHtml(_webview: vscode.Webview): string {
           <span class="badge \${roleClass}">\${repo.role}</span>
           \${repo._isActive ? '<span class="active-label">active</span>' : ''}
         </div>
+        \${rollupLine(repo)}
         <div class="repo-meta">
           <span class="spec-count"><span class="dot \${dotClass}"></span>\${specLabel}</span>
           \${repo.description ? \`<span style="opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="\${repo.description}">\${repo.description}</span>\` : ''}
         </div>
+        <div class="repo-meta">
+          \${ignored ? \`<span style="opacity:.6">\${repo.ignoreReason || 'ignored'}</span>\` : '<span></span>'}
+          <a href="#" onclick="event.stopPropagation();setIgnore('\${repo.key.replace(/'/g,"\\\\'")}', \${ignored ? 'false' : 'true'});return false">\${ignored ? 'Include' : 'Ignore'}</a>
+        </div>
       </div>
     \`;
+  }
+
+  /** One line of what the last workspace check recorded for the repo. */
+  function rollupLine(repo) {
+    const r = repo.rollup;
+    if (!r) return '';
+    if (r.state !== 'ok') return '<div class="repo-meta" style="opacity:.6">' + (r.state === 'no-trace' ? 'not checked yet' : r.state === 'no-config' ? 'no SpecGuard config' : 'unreadable state') + '</div>';
+    const sec = r.securityTotal > 0
+      ? ' · <span style="color:var(--vscode-testing-iconFailed)">' + r.securityCritical + 'c ' + r.securityHigh + 'h open</span>'
+      : '';
+    const warn = (r.failed ? ' · ' + r.failed + ' failed' : '') + (r.stale ? ' · ' + r.stale + ' stale' : '') + (r.incomplete ? ' · ' + r.incomplete + ' missing a layer' : '');
+    return '<div class="repo-meta" title="' + (r.lagging ? 'proofs are newer than this check' : '') + '"><span>' + r.proven + '/' + r.claims + ' proven (' + r.provenPct + '%)' + warn + sec + (r.lagging ? ' ⟳' : '') + '</span></div>';
   }
 
   // ── Drift streaming ────────────────────────────────────────────────────────
   function runDrift() { vscode.postMessage({ type: 'runDrift' }); }
   function runContracts() { vscode.postMessage({ type: 'runContracts' }); }
   function switchRepo(absPath, key) { vscode.postMessage({ type: 'switchRepo', absPath, key }); }
+  function setIgnore(key, ignore) { vscode.postMessage({ type: 'setIgnore', key, ignore }); }
+  function refreshAll() { vscode.postMessage({ type: 'refreshAll' }); }
+  function syncNow() { vscode.postMessage({ type: 'syncNow' }); }
 
   // ── Message handler ────────────────────────────────────────────────────────
   window.addEventListener('message', e => {

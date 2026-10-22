@@ -167,6 +167,7 @@ export async function runJobs(jobs: TestJob[], root: string, selection?: Map<str
       timeoutMs: job.timeoutMs,
       sandbox: job.sandbox,
       image: job.image,
+      passEnv: job.passEnv,
       selection: sel,
     });
     const rows = normalize(report, job, root);

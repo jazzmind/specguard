@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import {
   applyIgnore,
+  isActiveIgnore,
   dedupeAdvisories,
   loadIgnoreFile,
   meetsThreshold,
@@ -94,7 +95,13 @@ export async function detect(config: SpecGuardConfig, root: string, deps: Remedi
     all = all.filter((a) => [a.id, ...a.aliases].some((i) => i.toUpperCase() === want));
   }
 
-  const ignored = applyIgnore(all, loadIgnoreFile(root), deps.now());
+  const ignoreEntries = loadIgnoreFile(root);
+  const ignored = applyIgnore(all, ignoreEntries, deps.now());
+  // An expired entry (or one with no expiry) no longer suppresses anything: say so, so it is renewed or deleted on purpose.
+  for (const e of ignoreEntries) {
+    if (isActiveIgnore(e, deps.now())) continue;
+    warnings.push(e.expires ? `ignore entry ${e.id} expired on ${e.expires} and no longer suppresses it (${e.reason})` : `ignore entry ${e.id} has no expiry date, so it suppresses nothing`);
+  }
   const sorted = sortAdvisories(ignored.kept);
   const advisories = sorted.filter((a) => meetsThreshold(a.severity, opts.threshold));
   const belowThreshold = sorted.filter((a) => !meetsThreshold(a.severity, opts.threshold));

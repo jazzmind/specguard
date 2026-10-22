@@ -8,10 +8,20 @@
 import { capturePlan, recordPrompt, runHistoryAdd, runHistoryLog, type HistoryAddOpts } from '../../pipelines/history.js';
 import { loadCliConfig, outputResult, tryLoadCliConfig, type GlobalOpts } from './helpers.js';
 
-async function readStdin(): Promise<string> {
-  if (process.stdin.isTTY) return '';
+/** Hook input is a small JSON document; reading stops at this size so a runaway or hostile writer cannot exhaust memory. */
+export const MAX_STDIN_BYTES = 4 * 1024 * 1024;
+
+/** Read stdin up to `limit` bytes. Input over the limit is dropped whole (a truncated JSON document is useless). */
+export async function readStdin(stream: AsyncIterable<unknown> = process.stdin, limit = MAX_STDIN_BYTES): Promise<string> {
+  if (stream === process.stdin && process.stdin.isTTY) return '';
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
+  let size = 0;
+  for await (const chunk of stream) {
+    const buf = Buffer.from(chunk as Buffer);
+    size += buf.length;
+    if (size > limit) return '';
+    chunks.push(buf);
+  }
   return Buffer.concat(chunks).toString('utf8');
 }
 

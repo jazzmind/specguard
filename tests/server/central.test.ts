@@ -39,7 +39,7 @@ async function start(over: { basePath?: string; maxBodyBytes?: number } = {}) {
     port: 0,
     host: '127.0.0.1',
     workDir: mkdtempSync(path.join(os.tmpdir(), 'sg-central-work-')),
-    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@plymouthrock.com'], allowedDomain: 'plymouthrock.com' },
+    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@plymouthrock.com'], allowedDomain: 'plymouthrock.com', trustedProxies: ['127.0.0.1', '::1', '::ffff:127.0.0.1'] },
     ...over,
   });
   return { backend, base: server.url };

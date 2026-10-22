@@ -21,6 +21,7 @@ import path from 'node:path';
 import type { ZodType } from 'zod';
 
 import { SpecGuardError } from './errors.js';
+import { createSecretRedactor } from './redact.js';
 import { ExitCode } from './exit-codes.js';
 import { loadReplay, previewOf, replayKey, saveReplay, type ReplayKind } from './llm-replay.js';
 import {
@@ -343,7 +344,8 @@ async function invoke<T>(
         saveReplay(replayDir(), {
           kind,
           hash,
-          promptPreview: previewOf(opts.prompt),
+          // The preview is for people reading the recording, which is committed: no credentials in it.
+          promptPreview: createSecretRedactor().text(previewOf(opts.prompt)),
           provider: target.provider,
           model: target.model,
           recordedAt: new Date().toISOString(),
@@ -389,8 +391,31 @@ function userMessages(opts: LlmTextOpts) {
   ];
 }
 
+/**
+ * The prompt and system message with credentials masked. Every model call passes through here, so a key that was in a
+ * spec, a diff, a fetched page or an imported document does not leave the machine, whichever pipeline asked. The masks
+ * are the built-in credential ones (JWTs, bearer and basic tokens, provider API keys, private keys, `password=` values)
+ * plus `llm.redactPatterns`; `llm.redactPrompts: false` turns it off. A bad custom pattern is skipped, never fatal.
+ */
+export function redactedCall<T extends LlmTextOpts>(opts: T): T {
+  const rt = getLlmRuntime();
+  if (rt?.llm.redactPrompts === false) return opts;
+  const secrets = createSecretRedactor();
+  const custom: RegExp[] = [];
+  for (const source of rt?.llm.redactPatterns ?? []) {
+    try {
+      custom.push(new RegExp(source, 'gi'));
+    } catch {
+      /* skip a pattern that is not a regular expression */
+    }
+  }
+  const mask = (text: string): string => custom.reduce((out, re) => out.replace(re, '[REDACTED]'), secrets.text(text));
+  return { ...opts, prompt: mask(opts.prompt), ...(opts.system !== undefined ? { system: mask(opts.system) } : {}) };
+}
+
 /** Generate free-form text from the configured provider/model. */
-export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
+export async function llmGenerateText(raw: LlmTextOpts): Promise<string> {
+  const opts = redactedCall(raw);
   return invoke<string>(
     'text',
     opts,
@@ -414,7 +439,8 @@ export async function llmGenerateText(opts: LlmTextOpts): Promise<string> {
 }
 
 /** Generate a structured object validated against a Zod schema. */
-export async function llmGenerateObject<T>(opts: LlmObjectOpts<T>): Promise<T> {
+export async function llmGenerateObject<T>(raw: LlmObjectOpts<T>): Promise<T> {
+  const opts = redactedCall(raw);
   return invoke<T>(
     'object',
     opts,

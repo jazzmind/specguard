@@ -1,6 +1,9 @@
 /**
  * `specguard security` — generate security tests / run SAST (Phase 5).
  */
+import path from 'node:path';
+import { planToSarif } from '../../core/sarif.js';
+import { writeFile } from '../../core/writer.js';
 import { runSecurity } from '../../pipelines/security.js';
 import { planList, planSetStatus, planShow } from '../../pipelines/team.js';
 import { runSecurityFix, type SecurityFixOpts } from '../../pipelines/security-fix.js';
@@ -32,9 +35,16 @@ export async function securityCommand(opts: SecurityCliOpts): Promise<void> {
 
 // --- scan / fix / plan ------------------------------------------------------
 
-export async function securityScanCommand(opts: GlobalOpts & { minSeverity?: string; app?: string; specReview?: boolean }): Promise<void> {
+export async function securityScanCommand(opts: GlobalOpts & { minSeverity?: string; app?: string; specReview?: boolean; sarif?: string | true }): Promise<void> {
   const config = await loadCliConfig(opts);
-  outputResult(await runSecurityScan(config, { minSeverity: opts.minSeverity as Severity | undefined, app: opts.app, noSpecReview: opts.specReview === false }), opts);
+  const result = await runSecurityScan(config, { minSeverity: opts.minSeverity as Severity | undefined, app: opts.app, noSpecReview: opts.specReview === false });
+  if (opts.sarif !== undefined && result.plan) {
+    // Written even when the scan found something: that is when the upload matters.
+    const file = path.resolve(config.rootDir ?? process.cwd(), typeof opts.sarif === 'string' ? opts.sarif : '.specguard/security/scan.sarif');
+    await writeFile(file, `${JSON.stringify(planToSarif(result.plan), null, 2)}\n`);
+    result.messages.push(`sarif: ${path.relative(config.rootDir ?? process.cwd(), file)}`);
+  }
+  outputResult(result, opts);
 }
 
 export async function securityFixCommand(opts: GlobalOpts & SecurityFixOpts): Promise<void> {

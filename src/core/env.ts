@@ -7,8 +7,19 @@
  *
  * Spec: specs/capabilities/workspaces.md
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+
+/** A warning when `file` holds secrets and other users on the machine can read it. POSIX only; Windows has no such mode. */
+export function envFilePermissionWarning(file: string): string | undefined {
+  if (process.platform === 'win32') return undefined;
+  try {
+    const mode = statSync(file).mode & 0o777;
+    return mode & 0o077 ? `${file} is readable by other users (mode ${mode.toString(8)}): run chmod 600 on it, it holds secrets` : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Set the variables in `file` that are not already set. Best effort: an unreadable file is ignored. */
 function applyDotEnv(file: string, env: NodeJS.ProcessEnv): void {
@@ -49,9 +60,19 @@ function workspaceEnvFile(dir: string): string | undefined {
  * Load the environment files that apply to `dir`. The repo's file is applied first, so where both name a
  * variable the repo wins; the workspace's file only fills in what is still missing.
  */
-export function loadSpecGuardEnv(dir: string = process.cwd(), env: NodeJS.ProcessEnv = process.env): void {
+export function loadSpecGuardEnv(dir: string = process.cwd(), env: NodeJS.ProcessEnv = process.env): string[] {
+  const warnings: string[] = [];
   const repoEnv = path.join(dir, '.specguard', '.env');
-  if (existsSync(repoEnv)) applyDotEnv(repoEnv, env);
+  if (existsSync(repoEnv)) {
+    applyDotEnv(repoEnv, env);
+    const w = envFilePermissionWarning(repoEnv);
+    if (w) warnings.push(w);
+  }
   const workspaceEnv = workspaceEnvFile(dir);
-  if (workspaceEnv && workspaceEnv !== repoEnv) applyDotEnv(workspaceEnv, env);
+  if (workspaceEnv && workspaceEnv !== repoEnv) {
+    applyDotEnv(workspaceEnv, env);
+    const w = envFilePermissionWarning(workspaceEnv);
+    if (w) warnings.push(w);
+  }
+  return warnings;
 }

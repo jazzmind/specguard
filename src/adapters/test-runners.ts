@@ -21,6 +21,7 @@ import {
   type TestCaseResult,
 } from '../core/test-results.js';
 import { isDockerAvailable, runContainer } from './docker.js';
+import { getLlmRuntime } from '../core/llm-runtime.js';
 
 export const RUNNER_IDS = ['vitest', 'jest', 'playwright', 'pytest', 'junit', 'go', 'cargo'] as const;
 export type RunnerId = (typeof RUNNER_IDS)[number];
@@ -42,6 +43,8 @@ export interface TestRunOpts {
   runDir?: string;
   /** Keep the generated report file after reading it (for `results ingest` evidence). */
   keepReport?: boolean;
+  /** Credentials from `WITHHELD_ENV` (and the configured model key) the test command may see: the app's `test.passEnv`. */
+  passEnv?: string[];
 }
 
 export interface TestRunReport {
@@ -78,9 +81,22 @@ export interface TestRunnerAdapter {
   parse(text: string): TestCaseResult[];
 }
 
-function q(value: string): string {
+/**
+ * One argument that SpecGuard adds to a test command (a file to run, a report path), quoted for the shell the command
+ * runs in: single quotes on POSIX; double quotes under cmd.exe, which does not treat single quotes as quoting. A
+ * value cmd.exe cannot be given safely (a quote, `%`, a newline or NUL) is refused, never passed through.
+ */
+export function quoteArg(value: string, platform: NodeJS.Platform = process.platform): string {
+  if (value.includes('\0')) throw new Error('refusing to put a NUL in a test command');
+  if (platform === 'win32') {
+    if (/^[A-Za-z0-9_@+=:,./\\-]+$/.test(value)) return value;
+    if (/["%\r\n]/.test(value)) throw new Error(`refusing to pass ${JSON.stringify(value.slice(0, 60))} to cmd.exe: it contains a quote, a percent sign or a newline`);
+    return `"${value.endsWith('\\') ? `${value}\\` : value}"`;
+  }
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
 }
+
+const q = (value: string): string => quoteArg(value);
 
 const fileArgs = (selection: string[]) => selection.map(q).join(' ');
 
@@ -220,19 +236,37 @@ export function prepareRun(adapter: TestRunnerAdapter, opts: TestRunOpts, runDir
   return { command, env: rep.env ?? {}, file };
 }
 
+/**
+ * Credentials that SpecGuard itself uses and a project's tests have no business with. They are taken out of the
+ * environment of a test command (the command is project code, and so are the dependencies it loads) unless the app's
+ * `test.passEnv` names them, for the project whose tests really do call a model.
+ */
+export const WITHHELD_ENV = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'LITELLM_API_KEY', 'SPECGUARD_TOKEN', 'SPECGUARD_BOOTSTRAP_TOKEN'];
+
+/** The environment a test command runs with: ours, minus the withheld credentials, plus what the adapter adds. */
+export function testEnv(base: NodeJS.ProcessEnv, extra: Record<string, string>, opts: { passEnv?: string[]; withholdEnv?: string[] } = {}): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = { ...base };
+  const pass = new Set(opts.passEnv ?? []);
+  for (const name of [...WITHHELD_ENV, ...(opts.withholdEnv ?? [])]) if (!pass.has(name)) delete out[name];
+  return { ...out, ...extra };
+}
+
 /** Exec seam: tests replace `testRunnerSeam.exec` to avoid spawning real runners. */
 export const testRunnerSeam = {
   exec(
     command: string,
-    opts: { cwd: string; env: Record<string, string>; timeoutMs: number },
+    opts: { cwd: string; env: Record<string, string>; timeoutMs: number; passEnv?: string[]; withholdEnv?: string[] },
   ): { output: string; exitCode: number; timedOut: boolean } {
+    // The command is the project's own configured test command (a command line, like an npm script, which may use
+    // pipes and `&&`), so it runs in a shell. Everything SpecGuard appends to it is quoted by `quoteArg`.
+    // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
     const res = spawnSync(command, {
       cwd: opts.cwd,
       shell: true,
       encoding: 'utf-8',
       maxBuffer: 64 * 1024 * 1024,
       timeout: opts.timeoutMs,
-      env: { ...process.env, ...opts.env },
+      env: testEnv(process.env, opts.env, opts),
     });
     const timedOut = (res.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
     return {
@@ -290,7 +324,15 @@ export async function runTests(adapterId: RunnerId, opts: TestRunOpts): Promise<
     exitCode = res.exitCode;
     timedOut = res.exitCode === -1 && /ETIMEDOUT|timed out/i.test(res.stderr);
   } else {
-    const res = testRunnerSeam.exec(prepared.command, { cwd: opts.cwd, env: prepared.env, timeoutMs });
+    const llm = getLlmRuntime()?.llm;
+    const res = testRunnerSeam.exec(prepared.command, {
+      cwd: opts.cwd,
+      env: prepared.env,
+      timeoutMs,
+      passEnv: opts.passEnv,
+      // the key the project configured for SpecGuard's own model calls, whatever it is called
+      withholdEnv: [llm?.apiKeyEnv, ...(llm?.fallback ?? []).map((t) => t.apiKeyEnv), ...Object.values(llm?.models ?? {}).map((t) => t?.apiKeyEnv)].filter((n): n is string => Boolean(n)),
+    });
     output = res.output;
     exitCode = res.exitCode;
     timedOut = res.timedOut;

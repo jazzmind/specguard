@@ -42,6 +42,10 @@ docs:
   - "README.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co
+  - 2026-10-22-0-3-phase-3-test-layers-and-ci
+  - 2026-10-22-security-no-data-classification-requirem
+  - 2026-10-22-security-no-access-control-requirement-o
 ---
 
 # Traceability and Drift

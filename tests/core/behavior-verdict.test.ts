@@ -166,3 +166,42 @@ describe('behavior verdict', () => {
     expect(computeVerdict(input({ build: { ok: false } })).verdict).toBe('CHANGED');
   });
 });
+
+describe('behavior verdict for a repair [intended-flips]', () => {
+  const repair = (patchedClaims: Record<string, ClaimState>, patchedTests: TestCaseResult[]) =>
+    computeVerdict(input({
+      changeType: 'code', targetAdvisoryIds: [], advisoriesBefore: [], proofs: undefined,
+      baseline: snap([t('small'), t('large', 'fail')], { 'r:s#small': 'proven', 'r:s#large': 'failed' }),
+      patched: snap(patchedTests, patchedClaims),
+      intendedFlips: ['r:s#large'],
+    }));
+
+  // [claims: capabilities/security-and-remediation#app-fix-loop]
+  it('PRESERVED when the targeted claim is proven and nothing that passed has stopped', () => {
+    const v = repair({ 'r:s#small': 'proven', 'r:s#large': 'proven' }, [t('small'), t('large')]);
+    expect(v.reasons).toEqual([]);
+    expect(v.verdict).toBe('PRESERVED');
+  });
+
+  // [claims: capabilities/security-and-remediation#app-fix-loop]
+  it('CHANGED when the targeted claim is still not proven', () => {
+    const v = repair({ 'r:s#small': 'proven', 'r:s#large': 'failed' }, [t('small'), t('large', 'fail')]);
+    expect(v.verdict).toBe('CHANGED');
+    expect(v.reasons.map((r) => r.kind)).toContain('target-unfixed');
+    expect(v.reasons.find((r) => r.kind === 'target-unfixed')?.detail).toContain('r:s#large (failed)');
+  });
+
+  // [claims: capabilities/security-and-remediation#app-fix-loop]
+  it('CHANGED when the repair fixes the target but breaks a claim that was proven', () => {
+    const v = repair({ 'r:s#small': 'failed', 'r:s#large': 'proven' }, [t('small', 'fail'), t('large')]);
+    expect(v.verdict).toBe('CHANGED');
+    expect(v.reasons.map((r) => r.kind).sort()).toEqual(['claim-dropped', 'test-regressed']);
+  });
+
+  // [claims: capabilities/security-and-remediation#app-fix-loop]
+  it('without intended flips a claim that was failing and is proven is simply not a drop, and nothing is required of it', () => {
+    const v = computeVerdict(input({ changeType: 'code', targetAdvisoryIds: [], advisoriesBefore: [], proofs: undefined, baseline: snap([t('a', 'fail')], { 'r:s#x': 'failed' }), patched: snap([t('a', 'fail')], { 'r:s#x': 'failed' }) }));
+    expect(v.reasons.map((r) => r.kind)).not.toContain('target-unfixed');
+  });
+});
+

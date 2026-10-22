@@ -61,6 +61,11 @@ export interface VerdictInput {
   baselineUnexercised?: string[];
   /** Treat baseline-unexercised claims as inconclusive. Default true. */
   strictUnexercised?: boolean;
+  /**
+   * Claims the change is meant to repair: failing before, and required to be proven after. Every other claim must
+   * behave as it does without this list. Used when the change is a fix to the application, not a dependency bump.
+   */
+  intendedFlips?: string[];
 }
 
 export interface Reason {
@@ -123,6 +128,9 @@ export function computeVerdict(input: VerdictInput): VerdictResult {
     if (to === 'failed' || to === 'error' || to === 'unexercised') claimDrops.push({ claim, from, to });
   }
   if (claimDrops.length) add('changed', 'claim-dropped', `${claimDrops.length} proven claim(s) dropped: ${claimDrops.slice(0, 5).map((c) => `${c.claim} (${c.to})`).join('; ')}`);
+  // A repair is only a repair if the claims it targets are proven afterwards.
+  const unfixed = (input.intendedFlips ?? []).filter((ref) => input.patched.claims[ref] !== 'proven');
+  if (unfixed.length) add('changed', 'target-unfixed', `${unfixed.length} targeted claim(s) are still not proven after the change: ${unfixed.slice(0, 5).map((c) => `${c} (${input.patched.claims[c] ?? 'not run'})`).join('; ')}`);
   const baseClaims = Object.keys(input.baseline.claims).length;
   const patchedClaims = Object.keys(input.patched.claims).length;
   if (patchedClaims !== baseClaims) add('changed', 'claim-count', `claim count changed from ${baseClaims} to ${patchedClaims}`);

@@ -23,10 +23,11 @@ export async function proofStatusCommand(opts: ProofCliOpts): Promise<void> {
   const config = await loadCliConfig(opts);
   const result = emptyResult('proof-status');
   await appendProofCoverage(config, (line) => result.messages.push(line), { ledger: opts.ledger });
-  const failed = result.messages.some((line) => line.includes('[proof-failed]') || line.includes('[proof-stale]'));
+  // A claim missing a required layer fails only when the project asks for it (`proof.enforceLayers: fail`).
+  const bad = (line: string): boolean =>
+    line.includes('[proof-failed]') || line.includes('[proof-stale]') || (config.proof?.enforceLayers === 'fail' && line.includes('[proof-incomplete]'));
+  const failed = result.messages.some(bad);
   result.exitCode = failed ? ExitCode.ValidationFailed : ExitCode.Success;
-  result.failed = result.messages.filter(
-    (line) => line.includes('[proof-failed]') || line.includes('[proof-stale]'),
-  ).length;
+  result.failed = result.messages.filter(bad).length;
   outputResult(result, opts);
 }

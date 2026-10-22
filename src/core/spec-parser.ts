@@ -8,6 +8,7 @@
  * is the only function permitted to touch `node:fs`.
  */
 
+import { parseLayerRequirements } from './test-layers.js';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 
@@ -112,6 +113,8 @@ export function parseFrontmatter(content: string, file = '(spec)'): { meta: Spec
     if (value === null || value === undefined) continue;
     if ((LIST_KEYS as readonly string[]).includes(key)) {
       (meta as unknown as Record<string, string[]>)[key] = stringList(value, key, file);
+    } else if (key === 'layers') {
+      meta.layers = parseLayerRequirements(value);
     } else if (key === 'kind') {
       if (typeof value !== 'string' || !(SPEC_KINDS as readonly string[]).includes(value)) {
         throw new SpecFrontmatterError(file, `'kind' must be one of ${SPEC_KINDS.join(', ')}`);

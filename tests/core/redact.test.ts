@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createRedactor, loadRedactHook, luhnValid } from '../../src/core/redact.js';
+import { createRedactor, loadRedactHook, luhnValid, MAX_HOOK_RESULT_CHARS, RedactionHookError } from '../../src/core/redact.js';
 
 describe('built-in masks', () => {
   const r = createRedactor();
@@ -77,12 +77,39 @@ describe('configuration', () => {
     expect(seen).toEqual(['dom']);
   });
 
-  // [claims: capabilities/platform-foundation#secret-redaction]
-  it('a throwing hook never leaks: the built-in result stands', () => {
+  // [claims: capabilities/platform-foundation#redaction-hook-fails-closed]
+  it('a throwing hook fails closed: nothing is returned that the project\'s own rules did not see', () => {
     const r = createRedactor({}, () => {
       throw new Error('boom');
     });
-    expect(r.text('a@b.com')).toBe('[EMAIL]');
+    expect(() => r.text('a@b.com')).toThrow(RedactionHookError);
+    expect(() => r.text('a@b.com')).toThrow(/threw: boom/);
+  });
+
+  // [claims: capabilities/platform-foundation#redaction-hook-fails-closed]
+  it('a hook must return a string within the limit: a promise, a number or a flood is an error', () => {
+    const hook = (fn: () => unknown) => createRedactor({}, fn as never);
+    expect(() => hook(() => Promise.resolve('x')).text('t')).toThrow(/promise \(hooks are synchronous\)/);
+    expect(() => hook(() => 42).text('t')).toThrow(/not number/);
+    expect(() => hook(() => undefined).text('t')).toThrow(/not undefined/);
+    expect(() => hook(() => 'x'.repeat(MAX_HOOK_RESULT_CHARS + 1)).text('t')).toThrow(/over the limit/);
+    expect(hook((t: unknown) => `${t as string}!`).text('ok')).toBe('ok!');
+  });
+});
+
+describe('loadRedactHook paths [hook-path]', () => {
+  // [claims: capabilities/platform-foundation#hook-path-inside-project]
+  it('refuses a URL, a path outside the project and a symlink that leaves it, and accepts a file inside', async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-hookp-'));
+    const outside = mkdtempSync(path.join(os.tmpdir(), 'sg-hookp-out-'));
+    mkdirSync(path.join(dir, 'hooks'));
+    writeFileSync(path.join(outside, 'evil.mjs'), 'export default (t) => t;\n');
+    writeFileSync(path.join(dir, 'hooks', 'ok.mjs'), 'export default (t) => t.replace(/x/g, "y");\n');
+    symlinkSync(path.join(outside, 'evil.mjs'), path.join(dir, 'hooks', 'link.mjs'));
+    for (const bad of ['file:///etc/passwd', 'https://evil.example/h.mjs', 'data:text/javascript,export default 1', '../outside.mjs', path.join(outside, 'evil.mjs'), 'hooks/link.mjs']) {
+      await expect(loadRedactHook(dir, bad), bad).rejects.toThrow(/inside the project|not a URL/);
+    }
+    expect((await loadRedactHook(dir, 'hooks/ok.mjs'))('xx', 'text')).toBe('yy');
   });
 });
 

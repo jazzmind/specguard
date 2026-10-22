@@ -8,6 +8,7 @@
  *
  * Spec: specs/capabilities/conformance-testing.md
  */
+import { isInside } from '../core/safe-path.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -24,10 +25,14 @@ import { detectProvenance, type Provenance } from '../core/provenance.js';
 import { fileLedgerStore, type LedgerStore } from '../core/state/ledger-store.js';
 import { fileChangeResolver, loadAssessments } from '../core/drift-assessments.js';
 import {
+  effectiveClaimProof,
   effectiveVerdict,
+  mergeLayerRecord,
+  type ClaimProof,
   type ProofLedger,
   type ProofRecord,
 } from '../core/proof-ledger.js';
+import { requiredLayersFor, TEST_LAYERS, type EvidenceLayer, type TestLayer } from '../core/test-layers.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { parseSpecContent } from '../core/spec-parser.js';
 import {
@@ -55,6 +60,8 @@ const VerdictFileSchema = z.object({
       evidencePath: z.string().optional(),
       /** What produced the verdict: a test run (default) or the agentic browser run. */
       evidence: z.enum(['test', 'agentic']).optional(),
+      /** The test layer this evidence belongs to. Default: `functional` for the browser run, else unclassified. */
+      layer: z.enum([...TEST_LAYERS, 'unclassified']).optional(),
     }),
   ),
 });
@@ -291,6 +298,21 @@ async function storeFor(cwd: string, opts: ProofOpts, file: string): Promise<Led
   return opts.store ?? (await fileStoreFor(file, cwd));
 }
 
+/**
+ * An evidence path as it is stored: relative, with `..` collapsed, and inside the repository. Anything else (an absolute
+ * path, one that climbs out, a symlink that leaves) is not recorded, so a verdict file from outside cannot make the
+ * ledger, or anything that follows an evidence path, point somewhere it should not. The verdict itself is kept.
+ */
+export function safeEvidencePath(raw: string | undefined, root: string, warn: (message: string) => void = () => undefined): string | undefined {
+  if (raw === undefined) return undefined;
+  const abs = path.resolve(root, raw);
+  if (!isInside(root, abs)) {
+    warn(`evidence path "${raw.slice(0, 80)}" is outside the repository and was not recorded`);
+    return undefined;
+  }
+  return path.relative(root, abs).split(path.sep).join('/') || undefined;
+}
+
 export async function runProofIngest(
   verdictsPath: string,
   cwd: string,
@@ -368,7 +390,7 @@ export async function ingestVerdicts(
         dependencyFingerprint: dependencyFingerprint(located.repoDir),
         exercised: row.exercised ?? 0,
         counterexamples: row.counterexamples ?? 0,
-        evidencePath: row.evidencePath,
+        evidencePath: safeEvidencePath(row.evidencePath, cwd, (m) => result.messages.push(`${row.claim}: ${m}`)),
         evidence: row.evidence,
         origin: provenance.origin,
         ...(provenance.repo ? { repo: provenance.repo } : {}),
@@ -377,7 +399,12 @@ export async function ingestVerdicts(
         hashVersion: HASH_VERSION,
         ingestedAt: new Date().toISOString(),
       };
-      ledger.proofs[row.claim] = record;
+      // Evidence is kept per layer, so a browser failure and a passing unit test do not overwrite each other.
+      const layer: EvidenceLayer = row.layer ?? (row.evidence === 'agentic' ? 'functional' : 'unclassified');
+      const previous = ledger.proofs[row.claim];
+      // An unclassified `unexercised` row is a sweep marker for a claim no test cited: it replaces the row, layers and all.
+      const replacesRow = layer === 'unclassified' && (!previous?.layers || row.verdict === 'unexercised');
+      ledger.proofs[row.claim] = replacesRow ? record : mergeLayerRecord(previous, record, layer);
       result.updated += 1;
       result.items.push({ key: row.claim, status: 'updated', message: row.verdict });
       result.messages.push(`${row.claim}: ${row.verdict}`);
@@ -428,12 +455,21 @@ interface CoverageCounts {
   error: number;
   stale: number;
   unproven: number;
+  /** Claims not proven in every layer they require. Not part of the verdict counts above. */
+  incomplete: number;
 }
+
+/** What a verdict callback learns beyond the verdict: the claim's evidence by layer and what it still needs. */
+export interface ClaimDetail extends ClaimProof {
+  required: TestLayer[];
+}
+
+type VerdictCallback = (ref: string, verdict: ReturnType<typeof effectiveVerdict>, detail?: ClaimDetail) => void;
 
 /** Effective verdict of every anchored claim (used by status, proof status and tests). */
 export async function walkClaimVerdicts(
   config: SpecGuardConfig,
-  onVerdict: (ref: string, verdict: ReturnType<typeof effectiveVerdict>) => void,
+  onVerdict: VerdictCallback,
   opts: ProofOpts = {},
 ): Promise<CoverageCounts | null> {
   return walkClaims(config, config.rootDir ?? process.cwd(), onVerdict, opts);
@@ -442,7 +478,7 @@ export async function walkClaimVerdicts(
 async function walkClaims(
   config: SpecGuardConfig,
   cwd: string,
-  onVerdict: (ref: string, verdict: ReturnType<typeof effectiveVerdict>) => void,
+  onVerdict: VerdictCallback,
   opts: ProofOpts = {},
 ): Promise<CoverageCounts | null> {
   const { file } = await resolveLedgerFile(cwd, opts);
@@ -451,7 +487,7 @@ async function walkClaims(
   const fingerprint = dependencyFingerprint(cwd);
   const assessments = loadAssessments(cwd);
   const repoKey = await repoKeyFor(cwd);
-  const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0 };
+  const counts: CoverageCounts = { proven: 0, failed: 0, unexercised: 0, error: 0, stale: 0, unproven: 0, incomplete: 0 };
   const top = path.resolve(cwd, config.paths?.specsRoot ?? 'specs');
   const specDirs = (await fileExists(top))
     ? [top]
@@ -475,15 +511,23 @@ async function walkClaims(
         }
         const ref = formatClaimRef(repoKey, spec.specKey, claim.id);
         const record = ledger.proofs[ref] ?? ledger.proofs[formatClaimRef(undefined, spec.specKey, claim.id)];
-        const verdict = effectiveVerdict(record, {
-          specHash,
-          claimHash: claimHashOf(spec, claim.id),
-          fileChange: fileChangeResolver(assessments, spec.specKey, claim.id),
-          fileHashes: record ? currentFileHashes(cwd, record.fileHashes) : {},
-          dependencyFingerprint: fingerprint,
-        });
-        counts[verdict] += 1;
-        onVerdict(ref, verdict);
+        const required = requiredLayersFor(claim.id, spec.meta.layers, config.proof?.requiredLayers);
+        const claimHash = claimHashOf(spec, claim.id);
+        const fileChange = fileChangeResolver(assessments, spec.specKey, claim.id);
+        const proof = effectiveClaimProof(
+          record,
+          (_layer, layerProof) => ({
+            specHash,
+            claimHash,
+            fileChange,
+            fileHashes: currentFileHashes(cwd, layerProof.fileHashes),
+            dependencyFingerprint: fingerprint,
+          }),
+          required,
+        );
+        counts[proof.verdict] += 1;
+        if (required.length > 0 && !proof.complete && proof.verdict !== 'unproven') counts.incomplete += 1;
+        onVerdict(ref, proof.verdict, { ...proof, required });
       }
     }
   }
@@ -497,7 +541,18 @@ export async function appendProofCoverage(
   opts: ProofOpts = {},
 ): Promise<void> {
   const cwd = config.rootDir ?? process.cwd();
-  const counts = await walkClaims(config, cwd, (ref, verdict) => {
+  const enforce = config.proof?.enforceLayers ?? 'warn';
+  const tally = new Map<TestLayer, { required: number; proven: number }>();
+  const counts = await walkClaims(config, cwd, (ref, verdict, detail) => {
+    if (detail && detail.required.length > 0 && verdict !== 'unproven') {
+      for (const layer of detail.required) {
+        const t = tally.get(layer) ?? { required: 0, proven: 0 };
+        t.required += 1;
+        if (detail.layers[layer] === 'proven') t.proven += 1;
+        tally.set(layer, t);
+      }
+      if (!detail.complete && enforce !== 'off') log(`  [proof-incomplete] ${ref} (missing: ${detail.missing.join(', ')})`);
+    }
     if (verdict === 'proven' || verdict === 'unproven') return;
     log(`  [proof-${verdict}] ${ref}`);
   }, opts);
@@ -509,6 +564,9 @@ export async function appendProofCoverage(
     `PROOFS: ${counts.proven} proven, ${counts.failed} failed, ${counts.error} error, ` +
       `${counts.unexercised} unexercised, ${counts.stale} stale, ${counts.unproven} unproven`,
   );
+  if (tally.size > 0) {
+    log(`LAYERS: ${TEST_LAYERS.filter((l) => tally.has(l)).map((l) => `${l} ${tally.get(l)!.proven}/${tally.get(l)!.required}`).join('  ')}${counts.incomplete > 0 ? `; ${counts.incomplete} claim(s) missing a required layer` : ''}`);
+  }
 }
 
 /**

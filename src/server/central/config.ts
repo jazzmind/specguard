@@ -4,6 +4,7 @@
  *
  * Spec: specs/capabilities/team-server.md
  */
+import { rateLimitsFromEnv, type RateLimitConfig } from './rate-limit.js';
 import path from 'node:path';
 
 import type { LlmConfig } from '../../core/types.js';
@@ -26,6 +27,7 @@ export interface CentralSettings {
   databaseUrl?: string;
   llm: LlmConfig;
   auth: Omit<AuthConfig, 'backend'>;
+  rateLimit: RateLimitConfig;
   github: {
     token?: string;
     sources: GithubSource[];
@@ -84,7 +86,9 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv, flags: CentralFlags = {}
       ...(env.SPECGUARD_BOOTSTRAP_TOKEN ? { bootstrapToken: env.SPECGUARD_BOOTSTRAP_TOKEN } : {}),
       emailHeader: (env.SPECGUARD_EMAIL_HEADER ?? 'x-deploykit-email').toLowerCase(),
       ...(env.SPECGUARD_ALLOWED_DOMAIN ? { allowedDomain: env.SPECGUARD_ALLOWED_DOMAIN } : {}),
+      ...(list(env.SPECGUARD_TRUSTED_PROXIES).length > 0 ? { trustedProxies: list(env.SPECGUARD_TRUSTED_PROXIES) } : {}),
     },
+    rateLimit: rateLimitsFromEnv(env),
     github: {
       ...(env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {}),
       sources: parseGithubSources(env.SPECGUARD_GITHUB_REPOS),
@@ -109,6 +113,7 @@ export function settingsWarnings(settings: CentralSettings): string[] {
   const out: string[] = [];
   if (!settings.auth.bootstrapToken) out.push('SPECGUARD_BOOTSTRAP_TOKEN is not set: nobody can create the first admin token, so CI tokens cannot be issued');
   if (!settings.auth.allowedDomain) out.push('SPECGUARD_ALLOWED_DOMAIN is not set: any value in the sign-in header is accepted as a viewer');
+  if (!settings.auth.trustedProxies?.length) out.push('SPECGUARD_TRUSTED_PROXIES is not set: the sign-in header is accepted from anywhere, so it signs in a viewer only and browser sessions cannot be maintainers (a container that can reach this server directly could forge it). Set it to the address of the sign-in proxy to enable SPECGUARD_MAINTAINER_EMAILS');
   if (settings.github.sources.length > 0 && !settings.github.token) out.push('SPECGUARD_GITHUB_REPOS is set but GITHUB_TOKEN is not: artifacts cannot be fetched');
   return out;
 }

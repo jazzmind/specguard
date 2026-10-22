@@ -15,7 +15,7 @@ import { serially } from '../../core/state/lock.js';
 import { filePlanStore } from '../../core/state/plan-store.js';
 import type { Snapshot } from '../../core/snapshot.js';
 import { writeFile } from '../../core/writer.js';
-import { PROJECT_NAME, type AuditEntry, type Backend, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow } from './backend.js';
+import { PROJECT_NAME, WORKSPACE_NAME, type AuditEntry, type Backend, type WorkspaceDef, type WorkspaceStore, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow } from './backend.js';
 
 const DEFAULT_BRANCHES = ['main', 'master'];
 
@@ -138,6 +138,25 @@ export function fileBackend(dir: string): Backend {
       }),
   };
 
+  const workspaceDir = path.join(dir, 'workspaces');
+  const safeWorkspace = (name: string): string => {
+    if (!WORKSPACE_NAME.test(name)) throw new Error(`invalid workspace name "${name}"`);
+    return name;
+  };
+  const workspaces: WorkspaceStore = {
+    async list() {
+      if (!fs.existsSync(workspaceDir)) return [];
+      return fs
+        .readdirSync(workspaceDir)
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => readJson<WorkspaceDef | null>(path.join(workspaceDir, f), null))
+        .filter((w): w is WorkspaceDef => Boolean(w))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    get: async (name) => (WORKSPACE_NAME.test(name) ? readJson<WorkspaceDef | undefined>(path.join(workspaceDir, `${safeWorkspace(name)}.json`), undefined) : undefined),
+    put: (def) => serially(workspaceDir, () => writeFile(path.join(workspaceDir, `${safeWorkspace(def.name)}.json`), JSON.stringify(def, null, 2))),
+  };
+
   const append = (file: string, value: unknown): Promise<void> =>
     serially(file, async () => {
       fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -150,6 +169,7 @@ export function fileBackend(dir: string): Backend {
     plans: (project) => filePlanStore(path.join(projectDir(project), 'plans')),
     cache: (project) => fileContentCache(projectDir(project)),
     tokens,
+    workspaces,
     audit: (entry: AuditEntry) => append(path.join(dir, 'audit.jsonl'), entry),
     usage: (row: UsageRow) => append(path.join(dir, 'usage.jsonl'), row),
     readAudit: async (limit = 200) => readLines<AuditEntry>(path.join(dir, 'audit.jsonl'), limit),

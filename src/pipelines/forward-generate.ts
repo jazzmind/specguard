@@ -39,6 +39,7 @@ import { emptyResult } from '../core/types.js';
 import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists } from '../core/reader.js';
+import { withLayerComment } from '../core/test-layers.js';
 import { writeFile } from '../core/writer.js';
 import { parseSpecContent, loadAllSpecs } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
@@ -202,7 +203,7 @@ function scenariosBlock(spec: ParsedSpec): string {
 }
 
 /** Claims that carry an anchor, with the exact tag a test title must include. */
-function claimsBlock(spec: ParsedSpec): { text: string; refs: string[] } {
+export function claimsBlock(spec: ParsedSpec): { text: string; refs: string[] } {
   const anchored = spec.claims.filter((c) => c.id);
   if (anchored.length === 0) return { text: '', refs: [] };
   const refs = anchored.map((c) => formatClaimRef(undefined, spec.specKey, c.id as string));
@@ -329,7 +330,9 @@ export async function runForwardGenerate(
         system: buildSystemPrompt(opts.type, profile),
         prompt,
       });
-      const testCode = stripFences(raw);
+      // The layer is recorded in the file, so it is still known when the test is run later.
+      const generated = stripFences(raw);
+      const testCode = opts.type ? withLayerComment(generated, opts.type, profile.id) : generated;
       await writeFile(targetTest, testCode);
       const present = new Set(extractClaimRefs(testCode));
       const missing = claims.refs.filter((ref) => !present.has(ref));

@@ -1,2 +1,5 @@
 allowBuilds:
   esbuild: true
+# Keep vite at a release with the 2026 launch-editor and server.fs fixes; vitest accepts any of 6, 7 or 8.
+overrides:
+  vite: ^7.3.7

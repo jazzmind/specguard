@@ -3,14 +3,15 @@
  *
  * Renders grouped pipeline actions:
  *   Specs   → import, reverse, gap
- *   Tests   → quality, functional (validate), drift, generate
+ *   Tests   → quality (while the quality plugin is on), functional (validate), drift, generate
  *   Security→ deps, sast, owasp, generate
  *   Docs    → trace (matrix), generate
+ *   Plugins → the commands of the enabled plugins
  *
  * Each leaf item fires a VS Code command when clicked.
- * The "Functional (validate)" item is collapsible with sub-options.
  */
 import * as vscode from 'vscode';
+import { enabledPluginCommands, pipelineAvailable, type PluginRow } from './plugins-model.js';
 
 // ---------------------------------------------------------------------------
 // Item model
@@ -21,6 +22,8 @@ interface PipelineAction {
   description?: string;
   icon: string;
   command: string;
+  /** Arguments passed to the command. */
+  args?: unknown[];
   contextValue?: string;
   children?: PipelineAction[];
 }
@@ -71,29 +74,6 @@ const PIPELINE_GROUPS: PipelineGroup[] = [
         description: 'run spec-driven tests',
         icon: 'run-all',
         command: 'specguard.validateFunctional',
-        children: [
-          {
-            label: 'All tests',
-            description: 'validate --all',
-            icon: 'run-all',
-            command: 'specguard.validateFunctionalAll',
-            contextValue: 'pipeline-action',
-          },
-          {
-            label: 'Integration tests',
-            description: 'validate --type integration',
-            icon: 'layers',
-            command: 'specguard.validateFunctionalIntegration',
-            contextValue: 'pipeline-action',
-          },
-          {
-            label: 'E2E tests',
-            description: 'validate --type e2e',
-            icon: 'browser',
-            command: 'specguard.validateFunctionalE2E',
-            contextValue: 'pipeline-action',
-          },
-        ],
       },
       {
         label: 'Code Drift',
@@ -180,7 +160,7 @@ class PipelineTreeItem extends vscode.TreeItem {
       this.command = {
         command: action.command,
         title: label,
-        arguments: [],
+        arguments: action.args ?? [],
       };
       this.tooltip = action.description ?? label;
       this.description = action.description;
@@ -202,6 +182,37 @@ class PipelineTreeItem extends vscode.TreeItem {
 export class PipelinesProvider implements vscode.TreeDataProvider<PipelineTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<PipelineTreeItem | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  /** The project's plugins, once known. Until then every action is shown. */
+  private pluginRows: PluginRow[] | undefined;
+
+  /** Tell the view which plugins are on, so it hides actions whose plugin is off and lists the plugins' own commands. */
+  setPluginRows(rows: PluginRow[] | undefined): void {
+    this.pluginRows = rows;
+    this.refresh();
+  }
+
+  private groups(): PipelineGroup[] {
+    const rows = this.pluginRows;
+    const groups = PIPELINE_GROUPS.map((g) => ({
+      ...g,
+      actions: g.actions.filter((a) => a.command !== 'specguard.qualityCheck' || pipelineAvailable(rows, 'quality').ok),
+    }));
+    const extra = rows ? enabledPluginCommands(rows).filter((c) => c.command !== 'quality') : [];
+    if (extra.length > 0) {
+      groups.push({
+        label: 'Plugins',
+        icon: 'extensions',
+        actions: extra.map((c) => ({
+          label: c.command,
+          description: `from ${c.plugin}`,
+          icon: 'play',
+          command: 'specguard.plugins.run',
+          args: [c.command],
+        })),
+      });
+    }
+    return groups;
+  }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
@@ -214,7 +225,7 @@ export class PipelinesProvider implements vscode.TreeDataProvider<PipelineTreeIt
   getChildren(element?: PipelineTreeItem): PipelineTreeItem[] {
     // Root: pipeline groups
     if (!element) {
-      return PIPELINE_GROUPS.map((group) =>
+      return this.groups().map((group) =>
         new PipelineTreeItem(
           group.label,
           vscode.TreeItemCollapsibleState.Collapsed,

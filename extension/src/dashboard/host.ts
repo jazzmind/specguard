@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, WorkspaceInfo, PipelineRunInfo, ProjectConfig } from './protocol.js';
 import { RUNNABLE_PIPELINES } from './protocol.js';
+import { PLUGIN_PIPELINES, pipelineAvailable } from '../plugins-model.js';
+import { getPlugins } from '../plugins-state.js';
 import { resolveCliPath, spawnCli, SpawnHandle, loadDotEnv } from './cli.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
@@ -236,6 +238,19 @@ export class DashboardHost {
       return;
     }
 
+    // Some pipelines exist only while a plugin is on; say so rather than fail with "unknown command".
+    if (PLUGIN_PIPELINES[pipeline]) {
+      const avail = pipelineAvailable((await getPlugins(this.workspaceRoot)).rows, pipeline);
+      if (!avail.ok) {
+        this.post({
+          type: 'error',
+          scope: pipeline,
+          message: `"${pipeline}" comes from the "${avail.plugin}" plugin, which is off in this project. Turn it on in the Plugins view.`,
+        });
+        return;
+      }
+    }
+
     const entry = RUNNABLE_PIPELINES.find((p) => p.id === pipeline);
     if (entry?.destructive) {
       const choice = await vscode.window.showWarningMessage(
@@ -295,8 +310,8 @@ export class DashboardHost {
 
       // Pipeline-specific post-run: read JSON output files and push rich events
       if (!cancelled) {
-        if (pipeline === 'heal' && ok) {
-          // Auto-commit after a successful heal — no user action needed.
+        if (pipeline === 'heal' && ok && pipelineAvailable((await getPlugins(this.workspaceRoot)).rows, 'commit').ok) {
+          // Auto-commit after a successful heal, when the git plugin that provides `commit` is on.
           this.post({ type: 'pipeline:log', pipeline: 'commit', line: '[auto] committing heal output…' });
           await this.run('commit', ['--pipeline', 'heal']);
         }

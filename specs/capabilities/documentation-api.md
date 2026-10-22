@@ -20,6 +20,12 @@ docs:
   - "docs/user/**"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-prompt-injection-via-spec-conte
+  - 2026-10-22-security-no-requirement-classifying-what
+  - 2026-10-22-security-no-rate-limit-on-api-endpoints
 ---
 
 # Documentation and API
@@ -59,6 +65,8 @@ Because the specs are kept current and traceable to code and tests, they are the
 - [ ] On a loopback address the server rejects any request whose Host header is not a local name (blocking DNS-rebinding reads from a hostile page), answers with `nosniff`, no-store and a content security policy on the UI, and sends cross-origin headers only when `--cors` names an origin <!-- claim: serve-host-guard -->
 - [ ] The web UI escapes all HTML in model-written markdown and links only http(s), site-relative and anchor URLs, so generated docs cannot inject script <!-- claim: ui-escapes-markdown -->
 - [ ] When the model is unavailable the user and dev audiences are rendered directly from the spec with a warning and are not cached, so the next request tries the model again; a spent LLM budget is reported as HTTP 429 instead <!-- claim: docs-model-fallback -->
+- [ ] The HTML page of both servers cannot be framed (`frame-ancestors 'none'` and `X-Frame-Options: DENY`), cannot set a base URL, load an object or post a form to another origin, and sends no referrer; JSON responses carry `nosniff` and `no-store` <!-- claim: html-headers -->
+- [ ] `specguard serve` binds loopback unless `--allow-remote` is given with `--host`, because its API has no authentication and is read-only for the person who started it; without the flag a wider address is refused with a message that points to `specguard server`, and a host name that merely starts with `127.` is not loopback <!-- claim: serve-bind-loopback -->
 
 ## Scenarios
 ### Scenario 1: Generate user docs

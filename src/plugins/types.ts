@@ -233,9 +233,18 @@ export interface DocRenderer {
   render(ctx: DocRenderContext): string | null | Promise<string | null>;
 }
 
+/** What a person choosing plugins needs to know. Optional for an npm plugin; built-ins are described in `catalog.ts`. */
+export interface PluginMeta {
+  title: string;
+  description: string;
+  version?: string;
+}
+
 /** A plugin bundles any of the interfaces. */
 export interface SpecGuardPlugin {
   id: string;
+  /** Shown by `plugin list` and the editor's Plugins view. */
+  meta?: PluginMeta;
   /** Commands added to the CLI and MCP server while the plugin is enabled. */
   commands?: PluginCommand[];
   catalogProviders?: CatalogProvider[];

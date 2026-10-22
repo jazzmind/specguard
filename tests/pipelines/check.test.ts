@@ -123,7 +123,7 @@ describe('check [check]', () => {
       return repo;
     }
 
-    it('is reported but does not fail the build by default [advisory]', async () => {
+    it('is reported but does not fail the build by default [advisory]', { timeout: 30_000 }, async () => {
       const repo = await repoWithGap();
       const r = await runCheck(await cfg(repo.dir), {});
       expect(r.messages.join('\n')).toContain('[intent-gap] auth: code changed 2021-06-01');

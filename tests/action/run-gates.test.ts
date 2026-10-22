@@ -5,7 +5,7 @@ import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 // @ts-expect-error plain ESM script without type declarations
-import { argsFor, averageAlignment, DEFAULT_FAIL_ON, evaluate, main, parseProofCounts, splitList } from '../../action/run-gates.mjs';
+import { argsFor, averageAlignment, buildComment, COMMENT_MARKER, DEFAULT_FAIL_ON, evaluate, main, metricsOf, parseProofCounts, postComment, previousMetrics, splitList } from '../../action/run-gates.mjs';
 
 const root = path.join(__dirname, '..', '..');
 
@@ -177,5 +177,98 @@ describe('remediate mode', () => {
     expect(text).toContain('specguard remediate $args');
     expect(text).toContain('--pr');
     expect(text).not.toMatch(/gh pr merge|--auto|automerge/i);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-affected-since]
+  it('measures affected units against the pull request base, not the working tree [affected-since]', () => {
+    // On a clean checkout `--affected` alone compares the working tree with HEAD: nothing changed, nothing tested.
+    expect(argsFor('test', { SG_AFFECTED: 'true', SG_BASE_REF: 'abc123' })).toEqual(['test', 'run', '--affected', '--since', 'abc123']);
+    expect(argsFor('test', { SG_AFFECTED: 'true', SG_BASE_REF: 'abc123', SG_AFFECTED_SINCE: 'origin/main' })).toEqual(['test', 'run', '--affected', '--since', 'origin/main']);
+    expect(argsFor('test', { SG_AFFECTED: 'true', SG_AFFECTED_SINCE: '' })).toEqual(['test', 'run', '--affected']);
+    expect(argsFor('test', { SG_BASE_REF: 'abc123' })).toEqual(['test', 'run']);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-fail-on]
+  it('trips proof-incomplete on claims missing a required layer, and counts none from an older CLI [proof-incomplete]', () => {
+    const messages = [
+      '  [proof-incomplete] capabilities/auth#login (missing: e2e)',
+      '  [proof-incomplete] capabilities/auth#logout (missing: unit)',
+      'PROOFS: 5 proven, 0 failed, 0 error, 0 unexercised, 0 stale, 0 unproven',
+    ];
+    expect(parseProofCounts(messages).incomplete).toBe(2);
+    expect(evaluate({ proof: { ran: true, exitCode: 0, messages } }, ['proof-incomplete']).tripped).toEqual(['proof-incomplete']);
+    expect(evaluate({ proof: { ran: true, exitCode: 0, messages } }, ['proof-failed']).tripped).toEqual([]);
+    const older = ['PROOFS: 5 proven, 0 failed, 0 error, 0 unexercised, 0 stale, 0 unproven'];
+    expect(parseProofCounts(older).incomplete).toBe(0);
+    expect(evaluate({ proof: { ran: true, exitCode: 0, messages: older } }, ['proof-incomplete']).tripped).toEqual([]);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-pr-comment]
+  it('reads the numbers a run printed, and shows how each moved since the last comment [comment-metrics]', () => {
+    const runs = {
+      check: { ran: true, exitCode: 0, messages: ['TOTAL: 120 source files, 110 specs (92%), 90 tests (75%), 10 missing specs'] },
+      proof: { ran: true, exitCode: 0, messages: ['  [proof-incomplete] x#a (missing: e2e)', 'PROOFS: 40 proven, 2 failed, 0 error, 0 unexercised, 3 stale, 5 unproven', 'LAYERS: unit 38/40  e2e 1/4; 1 claim(s) missing a required layer'] },
+      scan: { ran: true, exitCode: 5, messages: ['security scan: 4 item(s), 2 unresolved at or above high; plan scan-1'] },
+    };
+    expect(metricsOf(runs)).toEqual({
+      sourceFiles: 120, specPct: 92, testedPct: 75, missingSpecs: 10,
+      proven: 40, failed: 2, stale: 3, unproven: 5, incomplete: 1, layers: { unit: [38, 40], e2e: [1, 4] },
+      findings: 4, unresolved: 2,
+    });
+    expect(metricsOf({})).toEqual({});
+    const body = buildComment(runs, ['proof-failed'], ['a note'], { proven: 35, failed: 2, unresolved: 5, specPct: 92 });
+    expect(body).toContain(COMMENT_MARKER);
+    expect(body).toContain('**Failed on:** proof-failed');
+    expect(body).toContain('| Claims proven | 40 | ▲ better (35 → 40) |');
+    expect(body).toContain('| Unresolved findings | 2 | ▲ better (5 → 2) |'); // fewer findings is better
+    expect(body).toMatch(/\| Claims failed \| 2 \|\s+\|/); // unchanged: no arrow
+    expect(body).toContain('Proof by layer: unit 38/40 · e2e 1/4');
+    expect(previousMetrics(body)?.proven).toBe(40);
+    expect(previousMetrics('no marker')).toBeUndefined();
+    expect(buildComment({ proof: { ran: true, exitCode: 0, messages: ['PROOFS: 5 proven, 0 failed, 0 error, 0 unexercised, 0 stale, 0 unproven'] } }, [], [], { proven: 9 })).toContain('| Claims proven | 5 | ▼ worse (9 → 5) |');
+  });
+
+  // [claims: capabilities/integration-surfaces#action-pr-comment]
+  it('posts one comment, updates it on the next run, and never throws [comment-post]', async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-event-'));
+    const event = path.join(dir, 'event.json');
+    writeFileSync(event, JSON.stringify({ pull_request: { number: 7 } }));
+    const env = { SG_GITHUB_TOKEN: 't', GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: event, GITHUB_REPOSITORY: 'o/r' };
+    const calls: Array<{ url: string; method: string; body?: string }> = [];
+    const fakeFetch = (existing: unknown[]) => async (url: string, init: { method?: string; body?: string }) => {
+      calls.push({ url, method: init.method ?? 'GET', body: init.body });
+      if (!init.method) return { ok: true, status: 200, json: async () => existing };
+      return { ok: true, status: 200, json: async () => ({}) };
+    };
+
+    const first = await postComment(env, (prev: unknown) => `body ${prev === undefined ? 'fresh' : 'again'}`, fakeFetch([{ id: 1, body: 'someone else' }]) as never);
+    expect(first).toEqual({ posted: true, updated: false });
+    expect(calls.at(-1)).toMatchObject({ method: 'POST', url: 'https://api.github.com/repos/o/r/issues/7/comments', body: JSON.stringify({ body: 'body fresh' }) });
+
+    calls.length = 0;
+    const second = await postComment(env, (prev: unknown) => `body ${JSON.stringify(prev)}`, fakeFetch([{ id: 9, body: `${COMMENT_MARKER}\n<!-- specguard-metrics: {"proven":3} -->` }]) as never);
+    expect(second).toEqual({ posted: true, updated: true });
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', url: 'https://api.github.com/repos/o/r/issues/comments/9' });
+    expect(calls.at(-1)?.body).toContain('{\\"proven\\":3}');
+
+    expect((await postComment({ ...env, GITHUB_EVENT_NAME: 'push' }, () => 'x', fakeFetch([]) as never)).posted).toBe(false);
+    expect((await postComment({ ...env, SG_GITHUB_TOKEN: '' }, () => 'x', fakeFetch([]) as never)).posted).toBe(false);
+    const forbidden = async () => ({ ok: false, status: 403, json: async () => [] });
+    expect(await postComment(env, () => 'x', forbidden as never)).toEqual({ posted: false, reason: 'listing comments: HTTP 403' });
+    const boom = async () => {
+      throw new Error('network down');
+    };
+    expect(await postComment(env, () => 'x', boom as never)).toEqual({ posted: false, reason: 'network down' });
+  });
+
+  // [claims: capabilities/integration-surfaces#action-sarif]
+  it('writes SARIF from the scan gate only when asked [scan-sarif]', () => {
+    expect(argsFor('scan', {})).toEqual(['security', 'scan']);
+    expect(argsFor('scan', { SG_SARIF: 'true' })).toEqual(['security', 'scan', '--sarif']);
+    const action = parseYaml(readFileSync(path.join(root, 'action.yml'), 'utf8')) as { inputs: Record<string, { default?: string }>; runs: { steps: Array<{ uses?: string; if?: string }> } };
+    expect(action.inputs.comment.default).toBe('true');
+    expect(action.inputs.sarif.default).toBe('false');
+    const upload = action.runs.steps.find((st) => st.uses?.startsWith('github/codeql-action/upload-sarif'));
+    expect(upload?.if).toContain("inputs.sarif == 'true'");
   });
 });

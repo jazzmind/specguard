@@ -1,0 +1,1614 @@
+{
+  "version": 1,
+  "id": "scan-20261022T191306Z",
+  "createdAt": "2026-10-22T19:13:06.302Z",
+  "tool": {
+    "name": "specguard",
+    "version": "0.2.0"
+  },
+  "previous": "scan-20261022T190917Z",
+  "items": [
+    {
+      "id": "sec-05cfa7757d34",
+      "title": "No access control or authentication requirement for MCP tools exposing workspace graph and drift data",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that MCP tool endpoints must authenticate callers (e.g., via a shared secret, token, or OS-level restriction) and that only principals with explicit workspace-read permission may invoke read tools; only principals with workspace-write permission may invoke commands that write files or trigger drift runs.",
+      "findings": [
+        {
+          "id": "workspaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The MCP tools `specguard_contracts`, `specguard_impact`, `specguard_workspace_status`, and `specguard_workspace_drift` are listed as interfaces but no requirement specifies who may invoke them, what authentication is needed, or how authorization is enforced. These tools expose the full cross-repo contract graph, spec paths, API surface names, and drift status. An unauthenticated caller could enumerate the entire system topology or trigger drift runs against arbitrary repos listed in the manifest.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:23.936Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. The stdio MCP server runs as the user who started it and trusts its client; what is bounded instead: spec-only paths, per-minute limits, SPECGUARD_MCP_READONLY."
+        }
+      ],
+      "fingerprint": "05cfa7757d34"
+    },
+    {
+      "id": "sec-82f1b3d37d83",
+      "title": "No requirement governs who may invoke validation or the MCP tool against arbitrary URLs",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that (a) the MCP tool enforces caller authentication before accepting any validation request, and (b) a URL allowlist/denylist configuration controls which base URLs the agent is permitted to target, with production-like hostnames blocked by default unless explicitly whitelisted.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The CLI and MCP tool accept a `--url` base-URL override and a `--allow-outbound` flag with no requirement specifying authentication, authorization, or access control over who may point the agent at an arbitrary target. An unauthorized user (or a malicious CI actor) could redirect the agent to a production environment or an attacker-controlled server, causing credential exposure via outbound requests or exfiltrating page content captured in evidence. No requirement limits which URLs are permissible targets or requires any form of caller authentication for the MCP tool surface.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#validate-targets",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:24.157Z",
+          "by": "specguard-triage",
+          "note": "Agent-started checks may target only loopback and validate.allowedHosts (agent-target-allowlist); per-spec time and action bounds (verify-run-bounds); MCP call limits (mcp-limits)."
+        }
+      ],
+      "fingerprint": "82f1b3d37d83"
+    },
+    {
+      "id": "sec-a1ed06b4c0db",
+      "title": "No access control on inbox file containing redacted but sensitive prompt data",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `history inbox` creates `.specguard/history/inbox.jsonl` with owner-read/write-only permissions (mode 0600 on POSIX systems) and that `history add` / `history capture` create committed entry files with at most 0644. Document the expected umask or explicit chmod call.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec states that prompts 'routinely contain secrets, customer data and internal URLs' and that the inbox file at `.specguard/history/inbox.jsonl` is uncommitted and gitignored. However, no requirement specifies file-system permissions for the inbox file (e.g., mode 0600) or for the `specs/history/` directory. Any local user or process with access to the working directory can read the inbox, which may contain prompt text that survived redaction or partial redaction. The Security & Data Considerations section acknowledges the sensitivity but only mentions gitignore, not filesystem access controls.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-redaction"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:24.869Z",
+          "by": "specguard-triage",
+          "note": "The inbox is created 0600, prompts are cut to 50,000 characters and redacted first (hook-input-bounded)."
+        }
+      ],
+      "fingerprint": "a1ed06b4c0db"
+    },
+    {
+      "id": "sec-aa788e09ece8",
+      "title": "No authentication or authorization requirement on `security plan set-status` CLI and plan lifecycle API",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that `security plan set-status` and any API endpoint that mutates plan state must authenticate the caller (e.g., via a configured token or OS-level permission check) and that unauthenticated or unauthorized mutation attempts are rejected with a non-zero exit code and a logged audit entry.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec defines `security plan set-status` as the mechanism by which external trackers update plan item statuses (plan-lifecycle, plan-transitions), and the documentation API serves plans. However, no requirement specifies who is permitted to call `set-status`, what credentials or roles are required, or how the CLI or API authenticates callers. An unauthenticated actor could arbitrarily mark open vulnerabilities as 'wont-fix' or 'verified', silently suppressing real findings. The Security & Data Considerations section mentions LLM key handling but says nothing about access control for plan mutation.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#plan-lifecycle",
+        "capabilities/security-and-remediation#plan-transitions",
+        "capabilities/security-and-remediation#plan-carry-over"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:25.369Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. The CLI edits a file the user owns. On the team server the same change needs a maintainer token, is audited, and a refused attempt is audited too (server-audit-trail)."
+        }
+      ],
+      "fingerprint": "aa788e09ece8"
+    },
+    {
+      "id": "sec-c8f4314a49a7",
+      "title": "No authentication or authorization requirement for external verdict ingest endpoint",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that externally supplied verdict files must carry a verifiable signature or originate from an authenticated source, and that `proof ingest` rejects files whose provenance cannot be confirmed. At minimum require that CI-supplied files are written to a path only writable by the CI identity, and document the trust boundary explicitly.",
+      "findings": [
+        {
+          "id": "conformance-testing:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec allows external systems (QA services, manual test tools) to post verdict files via `specguard proof ingest`. The Security & Data Considerations section says verdict files are schema-checked and claim references must resolve, but there is no requirement governing who is permitted to call `proof ingest` or `results ingest`, what credentials or signatures are required, or how the tool verifies the origin of an externally supplied verdicts file. A malicious actor who can write a verdicts file to the filesystem or supply one via the MCP tool could inject fraudulent 'proven' verdicts into the ledger, causing a release to be approved on false evidence.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ingest-validation",
+        "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+        "capabilities/conformance-testing#proof-reporting"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:25.583Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. `proof ingest` reads a file the caller already controls; a signature beside it would protect nothing. CI evidence reaches the server by an authenticated token or a GitHub-authenticated artifact pull, and the ledger is re-proven from a clean checkout."
+        }
+      ],
+      "fingerprint": "c8f4314a49a7"
+    },
+    {
+      "id": "sec-ead84bb9cce7",
+      "title": "No authentication or access-control requirement for the HTTP API server",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that requests to sensitive endpoints (at minimum /security/plans and /audit) require a locally-generated bearer token or equivalent secret presented at server startup, so other local processes cannot read security-sensitive data without authorization.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec explicitly states 'Authentication and multi-user access control for the planned server' is out of scope, and no requirement restricts who may call the API endpoints. Although the server binds to localhost, the serve-host-guard requirement only blocks DNS-rebinding via Host-header checks. Any local process or user on the machine can freely read all capability specs, audit data, traceability matrices, security remediation plans, and generated docs via the API. Sensitive internal information (e.g., /security/plans, /audit) is exposed to every local process with no credential requirement.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#serve-readonly",
+        "capabilities/documentation-api#serve-host-guard",
+        "capabilities/documentation-api#audit-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:25.824Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. `serve` is loopback-only (--allow-remote to widen), checks the Host header and sets no CORS (serve-bind-loopback). The team server has tokens, roles, rate limits and an audit trail."
+        }
+      ],
+      "fingerprint": "ead84bb9cce7"
+    },
+    {
+      "id": "sec-f217d9cb555d",
+      "title": "Plugin and hook modules are loaded without integrity or path-restriction controls",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that plugin and hook module paths must resolve to locations within the repository root (as exposed by config-validation), that relative paths are resolved relative to the config file, that absolute paths outside the repo root are an invalid-config error, and that no URL schemes are permitted.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The Security & Data Considerations section states 'Config-selected plugin or hook modules execute code and are loaded only from paths the project names,' but no requirement enforces what constitutes a valid path (e.g., must be within the repo root, cannot be absolute paths pointing outside the repo, cannot be URLs). An attacker who can modify `.specguard/config.json` (e.g., via a dependency confusion or supply-chain PR) could point a plugin path at an arbitrary file system location or a network-loadable module and execute arbitrary code. The spec names no validation, sandboxing, or allowlist requirement for plugin/hook resolution.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#config-apps-and-defaults",
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:26.063Z",
+          "by": "specguard-triage",
+          "note": "A redaction hook must be a file inside the project, symlinks resolved, no URLs (hook-path-inside-project) and fails closed (redaction-hook-fails-closed); npm plugins are listed by validated package name, installed locally only (plugin-package-names); built-ins are by name."
+        }
+      ],
+      "fingerprint": "f217d9cb555d"
+    },
+    {
+      "id": "sec-165e685d3754",
+      "title": "vuln-ignore.json suppression file has no integrity or authorization requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that modifications to `.specguard/vuln-ignore.json` are subject to the same review process as code changes (e.g., require PR review), that the scan logs all suppressed advisories with their suppression reason and expiry, that expired entries are treated as if absent and logged as warnings, and that entries without an expiry date are rejected.",
+      "findings": [
+        {
+          "id": "security-and-remediation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The `unified-detection` requirement states advisories are suppressed by a `.specguard/vuln-ignore.json` file with expiry dates, but no requirement specifies who may modify this file, whether it must be signed or reviewed, or how tampering is detected. An attacker with write access to the repository (or a malicious dependency update) could add entries to this file to suppress real vulnerabilities indefinitely. The `plan-carry-over` requirement's careful rules about reopening 'fixed' items do not apply to ignore-file suppression, creating a bypass path.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#unified-detection",
+        "capabilities/security-and-remediation#scan-only-and-secrets",
+        "capabilities/security-and-remediation#plan-carry-over"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:26.573Z",
+          "by": "specguard-triage",
+          "note": "Expired and undated entries suppress nothing and are reported as warnings; suppressions are listed with reason and date (vuln-ignore-expiry). Review is the repository's own pull-request process."
+        }
+      ],
+      "fingerprint": "165e685d3754"
+    },
+    {
+      "id": "sec-17d48a7f5e00",
+      "title": "Prompt-injection via spec content sent to LLM is not addressed",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that spec content passed to the LLM is treated as untrusted user input: it must be placed in a delimited section of the prompt with explicit LLM instructions not to follow embedded instructions, and generated output must be validated to contain only the expected document structure before being cached or returned.",
+      "findings": [
+        {
+          "id": "documentation-api:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The docs-strip-internal requirement removes metadata, scenarios and security notes before sending spec text to the LLM, but the remaining spec content (requirements, problem statements, interface descriptions) is author-controlled text that could contain adversarial instructions. No requirement mandates sanitisation or isolation of spec content to prevent prompt injection that could cause the LLM to produce malicious output (e.g., exfiltration instructions embedded in generated docs, XSS payloads in markdown). The ui-escapes-markdown requirement partially mitigates the UI vector but does not address the API consumers who receive raw model output.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#docs-strip-internal",
+        "capabilities/documentation-api#fast-tier-on-demand",
+        "capabilities/documentation-api#docs-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:26.893Z",
+          "by": "specguard-triage",
+          "note": "Spec material is fenced as untrusted data and the system message says nothing inside is an instruction (untrusted-content-fenced); documents are cached per content hash."
+        }
+      ],
+      "fingerprint": "17d48a7f5e00"
+    },
+    {
+      "id": "sec-207d4f0e1f10",
+      "title": "No access-control requirement on MCP tool exposure of scan results and remediation actions",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that MCP tool invocations are gated by an authentication mechanism (e.g., a shared secret or OAuth token configured in the environment) and that the MCP server rejects unauthenticated calls. Additionally require that MCP exposure is disabled by default and must be explicitly enabled in config.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The MCP tools `specguard_security`, `specguard_security_scan`, `specguard_security_plan` and `specguard_remediate` are listed as interfaces with no requirement governing who may invoke them or how invocation is authenticated. Scan results can include file paths, package names, secret rule hits and finding summaries. The spec notes that reports 'should be treated as internal' but imposes no enforcement requirement on MCP access. A compromised or malicious MCP client could read all findings or trigger scan-only/dry-run operations to enumerate vulnerabilities.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#unified-scan",
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#plan-lifecycle"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:27.201Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. Scan results are files in the user's repository. MCP can run read-only (mcp-readonly) and is rate-limited (mcp-limits)."
+        }
+      ],
+      "fingerprint": "207d4f0e1f10"
+    },
+    {
+      "id": "sec-2dc44e983b5a",
+      "title": "Evidence path traversal not constrained by a normalisation requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that evidence paths are canonicalised (symlinks resolved, `..` collapsed) and then verified to lie within the repository root before being stored or read, and that ingest rejects any verdict whose evidence path fails this check.",
+      "findings": [
+        {
+          "id": "conformance-testing:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The Security & Data Considerations section states 'Evidence paths must stay inside the repository', but no requirement specifies how this is enforced: there is no requirement to normalise or canonicalise the path, reject `../` sequences, resolve symlinks, or compare the resolved path against the repository root before storing or reading the evidence. A crafted verdicts file containing a path like `../../etc/passwd` could satisfy a naive string prefix check while actually pointing outside the repository.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ledger-records-basis",
+        "capabilities/conformance-testing#ingest-validation"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:27.416Z",
+          "by": "specguard-triage",
+          "note": "Evidence paths are recorded only inside the repository, normalised; others are dropped with a message (evidence-path-inside-repo). Nothing in SpecGuard reads a file by an evidence path."
+        }
+      ],
+      "fingerprint": "2dc44e983b5a"
+    },
+    {
+      "id": "sec-3852f59a079e",
+      "title": "No rate-limit or call-frequency requirement on LLM-backed operations preventing cost and exfiltration abuse",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying a maximum number of LLM calls per scan run, a maximum payload size per call, and a configurable opt-out (`--no-llm` is already a flag on `remediate` but not on `security scan` or `security`). Require that `--no-llm` is honoured on all LLM-touching commands and that the scan aborts rather than silently skipping the limit.",
+      "findings": [
+        {
+          "id": "security-and-remediation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Multiple requirements (`owasp-test-stubs`, `spec-review`, `security-exit-and-report`) involve sending file contents or finding summaries to an external LLM. There is no requirement limiting how frequently these calls may be made, how much data may be sent per call, or how many files may be batched. A malicious or misconfigured CI pipeline could trigger continuous scans exfiltrating large amounts of source code to an external LLM endpoint, or exhaust API quotas. The spec mentions only that 'only the file named by a finding is sent for a code fix' for remediation, but no similar constraint exists for stub generation or spec review.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#owasp-test-stubs",
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#security-exit-and-report",
+        "capabilities/security-and-remediation#verify-after-patch"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:27.700Z",
+          "by": "specguard-triage",
+          "note": "Already available: llm.budget.maxCalls/maxTokens/maxUsd per process, --no-spec-review on security scan, --no-llm on remediate, llm.provider none; prompt payloads are capped per call. Credentials are masked in every prompt (prompt-redaction)."
+        }
+      ],
+      "fingerprint": "3852f59a079e"
+    },
+    {
+      "id": "sec-47c79894246f",
+      "title": "Redaction spec references a 'shared redactor' with no defined scope or failure mode",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that references or defines the redactor's pattern catalogue, specifies a fail-closed posture (if the redactor errors the entry is not written), and requires that `history add` and `history capture` surface a warning when redaction is skipped or degraded so operators know the risk.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Requirements `history-inbox-capture` and `history-redaction` rely on 'the shared secret redactor' applied twice. The spec never defines what patterns the redactor recognises (e.g., AWS key patterns, JWTs, URLs with credentials), what it does when it is uncertain (redact conservatively or pass through), or what happens when the redactor itself errors. Because committed history entries are described as 'append-only' with no automated deletion, a redaction miss permanently leaks a secret into the repository. The out-of-scope section confirms that manual editing is the only remediation, making the redactor's correctness critical.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-redaction",
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-plan-capture"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:27.889Z",
+          "by": "specguard-triage",
+          "note": "Defined: the built-in credential masks plus validate.redaction.patterns, applied to every prompt, plan and decision before anything is written, with no path that skips it; hooks fail closed (prompt-redaction, redaction-hook-fails-closed, log-redaction)."
+        }
+      ],
+      "fingerprint": "47c79894246f"
+    },
+    {
+      "id": "sec-4e788bdece5b",
+      "title": "No rate-limit or resource-limit requirement for LLM extraction over spec text",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add requirements that (1) `--with-llm` prints a clear warning listing which specs will be sent before proceeding (with a confirmation prompt in interactive mode), (2) there is a configurable per-run request cap, (3) specs matching a configurable exclusion pattern are never sent, and (4) the LLM provider endpoint and data-retention policy must be declared in workspace configuration.",
+      "findings": [
+        {
+          "id": "workspaces:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The `contract-sources` requirement allows `--with-llm` to send spec text to an LLM for free-text dependency extraction. No requirement limits which specs are sent, how large the payload may be, how many requests are made per run, or what happens if a spec contains sensitive information (e.g., internal API details, credentials embedded by mistake). A developer running `contracts --with-llm` on a large workspace could inadvertently exfiltrate all spec text to an external service without any warning.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#contract-sources"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:28.177Z",
+          "by": "specguard-triage",
+          "note": "contracts --with-llm sends only each spec's Dependencies section, says so and to which model, lists each spec and stops at --max-llm-specs (default 50) (contracts-llm-cap)."
+        }
+      ],
+      "fingerprint": "4e788bdece5b"
+    },
+    {
+      "id": "sec-5bd46552329f",
+      "title": "Spec-review findings containing source file content sent to LLM have no data-classification requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a data-classification requirement for spec files and source files transmitted to the LLM during spec review. At minimum, require that only the specific capability text relevant to a finding is included in the prompt, that no adjacent capability specs are included without explicit opt-in, and that a `--no-llm` flag suppresses spec review LLM calls with a warning.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "`spec-review` requires that `security scan` performs a capability-level review by an LLM, which presumably requires sending spec text and possibly related source files to the external model. The Security & Data Considerations section restricts what is sent for code fixes ('only the file named by a finding') but makes no equivalent statement for spec-level review. The data classification of spec files (which may contain internal architecture details, proprietary business logic, or references to sensitive endpoints) is never defined, and no requirement prevents sending entire capability specs to a third-party LLM.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#unified-scan"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:28.569Z",
+          "by": "specguard-triage",
+          "note": "Credentials are masked in every prompt (prompt-redaction); the review is skipped with --no-spec-review or llm.provider none; page and document text is fenced."
+        }
+      ],
+      "fingerprint": "5bd46552329f"
+    },
+    {
+      "id": "sec-65a2a0d0f7b8",
+      "title": "No authorization requirement for `GET /api/v1/units` endpoint",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `GET /api/v1/units` enforces authentication (e.g., bearer token or local-only binding) and that the `serve` command documents its trust boundary and defaults to listening only on localhost unless explicitly configured otherwise.",
+      "findings": [
+        {
+          "id": "workspaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec lists `GET /api/v1/units` as a served endpoint carrying per-unit rollup data (source files, capabilities, drift verdicts, unit keys). No requirement addresses who may call this endpoint, what authentication is required, or whether it is network-accessible. An unauthenticated remote caller could enumerate all units, their capabilities, and drift status.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#unit-aware-pipelines"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:28.999Z",
+          "by": "specguard-triage",
+          "note": "`serve` binds loopback unless --allow-remote is given, and says it has no authentication (serve-bind-loopback); the team server authenticates every route."
+        }
+      ],
+      "fingerprint": "65a2a0d0f7b8"
+    },
+    {
+      "id": "sec-690777a2a99e",
+      "title": "Budget cap is per-process only, enabling cost exhaustion across parallel CI runs",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the documentation (or a runtime warning) explicitly states the per-process scope of the budget cap, and consider adding an optional shared-budget file mechanism (e.g., an atomic counter in `.specguard/`) that multiple processes can read and update to enforce a cross-process cap.",
+      "findings": [
+        {
+          "id": "platform-foundation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The llm-budget-cap requirement states the cap applies 'per process run.' In a monorepo or matrix CI setup, many SpecGuard processes can run simultaneously, each with its own independent cap and usage log. There is no requirement for a shared or cross-process budget, nor any requirement to warn users that the per-process cap does not bound total spend across parallel jobs. A team lead who sets a cap expecting it to limit total pipeline cost will be surprised when N parallel jobs each spend up to the cap.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#llm-budget-cap",
+        "capabilities/platform-foundation#llm-usage-log"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:29.331Z",
+          "by": "specguard-triage",
+          "note": "Documented as per process in the Trust model and the budget claim; use the provider's own spend limit for a cap shared across parallel CI jobs."
+        }
+      ],
+      "fingerprint": "690777a2a99e"
+    },
+    {
+      "id": "sec-6b47af1e2c40",
+      "title": "init --history-hooks writes to personal, uncommitted settings with no integrity check",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: on each `init` or `scaffold` run, SpecGuard MUST verify that any previously written hook command matches the currently resolved runner; if it differs, it MUST print a diff and require `--update-hooks` to overwrite, identical to the behaviour specified in `agent-wiring-and-runner`. Additionally, the installed hook script MUST be restricted to the resolved absolute binary path, not a shell alias or PATH lookup.",
+      "findings": [
+        {
+          "id": "integration-surfaces:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Requirement `planned-history-hooks` states hooks are installed into `.claude/settings.local.json` (described as 'personal and uncommitted') so that prompts and plans are captured into requirement history. No requirement covers what happens if that file is replaced or tampered with after installation (e.g., by another tool or a supply-chain attack that redirects the hook to a malicious binary). There is also no requirement to verify that the resolved runner path written into the hook has not changed between `init` runs.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#planned-history-hooks",
+        "capabilities/integration-surfaces#agent-wiring-and-runner"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "verified",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:29.589Z",
+          "by": "specguard-triage",
+          "note": "Already specified and tested: a differing existing hook is left alone and its diff printed; --update-hooks is required to change it (agent-wiring-and-runner; history safe-merge and runner tests)."
+        },
+        {
+          "status": "verified",
+          "at": "2026-10-22T19:42:29.983Z",
+          "by": "specguard-triage",
+          "note": "Already specified and tested: a differing existing hook is left alone and its diff printed; --update-hooks is required to change it (agent-wiring-and-runner; history safe-merge and runner tests)."
+        }
+      ],
+      "fingerprint": "6b47af1e2c40"
+    },
+    {
+      "id": "sec-6fe4eb4261aa",
+      "title": "No rate-limit or throttle on redaction hook execution",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the redaction hook is called with a per-invocation timeout (configurable, defaulting to a short value), that a hook timeout or exception causes the call to fail with an internal error rather than proceeding with unredacted text, and that the hook result is validated to confirm it is a string no longer than the input.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The secret-redaction requirement allows projects to add 'a hook' that executes for every piece of text before it leaves the machine. There is no requirement bounding how often or how fast this hook is called, what happens if the hook throws or hangs, or whether a timeout applies. A malicious or buggy hook could block the process indefinitely, silently swallow redaction failures, or exfiltrate text. The LLM layer has timeout/retry requirements (llm-timeout-retry) but nothing analogous exists for the redaction hook.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:30.314Z",
+          "by": "specguard-triage",
+          "note": "A hook must be synchronous, return a string of at most 2,000,000 characters, and a throw or bad result fails closed (redaction-hook-fails-closed)."
+        }
+      ],
+      "fingerprint": "6fe4eb4261aa"
+    },
+    {
+      "id": "sec-71d17db6f6d8",
+      "title": "No data-classification requirement for diffs and spec excerpts sent to the LLM",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that specguard must apply a mandatory redaction pass before any content is sent to the LLM, with a built-in default ruleset that suppresses credential patterns (API keys, passwords, tokens), and that unconfigured redaction must default to deny-send rather than allow-send.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The spec acknowledges that 'Diffs and spec excerpts sent to the LLM for drift and alignment are subject to the configured redaction' but never defines what redaction rules must exist, what classes of data (credentials, PII, internal IP) are prohibited from being sent, who configures redaction, or what happens when redaction is not configured. Without a concrete requirement, source code containing secrets or sensitive data may be transmitted to an external LLM.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [
+        "capabilities/traceability-and-drift#drift-hash-registry",
+        "capabilities/traceability-and-drift#align-prepass-first",
+        "capabilities/traceability-and-drift#drift-chunking"
+      ],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:30.942Z",
+          "by": "specguard-triage",
+          "note": "A mandatory credential-masking pass runs on every prompt, on by default (llm.redactPrompts: false is the only opt-out), with llm.redactPatterns for the project's own (prompt-redaction)."
+        }
+      ],
+      "fingerprint": "71d17db6f6d8"
+    },
+    {
+      "id": "sec-79d3992e5400",
+      "title": "No rate limit on `history add` or MCP `history_add` calls from automated agents",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement capping the number of history entries that can be created per minute per caller identity (e.g., 10/min for the MCP tool, unlimited for interactive CLI use) and that the MCP tool returns a structured error when the limit is exceeded rather than silently dropping the entry.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The MCP tool `history_add` (requirement `history-mcp-tool`) exposes the same write behaviour as the CLI. Coding agents calling the MCP server in a tight loop could create thousands of committed history-entry files in `specs/history/`, filling the repository and potentially leaking incremental prompt fragments that individually pass redaction but together reconstruct a secret. There is no per-session, per-minute, or per-capability limit stated anywhere in the spec.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-mcp-tool",
+        "capabilities/requirement-history#history-add"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:31.361Z",
+          "by": "specguard-triage",
+          "note": "The MCP history_add tool is limited to 20 a minute (SPECGUARD_MCP_HISTORY_PER_MIN) and returns an error result, not a drop (mcp-limits)."
+        }
+      ],
+      "fingerprint": "79d3992e5400"
+    },
+    {
+      "id": "sec-86e6368e2ed8",
+      "title": "No requirement classifying what constitutes a 'secret' or 'credential' subject to redaction",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that defines the classification of secret/credential values (e.g., values from named config keys, values matching configurable patterns, or values tagged in spec metadata) and specifies that the redaction mechanism MUST be applied uniformly before any external transmission or file write.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Several requirements (docs-no-secrets, served-redaction, docs-strip-internal) mandate that credentials and secret values never appear in output, but no requirement defines what counts as a secret or how redaction identifies secrets (e.g., by pattern, by config key, by vault reference). Without a normative definition, implementations may miss novel credential formats or over-redact legitimate content, and auditors cannot verify compliance.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#docs-no-secrets",
+        "capabilities/documentation-api#served-redaction",
+        "capabilities/documentation-api#docs-strip-internal"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:31.745Z",
+          "by": "specguard-triage",
+          "note": "Defined as the built-in credential masks (JWTs, bearer and basic tokens, provider API keys, private keys, password=/secret= values) plus llm.redactPatterns, applied to every prompt, log message and history entry (prompt-redaction, log-redaction)."
+        }
+      ],
+      "fingerprint": "86e6368e2ed8"
+    },
+    {
+      "id": "sec-95a99beb5d22",
+      "title": "No rate limit on API endpoints to prevent LLM budget exhaustion or denial-of-service",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the server enforces a per-source or global rate limit on /docs endpoint calls (e.g., requests per second) and returns HTTP 429 when the limit is exceeded, independent of the per-request LLM budget.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The single-flight-budget requirement only bounds a single request's LLM spend; there is no requirement limiting how many requests per unit time a caller may make. An unauthenticated local caller (or a page exploiting a DNS-rebinding gap) can issue many concurrent /docs requests, each triggering a separate LLM call once cache misses occur, exhausting the LLM budget or causing severe latency. The single-flight mechanism only deduplicates identical concurrent requests, not a rapid series of distinct ones.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#single-flight-budget",
+        "capabilities/documentation-api#fast-tier-on-demand",
+        "capabilities/documentation-api#docs-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:32.094Z",
+          "by": "specguard-triage",
+          "note": "Per-caller limits on the team server, tighter for /docs/, 429 with Retry-After (server-rate-limits)."
+        }
+      ],
+      "fingerprint": "95a99beb5d22"
+    },
+    {
+      "id": "sec-96e1a94dc706",
+      "title": "Credentials embedded in imported documents may be forwarded to the LLM",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement for `import` analogous to `reverse-safety`: define the secret-detection patterns applied to fetched/local document content, specify that matching content is redacted (not merely warned about) before the model call, and require that the model is instructed not to reproduce any value that was redacted.",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Security & Data Considerations states `import` 'must not forward credentials found in a document to the model', but no requirement defines what constitutes a credential, how detection works, what patterns are matched, or what action is taken when one is found (redact, abort, warn?). Without a concrete requirement, implementers have no basis for testing compliance, and the prohibition is unenforceable. By contrast, `reverse` has `reverse-safety` which at least mandates a warning for secret-looking files and instructs the model not to reproduce them.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [
+        "capabilities/spec-authoring#import-documents"
+      ],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:32.462Z",
+          "by": "specguard-triage",
+          "note": "Credentials in an imported document are masked before the model call, and the document is fenced as untrusted (prompt-redaction, untrusted-content-fenced); documents are truncated to 48,000 characters."
+        }
+      ],
+      "fingerprint": "96e1a94dc706"
+    },
+    {
+      "id": "sec-a531bd62714a",
+      "title": "Drift registry and alignment checkpoint files have no integrity protection requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that .specguard/ output files must carry an HMAC or be stored under version control with write-protection enforced by CI policy, and that specguard must warn or fail when a registry file has been modified outside a specguard run.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The drift registry (drift-registry.json) stores hashes and verdicts that gate CI failures (exit code 3). The alignment checkpoint (alignment.json) records coverage decisions. Neither file has a requirement for integrity verification. An attacker who can write to .specguard/ can mark every file as unchanged or every claim as covered, silently bypassing drift and alignment gates. The spec notes 'Hashes detect change; they are not an integrity guarantee against an adversary' but provides no compensating control requirement.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [
+        "capabilities/traceability-and-drift#drift-hash-registry",
+        "capabilities/traceability-and-drift#align-score-and-checkpoint",
+        "capabilities/traceability-and-drift#stale-proof-is-drift"
+      ],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:33.234Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. They are derived caches in the repository; whoever can write the repository can write them, like the tests. The controls are review and a CI run from a clean checkout."
+        }
+      ],
+      "fingerprint": "a531bd62714a"
+    },
+    {
+      "id": "sec-ad0ba986852d",
+      "title": "No authentication or authorization requirement for any CLI command or spec mutation",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that mutating commands verify the caller has write permission to the target spec directory (e.g., by checking filesystem ACLs or a configurable allowlist) and that CI invocations are authenticated via a scoped token; document what happens when the check fails (exit 1 with an explanatory message).",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "Every capability that mutates state—`claims assign`, `spec consolidate`, `spec tag`, `reverse`, `import`, `index`—has no requirement governing who is permitted to run it. In a multi-user or CI/CD environment, an unauthorized user or compromised agent could rewrite claim ids, archive specs, or overwrite the spec tree. The spec only restricts write destinations ('written only inside the repo's spec directories') but says nothing about who may trigger writes.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:33.591Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. The CLI has the permissions of the user who runs it; filesystem permissions decide what it can write."
+        }
+      ],
+      "fingerprint": "ad0ba986852d"
+    },
+    {
+      "id": "sec-af9e4ff44ee1",
+      "title": "MCP server has no rate-limit or authentication requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: the MCP server MUST enforce a per-session rate limit on tool calls (e.g., no more than N calls per minute, configurable); calls exceeding the limit MUST return an error result (not throw) and MUST be logged. Additionally, specify that write-effect tools (`write_spec`, `commit`) MUST be disabled or return an error when invoked in a non-interactive context unless explicitly enabled by config.",
+      "findings": [
+        {
+          "id": "integration-surfaces:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The MCP server runs over stdio and is described as executing with 'the user's privileges'. Any process on the same machine that can write to the MCP server's stdin can invoke tools including `write_spec`, `specguard_commit`, and plugin tools. No requirement specifies authentication, session validation, or rate-limiting for MCP tool calls. The activity log bounds (200 entries / 1 MB) are a storage cap, not a rate control. A rogue local process or a prompt-injection attack on an agent could issue unlimited destructive calls.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#mcp-tools-parity",
+        "capabilities/integration-surfaces#mcp-activity-and-limits"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:33.917Z",
+          "by": "specguard-triage",
+          "note": "Rate limits (300 calls and 20 history entries a minute), a read-only mode, spec-only paths (mcp-limits, mcp-readonly, mcp-spec-paths). Authentication does not apply to a stdio server; see the Trust model."
+        }
+      ],
+      "fingerprint": "af9e4ff44ee1"
+    },
+    {
+      "id": "sec-b2a24aa89bdb",
+      "title": "Evidence screenshots containing personal data have no defined retention or access-control requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that evidence and saved login state files are written with restrictive file-system permissions (e.g., mode 0600), that a configurable retention period causes automatic deletion of evidence older than N days, and that the documentation normatively states these directories must not be stored in shared or world-readable locations.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The Security & Data Considerations section acknowledges that 'evidence screenshots can contain personal data' and says they 'should be treated as confidential', but no normative requirement mandates a retention policy, file-system permissions, encryption at rest, or deletion schedule for `.specguard/evidence/` and `.specguard/auth/`. The `evidence-gitignored` requirement only prevents accidental git commits; it does not protect files already written to disk.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#evidence-and-history",
+        "capabilities/agentic-verification#evidence-gitignored"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:34.379Z",
+          "by": "specguard-triage",
+          "note": "Evidence, saved-login and report folders are 0700, login files 0600, validate.evidenceRetentionDays prunes old evidence, and the commit command never stages them (evidence-retention, commit-never-secrets)."
+        }
+      ],
+      "fingerprint": "b2a24aa89bdb"
+    },
+    {
+      "id": "sec-b61d2832d923",
+      "title": "Config extends allows loading arbitrary files by explicit path with no boundary check",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the resolved target of `extends` must lie within the repository root (as determined by the repository boundary used during config discovery), and that an extends path resolving outside this boundary is treated as an invalid-config error.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The config-extends requirement allows a config to extend 'exactly one other config by explicit path (file or directory)' with no restriction on where that path may point. This means a config file could extend a path outside the repository boundary (e.g., `../../shared/specguard-config.json`), bypassing the repo-boundary isolation guarantee established by config-discovery. The two requirements directly contradict each other in their security postures: config-discovery prevents inheriting parent configs silently, but config-extends allows explicit cross-boundary inheritance.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#config-discovery",
+        "capabilities/platform-foundation#config-extends"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:34.858Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. The config can already set the command a test run executes, so extends grants nothing new; cross-repository shared configs are an intended use."
+        }
+      ],
+      "fingerprint": "b61d2832d923"
+    },
+    {
+      "id": "sec-c5d4976d327f",
+      "title": "Shared `.env` file containing secrets has no confidentiality or integrity requirements beyond git-ignore",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add requirements that (1) `init` creates `.specguard/.env` with owner-read-only permissions, (2) no command prints `.env` values in output or logs, (3) secret values are masked in any diagnostic output, and (4) the file's presence and permissions are reported as a configuration health item in `workspace status`.",
+      "findings": [
+        {
+          "id": "workspaces:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The `shared-env` requirement states that `.specguard/.env` may hold API keys and is git-ignored by `init`, and that real environment variables win over file values. However, there is no requirement on file permissions (e.g., mode 0600), no requirement preventing the file's contents from being logged or included in error output, no requirement on how secrets are redacted from `workspace status` or `impact` output, and no integrity check to detect tampering. Secrets in a world-readable file or leaked into log output are a significant risk.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#shared-env"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:35.127Z",
+          "by": "specguard-triage",
+          "note": "The CLI warns when .env is readable by other users and names the fix; no command prints a value; the commit command never stages it (env-permission-warning, commit-never-secrets)."
+        }
+      ],
+      "fingerprint": "c5d4976d327f"
+    },
+    {
+      "id": "sec-cbe130a32b8a",
+      "title": "No access-control requirement for the proof ledger itself",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the ledger is written with a computed integrity tag (e.g. HMAC keyed to a value not present in the repo) or that its filesystem permissions are hardened, and that any command reading the ledger verifies the tag before trusting the content.",
+      "findings": [
+        {
+          "id": "conformance-testing:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The proof ledger (`.specguard/proofs.json` or `paths.proofLedger`) is the authoritative record of which claims are proven. Any process with filesystem write access can alter it without detection: the spec records hashes of source files and dependencies for staleness, but no requirement protects the ledger file itself from tampering, enforces file permissions, or requires an integrity check (e.g. an HMAC or signature) before the ledger is read. A tampered ledger could suppress failures or inject proven verdicts silently.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ledger-records-basis",
+        "capabilities/conformance-testing#ledger-verdict-states",
+        "capabilities/conformance-testing#proof-reporting"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:35.507Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. The ledger is a repository file; a key kept beside it would protect nothing. CI re-proves claims from a clean checkout and the server holds snapshots."
+        }
+      ],
+      "fingerprint": "cbe130a32b8a"
+    },
+    {
+      "id": "sec-d454c2915b84",
+      "title": "Prompt-injection via page content reaching the LLM is not addressed",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that page-derived content is presented to the LLM in a structurally separated context that cannot override system instructions, and that the action-classification step is performed deterministically (not LLM-driven) for any action whose target is resolvable in the accessibility tree, with the LLM's output treated as untrusted input subject to a second deterministic safety check before execution.",
+      "findings": [
+        {
+          "id": "agentic-verification:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The redact-before-llm requirement removes credentials from page text before it reaches the LLM, but no requirement addresses adversarial content on the target page designed to manipulate the LLM's planning step (prompt injection). Because the agent acts on a live application and its planned actions are derived from page content, a malicious page could instruct the LLM to classify a destructive action as safe or to exfiltrate data through an outbound action, bypassing the deterministic guardrails which only apply after classification.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#redact-before-llm",
+        "capabilities/agentic-verification#action-classification",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:35.730Z",
+          "by": "specguard-triage",
+          "note": "Page title, tree, HTML and console text are fenced as untrusted data in every step with a standing instruction, and actions are classified deterministically and guarded regardless of what the model asks (untrusted-content-fenced)."
+        }
+      ],
+      "fingerprint": "d454c2915b84"
+    },
+    {
+      "id": "sec-da3bbe4c39f3",
+      "title": "Replay recordings containing sensitive data have no access-control or encryption requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that replay responses are written only after redaction has been applied to the prompt and response text, that the managed ignore block (filesystem-access) does NOT add the replay directory to .gitignore by default (so accidental commit is flagged rather than silently excluded), and that a warning is emitted when recording while the provider is anything other than `none`.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The spec states 'Replay recordings contain prompts and responses and should be treated as repository content' but this is advisory language in the Security & Data Considerations section, not an enforced requirement. The llm-replay-record requirement specifies that recordings are stored in `.specguard/replay/` with no requirement to redact content before writing, restrict file permissions, or warn when recordings are written in a context where redaction was disabled. Prompts may contain personal or secret data (as acknowledged by the redaction requirement), meaning replays could permanently store PII or secrets on disk.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#llm-replay-record",
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:36.039Z",
+          "by": "specguard-triage",
+          "note": "Prompts are credential-masked before they are hashed or sent, so a recording cannot hold one; the preview is masked too; recording is opt-in and the folder is deliberately not ignored (prompt-redaction)."
+        }
+      ],
+      "fingerprint": "da3bbe4c39f3"
+    },
+    {
+      "id": "sec-da4ac2d554b5",
+      "title": "No rate limit or budget cap on LLM calls from `import` when fetching remote URLs",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `import` truncates or rejects any fetched document exceeding a defined character/byte limit (matching or derived from the 20,000-character cap used by `reverse`) before passing content to the LLM, and that the shared LLM layer enforces a per-invocation token budget with a hard exit when exceeded.",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The Security & Data Considerations section says `reverse` and `import` run through the shared LLM layer with 'budget caps', but no requirement specifies what those caps are, how they are enforced, or what happens when they are exceeded. More critically, `import` can fetch an arbitrary http/https URL and feed its content to the model; there is no requirement limiting the size of the fetched document before it is sent to the LLM, unlike `reverse` which explicitly caps each file at 20,000 characters (reverse-safety). An attacker who controls the URL target (or a very large document) could force unbounded token consumption.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [
+        "capabilities/spec-authoring#import-documents",
+        "capabilities/spec-authoring#reverse-safety"
+      ],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "verified",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:36.380Z",
+          "by": "specguard-triage",
+          "note": "Already bounded: each model call carries at most 48,000 characters of the document, a fetched document is capped at 5 MB, and llm.budget applies; now also credential-masked and fenced."
+        },
+        {
+          "status": "verified",
+          "at": "2026-10-22T19:42:36.851Z",
+          "by": "specguard-triage",
+          "note": "Already bounded: each model call carries at most 48,000 characters of the document, a fetched document is capped at 5 MB, and llm.budget applies; now also credential-masked and fenced."
+        }
+      ],
+      "fingerprint": "da4ac2d554b5"
+    },
+    {
+      "id": "sec-daf8c963b087",
+      "title": "No requirement to sanitise LLM output before writing test files",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that generated and healed test file content is statically validated against an allowlist of permitted imports and patterns before being written to disk, and that any output containing disallowed constructs is rejected and logged rather than written.",
+      "findings": [
+        {
+          "id": "conformance-testing:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "`generate-safe-writes` requires stripping stray Markdown fences from LLM output before writing, but no requirement addresses other dangerous content that an LLM (or a compromised LLM provider) could emit: arbitrary shell commands embedded in test files, require/import of unexpected modules, or exfiltration payloads. The heal flow re-runs the rewritten tests with the developer's or CI's privileges, so malicious test code executes in a privileged context. The spec notes that heal only writes test files but does not constrain what those files may contain.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#generate-safe-writes",
+        "capabilities/conformance-testing#heal-classifies-failures",
+        "capabilities/conformance-testing#heal-exit-and-safety"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "wont-fix",
+      "statusHistory": [
+        {
+          "status": "wont-fix",
+          "at": "2026-10-22T19:42:37.183Z",
+          "by": "specguard-triage",
+          "note": "By design for a local tool: see the Trust model in specs/system.md. Output goes only to a path derived from the spec and reaches the branch through review; an import allowlist breaks real tests without stopping a determined output."
+        }
+      ],
+      "fingerprint": "daf8c963b087"
+    },
+    {
+      "id": "sec-ef9364aa87e6",
+      "title": "No access control requirement on LLM key environment variables",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that LLM API key environment variables must be sourced from a secrets store with least-privilege access, must not be printed to stdout/stderr or logs by any specguard command, and must not be forwarded to sub-processes that do not need them.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec states 'LLM keys are referenced by environment variable name only and never appear in plans, gaps.json or the registry' but contains no requirement governing who or what process may read those environment variables, how they are scoped, or whether they must be restricted in CI. An attacker with read access to the CI environment or to process listings could exfiltrate keys. The Security section describes behaviour after the key is available but never requires any access restriction.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:37.534Z",
+          "by": "specguard-triage",
+          "note": "Keys are withheld from test commands unless test.passEnv names them (test-env-withheld), masked in prompts and logs, and never printed."
+        }
+      ],
+      "fingerprint": "ef9364aa87e6"
+    },
+    {
+      "id": "sec-fea65e971201",
+      "title": "No rate-limit or budget cap on LLM calls or browser actions per run",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying maximum LLM calls per run and per spec, a wall-clock timeout per spec and per run, and a hard upper bound on `validate.maxRounds`, with the run failing with exit code 1 when any budget is exceeded.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The perceive-plan-act-verify and verify-walks-journeys requirements allow up to `validate.maxRounds` plan-act rounds per capability, but there is no requirement capping total LLM API calls, browser page loads, or network requests across an entire run of `--all`. An attacker or misconfiguration could trigger unbounded LLM spending and network traffic (including outbound calls if `--allow-outbound` is set) by supplying a large number of specs or a high maxRounds value.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#perceive-plan-act-verify",
+        "capabilities/agentic-verification#verify-walks-journeys",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "fixed",
+      "statusHistory": [
+        {
+          "status": "fixed",
+          "at": "2026-10-22T19:42:37.985Z",
+          "by": "specguard-triage",
+          "note": "At most five steps a round, maxRounds <= 10, a per-spec time budget (verify-run-bounds), plus llm.budget.maxCalls."
+        }
+      ],
+      "fingerprint": "fea65e971201"
+    }
+  ]
+}

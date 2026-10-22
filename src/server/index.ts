@@ -13,13 +13,16 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import type { SpecGuardConfig } from '../core/types.js';
-import { Api } from './api.js';
+import { Api, HTML_SECURITY_HEADERS } from './api.js';
+import type { ProjectRegistry } from './project.js';
 
 export interface ServeOptions {
   port?: number;
   host?: string;
   /** Origin allowed to read the API from a browser, or `*`. Default: none. */
   cors?: string;
+  /** Serves `GET /api/v1/workspace` with this view of the workspace. */
+  workspace?: () => Promise<unknown>;
 }
 
 export const DEFAULT_PORT = 4317;
@@ -33,8 +36,8 @@ export interface RunningServer {
   close(): Promise<void>;
 }
 
-export function createRequestListener(config: SpecGuardConfig, opts: ServeOptions = {}): http.RequestListener {
-  const api = new Api(config);
+export function createRequestListener(source: SpecGuardConfig | ProjectRegistry, opts: ServeOptions = {}): http.RequestListener {
+  const api = new Api(source, { workspace: opts.workspace });
   const host = opts.host ?? '127.0.0.1';
   const guardHost = isLoopback(host);
   return (req, res) => {
@@ -62,14 +65,14 @@ export function createRequestListener(config: SpecGuardConfig, opts: ServeOption
     }
     api
       .handle({ method: req.method ?? 'GET', path: pathname })
-      .then((r) => respond(r.status, r.type, r.body, r.type.startsWith('text/html') ? { 'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" } : {}))
+      .then((r) => respond(r.status, r.type, r.body, r.type.startsWith('text/html') ? HTML_SECURITY_HEADERS : {}))
       .catch((err: Error) => respond(500, 'application/json; charset=utf-8', JSON.stringify({ error: err.message })));
   };
 }
 
-export function startServer(config: SpecGuardConfig, opts: ServeOptions = {}): Promise<RunningServer> {
+export function startServer(source: SpecGuardConfig | ProjectRegistry, opts: ServeOptions = {}): Promise<RunningServer> {
   const host = opts.host ?? '127.0.0.1';
-  const server = http.createServer(createRequestListener(config, opts));
+  const server = http.createServer(createRequestListener(source, opts));
   // Malformed HTTP framing is answered by the socket, not thrown at the process.
   server.on('clientError', (_err, socket) => {
     if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');

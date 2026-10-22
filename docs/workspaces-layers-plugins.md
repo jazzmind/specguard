@@ -1,0 +1,109 @@
+# Workspaces, test layers, plugins and self-healing (0.3)
+
+This guide covers what 0.3 adds around the core loop of specs, proofs and remediation. Each section says what to run and what to expect.
+
+## A workspace across repos, with some left out
+
+A workspace is a list of repos that SpecGuard treats as one system. It lives in `.specguard/workspace.json`.
+
+**From a VS Code `.code-workspace` file.** Open the `.code-workspace` and the extension offers to create the workspace. Or from a shell:
+
+```bash
+specguard workspace init --from ~/Code/workspaces/sandbox.code-workspace
+specguard workspace ignore hub --reason "shared tooling, not a product"
+specguard check --workspace ~/Code/workspaces/sandbox.code-workspace --refresh
+```
+
+- The manifest is kept next to the `.code-workspace`, in `.specguard-workspaces/<name>/.specguard/workspace.json`, because several `.code-workspace` files often share one folder.
+- Folders with no `.specguard/config.json` are added as ignored (`auto:no-config`) and un-ignored automatically once a config appears.
+- **Ignore is respected everywhere**: contracts, impact, drift, security, proofs, the rollup and the server view skip an ignored repo. `workspace unignore <key>` brings it back.
+- `workspace sync` (and the extension, whenever you add or remove a folder) adds new folders and retires dropped ones. It changes only entries it created and only the fields it wrote: a role or description you edited by hand is kept.
+- `workspace init --recursive [--depth 3]` finds repos nested in a folder tree instead of using a `.code-workspace`.
+- Point any workspace-level command at a manifest with `--workspace <path>` or `SPECGUARD_WORKSPACE`. The path may be a `workspace.json`, its folder, or a `.code-workspace` file. Per-repo state (each repo's proof ledger) never follows the flag.
+
+**The combined picture.** `check --workspace` prints one row per repo (source ownership, claims proven, failed, stale and missing a layer, open security items, stale docs, intent gaps) and writes `.specguard/rollup.json`. `--refresh` runs `check` in each repo first; without it the numbers are whatever each repo last recorded, and a repo whose ledger is newer than its trace is marked as lagging. `serve --workspace` serves the same thing at `GET /api/v1/workspace`, and the extension's **Workspace** panel shows it with Ignore, Sync folders and Refresh all repos.
+
+**On the team server.** Each repo still publishes its own snapshot (`specguard publish --push`). `workspace publish` then defines the set on the server, which shows `GET /api/v1/workspaces/<name>/rollup`. Repos are named on the server by `server.projects` in the manifest, else their own `server.project`, else their folder name.
+
+## Test layers
+
+A proof records which layer of test earned it: `unit`, `integration`, `e2e` (browser tests such as Playwright), `security` or `functional` (the agentic `verify` check). Evidence is kept per layer, so a failing browser check is no longer overwritten by the next passing unit test.
+
+**Declaring what a claim needs**, in the capability's frontmatter:
+
+```yaml
+layers:
+  default: [unit]
+  claims:
+    login-valid-code: [unit, e2e]
+```
+
+or `layers: [unit, e2e]` for every claim. A project-wide default is `proof.requiredLayers` in `config.json`; `proof.enforceLayers` is `warn` (default), `fail` or `off`.
+
+**How a test gets its layer**, first match wins: an `@layer:e2e` tag in the test title or a `// [layer: e2e]` comment in the first lines of its file; the app's `test.layers` globs; the suite that ran it; `results ingest --layer`; a Playwright report means `e2e`; folders such as `e2e/`, `integration/`, `security/`; otherwise `unit`. `generate --type e2e` and the generated security tests write the layer comment for you.
+
+**Several suites per app:**
+
+```json
+"test": {
+  "reporter": "vitest",
+  "suites": [
+    { "name": "unit",    "layer": "unit", "command": "npx vitest run --reporter=json --outputFile=reports/unit.json", "resultsFile": "reports/unit.json" },
+    { "name": "browser", "layer": "e2e",  "command": "npx playwright test --reporter=json", "reporter": "playwright", "resultsFile": "reports/pw.json" }
+  ]
+}
+```
+
+`specguard test run` runs each and ingests it with its layer.
+
+**What you see.** `check` and `proof status` keep the `PROOFS:` line as it was and add `[proof-incomplete] <claim> (missing: e2e)` lines and a `LAYERS: unit 40/42  e2e 3/10` line. The extension's Coverage view gets a Layers row. In CI use the `proof-incomplete` threshold.
+
+**Verify as a Playwright test.** `specguard verify --emit-tests` (or `validate.emitTests`) turns a passing run into `tests/e2e/<capability>.verify.spec.ts`. The planner may use `click`, `fill`, `navigate` (same site only), `waitFor` and `assertText`. A claim is tagged in the generated test only if the run asserted it, because a replay of clicks proves nothing. Nothing is written if a step failed or was blocked, if a value would be redacted, or if the file exists and was not generated by SpecGuard. A step that fails is now reported as `[action-failed]` instead of being swallowed.
+
+## Plugins
+
+```bash
+specguard plugin list            # built-ins and configured npm plugins, on or off, with the commands each adds
+specguard plugin enable git
+specguard plugin disable quality
+specguard plugin add acme --package @acme/specguard-plugin-acme --install --yes
+specguard plugin remove acme
+```
+
+- Enable and disable edit only this repo's `.specguard/config.json`. A plugin enabled only by a config you `extends` is turned off with `disabledPlugins`, because `extends` replaces arrays rather than merging them.
+- Adding an npm plugin imports the package to check it is a plugin, which **runs its code**, so `--yes` is required (`--install` installs with scripts disabled). The extension asks with a modal naming the package.
+- In VS Code the **Plugins** view lists them with Enable, Disable, Add and Remove. The Pipelines view shows only the actions of enabled plugins (Quality Check needs `quality`; heal's auto-commit needs `git`) and lists each enabled plugin's own commands.
+- Also available: `GET /api/v1/plugins` and the `specguard_plugin_list` MCP tool (in the extra tool set, because the default MCP tool list is capped at 16).
+
+## CI
+
+```bash
+specguard init --ci github
+```
+
+writes two workflows:
+
+- `.github/workflows/specguard.yml`: on pull requests and pushes to the default branch, runs `check,test,scan,proof,publish` with a full-history checkout, comments the results on the pull request, uploads security findings to GitHub code scanning, and offers a manual browser `verify` run. It does not fail on security findings by default; add `scan` to `fail-on` once they are triaged. `affected: true` is set only for a workspace with package units, and it now tests what the pull request changed (`affected-since`, else the PR base), where before it compared the working tree with HEAD and tested nothing on a clean checkout.
+- `.github/workflows/specguard-remediate.yml`: weekday remediation pull requests.
+
+The pull request comment shows, for specs, tests, claims by state, layers and security findings, how each number moved **since the previous run on that pull request**. It is not a comparison with the base branch. A run that cannot comment (a fork, no token) says so and carries on. `sarif: true` is what uploads findings; `security scan --sarif` writes the file.
+
+## Self-healing
+
+```bash
+specguard remediate --from failing --pr          # repair the application for failing claims
+specguard remediate --pr --auto-merge            # dependency fixes, merged when it is provably safe
+```
+
+**Repairing the application.** For each capability with a failing claim (a failing test or browser check, in any layer), SpecGuard runs the baseline in a temporary worktree, shows a model the failing tests, the browser findings and the capability's own source files, and applies the files it returns. It may change **only** those source files: a proposal that names a test, a spec, a manifest or any other file is refused and rolled back with no branch left. The result is checked by the behaviour verdict with the targeted claims required to be proven afterwards and everything that passed before required to still pass. A repair that fixes nothing or breaks something is a draft pull request that says why. It is always a pull request for a person and is **never auto-merged**. `--claim <ref>` limits it to one claim or capability; `--dry-run` leaves no branch, push or pull request.
+
+**Auto-merge of dependency fixes.** Both `remediate.autoMerge.enabled` in config and `--auto-merge` are required, and every condition below must hold:
+
+1. the change is a dependency fix touching only manifests and lockfiles;
+2. the bump is a patch, or a minor at version 1.0 or later (never major, never a package in `remediate.autoMerge.denyPackages`);
+3. the verdict is PRESERVED with no reasons, and at least one test was selected;
+4. every claim proven in any layer before the change is proven in that layer after it (a browser or e2e proof no test here re-ran blocks it);
+5. risk is low and the breaking-change analysis is clean;
+6. the base branch has required status checks. Without them GitHub auto-merge would merge before any check ran, so SpecGuard refuses.
+
+The decision and every failed condition are posted as a comment on the pull request and written to the remediation report. The workflow needs a token that can trigger workflows (a PAT or GitHub App token: pull requests opened with `GITHUB_TOKEN` do not run CI), which `init --ci github --auto-merge` explains in the generated file.

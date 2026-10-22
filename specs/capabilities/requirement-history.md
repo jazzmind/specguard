@@ -16,6 +16,14 @@ docs:
   - "README.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-intent-catch-up-for-the-2026-10-19-chang
+  - 2026-10-22-security-hook-reads-untrusted-stdin-json
+  - 2026-10-22-security-inbox-size-cap-is-unspecified-l
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-no-access-control-on-inbox-file
+  - 2026-10-22-security-redaction-spec-references-a-sha
+  - 2026-10-22-security-no-rate-limit-on-history-add-or
 tests:
   - "tests/core/history.test.ts"
   - "tests/pipelines/history.test.ts"
@@ -54,6 +62,7 @@ The folder `specs/history/` holds the entries, the `history:` frontmatter list b
 - [ ] prompt text is passed through the shared secret redactor both when it is written to the inbox and again when an entry is committed, so keys, tokens and personal data never reach `specs/history/` <!-- claim: history-redaction -->
 - [ ] `check` reports each capability whose owned sources changed since its last history entry or spec edit without either, as an advisory finding that does not by itself fail the build unless the project opts in <!-- claim: history-check-gap -->
 - [ ] The MCP server exposes `history_add` and `history_log` with the same behaviour as the CLI command so agents can record decisions directly <!-- claim: history-mcp-tool -->
+- [ ] The history hooks read their JSON from stdin up to 4 MB and drop larger input whole, cut a single prompt to 50,000 characters before it is redacted and stored, keep the uncommitted inbox to the newest 300 prompts once it passes 1 MB, and keep it readable by its owner only <!-- claim: hook-input-bounded -->
 
 ## Scenarios
 ### Scenario 1: The worked example in this repository

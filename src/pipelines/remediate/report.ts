@@ -35,7 +35,7 @@ export function renderPrBody(ctx: BodyCtx): string {
   lines.push('');
   lines.push(
     v === 'PRESERVED'
-      ? '**Behavior preserved.** Every baseline-passing test and proven claim still passes after the change, and the advisory is gone. A human still has to review and merge.'
+      ? '**Behavior preserved.** Every baseline-passing test and proven claim still passes after the change, and the advisory is gone. A person reviews and merges unless the auto-merge policy allows it (its decision is posted as a comment).'
       : v === 'CHANGED'
         ? '**Behavior changed.** This is a draft: the differences below need a human decision. Do not merge without reviewing them.'
         : '**Inconclusive.** SpecGuard could not prove that behavior is preserved. This is a draft: see the reasons below.',
@@ -109,6 +109,6 @@ export function renderPrBody(ctx: BodyCtx): string {
   lines.push('');
   lines.push(`Run \`${ctx.runId}\`. Evidence: \`${ctx.evidenceRel}\` (baseline and patched proof ledgers, full report JSON).`);
   lines.push('');
-  lines.push('_Opened by `specguard remediate`. It never merges: a human decides._');
+  lines.push('_Opened by `specguard remediate`. It merges nothing itself: a person decides, except where the auto-merge policy arms GitHub auto-merge for a dependency fix that provably keeps every proof._');
   return lines.join('\n') + '\n';
 }

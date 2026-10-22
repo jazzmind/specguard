@@ -19,6 +19,8 @@ export const GENERATED_STATE_PATHS = [
   '.specguard/security.json',
   '.specguard/llm-usage.json',
   '.specguard/trace.json',
+  '.specguard/rollup.json',
+  '.specguard/security/scan.sarif',
   '.specguard/cache/',
   '.specguard/history/',
   '.specguard/traceability.json',

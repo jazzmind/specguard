@@ -8,6 +8,7 @@
  *
  * Spec: specs/capabilities/integration-surfaces.md
  */
+import { planSpawn, type SpawnPlan } from './safe-spawn.js';
 import { spawn } from 'child_process';
 
 declare const __EXPECTED_CLI_VERSION__: string | undefined;
@@ -40,13 +41,12 @@ export function parseVersionOutput(output: string): CliVersionInfo | null {
 /** Run `<cliPath> --version --json`. Resolves null when the CLI cannot be run or answers nonsense. */
 export function queryCliVersion(cliPath: string, cwd: string, timeoutMs = 10_000): Promise<CliVersionInfo | null> {
   return new Promise((resolve) => {
-    const isScript = cliPath.endsWith('.js');
-    const isTs = cliPath.endsWith('.ts');
-    const [cmd, args, shell] = isScript
-      ? (['node', [cliPath, '--version', '--json'], false] as const)
-      : isTs
-        ? (['npx', ['tsx', cliPath, '--version', '--json'], true] as const)
-        : ([cliPath, ['--version', '--json'], true] as const);
+    let plan: SpawnPlan;
+    try {
+      plan = planSpawn(cliPath, ['--version', '--json']);
+    } catch {
+      return resolve(null);
+    }
     let out = '';
     let settled = false;
     const done = (value: CliVersionInfo | null) => {
@@ -56,7 +56,9 @@ export function queryCliVersion(cliPath: string, cwd: string, timeoutMs = 10_000
       }
     };
     try {
-      const child = spawn(cmd, [...args], { cwd, shell });
+      // No shell: see `planSpawn`.
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+      const child = spawn(plan.command, plan.args, { cwd, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
       const timer = setTimeout(() => {
         child.kill();
         done(null);

@@ -29,6 +29,10 @@ docs:
   - "docs/team-server.md"
 history:
   - 2026-10-15-local-first-specguard-with-an-optional-t
+  - 2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv
+  - 2026-10-22-intent-catch-up-for-the-2026-10-19-chang
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
 ---
 
 # Local-first operation with an optional team server
@@ -57,6 +61,10 @@ This capability keeps one engine and gives it two homes. The local command line 
 - [ ] The server fetches the `specguard-evidence` artifacts CI uploaded for each configured repository on a timer, publishes the snapshot inside under the configured project with the commit and branch taken from the workflow run, skips what it already has and artifacts that are expired, oversized, invalid or from forks, and reports one repository's failure without stopping the others <!-- claim: artifact-puller -->
 - [ ] The server answers MCP over HTTP at `/mcp` for token holders only, as read-only tools (projects, system, capability, spec, audit, coverage, docs, history, findings, plans) that go through the same API as the same identity, so access rules, project scoping and redaction are the API's <!-- claim: remote-mcp -->
 - [ ] Commands that can use a server resolve it from config or the environment, check its health with a short timeout and a compatible API version, and otherwise behave locally: reads fall back silently and say which source they used; a shared write goes to the server or, with none, is written locally and marked local-only; a server that answers but refuses (bad token, no permission, lifecycle violation) is an error and never a quiet switch to local; `server.mode: required` makes an unreachable server an error and `off` never contacts it; `check --team`, the plan commands, the MCP plan tool and the VS Code extension all follow this, and a token saved by `login` is checked against the server before it is kept <!-- claim: local-first-fallback -->
+- [ ] When `SPECGUARD_TRUSTED_PROXIES` lists addresses (exact, or IPv4 CIDR ranges) the sign-in header is honoured only from a connection that comes from one of them, so a container that reaches the server directly cannot sign in as anyone or become a maintainer by naming one; a token works from anywhere; the server warns at startup when it is not set <!-- claim: trusted-proxies -->
+- [ ] The sign-in header never makes a maintainer on its own: without `SPECGUARD_TRUSTED_PROXIES` it signs in a read-only viewer whoever it names (it can read and mint viewer tokens, and cannot write, change plan items, define a workspace or mint a maintainer token), and only through a trusted proxy does naming a listed maintainer email make the session a maintainer; it is never an admin <!-- claim: header-is-viewer-without-proxy -->
+- [ ] Each caller (the signed-in user, or the connecting address when there is no credential) is limited to a number of API requests a minute (600 for a signed-in caller, 60 with no credential), and the routes that can start a model call to fewer (30 a minute for `/docs/`); a caller over a limit gets `429` with `Retry-After`, a refused request is not counted, health is never limited, and the limits are set with `SPECGUARD_RATE_LIMIT_PER_MIN`, `_DOCS_PER_MIN` and `_ANON_PER_MIN` <!-- claim: server-rate-limits -->
+- [ ] The server keeps an audit trail of what changes through its API (token creation and revocation, plan item status changes, workspace definitions, published snapshots) with who did it, and of every refused attempt to change something (no credential, or a role too low) with the reason; reads are not recorded <!-- claim: server-audit-trail -->
 
 ## Scenarios
 ### Scenario 1: CI publishes a commit

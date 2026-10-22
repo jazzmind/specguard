@@ -107,6 +107,7 @@ export function centralRegistry(opts: CentralRegistryOptions): CentralRegistry {
 
   return {
     writable: true,
+    workspaces: backend.workspaces,
     list: async () => (await backend.snapshots.projects()).map(infoOf),
     async get(name) {
       if (!PROJECT_NAME.test(name)) return undefined;

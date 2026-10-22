@@ -16,6 +16,8 @@ export interface CoverageResponse {
   totals: TraceCounts & { capabilities: number; ownedFiles: number; sourceFiles: number };
   sourceCoverage: number;
   provenCoverage: number;
+  /** Per test layer over the claims that require it; absent when no claim does. */
+  layerCoverage?: Record<string, { required: number; proven: number; failed: number; stale: number; missing: number }>;
   unowned: string[];
   capabilities: Array<{ id: string; title: string; status: string; files: number; tests: number; counts: TraceCounts; provenPercent: number; testedPercent: number }>;
   units: Array<{ unit: string; kind: 'repo' | 'package'; path: string; sourceFiles: number; unowned: number; capabilities: string[]; counts: TraceCounts }>;

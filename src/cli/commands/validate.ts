@@ -12,6 +12,7 @@ export interface ValidateCliOpts extends GlobalOpts {
   noReview?: boolean;
   headed?: boolean;
   allowOutbound?: boolean;
+  emitTests?: boolean;
 }
 
 export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
@@ -24,6 +25,7 @@ export async function validateCommand(opts: ValidateCliOpts): Promise<void> {
     noReview: opts.noReview,
     headed: opts.headed,
     allowOutbound: opts.allowOutbound,
+    emitTests: opts.emitTests,
   });
 
   outputResult(result, opts);

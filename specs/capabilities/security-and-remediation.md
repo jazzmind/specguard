@@ -24,6 +24,8 @@ sources:
   - "src/pipelines/security-scan.ts"
   - "src/pipelines/security-fix.ts"
   - "src/pipelines/security-plan.ts"
+  - "src/core/auto-merge-policy.ts"
+  - "src/core/sarif.ts"
 tests:
   - "tests/pipelines/security.test.ts"
   - "tests/pipelines/security-audit.test.ts"
@@ -48,6 +50,12 @@ docs:
   - "schemas/remediation-plan.v1.json"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-3-test-layers-and-ci
+  - 2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-vuln-ignore-json-suppression-fi
+  - 2026-10-22-security-spec-review-findings-containing
 ---
 
 # Security Scanning and Remediation
@@ -60,7 +68,7 @@ This capability finds security problems in code, dependencies, secrets and the s
 ## Users & Journeys
 - A developer runs `specguard security --all --with-sast` to get OWASP-annotated security test stubs for each spec, plus Semgrep findings and a dependency audit, and sees exit code 5 when real findings exist.
 - A CI pipeline runs `specguard remediate --scan-only` on a schedule and fails when advisories at or above a severity threshold remain.
-- A maintainer runs `specguard remediate --pr` and receives one branch and pull request per advisory group, each with a behaviour verdict and an evidence report, and merges the PRESERVED ones.
+- A maintainer runs `specguard remediate --pr` and receives one branch and pull request per advisory group, each with a behaviour verdict and an evidence report, and merges the PRESERVED ones, except the narrow class of dependency fixes the auto-merge policy merges for them.
 - A reviewer reads the evidence report for a CHANGED verdict to see exactly which previously passing test or proven claim regressed.
 - A security engineer runs `security scan` and gets code, dependency, secret and spec-level findings in one plan that an external tracker ingests, and marks items fixed through `security plan set-status`.
 
@@ -76,7 +84,7 @@ This capability finds security problems in code, dependencies, secrets and the s
 - [ ] After patching, the install, build, typecheck and tests run (claim-tagged tests for the affected specs first, then the full suite), the detector runs again, and heal is never run in rewrite mode so no test file is modified <!-- claim: verify-after-patch -->
 - [ ] The behaviour verdict compares proof-ledger results before and after: it is CHANGED when a baseline-passing test fails or vanishes, a proven claim drops, claim or test counts fall, an advisory remains or a new one appears, or build or typecheck is red; INCONCLUSIVE when output is unparseable, no tests were selected or proofs were not re-proven; otherwise PRESERVED, with CHANGED beating INCONCLUSIVE beating PRESERVED <!-- claim: behaviour-verdict -->
 - [ ] Remediation runs use one branch per advisory group named `specguard/remediate/<id>`, skip advisories whose branch or PR already exists, and write the plan, diffs, selected tests, verdict and evidence to `.specguard/remediation/<runId>.json` with a markdown pull request body <!-- claim: branch-and-evidence -->
-- [ ] Without `--pr` nothing is pushed; with `--pr` the branch is pushed and a pull request opened (normal for PRESERVED, draft for CHANGED or INCONCLUSIVE); `--dry-run` leaves no branch, push, PR or report in the user's tree; there is no auto-merge anywhere <!-- claim: pr-modes-no-merge -->
+- [ ] Without `--pr` nothing is pushed; with `--pr` the branch is pushed and a pull request opened (normal for PRESERVED, draft for CHANGED or INCONCLUSIVE); `--dry-run` leaves no branch, push, PR or report in the user's tree; nothing is merged unless the auto-merge policy below allows it, and `ship` itself never merges <!-- claim: pr-modes-no-merge -->
 - [ ] `remediate` exits 8 for PRESERVED, 9 for CHANGED, 10 for INCONCLUSIVE and 11 for a setup or baseline error, and a missing external tool is reported by name as a warning rather than a raw error <!-- claim: remediate-exit-codes -->
 - [ ] `security scan` runs the dependency-advisory, Semgrep and gitleaks detectors that `remediate` uses, as one detector set whose results share one finding shape; the older `security --with-sast` command remains for CI gates, and the retired `deps` gate is an alias of it <!-- claim: unified-scan -->
 - [ ] `security scan` also performs a spec-level review per capability, flagging missing authorization or data-classification requirements, unspecified abuse cases or rate limits, contradictory requirements, interfaces with no owning claim, and code findings that reveal a spec gap; each finding has a type of spec, code, dependency or secret <!-- claim: spec-review -->
@@ -87,6 +95,16 @@ This capability finds security problems in code, dependencies, secrets and the s
 - [ ] Resolving a spec-level item records a requirement-history decision against its capability, once <!-- claim: spec-fix-history -->
 - [ ] A secret finding records only its rule and location, never the detector's message, so a plan can be handed to another system without carrying the secret <!-- claim: plan-no-secret-values -->
 - [ ] `security fix` runs the remediation executor once for the selected dependency and code items, moves each item by what happened to its branch (preserved: fixed; changed: in-progress with the verdict; failed: open; skipped: planned; not attempted: open), records the branch in the item's history, re-reads the plan before writing so a status or external reference a tracker set meanwhile is kept, restores the items if the run crashes, and never patches spec or secret items <!-- claim: security-fix-statuses -->
+- [ ] `security scan --sarif [file]` also writes the unresolved items of the plan as SARIF 2.1.0 (default `.specguard/security/scan.sarif`): one result per item with a level from its severity, a `security-severity` score, the item id as a stable fingerprint so GitHub tracks one alert per item, and its files and line as locations; fixed, verified and won't-fix items are left out so their alerts close <!-- claim: sarif-export -->
+- [ ] Auto-merge of a remediation pull request is decided by one pure policy, and every condition must hold: `remediate.autoMerge.enabled` and `--auto-merge` are both set; the change is a dependency fix touching only manifests and lockfiles; the bump is a patch, or a minor at version 1.0 or later (never a major or unknown bump, never a package on `denyPackages`); the verdict is PRESERVED with no reasons and at least one test was selected; every claim proven in any layer before the change is proven in that layer again afterwards; risk is low and the breaking-change analysis is clean; each failed condition is listed, written to the report and posted as a pull request comment <!-- claim: auto-merge-policy -->
+- [ ] When the policy allows it, the pull request is not merged at once: `gh pr merge --auto --squash` is requested only after the base branch is confirmed to have required status checks (an unprotected branch, or one whose protection cannot be read, is refused), and a failed request is reported as not armed; draft pull requests and code fixes are never auto-merged <!-- claim: auto-merge-enforcement -->
+- [ ] `remediate` records test evidence by layer the way `results ingest` does, keeps what a layer proved that its test command never reaches (a browser proof is not swept to unexercised), and reports claims proven in some layer before a change and not after it, so a dependency bump that only the unit tests could re-prove is not auto-merged <!-- claim: remediate-layer-aware -->
+- [ ] `remediate --from failing [--claim <ref>] [--max <n>]` repairs the application for failing claims: it takes each capability with a failing claim (a failing test or browser check in any layer), shows a fixer the failing tests, the browser findings and the capability's own source files, and writes the files it returns; the capability's source files exclude tests, specs, docs, history, configuration and manifests, and a capability with none is skipped <!-- claim: app-fix-targets -->
+- [ ] A repair works in a temporary worktree like every remediation, may change only the source files it was shown (a proposal naming a test, a spec, a manifest or any other file is refused and rolled back with no branch left), stays within the file and line limits, and is checked by the behaviour verdict with the targeted claims as intended flips: they must be proven afterwards, every test and claim that passed before must still pass, and a repair that fixes nothing or breaks something is a draft pull request naming the reason <!-- claim: app-fix-loop -->
+- [ ] A repair always ends in a pull request for a person: it opens only with `--pr`, is a normal pull request only when the verdict is clean, is never auto-merged, skips a capability that already has a branch or pull request, and `--dry-run` leaves no branch, push or pull request <!-- claim: app-fix-pr-only -->
+- [ ] SpecGuard never builds a shell command line out of values it does not control: the editor starts the CLI without a shell (a script under `node`, a `.ts` checkout under `node --import tsx`, a Windows `.cmd` shim through `cmd.exe` with every argument double-quoted and any quote, percent sign or newline refused), a path or value placed in a terminal command is single-quoted, and what the test runner appends to a configured test command is quoted for the shell it runs in (single quotes on POSIX, double quotes under `cmd.exe`, unquotable values refused); the configured test command itself is the project's own command line and runs in a shell by design <!-- claim: no-shell-spawn -->
+- [ ] The credentials SpecGuard itself uses (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LITELLM_API_KEY`, `SPECGUARD_TOKEN`, `SPECGUARD_BOOTSTRAP_TOKEN` and the key named in `llm`) are removed from the environment of a test command, which is project code, unless the app's `test.passEnv` names them; the rest of the environment passes as usual <!-- claim: test-env-withheld -->
+- [ ] An entry of `.specguard/vuln-ignore.json` suppresses an advisory only while its `expires` date is in the future; an expired entry or one with no date suppresses nothing and is reported as a warning so it is renewed or deleted on purpose, and every suppression is listed with its reason and date <!-- claim: vuln-ignore-expiry -->
 
 ## Scenarios
 ### Scenario 1: Safe dependency upgrade
@@ -152,7 +170,7 @@ This capability finds security problems in code, dependencies, secrets and the s
 - The pipelines read source files, dependency manifests and test results, and send file contents or finding summaries to the configured LLM only for stub generation, spec-level review, changelog analysis and code fixes. Only the file named by a finding is sent for a code fix. LLM keys are referenced by environment variable name and never logged or written to reports.
 - Secrets reported by gitleaks are redacted and are never auto-fixed or committed; they must be rotated by a person. Reports under `.specguard/` can contain package names and file paths and should be treated as internal.
 - LLM-suggested edits are untrusted input: remediation limits writes with an allowlist and file and line limits, and `security fix` is the only thing that applies a plan item.
-- Remediation never merges, never rewrites tests, and works only in a temporary worktree. The MCP remediate tool is limited to scan-only and dry-run because branch, push and pull-request creation have effects outside the machine.
+- Remediation merges only what the auto-merge policy allows (a dependency patch or 1.x minor that provably keeps every proof, on a protected branch, when asked in config and on the command line), never rewrites tests, and works only in a temporary worktree. The MCP remediate tool is limited to scan-only and dry-run because branch, push and pull-request creation have effects outside the machine.
 - Semgrep and OSV run through Docker or local binaries; a missing tool degrades to a warning.
 
 ## Interfaces

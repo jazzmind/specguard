@@ -31,6 +31,8 @@ export const SPEC_KINDS: readonly SpecKind[] = ['system', 'capability', 'compone
  * Parsed `<!-- key: value -->` metadata block from a spec file.
  * Known keys are typed; anything else lands in `extra`.
  */
+import type { LayerRequirements, TestLayer } from './test-layers.js';
+
 export interface SpecMeta {
   module?: string;
   type?: SpecType;
@@ -58,6 +60,8 @@ export interface SpecMeta {
   docs?: string[];
   /** v2 frontmatter: ids of the requirement-history entries behind this spec. */
   history?: string[];
+  /** v2 frontmatter: the test layers the claims need as proof (`layers: [unit, e2e]` or a default plus per-claim lists). */
+  layers?: LayerRequirements;
   /** Any metadata key not in the known set, preserved verbatim. */
   extra: Record<string, string>;
 }
@@ -255,6 +259,38 @@ export interface AppTestConfig {
   timeoutMs?: number;
   /** Docker image for `runners.testRunner: "docker"`. */
   image?: string;
+  /**
+   * Environment variables holding credentials SpecGuard withholds from test commands (the model keys, `SPECGUARD_TOKEN`)
+   * that this app's tests do need. Everything else in the environment is passed as usual.
+   */
+  passEnv?: string[];
+  /** Globs (relative to the config root) that put test files in a layer. Beats the path conventions. */
+  layers?: Partial<Record<TestLayer, string[]>>;
+  /**
+   * Several suites for one app, each with its own command and layer (for example vitest for unit and Playwright
+   * for e2e). When set they replace the app's single `command`; a suite inherits `cwd`, `reporter` and
+   * `timeoutMs` from the app unless it sets its own.
+   */
+  suites?: TestSuiteConfig[];
+}
+
+/** One suite of an app: a command that writes a report, and the layer its tests belong to. */
+export interface TestSuiteConfig {
+  name: string;
+  layer?: TestLayer;
+  command?: string;
+  cwd?: string;
+  reporter?: string;
+  resultsFile?: string;
+  timeoutMs?: number;
+}
+
+/** How layers of evidence are required and enforced. */
+export interface ProofConfig {
+  /** Layers every claim needs unless its capability says otherwise. Default: none. */
+  requiredLayers?: TestLayer[];
+  /** `warn` (default) reports claims missing a required layer; `fail` makes `proof status` fail on them; `off` does not report. */
+  enforceLayers?: 'off' | 'warn' | 'fail';
 }
 
 /** Runner placement: where each external tool executes. */
@@ -332,6 +368,13 @@ export interface LlmConfig {
   pricing?: Record<string, LlmPrice>;
   /** When false, a call that carries images is rejected and `validate` sends none. Default true. */
   allowImages?: boolean;
+  /**
+   * Mask credentials (API keys, bearer tokens, JWTs, private keys, `password=` style values) in every prompt and system
+   * message before it leaves the machine. Default true; false is an explicit opt-out.
+   */
+  redactPrompts?: boolean;
+  /** Extra regular expressions masked as `[REDACTED]` in every prompt, on top of the built-in credential masks. */
+  redactPatterns?: string[];
   replay?: {
     /** Directory for recordings, relative to the config root. Default `.specguard/replay`. */
     dir?: string;
@@ -427,6 +470,8 @@ export interface PathsConfig {
   docsOut?: string;
   /** Where `security` writes generated tests. Default `tests/security`. */
   securityTests?: string;
+  /** Where `verify --emit-tests` writes generated Playwright tests. Default `tests/e2e`. */
+  e2eTests?: string;
   /** Proof ledger file. Default `.specguard/proofs.json`. */
   proofLedger?: string;
 }
@@ -476,6 +521,17 @@ export interface ValidateConfig {
   headless?: boolean;
   /** v2 specs: plan-act rounds per capability, so one run can walk a multi-page journey. Default 3. */
   maxRounds?: number;
+  /** Wall-clock limit for one spec's check, in milliseconds. The check stops planning further steps when it passes. Default 600000. */
+  timeoutMs?: number;
+  /** Delete evidence (screenshots, DOM) older than this many days at the start of a run. Default: keep it. */
+  evidenceRetentionDays?: number;
+  /** Hosts an agent-started check (the MCP tool) may target besides loopback: `host`, `host:port` or `*.domain`. */
+  allowedHosts?: string[];
+  /**
+   * Write a Playwright test from each passing capability check (`tests/e2e/<capability>.verify.spec.ts` or `paths.e2eTests`).
+   * Off by default; `verify --emit-tests` turns it on for one run.
+   */
+  emitTests?: boolean;
   guardrails?: {
     /** Words or phrases that always block. */
     deny?: string[];
@@ -522,6 +578,17 @@ export interface RemediateConfig {
   gitleaks?: boolean;
   /** Treat claims with no exercising test in the baseline as INCONCLUSIVE. Default true. */
   strictUnexercised?: boolean;
+  /**
+   * Auto-merge of dependency fixes that provably keep every proof. Off unless `enabled` and `--auto-merge` are
+   * both set; it only arms GitHub auto-merge on a base branch that requires status checks.
+   */
+  autoMerge?: {
+    enabled?: boolean;
+    /** Packages never auto-merged. */
+    denyPackages?: string[];
+    /** Allow minor bumps at 1.0 or later. Default true. */
+    allowMinor?: boolean;
+  };
 }
 
 /** The fully parsed `.specguard/config.json`. */
@@ -559,12 +626,19 @@ export interface SpecGuardConfig {
    * Empty means none.
    */
   plugins?: PluginEntry[];
+  /**
+   * Plugin ids to leave out even though a config this one extends enables them. `extends` replaces arrays
+   * wholesale, so this is how a repo turns off one inherited plugin without restating the rest.
+   */
+  disabledPlugins?: string[];
   /** Optional team server; see {@link ServerConfig}. */
   server?: ServerConfig;
   featureState?: FeatureStateConfig;
   /** Optional path to a parent config this one extends. Without it, no parent config is inherited. */
   extends?: string;
   paths?: PathsConfig;
+  /** Required test layers and how strictly they are enforced. */
+  proof?: ProofConfig;
   granularity?: GranularityConfig;
   /** Requirement-history settings. */
   history?: { failOnIntentGap?: boolean };

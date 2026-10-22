@@ -16,6 +16,7 @@
  * The `playwrightRunner` export allows unit tests to stub browser interactions
  * without launching a real browser.
  */
+import { chmodSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -277,6 +278,13 @@ export async function saveStorageState(handle: BrowserHandle, file: string): Pro
   const ctx = handle._context as { storageState?: (o: { path: string }) => Promise<unknown> } | undefined;
   if (!ctx?.storageState) throw new Error('This browser context cannot save its state.');
   await ctx.storageState({ path: file });
+  // The file holds session cookies and tokens: readable by its owner only, in a folder only its owner can open.
+  try {
+    chmodSync(path.dirname(file), 0o700);
+    chmodSync(file, 0o600);
+  } catch {
+    /* a filesystem without POSIX permissions (Windows) keeps its own defaults */
+  }
 }
 
 /**

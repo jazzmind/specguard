@@ -14,7 +14,7 @@ import { loadSpecGuardEnv } from '../core/env.js';
 
 // Load .specguard/.env before any pipeline runs, so secrets are available even when the user
 // has not exported them in their shell (the repo's file wins over the workspace's).
-loadSpecGuardEnv();
+for (const warning of loadSpecGuardEnv()) process.stderr.write(`warning: ${warning}\n`);
 
 import { Command, CommanderError } from 'commander';
 import { SpecGuardError } from '../core/errors.js';
@@ -42,9 +42,10 @@ import { gapAnalysisCommand } from './commands/gap-analysis.js';
 import { alignCommand } from './commands/align.js';
 import { contractsCommand } from './commands/contracts.js';
 import { impactCommand } from './commands/impact.js';
-import { workspaceInitCommand, workspaceStatusCommand } from './commands/workspace.js';
+import { pluginAddCommand, pluginDisableCommand, pluginEnableCommand, pluginListCommand, pluginRemoveCommand } from './commands/plugin.js';
+import { workspaceIgnoreCommand, workspaceInitCommand, workspacePublishCommand, workspaceStatusCommand, workspaceSyncCommand } from './commands/workspace.js';
 import { runWorkspaceDrift } from '../pipelines/workspace-drift.js';
-import { loadWorkspaceWithConfigs } from '../core/workspace.js';
+import { loadWorkspaceWithConfigs, workspaceHint } from '../core/workspace.js';
 import { indexCommand } from './commands/index.js';
 import { claimsAssignCommand, claimsListCommand } from './commands/claims.js';
 import type { HistoryAddOpts } from '../pipelines/history.js';
@@ -118,7 +119,9 @@ program
   .option('--runner-path <file>', 'specguard CLI entry for --runner path')
   .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
   .option('--history-hooks', 'record prompts and approved plans as requirement history (hooks go in .claude/settings.local.json)')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean }) => {
+  .option('--ci <provider>', 'also write CI workflows: github = a pull request gate that comments its results, and scheduled remediation')
+  .option('--auto-merge', 'with --ci: let remediation auto-merge dependency fixes that keep every proof (needs a protected branch)')
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean; ci?: string; autoMerge?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
@@ -128,6 +131,8 @@ program
       runnerPath: opts.runnerPath,
       updateHooks: opts.updateHooks,
       historyHooks: opts.historyHooks,
+      ci: opts.ci,
+      autoMerge: opts.autoMerge,
     });
   });
 
@@ -154,7 +159,8 @@ program
   .option('--force', 'overwrite existing spec')
   .option('--capability <id>', 'add what the document says to this capability spec instead of writing new specs (dry run unless --yes)')
   .option('--yes', 'with --capability: write the proposed requirements')
-  .action(async (file: string, opts: { app?: string; out?: string; force?: boolean; capability?: string; yes?: boolean }, cmd: Command) => {
+  .option('--allow-private', 'let a URL resolve to a loopback, private or link-local address (a document on your own network); refused by default')
+  .action(async (file: string, opts: { app?: string; out?: string; force?: boolean; capability?: string; yes?: boolean; allowPrivate?: boolean }, cmd: Command) => {
     await importCommand(file, withGlobals(cmd, opts));
   });
 
@@ -254,6 +260,7 @@ function addValidate(cmd: Command, description: string): Command {
     .option('--no-review', 'skip the multimodal REVIEW step (criterion verdicts only)')
     .option('--headed', 'show the browser window (default: headless, or validate.headless)')
     .option('--allow-outbound', 'let outbound actions (send, invite, pay, ...) run; for staging. Destructive actions stay blocked')
+    .option('--emit-tests', 'write a Playwright test (paths.e2eTests, default tests/e2e) from each passing check, tagged only with the requirements it asserts')
     .action(
       async (
         opts: {
@@ -264,6 +271,7 @@ function addValidate(cmd: Command, description: string): Command {
           review?: boolean;
           headed?: boolean;
           allowOutbound?: boolean;
+          emitTests?: boolean;
         },
         c: Command,
       ) => {
@@ -302,7 +310,8 @@ securityCmd
   .option('--min-severity <level>', 'lowest severity in the plan: critical | high | moderate | low (default remediate.minSeverity or high)')
   .option('--app <name>', 'limit to one app')
   .option('--no-spec-review', 'skip the model-based spec-level review')
-  .action(async (opts: { minSeverity?: string; app?: string; specReview?: boolean }, cmd: Command) => {
+  .option('--sarif [file]', 'also write the unresolved items as SARIF 2.1.0 for GitHub code scanning (default .specguard/security/scan.sarif)')
+  .action(async (opts: { minSeverity?: string; app?: string; specReview?: boolean; sarif?: string | true }, cmd: Command) => {
     await securityScanCommand(withGlobals(cmd, opts));
   });
 
@@ -486,6 +495,8 @@ program
   .option('--align', 'map spec scenarios and claims to test assertions with the LLM')
   .option('--spec <id>', 'restrict to one capability')
   .option('--team', 'also show what the team server has proven (CI), set against this working tree')
+  .option('--workspace [path]', 'the combined picture of every repo in a workspace (a manifest, its folder or a .code-workspace; default SPECGUARD_WORKSPACE or the manifest above here)')
+  .option('--refresh', 'with --workspace: run check in each repo first so the numbers are current')
   .action(async (opts: Record<string, unknown>, cmd: Command) => {
     await checkCommand(withGlobals(cmd, opts));
   });
@@ -495,9 +506,11 @@ program
   .command('serve')
   .description('serve the docs and audit API (/api/v1) and a web UI; docs are generated on demand and cached')
   .option('--port <n>', 'port to listen on (default 4317)')
-  .option('--host <addr>', 'address to bind (default 127.0.0.1; beyond loopback the API has no authentication)')
+  .option('--host <addr>', 'address to bind (default 127.0.0.1; anything else needs --allow-remote, because the API has no authentication)')
+  .option('--allow-remote', 'with --host: bind an address other than loopback, knowing everyone who can reach it can read the API')
   .option('--cors <origin>', 'origin allowed to read the API from a browser, or *')
-  .action(async (opts: { port?: string; host?: string; cors?: string }, cmd: Command) => {
+  .option('--workspace [path]', 'serve every repo of a workspace as a project, plus GET /api/v1/workspace (a manifest, its folder or a .code-workspace; default SPECGUARD_WORKSPACE)')
+  .action(async (opts: { port?: string; host?: string; cors?: string; workspace?: string | true; allowRemote?: boolean }, cmd: Command) => {
     await serveCommand(withGlobals(cmd, opts));
   });
 
@@ -672,10 +685,11 @@ resultsCmd
   .option('--sweep', 'alias of --unexercised')
   .option('--full-run', 'the ingested files are the complete run; lets --unexercised/--sweep apply')
   .option('--ledger <file>', 'proof ledger file (default: paths.proofLedger or .specguard/proofs.json)')
+  .option('--layer <layer>', 'unit|integration|e2e|security|functional: the layer of tests that no @layer tag, config glob or path convention places')
   .action(
     async (
       files: string[],
-      opts: { format?: string; runId?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string },
+      opts: { format?: string; runId?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string; layer?: string },
       cmd: Command,
     ) => {
       await resultsIngestCommand(files, withGlobals(cmd, opts));
@@ -697,6 +711,10 @@ program
   .option('--no-llm', 'skip the LLM breaking-change analysis and code fixes')
   .option('--app <name>', 'restrict to one app')
   .option('--force', 'ignore a fresh .specguard/remediate.lock')
+  .option('--from <source>', 'failing: repair the application for failing claims (a failing test or browser check) instead of fixing dependencies; always a pull request for a person')
+  .option('--claim <ref>', 'with --from failing: repair only this claim or capability')
+  .option('--max <n>', 'with --from failing: most capabilities repaired in one run (default 3)')
+  .option('--auto-merge', 'arm GitHub auto-merge on pull requests the policy allows: dependency patch or 1.x minor, manifests and lockfiles only, every proof re-proven in every layer, base branch with required checks (also needs remediate.autoMerge.enabled)')
   .action(async (opts: Omit<RemediateCliOpts, 'config' | 'json'>, cmd: Command) => {
     await remediateCommand(withGlobals(cmd, opts));
   });
@@ -706,11 +724,13 @@ program
   .command('contracts')
   .description('build or refresh the workspace contract graph (contracts.json)')
   .option('--force', 'force re-parse all specs, ignoring existing contracts.json')
-  .option('--with-llm', 'use LLM to extract contracts from free-text Dependencies sections')
+  .option('--with-llm', 'use LLM to extract contracts from free-text Dependencies sections (only that section of each spec is sent)')
+  .option('--max-llm-specs <n>', 'with --with-llm: most specs sent to the model in one run (default 50)')
   .option('--repo <key>', 'restrict to a single repo key from workspace.json')
+  .option('--workspace <path>', 'a workspace.json, its folder or a .code-workspace file (default: SPECGUARD_WORKSPACE, else the manifest above the current directory)')
   .action(
     async (
-      opts: { force?: boolean; withLlm?: boolean; repo?: string },
+      opts: { force?: boolean; withLlm?: boolean; maxLlmSpecs?: string; repo?: string; workspace?: string },
       cmd: Command,
     ) => {
       await contractsCommand(withGlobals(cmd, opts));
@@ -724,15 +744,66 @@ program
   .argument('<target>', 'spec node ID, relative path, or absolute path to analyze')
   .option('--max-depth <n>', 'maximum traversal depth (default: 6)')
   .option('--upstream', 'also show upstream dependencies (what this node depends on)')
+  .option('--workspace <path>', 'a workspace.json, its folder or a .code-workspace file (default: SPECGUARD_WORKSPACE, else the manifest above the current directory)')
   .action(
     async (
       target: string,
-      opts: { maxDepth?: string; upstream?: boolean },
+      opts: { maxDepth?: string; upstream?: boolean; workspace?: string },
       cmd: Command,
     ) => {
       await impactCommand(target, withGlobals(cmd, opts));
     },
   );
+
+// --- plugin ---------------------------------------------------------------
+const pluginCmd = program.command('plugin').description('browse, enable, disable, add and remove plugins for this repo');
+
+pluginCmd
+  .command('list')
+  .description('built-in and configured plugins, whether each is on, and the commands it adds')
+  .option('--json', 'machine-readable output')
+  .action(async (opts: { json?: boolean }) => {
+    await pluginListCommand(opts);
+  });
+
+pluginCmd
+  .command('enable')
+  .description('turn on a built-in or already-listed plugin')
+  .argument('<id>', 'plugin id')
+  .option('--json', 'machine-readable output')
+  .action(async (id: string, opts: { json?: boolean }) => {
+    await pluginEnableCommand(id, opts);
+  });
+
+pluginCmd
+  .command('disable')
+  .description('turn off a plugin in this repo, including one an extended config enables')
+  .argument('<id>', 'plugin id')
+  .option('--json', 'machine-readable output')
+  .action(async (id: string, opts: { json?: boolean }) => {
+    await pluginDisableCommand(id, opts);
+  });
+
+pluginCmd
+  .command('add')
+  .description("add an npm plugin; it is imported to check it is a plugin, which runs the package's code")
+  .argument('<id>', 'plugin id (what the package\'s plugin export is named)')
+  .requiredOption('--package <name>', 'npm package that exports the plugin')
+  .option('--install', 'run `npm install --save-dev --ignore-scripts <package>` first')
+  .option('--yes', 'confirm that you trust the package')
+  .option('--json', 'machine-readable output')
+  .action(async (id: string, opts: { package: string; install?: boolean; yes?: boolean; json?: boolean }) => {
+    await pluginAddCommand(id, opts);
+  });
+
+pluginCmd
+  .command('remove')
+  .description("drop an npm plugin from this repo's list (the package stays installed)")
+  .argument('<id>', 'plugin id')
+  .option('--json', 'machine-readable output')
+  .action(async (id: string, opts: { json?: boolean }) => {
+    await pluginRemoveCommand(id, opts);
+  });
 
 // --- workspace ------------------------------------------------------------
 const workspaceCmd = program
@@ -741,17 +812,62 @@ const workspaceCmd = program
 
 workspaceCmd
   .command('init')
-  .description('create .specguard/workspace.json by scanning sibling repo directories')
+  .description('create .specguard/workspace.json from child folders, a folder tree (--recursive) or a .code-workspace (--from)')
   .option('--name <name>', 'workspace name (defaults to directory name)')
-  .action(async (opts: { name?: string }) => {
-    await workspaceInitCommand({ name: opts.name });
+  .option('--from <file>', 'register the folders of this .code-workspace file and keep the manifest in step with it')
+  .option('--recursive', 'search nested folders for repos, not only direct children')
+  .option('--depth <n>', 'how deep --recursive searches (default 3)', (v) => parseInt(v, 10))
+  .option('--link', 'with --from: record the manifest location in the .code-workspace settings')
+  .action(async (opts: { name?: string; from?: string; recursive?: boolean; depth?: number; link?: boolean }) => {
+    await workspaceInitCommand(opts);
+  });
+
+workspaceCmd
+  .command('sync')
+  .description('bring the manifest in step with its .code-workspace: add new folders, retire dropped ones, keep hand edits')
+  .option('--from <file>', 'the .code-workspace file (default: the one the manifest is linked to)')
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (opts: { from?: string; workspace?: string }) => {
+    await workspaceSyncCommand(opts);
+  });
+
+workspaceCmd
+  .command('publish')
+  .description('define this workspace on the team server, so it shows the combined view of its projects (each repo still publishes its own snapshot)')
+  .option('--name <name>', 'workspace name on the server (default: server.workspace of the manifest, else its name)')
+  .option('--server <url>', 'team server (default: SPECGUARD_SERVER, else server.url in a repo config)')
+  .option('--token <token>', 'token for the server (default: SPECGUARD_TOKEN or a saved login)')
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .option('--json', 'machine-readable output')
+  .action(async (opts: { name?: string; server?: string; token?: string; workspace?: string; json?: boolean }) => {
+    await workspacePublishCommand(opts);
+  });
+
+workspaceCmd
+  .command('ignore')
+  .description('leave a repo out of every workspace pipeline (contracts, impact, drift, rollup, security, proofs)')
+  .argument('<key>', 'repo key from workspace.json')
+  .option('--reason <text>', 'why it is ignored')
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (key: string, opts: { reason?: string; workspace?: string }) => {
+    await workspaceIgnoreCommand(key, true, opts);
+  });
+
+workspaceCmd
+  .command('unignore')
+  .description('include a previously ignored repo again')
+  .argument('<key>', 'repo key from workspace.json')
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (key: string, opts: { workspace?: string }) => {
+    await workspaceIgnoreCommand(key, false, opts);
   });
 
 workspaceCmd
   .command('status')
   .description('cross-repo health dashboard showing spec counts, contract edges, and health')
-  .action(async () => {
-    await workspaceStatusCommand();
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (opts: { workspace?: string }) => {
+    await workspaceStatusCommand(opts);
   });
 
 workspaceCmd
@@ -760,12 +876,13 @@ workspaceCmd
   .option('--since <ref>', 'git ref to diff against (default: HEAD~1)')
   .option('--force', 'force re-check all contracts regardless of git changes')
   .option('--repo <key>', 'restrict to a single repo key')
-  .action(async (opts: { since?: string; force?: boolean; repo?: string }) => {
+  .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (opts: { since?: string; force?: boolean; repo?: string; workspace?: string }) => {
     const cwd = process.cwd();
     let manifest: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['manifest'];
     let repos: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['repos'];
     try {
-      ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd));
+      ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd, workspaceHint(opts.workspace)));
     } catch {
       process.stderr.write(
         '[workspace drift] No workspace.json found. Run `specguard workspace init` first.\n',

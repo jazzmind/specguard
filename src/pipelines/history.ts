@@ -45,6 +45,8 @@ export interface HistoryAddOpts {
 const INBOX = '.specguard/history/inbox.jsonl';
 const CAPTURED = '.specguard/history/captured.json';
 const INBOX_MAX_BYTES = 1_000_000;
+/** A single prompt is cut to this many characters before it is redacted and stored. */
+const PROMPT_MAX_CHARS = 50_000;
 const INBOX_KEEP_LINES = 300;
 const PROPOSE_TIMEOUT_MS = 25_000;
 
@@ -222,13 +224,16 @@ export function recordPrompt(config: SpecGuardConfig, stdin: string, now = Date.
   const file = path.join(rootOf(config), INBOX);
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
+    const isNew = !fs.existsSync(file);
     const line: InboxLine = {
       ts: now,
       session: String(input.session_id ?? 'unknown'),
       cwd: typeof input.cwd === 'string' ? input.cwd : undefined,
-      prompt: redactor(config).text(prompt),
+      prompt: redactor(config).text(prompt.length > PROMPT_MAX_CHARS ? `${prompt.slice(0, PROMPT_MAX_CHARS)}\n[truncated]` : prompt),
     };
-    fs.appendFileSync(file, `${JSON.stringify(line)}\n`);
+    // Prompts can hold sensitive text even after redaction: the inbox is for its owner only.
+    fs.appendFileSync(file, `${JSON.stringify(line)}\n`, { mode: 0o600 });
+    if (isNew) fs.chmodSync(file, 0o600);
     if (fs.statSync(file).size > INBOX_MAX_BYTES) {
       const keep = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).slice(-INBOX_KEEP_LINES);
       fs.writeFileSync(file, `${keep.join('\n')}\n`);

@@ -34,10 +34,25 @@ export function safeRootsFor(config: SpecGuardConfig): string[] {
   return [...dirs];
 }
 
+/**
+ * Files that hold secrets or personal data and must never be committed by SpecGuard, even inside a safe root such as
+ * `.specguard/`: environment files, private keys and certificates, credentials files, saved login state and browser
+ * evidence (screenshots and DOM can hold personal data). `.env.example` and its siblings are templates and are fine.
+ */
+export function isSecretLike(rel: string): boolean {
+  const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
+  const base = path.posix.basename(normalized).toLowerCase();
+  if (/^\.env(\..+)?$/.test(base) && !/\.(example|sample|template|dist)$/.test(base)) return true;
+  if (/\.(pem|key|p12|pfx|keystore|jks|ppk)$/.test(base)) return true;
+  if (['id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519', '.npmrc', '.netrc', '.pypirc', 'credentials.json', 'secrets.json', 'service-account.json'].includes(base)) return true;
+  return /(^|\/)\.specguard\/(auth|evidence|\.env)(\/|$)/.test(normalized);
+}
+
 export function isSafeToStage(rel: string, safeRoots: string[]): boolean {
   // Normalize so `tests/../src/x.ts` cannot slip past a prefix check.
   const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
   if (normalized.startsWith('../') || path.posix.isAbsolute(normalized)) return false;
+  if (isSecretLike(normalized)) return false;
   return safeRoots.some((root) => normalized.startsWith(root));
 }
 

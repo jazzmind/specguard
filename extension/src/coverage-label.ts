@@ -64,6 +64,37 @@ export function ageLabel(ageMs: number): string {
   return `${Math.floor(ageMs / 86_400_000)}d ago`;
 }
 
+const LAYER_ORDER = ['unit', 'integration', 'e2e', 'security', 'functional'];
+
+export interface LayerCount {
+  required: number;
+  proven: number;
+  failed: number;
+  stale: number;
+  missing: number;
+}
+
+/**
+ * One row for proof by test layer (`trace.json` totals.layerCounts): proven over required per layer. Undefined when no
+ * claim requires a layer, so a project that does not use layers sees no new row.
+ */
+export function layersRow(counts: Record<string, LayerCount> | undefined): { title: string; description: string; tooltip: string } | undefined {
+  const present = LAYER_ORDER.filter((l) => counts?.[l] && counts[l].required > 0);
+  if (!counts || present.length === 0) return undefined;
+  const lacking = present.reduce((n, l) => n + counts[l].missing + counts[l].stale + counts[l].failed, 0);
+  return {
+    title: `Layers: ${present.map((l) => `${l} ${counts[l].proven}/${counts[l].required}`).join(' · ')}`,
+    description: lacking === 0 ? 'every required layer proven' : `${lacking} to go`,
+    tooltip: present
+      .map((l) => {
+        const c = counts[l];
+        const bits = [c.failed ? `${c.failed} failed` : '', c.stale ? `${c.stale} stale` : '', c.missing ? `${c.missing} not proven` : ''].filter(Boolean);
+        return `${l}: ${c.proven} of ${c.required} claims proven${bits.length ? ` (${bits.join(', ')})` : ''}`;
+      })
+      .join('\n'),
+  };
+}
+
 export function traceRow(input: { traceAgeMs?: number; matrixAgeMs?: number }): { title: string; description: string; tooltip: string } {
   if (input.traceAgeMs !== undefined) {
     return {

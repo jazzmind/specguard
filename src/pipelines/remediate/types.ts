@@ -57,6 +57,8 @@ export interface RemediateOpts {
   app?: string;
   /** Ignore a fresh lock (never the default). */
   force?: boolean;
+  /** Arm GitHub auto-merge on pull requests the policy allows (also needs `remediate.autoMerge.enabled`). */
+  autoMerge?: boolean;
   /** Called with progress lines. */
   onLog?: (line: string) => void;
 }
@@ -160,6 +162,10 @@ export interface ItemReport {
   evidence: Record<string, string>;
   prBodyPath?: string;
   pr?: { url?: string; draft: boolean; pushed: boolean; recorded?: boolean };
+  /** Claims proven in some layer before the change and not after it. Empty when every proof held. */
+  layersLost?: Array<{ claim: string; layers: string[] }>;
+  /** What the auto-merge policy decided, and whether GitHub auto-merge was armed. Absent unless it was asked for. */
+  autoMerge?: { eligible: boolean; armed: boolean; reasons: string[] };
   commit?: string;
   skipped?: string;
   error?: string;

@@ -84,6 +84,15 @@ describe('runSecurity', () => {
     await expect(runSecurity(makeConfig(), {})).rejects.toThrow();
   });
 
+  // [claims: capabilities/conformance-testing#layer-classification]
+  it('marks generated security tests with the security layer [security-layer]', async () => {
+    await writeSpec('specs/core/llm.md');
+    await runSecurity(makeConfig(), { spec: 'core/llm' });
+    const content = await readFile(path.join(rootDir, 'tests/security/llm.test.ts'), 'utf-8');
+    expect(content.split('\n')[0]).toBe('// [layer: security]');
+    expect(content).toContain('// OWASP A01: Broken Access Control');
+  });
+
   // [claims: capabilities/security-and-remediation#owasp-test-stubs]
   it('scenario 1: generates OWASP-annotated stubs from a single spec', async () => {
     await writeSpec('specs/core/llm.md');
@@ -144,7 +153,8 @@ describe('runSecurity', () => {
     expect(res.created).toBe(1);
     const content = await readFile(path.join(rootDir, 'tests/security/llm.test.ts'), 'utf-8');
     expect(content.startsWith('```')).toBe(false);
-    expect(content.trimStart().startsWith('import')).toBe(true);
+    // the layer comment is added above the stripped code
+    expect(content.replace(/^\/\/ \[layer: security\]\n/, '').trimStart().startsWith('import')).toBe(true);
     expect(content).not.toContain('```');
   });
 

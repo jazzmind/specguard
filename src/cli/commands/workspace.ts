@@ -2,18 +2,27 @@
  * `specguard workspace <subcommand>` — workspace-level management commands.
  *
  * Subcommands:
- *   init    — create .specguard/workspace.json by scanning sibling repo dirs
+ *   init    — create .specguard/workspace.json from sibling repo dirs, a folder tree or a .code-workspace
+ *   sync    — bring the manifest in step with its .code-workspace
+ *   ignore / unignore — leave a repo out of (or back in) every workspace pipeline
  *   status  — cross-repo health dashboard
  */
 import path from 'node:path';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { writeFile } from '../../core/writer.js';
 import { fileExists } from '../../core/reader.js';
 import {
   loadWorkspaceWithConfigs,
+  manifestRootForCodeWorkspace,
+  resolveWorkspaceRoot,
+  workspaceHint,
+  CODE_WORKSPACE_SETTING,
   type WorkspaceManifest,
   type WorkspaceRepoWithConfig,
 } from '../../core/workspace.js';
+import { applyEdits, modify } from 'jsonc-parser';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { setIgnoreOnDisk, syncManifestOnDisk, type SyncChange } from '../../core/workspace-sync.js';
 import { loadContractGraph } from '../../core/contracts.js';
 import { guessRepoRole, workspaceRepoKey } from '../../core/workspace-heuristics.js';
 
@@ -26,13 +35,102 @@ export interface WorkspaceInitOpts {
   cwd?: string;
   /** Name for the workspace. */
   name?: string;
+  /** A `.code-workspace` file to register the folders of, and to keep in sync with. */
+  from?: string;
+  /** Scan nested folders instead of only direct children. */
+  recursive?: boolean;
+  /** How deep `--recursive` goes. */
+  depth?: number;
+  /** Write the manifest location into the `.code-workspace`'s settings. */
+  link?: boolean;
+}
+
+interface ScannedRepo { rel: string; configured: boolean }
+
+/**
+ * Find repos below `root`. A folder with a SpecGuard config is a configured repo and one with
+ * only `.git` is an unconfigured repo; neither is searched further. Hidden folders and
+ * node_modules are skipped.
+ */
+export function scanRepos(root: string, maxDepth: number): ScannedRepo[] {
+  const found: ScannedRepo[] = [];
+  const walk = (dir: string, depth: number): void => {
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(dir).sort();
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.startsWith('.') || entry === 'node_modules') continue;
+      const abs = path.join(dir, entry);
+      let isDir = false;
+      try {
+        isDir = statSync(abs).isDirectory();
+      } catch {
+        continue;
+      }
+      if (!isDir) continue;
+      const rel = path.relative(root, abs).split(path.sep).join('/');
+      if (existsSync(path.join(abs, '.specguard', 'config.json'))) found.push({ rel, configured: true });
+      else if (existsSync(path.join(abs, '.git'))) found.push({ rel, configured: false });
+      else if (depth < maxDepth) walk(abs, depth + 1);
+    }
+  };
+  walk(root, 1);
+  return found;
+}
+
+/** Write `specguard.workspaceManifest` into a `.code-workspace` file, keeping its comments and layout. */
+export function linkCodeWorkspace(file: string, manifestRoot: string): void {
+  const text = readFileSync(file, 'utf-8');
+  const value = path.relative(path.dirname(file), manifestRoot).split(path.sep).join('/') || '.';
+  const edits = modify(text, ['settings', CODE_WORKSPACE_SETTING], value, {
+    formattingOptions: { insertSpaces: false, tabSize: 1 },
+  });
+  writeFileSync(file, applyEdits(text, edits));
+}
+
+function printChanges(changes: SyncChange[]): void {
+  if (changes.length === 0) {
+    process.stdout.write('  already in step\n');
+    return;
+  }
+  for (const c of changes) process.stdout.write(`  ${c.type.padEnd(9)} ${c.key}  ${c.detail}\n`);
 }
 
 /**
- * Scan sibling directories for `.specguard/config.json` and
- * create a workspace manifest at `<cwd>/.specguard/workspace.json`.
+ * Create a workspace manifest. By default it registers the direct child folders that have a
+ * SpecGuard config; `--recursive` searches deeper and `--from` takes the folders of a
+ * `.code-workspace` file instead.
  */
 export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promise<void> {
+  if (opts.from) {
+    const file = path.resolve(opts.from);
+    if (!existsSync(file) || !file.endsWith('.code-workspace')) {
+      process.stderr.write(`[workspace] ${opts.from} is not a .code-workspace file\n`);
+      process.exit(1);
+    }
+    const manifestRoot = manifestRootForCodeWorkspace(file);
+    const manifestPath = path.join(manifestRoot, '.specguard', 'workspace.json');
+    if (!(await fileExists(manifestPath))) {
+      const manifest = {
+        version: '1.0',
+        name: opts.name ?? path.basename(file, '.code-workspace'),
+        repos: {},
+        source: { codeWorkspace: path.relative(manifestRoot, file).split(path.sep).join('/'), mode: 'auto', autoIgnoreUnconfigured: true },
+      };
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+      process.stdout.write(`[workspace] Created ${manifestPath}\n`);
+    }
+    const result = syncManifestOnDisk(manifestRoot, file);
+    if (opts.link) linkCodeWorkspace(file, manifestRoot);
+    process.stdout.write(`[workspace] Synced with ${file}\n`);
+    printChanges(result.changes);
+    process.stdout.write(`\nUse it with: --workspace ${file}  (or SPECGUARD_WORKSPACE)\n`);
+    process.exit(0);
+  }
+
   const workspaceRoot = path.resolve(opts.cwd ?? process.cwd());
   const manifestPath = path.join(workspaceRoot, '.specguard', 'workspace.json');
 
@@ -46,39 +144,26 @@ export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promis
 
   const workspaceName = opts.name ?? path.basename(workspaceRoot);
 
-  // Scan direct child directories for SpecGuard configs
-  const repos: Record<string, { path: string; role: string; description?: string }> = {};
-  let entries: string[] = [];
-  try {
-    entries = readdirSync(workspaceRoot);
-  } catch {
+  const repos: Record<string, { path: string; role: string; origin: string; ignore?: boolean; ignoreReason?: string }> = {};
+  if (!existsSync(workspaceRoot)) {
     process.stderr.write(`[workspace] Cannot read workspace dir: ${workspaceRoot}\n`);
     process.exit(1);
   }
-
-  for (const entry of entries.sort()) {
-    const absEntry = path.join(workspaceRoot, entry);
-    let isDir = false;
-    try {
-      isDir = statSync(absEntry).isDirectory();
-    } catch {
-      continue;
-    }
-    if (!isDir) continue;
-    if (entry.startsWith('.')) continue;
-
-    const hasSpecGuard = await fileExists(path.join(absEntry, '.specguard', 'config.json'));
-    const repoKey = workspaceRepoKey(entry);
-
-    if (hasSpecGuard) {
-      repos[repoKey] = {
-        path: entry,
-        role: guessRepoRole(absEntry),
-      };
-    }
+  // Without --recursive only direct children are searched, as before.
+  for (const found of scanRepos(workspaceRoot, opts.recursive ? (opts.depth ?? 3) : 1)) {
+    if (!opts.recursive && !found.configured) continue;
+    const abs = path.join(workspaceRoot, found.rel);
+    let key = workspaceRepoKey(path.basename(found.rel));
+    if (repos[key]) key = workspaceRepoKey(found.rel);
+    repos[key] = {
+      path: found.rel,
+      role: guessRepoRole(abs),
+      origin: 'scan',
+      ...(found.configured ? {} : { ignore: true, ignoreReason: 'auto:no-config' }),
+    };
   }
 
-  if (Object.keys(repos).length === 0) {
+  if (Object.values(repos).every((r) => r.ignore) ) {
     process.stdout.write(
       `[workspace] No repos with .specguard/config.json found under ${workspaceRoot}.\n` +
         `  Run \`specguard init\` inside each repo first, then re-run \`specguard workspace init\`.\n`,
@@ -98,7 +183,9 @@ export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promis
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
   process.stdout.write(`[workspace] Created ${manifestPath}\n`);
-  process.stdout.write(`  Repos registered: ${Object.keys(repos).join(', ')}\n`);
+  process.stdout.write(`  Repos registered: ${Object.entries(repos).filter(([, r]) => !r.ignore).map(([k]) => k).join(', ')}\n`);
+  const skipped = Object.entries(repos).filter(([, r]) => r.ignore).map(([k]) => k);
+  if (skipped.length > 0) process.stdout.write(`  Ignored (no SpecGuard config): ${skipped.join(', ')}\n`);
   process.stdout.write('\nNext steps:\n');
   process.stdout.write('  1. Review .specguard/workspace.json — adjust repo keys and roles\n');
   process.stdout.write('  2. Run `specguard contracts` to build the dependency graph\n');
@@ -107,11 +194,80 @@ export async function workspaceInitCommand(opts: WorkspaceInitOpts = {}): Promis
 }
 
 // ---------------------------------------------------------------------------
+// workspace sync / ignore / unignore
+// ---------------------------------------------------------------------------
+
+export interface WorkspacePointerOpts {
+  /** `--workspace`: a manifest, its directory or a .code-workspace file. */
+  workspace?: string;
+  cwd?: string;
+}
+
+function manifestRootOrExit(opts: WorkspacePointerOpts): string {
+  const cwd = path.resolve(opts.cwd ?? process.cwd());
+  const hint = workspaceHint(opts.workspace);
+  const root = hint ? resolveWorkspaceRoot(hint, cwd) : walkUp(cwd);
+  if (!root) {
+    process.stderr.write('[workspace] No workspace.json found. Run `specguard workspace init` first, or pass --workspace.\n');
+    process.exit(1);
+  }
+  return root;
+}
+
+function walkUp(start: string): string | null {
+  let dir = path.resolve(start);
+  for (;;) {
+    if (existsSync(path.join(dir, '.specguard', 'workspace.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+export async function workspaceSyncCommand(opts: WorkspacePointerOpts & { from?: string } = {}): Promise<void> {
+  const root = manifestRootOrExit(opts);
+  try {
+    const result = syncManifestOnDisk(root, opts.from ? path.resolve(opts.from) : undefined);
+    process.stdout.write(`[workspace] Synced ${path.join(root, '.specguard', 'workspace.json')}\n`);
+    printChanges(result.changes);
+    process.exit(0);
+  } catch (err) {
+    process.stderr.write(`[workspace] ${(err as Error).message}\n`);
+    process.exit(1);
+  }
+}
+
+export async function workspacePublishCommand(opts: WorkspacePointerOpts & { name?: string; server?: string; token?: string; json?: boolean }): Promise<void> {
+  const { runWorkspacePublish } = await import('../../pipelines/workspace-publish.js');
+  const { outputResult } = await import('./helpers.js');
+  const root = manifestRootOrExit(opts);
+  try {
+    outputResult(await runWorkspacePublish(root, root, { name: opts.name, server: opts.server, token: opts.token }), opts);
+  } catch (err) {
+    process.stderr.write(`[workspace] ${(err as Error).message}\n`);
+    process.exit(1);
+  }
+}
+
+export async function workspaceIgnoreCommand(key: string, ignore: boolean, opts: WorkspacePointerOpts & { reason?: string } = {}): Promise<void> {
+  const root = manifestRootOrExit(opts);
+  try {
+    setIgnoreOnDisk(root, key, ignore, opts.reason);
+    process.stdout.write(`[workspace] ${key} is ${ignore ? 'now ignored' : 'no longer ignored'}\n`);
+    process.exit(0);
+  } catch (err) {
+    process.stderr.write(`[workspace] ${(err as Error).message}\n`);
+    process.exit(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // workspace status
 // ---------------------------------------------------------------------------
 
 export interface WorkspaceStatusOpts {
   cwd?: string;
+  workspace?: string;
 }
 
 export async function workspaceStatusCommand(opts: WorkspaceStatusOpts = {}): Promise<void> {
@@ -120,7 +276,7 @@ export async function workspaceStatusCommand(opts: WorkspaceStatusOpts = {}): Pr
   let manifest: WorkspaceManifest;
   let repos: WorkspaceRepoWithConfig[];
   try {
-    ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd));
+    ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd, workspaceHint(opts.workspace)));
   } catch {
     process.stderr.write(
       '[workspace] No workspace.json found. Run `specguard workspace init` first.\n',
@@ -173,7 +329,7 @@ export async function workspaceStatusCommand(opts: WorkspaceStatusOpts = {}): Pr
   // --- Render ---------------------------------------------------------------
   process.stdout.write(`\nWorkspace: ${manifest.name}\n`);
   process.stdout.write(
-    `  ${repos.length} repos  ·  ${totalNodes} nodes  ·  ${totalEdges} contract edges\n\n`,
+    `  ${repos.length} repos${Object.keys(manifest.ignored ?? {}).length ? ` (+${Object.keys(manifest.ignored).length} ignored)` : ''}  ·  ${totalNodes} nodes  ·  ${totalEdges} contract edges\n\n`,
   );
 
   // Repo table
@@ -207,6 +363,15 @@ export async function workspaceStatusCommand(opts: WorkspaceStatusOpts = {}): Pr
     process.stdout.write(
       `  ${repo.key.padEnd(COL_KEY)}${repo.role.padEnd(COL_ROLE)}${String(specCount).padEnd(COL_SPECS)}${String(outCount).padEnd(COL_OUT)}${String(inCount).padEnd(COL_IN)}${status}\n`,
     );
+  }
+
+  const ignoredKeys = Object.keys(manifest.ignored ?? {});
+  if (ignoredKeys.length > 0) {
+    process.stdout.write('\n  Ignored (left out of every workspace pipeline):\n');
+    for (const key of ignoredKeys) {
+      const reason = manifest.ignored[key].ignoreReason;
+      process.stdout.write(`    ${key.padEnd(COL_KEY)}${reason ?? 'ignored'}\n`);
+    }
   }
 
   // Contract health summary

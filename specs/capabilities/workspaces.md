@@ -18,6 +18,10 @@ sources:
   - "src/cli/commands/impact.ts"
   - "src/cli/commands/workspace.ts"
   - "src/core/workspace-units.ts"
+  - "src/core/workspace-sync.ts"
+  - "src/core/workspace-rollup.ts"
+  - "src/cli/commands/workspace-check.ts"
+  - "src/pipelines/workspace-publish.ts"
 tests:
   - "tests/core/monorepo.test.ts"
   - "tests/core/env.test.ts"
@@ -30,6 +34,14 @@ docs:
   - "README.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co
+  - 2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv
+  - 2026-10-22-security-no-requirement-bounding-path-tr
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-no-rate-limit-or-resource-limit
+  - 2026-10-22-security-no-authorization-requirement-fo
+  - 2026-10-22-security-shared-env-file-containing-secr
 ---
 
 # Workspaces - Multi-Repo and Monorepo
@@ -67,6 +79,16 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - [ ] Detection also covers Go (`go.work`), Cargo workspaces and uv workspaces besides JavaScript ones, and a repo may hold several; `init` writes one app per ecosystem over every package's sources plus a units manifest carrying each package's test command, instead of one app per package, with glob negations kept at the front <!-- claim: more-ecosystems -->
 - [ ] `check` reports each unit's source files, unowned files and the capabilities touching it (a capability spanning packages appears in each, and gets one drift verdict); `test run` runs each package unit's own command, only named units with `--unit`, or with `--affected [--since <ref>]` the changed units plus every unit that depends on them, running everything when a changed file is outside every unit; `serve` exposes the rollup at `/api/v1/units`, and security plan items carry the unit key <!-- claim: unit-aware-pipelines -->
 - [ ] Dependencies between units, read from each unit's own manifest (package.json, go.mod, Cargo.toml, pyproject.toml), become `package` contract edges with source `workspace`, rebuilt on every `contracts` run so a removed dependency disappears; `impact` accepts a unit or a file inside one, and reports the capabilities with code in the affected units as well as the units themselves <!-- claim: package-edges -->
+- [ ] A repo or unit entry may carry `ignore: true` (with an optional `ignoreReason`); loading the manifest moves every ignored entry out of `repos` and `units` into `ignored`, so every workspace pipeline (contracts, impact, drift, trace, test run, security, proofs, rollup) skips it without a check of its own, a key listed under both `repos` and `units` is still rejected, and `workspace ignore|unignore <key>` edits the raw manifest without normalising it <!-- claim: workspace-ignore -->
+- [ ] Workspace-level commands take `--workspace <path>` or `SPECGUARD_WORKSPACE`, naming a `workspace.json`, its folder, its `.specguard` folder or a `.code-workspace` file (read as JSON with comments); a `.code-workspace` keeps its manifest in `<its folder>/.specguard-workspaces/<name>` unless its `specguard.workspaceManifest` setting says otherwise, and per-repo state such as the proof ledger never follows the flag <!-- claim: workspace-resolve -->
+- [ ] `workspace sync` and `workspace init --from <file>` register the folders of a `.code-workspace` as repos (key from the folder name, role from the repo's contents, identity by real path), add folders with no SpecGuard config as ignored with reason `auto:no-config` and lift that ignore once a config appears, report folders missing on disk, remove or ignore folders that were dropped, and never change an entry it did not create or a field edited by hand; `workspace init --recursive` searches nested folders and stops at a repo <!-- claim: workspace-sync -->
+- [ ] The workspace rollup combines, per repo and in total, what each repo has recorded: coverage, claims proven, failed, stale and unproven, claims by test layer, open security items by severity from the newest plan, documentation freshness and intent gaps (recorded in the trace by `check`), with a state that says why a repo has no numbers; ignored repos are listed and add nothing to the totals <!-- claim: workspace-rollup -->
+- [ ] `check --workspace [path]` prints the rollup and writes `.specguard/rollup.json`; with `--refresh` it first runs `check` in each active repo; the exit code is the worst per-repo outcome (validation failed, drift, missing specs) <!-- claim: workspace-check -->
+- [ ] `serve --workspace [path]` serves every active repo as a project and the rollup at `GET /api/v1/workspace`, read-only <!-- claim: workspace-serve -->
+- [ ] A team server keeps named workspaces (a set of projects, each with a key, a role and an ignore flag; file and Postgres storage) defined with `PUT /api/v1/workspaces/<name>` by a maintainer with an unscoped token, readable at `GET /api/v1/workspaces[/<name>]`, and `GET /api/v1/workspaces/<name>/rollup` combines each project's newest snapshot the way the local rollup does (a project with no snapshot shows as `no-trace`, ignored projects are listed and not counted); a token limited to one project may not define a workspace and sees only one made of that project alone <!-- claim: server-workspace -->
+- [ ] `workspace publish [--name n] [--server url]` defines the workspace on the team server from the manifest: each repo is named by the manifest's `server.projects` map, else its own `server.project`, else its folder, ignored repos are flagged, and a missing server or a refusal is reported and fails the command; each repo still publishes its own snapshot <!-- claim: workspace-publish -->
+- [ ] `contracts --with-llm` says before it sends anything that only each spec's Dependencies section goes to the model (and to which provider and model), lists each spec it sends, and stops at `--max-llm-specs` (default 50), naming the specs it did not send <!-- claim: contracts-llm-cap -->
+- [ ] When `.specguard/.env` (which holds secrets) is readable by other users the CLI warns, names the file and the fix (`chmod 600`), never prints a value, and still loads the file <!-- claim: env-permission-warning -->
 
 ## Scenarios
 ### Scenario 1: Register a multi-repo system

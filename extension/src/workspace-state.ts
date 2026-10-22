@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { inventorySpecs, specCountLabel, type SpecInventory } from './spec-inventory.js';
 
 const STATE_KEY = 'specguard.activeWorkspaceRoot';
@@ -97,17 +98,49 @@ export function findWorkspaceManifestDir(startDir: string): string | undefined {
   }
 }
 
+/** The `.code-workspace` file VS Code opened, when it is a file on disk. */
+export function codeWorkspaceFile(): string | undefined {
+  const file = vscode.workspace.workspaceFile;
+  return file && file.scheme === 'file' && file.fsPath.endsWith('.code-workspace') ? file.fsPath : undefined;
+}
+
+/**
+ * Where the manifest kept for a `.code-workspace` lives: the folder its `specguard.workspaceManifest`
+ * setting names, else `<its folder>/.specguard-workspaces/<name>`. Mirrors the CLI's rule.
+ */
+export function manifestRootForCodeWorkspace(file: string): string {
+  let setting: unknown;
+  try {
+    const doc = parseJsonc(fs.readFileSync(file, 'utf-8'), [], { allowTrailingComma: true }) as { settings?: Record<string, unknown> } | undefined;
+    setting = doc?.settings?.['specguard.workspaceManifest'];
+  } catch {
+    setting = undefined;
+  }
+  if (typeof setting === 'string' && setting.trim() !== '') {
+    const target = path.resolve(path.dirname(file), setting);
+    return path.basename(target) === 'workspace.json' ? path.dirname(path.dirname(target)) : target;
+  }
+  return path.join(path.dirname(file), '.specguard-workspaces', path.basename(file, '.code-workspace'));
+}
+
 /**
  * Return the workspace manifest root for the active VS Code workspace.
  *
  * Strategy:
- * 1. Walk up from the currently active workspace folder looking for workspace.json.
- * 2. If not found there, try the common parent of all open folders.
- * 3. Returns undefined when no manifest exists anywhere.
+ * 1. The manifest kept for the open `.code-workspace` file, when there is one on disk.
+ * 2. Walk up from the currently active workspace folder looking for workspace.json.
+ * 3. If not found there, try each open folder.
+ * 4. Returns undefined when no manifest exists anywhere.
  */
 export function getWorkspaceManifestRoot(): string | undefined {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) return undefined;
+
+  const cws = codeWorkspaceFile();
+  if (cws) {
+    const root = manifestRootForCodeWorkspace(cws);
+    if (fs.existsSync(path.join(root, '.specguard', 'workspace.json'))) return root;
+  }
 
   // Try the active project root first
   const active = getActiveWorkspaceRoot();
@@ -141,7 +174,10 @@ export interface WorkspaceRepo {
   role: string;
   description: string;
   ignore: boolean;
+  ignoreReason: string;
   hasConfig: boolean;
+  /** What the last `check --workspace` recorded for this repo, when it has run. */
+  rollup?: RepoRollupSummary;
   specCount: number;
   /** Sidebar and dashboard text, e.g. "9 capabilities" or "12 spec files". */
   specLabel: string;
@@ -150,8 +186,29 @@ export interface WorkspaceRepo {
   hasSystemSpec: boolean;
 }
 
+/** The part of the CLI's per-repo rollup the panel shows. */
+export interface RepoRollupSummary {
+  state: string;
+  claims: number;
+  proven: number;
+  provenPct: number;
+  failed: number;
+  stale: number;
+  incomplete: number;
+  securityTotal: number;
+  securityCritical: number;
+  securityHigh: number;
+  docsStale: number;
+  intentGaps: number;
+  lagging: boolean;
+}
+
 export interface WorkspaceManifestData {
   name: string;
+  /** The `.code-workspace` the manifest follows, when linked. */
+  codeWorkspace?: string;
+  /** When the rollup was last computed. */
+  rollupAt?: string;
   repos: WorkspaceRepo[];
   manifestRoot: string;
 }
@@ -214,18 +271,20 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
   if (!fs.existsSync(manifestPath)) return null;
 
   try {
+    type Entry = { path?: string; role?: string; description?: string; ignore?: boolean; ignoreReason?: string; kind?: string };
     const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
       name?: string;
-      repos?: Record<string, {
-        path?: string;
-        role?: string;
-        description?: string;
-        ignore?: boolean;
-      }>;
+      repos?: Record<string, Entry>;
+      units?: Record<string, Entry>;
+      source?: { codeWorkspace?: string };
     };
 
     const name = raw.name ?? path.basename(manifestRoot);
-    const reposRaw = raw.repos ?? {};
+    // Repos are the legacy `repos` map plus the `units` of kind repo; packages belong to a monorepo scan.
+    const reposRaw: Record<string, Entry> = { ...(raw.repos ?? {}) };
+    for (const [key, unit] of Object.entries(raw.units ?? {})) if (unit.kind === 'repo' && !reposRaw[key]) reposRaw[key] = unit;
+
+    const rollup = loadRollup(manifestRoot);
 
     const repos: WorkspaceRepo[] = Object.entries(reposRaw).map(([key, entry]) => {
       const relPath = entry.path ?? key;
@@ -240,7 +299,9 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         role: entry.role ?? 'unknown',
         description: entry.description ?? '',
         ignore: entry.ignore === true,
+        ignoreReason: entry.ignoreReason ?? '',
         hasConfig,
+        rollup: rollup.byKey[key],
         specCount: counted.specCount,
         specLabel: counted.specLabel,
         archivedSpecs: inventory.archivedFiles,
@@ -248,9 +309,55 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
       };
     });
 
-    return { name, repos, manifestRoot };
+    return {
+      name,
+      repos,
+      manifestRoot,
+      ...(raw.source?.codeWorkspace ? { codeWorkspace: path.resolve(manifestRoot, raw.source.codeWorkspace) } : {}),
+      ...(rollup.generated ? { rollupAt: rollup.generated } : {}),
+    };
   } catch {
     return null;
+  }
+}
+
+/** Read `.specguard/rollup.json`, which `specguard check --workspace` writes. */
+function loadRollup(manifestRoot: string): { generated?: string; byKey: Record<string, RepoRollupSummary> } {
+  const file = path.join(manifestRoot, '.specguard', 'rollup.json');
+  const byKey: Record<string, RepoRollupSummary> = {};
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8')) as {
+      generated?: string;
+      repos?: Array<{
+        key: string;
+        state: string;
+        coverage: { claims: number; proven: number; provenPct: number; failed: number; stale: number; incomplete: number };
+        security: { total: number; open: Record<string, number> };
+        docs: { stale: string[] };
+        intentGaps: string[];
+        freshness: { stale: boolean };
+      }>;
+    };
+    for (const r of raw.repos ?? []) {
+      byKey[r.key] = {
+        state: r.state,
+        claims: r.coverage.claims,
+        proven: r.coverage.proven,
+        provenPct: r.coverage.provenPct,
+        failed: r.coverage.failed,
+        stale: r.coverage.stale,
+        incomplete: r.coverage.incomplete,
+        securityTotal: r.security.total,
+        securityCritical: r.security.open.critical ?? 0,
+        securityHigh: r.security.open.high ?? 0,
+        docsStale: r.docs.stale.length,
+        intentGaps: r.intentGaps.length,
+        lagging: r.freshness.stale,
+      };
+    }
+    return { generated: raw.generated, byKey };
+  } catch {
+    return { byKey };
   }
 }
 

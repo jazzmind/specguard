@@ -8,6 +8,9 @@ import {
   ADAPTERS,
   getRunnerAdapter,
   prepareRun,
+  quoteArg,
+  testEnv,
+  WITHHELD_ENV,
   runnerForFramework,
   runTests,
   testRunnerSeam,
@@ -189,3 +192,62 @@ describe('runTests', () => {
     expect(report.tests).toHaveLength(4);
   });
 });
+
+describe('quoting what is appended to a test command [quote-arg]', () => {
+  // [claims: capabilities/security-and-remediation#no-shell-spawn]
+  it('single-quotes on POSIX so file names are text, and a real shell gives them back untouched', async () => {
+    const { execFileSync } = await import('node:child_process');
+    expect(quoteArg('tests/a.test.ts', 'linux')).toBe('tests/a.test.ts');
+    for (const nasty of ['$(echo PWNED)', '`echo PWNED`', "a'b", 'a b;echo PWNED', '$HOME', '"q"', 'a&&echo PWNED']) {
+      const out = execFileSync('/bin/sh', ['-c', `printf %s ${quoteArg(nasty, 'linux')}`], { encoding: 'utf8' });
+      expect(out).toBe(nasty);
+    }
+    expect(() => quoteArg('a\0b', 'linux')).toThrow(/NUL/);
+  });
+
+  // [claims: capabilities/security-and-remediation#no-shell-spawn]
+  it('double-quotes under cmd.exe, where single quotes quote nothing, and refuses what cannot be quoted', () => {
+    expect(quoteArg('tests\\a.test.ts', 'win32')).toBe('tests\\a.test.ts');
+    expect(quoteArg('my tests\\a & b.ts', 'win32')).toBe('"my tests\\a & b.ts"');
+    expect(quoteArg('dir with space\\', 'win32')).toBe('"dir with space\\\\"');
+    for (const bad of ['a"b', '50%', 'a\nb']) expect(() => quoteArg(bad, 'win32')).toThrow(/cmd\.exe/);
+  });
+});
+
+describe('what a test command can see of SpecGuard\'s credentials [test-env]', () => {
+  const env = { PATH: '/bin', ANTHROPIC_API_KEY: 'sk-a', OPENAI_API_KEY: 'sk-o', LITELLM_API_KEY: 'sk-l', SPECGUARD_TOKEN: 'sg_t', MY_MODEL_KEY: 'k', STRIPE_API_KEY: 'sk_test', HOME: '/h' };
+
+  // [claims: capabilities/security-and-remediation#test-env-withheld]
+  it('removes the model and server credentials, and the configured model key, and keeps everything else', () => {
+    const out = testEnv(env, { REPORT: '/r.json' }, { withholdEnv: ['MY_MODEL_KEY'] });
+    for (const k of [...WITHHELD_ENV, 'MY_MODEL_KEY']) expect(out[k], k).toBeUndefined();
+    expect(out).toMatchObject({ PATH: '/bin', HOME: '/h', STRIPE_API_KEY: 'sk_test', REPORT: '/r.json' });
+    expect(env.ANTHROPIC_API_KEY).toBe('sk-a'); // the caller's environment is not modified
+  });
+
+  // [claims: capabilities/security-and-remediation#test-env-withheld]
+  it('lets an app\'s test.passEnv keep the ones its tests need, and never strips what the adapter adds', () => {
+    const out = testEnv(env, {}, { passEnv: ['OPENAI_API_KEY', 'MY_MODEL_KEY'], withholdEnv: ['MY_MODEL_KEY'] });
+    expect(out.OPENAI_API_KEY).toBe('sk-o');
+    expect(out.MY_MODEL_KEY).toBe('k');
+    expect(out.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(testEnv(env, { ANTHROPIC_API_KEY: 'explicit' }).ANTHROPIC_API_KEY).toBe('explicit');
+  });
+
+  // [claims: capabilities/security-and-remediation#test-env-withheld]
+  it('is what a real test command inherits', async () => {
+    const dir = tmp();
+    process.env.ANTHROPIC_API_KEY = 'sk-should-not-leak';
+    process.env.STRIPE_API_KEY = 'kept';
+    try {
+      const res = testRunnerSeam.exec(`node -e "process.stdout.write(String(process.env.ANTHROPIC_API_KEY)+'|'+process.env.STRIPE_API_KEY)"`, { cwd: dir, env: {}, timeoutMs: 20000 });
+      expect(res.output).toBe('undefined|kept');
+      const passed = testRunnerSeam.exec(`node -e "process.stdout.write(String(process.env.ANTHROPIC_API_KEY))"`, { cwd: dir, env: {}, timeoutMs: 20000, passEnv: ['ANTHROPIC_API_KEY'] });
+      expect(passed.output).toBe('sk-should-not-leak');
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.STRIPE_API_KEY;
+    }
+  });
+});
+

@@ -83,6 +83,8 @@ export interface HealJob {
   resultsFile?: string;
   timeoutMs?: number;
   image?: string;
+  /** `test.passEnv` of the apps this job runs: credentials its tests need, which are withheld by default. */
+  passEnv?: string[];
   sandbox: 'local' | 'docker';
   /** Test files relative to `cwd`; empty means the whole suite. */
   selection: string[];
@@ -102,6 +104,7 @@ export const healRunner = {
       timeoutMs: job.timeoutMs,
       sandbox: job.sandbox,
       image: job.image,
+      passEnv: job.passEnv,
       resultsFile: job.resultsFile,
     });
   },
@@ -248,6 +251,7 @@ export async function buildHealJobs(config: SpecGuardConfig, opts: HealOpts): Pr
       resultsFile: test.resultsFile,
       timeoutMs: test.timeoutMs,
       image: test.image,
+      passEnv: test.passEnv,
       sandbox,
       selection,
       profile,

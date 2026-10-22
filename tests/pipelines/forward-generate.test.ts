@@ -112,6 +112,19 @@ describe('runForwardGenerate', () => {
     expect(existsSync(path.join(rootDir, 'tests/pipelines/drift.test.ts'))).toBe(true);
   });
 
+  // [claims: capabilities/conformance-testing#layer-classification]
+  it('records the --type as a layer comment in the generated file, and none when no type is given [type-layer]', async () => {
+    await writeSpec('specs/core/spec-parser.md');
+    await runForwardGenerate(makeConfig(), { spec: 'core/spec-parser', type: 'integration' });
+    const typed = await readFile(path.join(rootDir, 'tests/core/spec-parser.test.ts'), 'utf-8');
+    expect(typed.split('\n')[0]).toBe('// [layer: integration]');
+
+    await writeSpec('specs/core/reader.md');
+    await runForwardGenerate(makeConfig(), { spec: 'core/reader' });
+    const plain = await readFile(path.join(rootDir, 'tests/core/reader.test.ts'), 'utf-8');
+    expect(plain).not.toContain('[layer:');
+  });
+
   // [claims: capabilities/conformance-testing#generate-safe-writes]
   it('scenario 3: skips an existing test file without --force', async () => {
     await writeSpec('specs/core/spec-parser.md');

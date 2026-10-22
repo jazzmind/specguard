@@ -11,6 +11,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getActiveWorkspaceRoot } from './workspace-state.js';
 
 interface McpConfig {
   mcpServers?: Record<string, McpServerEntry>;
@@ -29,7 +30,7 @@ interface McpServerEntry {
  * Idempotent — if the entry already exists, it is updated in place.
  */
 export async function registerMcpForCursor(): Promise<void> {
-  const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const ws = getActiveWorkspaceRoot();
 
   if (!ws) {
     vscode.window.showWarningMessage('SpecGuard: No workspace folder open. Cannot register MCP.');

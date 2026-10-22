@@ -5,7 +5,7 @@
  * repos in the workspace manifest and writes `.specguard/contracts.json`.
  */
 import path from 'node:path';
-import { loadWorkspaceWithConfigs } from '../../core/workspace.js';
+import { loadWorkspaceWithConfigs, workspaceHint } from '../../core/workspace.js';
 import { runContracts } from '../../pipelines/contracts.js';
 import { outputResult } from './helpers.js';
 import type { GlobalOpts } from './helpers.js';
@@ -15,8 +15,11 @@ export interface ContractsOpts extends GlobalOpts {
   force?: boolean;
   /** Use LLM to extract contracts from free-text Dependencies sections. */
   withLlm?: boolean;
+  maxLlmSpecs?: string;
   /** Restrict to a single repo key. */
   repo?: string;
+  /** `--workspace`: the manifest to use instead of the one above the current directory. */
+  workspace?: string;
 }
 
 export async function contractsCommand(opts: ContractsOpts): Promise<void> {
@@ -25,7 +28,7 @@ export async function contractsCommand(opts: ContractsOpts): Promise<void> {
   let manifest: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['manifest'];
   let repos: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['repos'];
   try {
-    ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd));
+    ({ manifest, repos } = await loadWorkspaceWithConfigs(cwd, workspaceHint(opts.workspace)));
   } catch {
     process.stderr.write(
       '[contracts] No workspace.json found. Run `specguard workspace init` first.\n',
@@ -39,6 +42,7 @@ export async function contractsCommand(opts: ContractsOpts): Promise<void> {
   const result = await runContracts(manifest, repos, {
     force: opts.force,
     withLlm: opts.withLlm,
+    maxLlmSpecs: opts.maxLlmSpecs ? Number(opts.maxLlmSpecs) : undefined,
     repo: opts.repo,
   }, llmConfig);
 

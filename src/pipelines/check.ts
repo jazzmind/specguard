@@ -14,7 +14,7 @@ import path from 'node:path';
 import { parseClaimRef } from '../core/claims.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { listHistory } from '../core/history.js';
-import { intentGaps } from '../core/intent-gap.js';
+import { intentGaps, staleDocs } from '../core/intent-gap.js';
 import { buildSpecGraph } from '../core/spec-graph.js';
 import { specsRootDir } from '../core/spec-key.js';
 import { buildTraceModel, TRACE_FILE, type TraceModel, type TraceNode } from '../core/trace.js';
@@ -52,12 +52,16 @@ const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n / d) 
 /** The trace model with proof verdicts from the ledger and the repo's source files. */
 export async function loadTrace(config: SpecGuardConfig): Promise<{ model: TraceModel; verdicts: Map<string, EffectiveVerdict>; sourceFiles: string[] }> {
   const verdicts = new Map<string, EffectiveVerdict>();
-  await walkClaimVerdicts(config, (ref, verdict) => {
+  const details: NonNullable<Parameters<typeof buildTraceModel>[1]>['details'] = new Map();
+  await walkClaimVerdicts(config, (ref, verdict, detail) => {
     const parsed = parseClaimRef(ref);
-    if (parsed) verdicts.set(`${parsed.specKey}#${parsed.claimId}`, verdict);
+    if (!parsed) return;
+    const key = `${parsed.specKey}#${parsed.claimId}`;
+    verdicts.set(key, verdict);
+    if (detail) details.set(key, { layers: detail.layers, required: detail.required, missing: detail.missing });
   });
   const sourceFiles = (await collectSourceFiles(config)).map((f) => f.rel);
-  return { model: await buildTraceModel(config, { verdicts, sourceFiles }), verdicts, sourceFiles };
+  return { model: await buildTraceModel(config, { verdicts, details, sourceFiles }), verdicts, sourceFiles };
 }
 
 const specNodes = (m: TraceModel): TraceNode[] => m.nodes.filter((n) => n.kind === 'capability' || n.kind === 'component');
@@ -72,6 +76,9 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
   const log = (line: string): void => void result.messages.push(line);
   const root = config.rootDir ?? process.cwd();
   const { model, sourceFiles } = await loadTrace(config);
+  // Git-derived gaps go into the trace so readers without the repo's history can report them.
+  const gaps = view === 'summary' ? intentGaps(root, model.nodes, listHistory(config), path.relative(root, specsRootDir(config)).split(path.sep).join('/')) : [];
+  if (view === 'summary') model.gaps = { intent: gaps, docsStale: staleDocs(root, model.nodes) };
   await writeFile(path.join(root, TRACE_FILE), JSON.stringify(model, null, 2) + '\n');
 
   const errors = model.issues.filter((i) => i.level === 'error');
@@ -156,7 +163,6 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
         log('ORPHANS: 0');
       }
       await appendProofCoverage(config, log);
-      const gaps = intentGaps(root, model.nodes, listHistory(config), path.relative(root, specsRootDir(config)).split(path.sep).join('/'));
       for (const gap of gaps) {
         log(`  [intent-gap] ${gap.id}: code changed ${gap.codeDate}; last recorded intent ${gap.intentDate || 'none'}`);
       }

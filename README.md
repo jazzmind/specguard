@@ -54,6 +54,22 @@ specguard server                        # run the team server (optional; see doc
 
 `status`, `drift`, `matrix` and `gap-analysis` keep working, with the same exit codes, and delegate to the same model in a repo that uses capability specs. Specs are described in [specs/README.md](specs/README.md).
 
+### Workspaces, test layers, plugins and self-healing (0.3)
+
+```bash
+specguard workspace init --from sandbox.code-workspace && specguard workspace ignore hub
+specguard check --workspace sandbox.code-workspace --refresh   # one picture across repos
+specguard plugin list                                          # browse, enable, disable, add, remove
+specguard init --ci github                                     # PR gate that comments, SARIF, scheduled remediation
+specguard remediate --from failing --pr                        # repair the app for failing claims (a PR for a person)
+```
+
+Proofs now record the test layer that earned them (unit, integration, e2e, security, functional), capabilities can require layers, a passing `verify` can become a Playwright test, and dependency fixes that provably keep every proof can be auto-merged on a protected branch. See [docs/workspaces-layers-plugins.md](docs/workspaces-layers-plugins.md).
+
+### Security model
+
+SpecGuard runs as you and holds your files and keys, so it limits what it sends and what an agent can make it do: credentials are masked in every model prompt, page content and imported documents are fenced as untrusted data, `import <url>` reaches only public addresses, the MCP server writes only spec files inside the project (and can run read-only with `SPECGUARD_MCP_READONLY=1`), browser checks started by an agent are limited to loopback and `validate.allowedHosts`, and test commands do not inherit its model keys. `specguard serve` is loopback-only; the team server has tokens, a sign-in header honoured only from `SPECGUARD_TRUSTED_PROXIES`, rate limits and an audit trail. What it assumes, and why some things have no authentication, is in the **Trust model** of [specs/system.md](specs/system.md).
+
 ### Local first, with an optional team server
 
 Everything above runs on your machine and needs nothing else. A **team server** is optional: CI publishes a snapshot of each commit (`publish`), and the server then shows everyone the same proof state, generates each document once for the whole team, and holds the remediation plans that trackers update. The command line, the MCP server and the VS Code extension all use the server when one answers and fall back to local files when it does not, and tell you which they used. Only specs, history, the trace, proof rows and the newest plan ever leave a machine. See [docs/team-server.md](docs/team-server.md).

@@ -10,6 +10,7 @@
  * this function with stdout messages and `process.exit`.
  */
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { PipelineResult } from '../core/types.js';
@@ -27,6 +28,7 @@ import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
 import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
 import { detectMonorepo, testCommandFor, type Ecosystem, type MonorepoInfo, type WorkspacePackage } from '../core/monorepo.js';
 import { unitsFromMonorepo } from '../core/workspace-units.js';
+import { installCommandFor, renderPullRequestWorkflow, renderRemediateWorkflow, WORKFLOW_FILES } from '../core/ci-workflow.js';
 
 export interface InitOpts {
   /** Test framework override; defaults to the language profile's framework. */
@@ -46,6 +48,10 @@ export interface InitOpts {
   updateHooks?: boolean;
   /** Wire the requirement-history hooks into `.claude/settings.local.json`. */
   historyHooks?: boolean;
+  /** Write CI workflows for this provider (`github`): a pull request gate with a comment, and scheduled remediation. */
+  ci?: 'github';
+  /** With `ci`: enable auto-merge of dependency fixes that keep every proof. */
+  autoMerge?: boolean;
 }
 
 export interface InitResult extends PipelineResult {
@@ -285,6 +291,27 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   result.updated += scaffold.updated.length;
   result.skipped += scaffold.skipped.length;
   result.messages.push(...scaffold.messages);
+
+  if (opts.ci === 'github') {
+    const has = (f: string): boolean => existsSync(path.join(cwd, f));
+    const workflowOpts = { install: installCommandFor(has), affected: has('.specguard/workspace.json') && /"kind":\s*"package"/.test(readFileSync(path.join(cwd, '.specguard/workspace.json'), 'utf8')), verify: true };
+    const files: Array<[string, string]> = [
+      [WORKFLOW_FILES.pullRequest, renderPullRequestWorkflow(workflowOpts)],
+      [WORKFLOW_FILES.remediate, renderRemediateWorkflow({ ...workflowOpts, autoMerge: opts.autoMerge })],
+    ];
+    for (const [rel, text] of files) {
+      if (has(rel)) {
+        result.skipped += 1;
+        result.skippedFiles.push(rel);
+        result.messages.push(`  exists   ${rel} (not overwritten)`);
+        continue;
+      }
+      await writeFile(path.join(cwd, rel), text);
+      result.created += 1;
+      result.createdFiles.push(rel);
+      result.messages.push(`  created  ${rel}`);
+    }
+  }
 
   result.messages.unshift(
     `specguard init (language: ${profile.id}, framework: ${framework}, harness: ${opts.harness ?? 'both'})`,

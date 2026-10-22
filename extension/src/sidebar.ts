@@ -17,10 +17,12 @@ import {
   coverageRowDescription,
   coverageRowLabel,
   docsOutputDescription,
+  layersRow,
   outputBasis,
   specsOutputDescription,
   testsOutputDescription,
   traceRow,
+  type LayerCount,
 } from './coverage-label.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './dashboard/coverage-parse.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
@@ -464,6 +466,21 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       };
     }
     items.push(traceItem);
+
+    // Proof by test layer, when the project requires layers.
+    if (traceAge !== undefined) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(traceJson, 'utf-8')) as { totals?: { layerCounts?: Record<string, LayerCount> } };
+        const layers = layersRow(raw.totals?.layerCounts);
+        if (layers) {
+          const layerItem = new CoverageTreeItem(layers.title, vscode.TreeItemCollapsibleState.None, 'output-item');
+          layerItem.iconPath = new vscode.ThemeIcon('layers');
+          layerItem.description = layers.description;
+          layerItem.tooltip = layers.tooltip;
+          items.push(layerItem);
+        }
+      } catch { /* an unreadable trace shows no layers row */ }
+    }
 
     return items;
   }

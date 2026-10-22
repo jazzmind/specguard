@@ -22,7 +22,7 @@ inputs:
     required: false
     default: 'true'
   github-token:
-    description: 'Token for git push and `gh pr create` in remediate mode. Pass secrets.GITHUB_TOKEN (or a PAT when workflows must run on the PR).'
+    description: 'Token for git push and `gh pr create` in remediate mode, and for the pull request comment. Pass secrets.GITHUB_TOKEN (or a PAT when workflows must run on the PR).'
     required: false
     default: ''
   version:
@@ -47,7 +47,7 @@ inputs:
   fail-on:
     description: >-
       Comma-separated thresholds that fail the job: missing-specs, drift, proof-failed, proof-stale,
-      proof-unexercised, proof-unproven, align-below:<percent>, results, validate, security, deps, check, test, verify, scan, publish, none.
+      proof-unexercised, proof-unproven, proof-incomplete, align-below:<percent>, results, validate, security, deps, check, test, verify, scan, publish, none.
     required: false
     default: 'missing-specs,drift,proof-failed,proof-stale,results'
   results:
@@ -76,6 +76,18 @@ inputs:
     default: ''
   affected:
     description: '"true": the "test" gate runs only the workspace units whose files changed and the units that depend on them.'
+    required: false
+    default: 'false'
+  affected-since:
+    description: 'Git ref the "test" gate measures changed units against when affected is "true". Default: the pull request base commit. Needs the history to include it (fetch-depth: 0).'
+    required: false
+    default: ''
+  comment:
+    description: 'On a pull request, post one comment with the results and update it on every run. Needs `github-token` with pull-requests: write; a run that cannot comment (a fork) says so and carries on.'
+    required: false
+    default: 'true'
+  sarif:
+    description: 'Upload the "scan" gate findings to GitHub code scanning as SARIF (needs security-events: write).'
     required: false
     default: 'false'
   install-playwright:
@@ -177,9 +189,21 @@ runs:
         SG_DRIFT_SINCE: ${{ inputs.drift-since }}
         SG_VALIDATE_URL: ${{ inputs.validate-url }}
         SG_AFFECTED: ${{ inputs.affected }}
+        SG_AFFECTED_SINCE: ${{ inputs.affected-since }}
+        SG_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        SG_COMMENT: ${{ inputs.comment }}
+        SG_SARIF: ${{ inputs.sarif }}
+        SG_GITHUB_TOKEN: ${{ inputs.github-token }}
         SG_SERVER_URL: ${{ inputs.server-url }}
         SPECGUARD_TOKEN: ${{ inputs.server-token }}
       run: node "${{ github.action_path }}/action/run-gates.mjs"
+
+    - name: Upload SARIF to code scanning
+      if: ${{ always() && inputs.sarif == 'true' && inputs.mode != 'remediate' && hashFiles(format('{0}/.specguard/security/scan.sarif', inputs.working-directory)) != '' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.working-directory }}/.specguard/security/scan.sarif
+        category: specguard
 
     - name: Upload SpecGuard evidence
       if: ${{ always() && inputs.upload-evidence == 'true' }}

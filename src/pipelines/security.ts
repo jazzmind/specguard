@@ -43,6 +43,8 @@ import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import { withLayerComment } from '../core/test-layers.js';
+import { claimsBlock } from './forward-generate.js';
 import { parseSpecContent, loadAllSpecs, extractSection } from '../core/spec-parser.js';
 import { llmGenerateText } from '../core/llm.js';
 import { resolveProfile, type LanguageProfile } from '../core/language-profiles.js';
@@ -115,6 +117,7 @@ function buildSecuritySystemPrompt(profile: LanguageProfile): string {
     '  e.g. `// OWASP A01: Broken Access Control` above the test block.',
     '- Derive tests from the spec\'s Security Notes and the source module\'s surface area.',
     '- If SAST findings are provided, add a concrete regression test targeting each one.',
+    '- When claims are listed, put the exact @claim tag of each claim a test verifies in that test\'s title.',
     '- Output ONLY valid test code. No Markdown code fences, no prose, no explanation.',
   ].join('\n');
 }
@@ -462,6 +465,8 @@ export async function runSecurity(
       '',
       'SAST findings to target with regression tests:',
       sastBlock(sastFindings),
+      // Tagged tests count as proof of the claim, in the security layer.
+      ...(claimsBlock(spec).text ? ['', claimsBlock(spec).text] : []),
     ].join('\n');
 
     attempted += 1;
@@ -473,7 +478,7 @@ export async function runSecurity(
         system: buildSecuritySystemPrompt(profile),
         prompt,
       });
-      const testCode = stripFences(raw);
+      const testCode = withLayerComment(stripFences(raw), 'security', profile.id);
       await writeFile(targetTest, testCode);
       log(`[gen] ${key}`);
       result.items.push({ key, status: 'created', path: targetTest });

@@ -164,15 +164,40 @@ describe('spawnCli', () => {
   });
 
   // [claims: capabilities/integration-surfaces#vscode-dashboard]
-  it('AC-7: .ts path spawns via npx tsx', () => {
+  it('AC-7: .ts path spawns via node --import tsx, without a shell', () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     spawnCli('/ws/src/cli/index.ts', ['status'], '/ws', () => {});
     expect(cp.spawn).toHaveBeenCalledWith(
-      'npx',
-      ['tsx', '/ws/src/cli/index.ts', 'status'],
+      'node',
+      ['--import', 'tsx', '/ws/src/cli/index.ts', 'status'],
       expect.objectContaining({ cwd: '/ws' }),
     );
+  });
+
+  // [claims: capabilities/security-and-remediation#no-shell-spawn]
+  it('never starts a shell, and passes an argument full of shell syntax as one argument', () => {
+    const mockProc = makeProc();
+    vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
+    spawnCli('/ext/dist/cli.js', ['check', '--spec', '$(touch pwned); rm -rf / & `id`'], '/ws', () => {});
+    spawnCli('/ws/src/cli/index.ts', ['x; y'], '/ws', () => {});
+    spawnCli('/proj/node_modules/.bin/specguard', ['a b'], '/ws', () => {});
+    for (const call of vi.mocked(cp.spawn).mock.calls) {
+      expect((call[2] as { shell?: unknown }).shell).toBeUndefined();
+    }
+    expect(vi.mocked(cp.spawn).mock.calls[0][1]).toEqual(['/ext/dist/cli.js', 'check', '--spec', '$(touch pwned); rm -rf / & `id`']);
+  });
+
+  // [claims: capabilities/security-and-remediation#no-shell-spawn]
+  it('rejects, rather than running, an argument cmd.exe cannot be given safely', async () => {
+    const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      const handle = spawnCli('C:\\p\\.bin\\specguard.cmd', ['--spec', 'a" & calc & "'], 'C:\\ws', () => {});
+      await expect(handle.promise).rejects.toThrow(/refusing to pass an argument/);
+    } finally {
+      Object.defineProperty(process, 'platform', original);
+    }
   });
 
   // [claims: capabilities/integration-surfaces#vscode-dashboard]

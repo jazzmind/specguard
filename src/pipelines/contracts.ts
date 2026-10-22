@@ -9,6 +9,7 @@
  *
  * Spec: specs/capabilities/workspaces.md
  */
+import { isInside } from '../core/safe-path.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import type { SpecGuardConfig, PipelineResult, PluginEntry } from '../core/types.js';
@@ -37,6 +38,9 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
+/** Specs whose Dependencies text one `contracts --with-llm` run sends to the model, unless told otherwise. */
+export const DEFAULT_MAX_LLM_SPECS = 50;
+
 export interface ContractsOpts {
   /** Force re-parse all specs, ignoring any existing contracts.json. */
   force?: boolean;
@@ -47,6 +51,8 @@ export interface ContractsOpts {
   withLlm?: boolean;
   /** Restrict to a single repo key. */
   repo?: string;
+  /** With `withLlm`: most specs whose Dependencies text is sent to the model in one run. Default 50. */
+  maxLlmSpecs?: number;
   /** Plugin names whose contract importers run. Default: the union of the repos' `plugins`. */
   plugins?: string[];
 }
@@ -172,6 +178,8 @@ function specTitle(repoKey: string, specRelPath: string, manifest: WorkspaceMani
   try {
     const repoAbs = path.resolve(manifest.rootDir, manifest.repos[repoKey]?.path ?? repoKey);
     const absPath = path.join(repoAbs, specRelPath);
+    // A spec names this path in its contract block: it must stay inside the repo it claims to be in.
+    if (!isInside(repoAbs, absPath)) throw new Error('outside the repo');
     const content = readFileSync(absPath, 'utf-8');
     const match = content.match(/^#\s+(.+?)\s*$/m);
     if (match) return match[1].trim();
@@ -329,7 +337,9 @@ export async function runContracts(
 
   // --- Pass 3: LLM extraction (optional) ------------------------------------
   if (opts.withLlm && llmConfig) {
-    log('Pass 3: LLM extraction from free-text Dependencies...');
+    const cap = opts.maxLlmSpecs ?? DEFAULT_MAX_LLM_SPECS;
+    log(`Pass 3: LLM extraction from free-text Dependencies. Only each spec's Dependencies section is sent, to ${llmConfig.llm.provider}/${llmConfig.llm.model}, for at most ${cap} spec(s) (--max-llm-specs).`);
+    let sent = 0;
     for (const repo of reposInScope) {
       const specDir = repo.specGuardConfig
         ? path.resolve(repo.absPath, repo.specGuardConfig.apps[0]?.specDir ?? 'specs')
@@ -344,6 +354,12 @@ export async function runContracts(
 
       for (const spec of specs) {
         if (!spec.dependencies || spec.dependencies.includes('contracts:start')) continue;
+        if (sent >= cap) {
+          log(`  [cap] ${repo.key}::${spec.specKey}: not sent, the limit of ${cap} spec(s) per run was reached`);
+          continue;
+        }
+        sent += 1;
+        log(`  [send] ${repo.key}::${spec.specKey}`);
         const specRelPath = spec.filePath
           .replace(repo.absPath + path.sep, '')
           .split(path.sep)

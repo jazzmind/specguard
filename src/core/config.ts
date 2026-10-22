@@ -6,6 +6,7 @@
  * `SpecGuardConfig`, and stamps `rootDir` onto the result. This is the only
  * module that reads the config file — pipelines receive a typed config.
  */
+import { TEST_LAYERS } from './test-layers.js';
 import path from 'node:path';
 import { z } from 'zod';
 import type { SpecGuardConfig } from './types.js';
@@ -56,6 +57,23 @@ const appConfigSchema = z
         resultsFile: z.string().optional(),
         timeoutMs: z.number().int().positive().optional(),
         image: z.string().optional(),
+        passEnv: z.array(z.string()).optional(),
+        layers: z.record(z.enum(TEST_LAYERS), z.array(z.string())).optional(),
+        suites: z
+          .array(
+            z
+              .object({
+                name: z.string(),
+                layer: z.enum(TEST_LAYERS).optional(),
+                command: z.string().optional(),
+                cwd: z.string().optional(),
+                reporter: z.string().optional(),
+                resultsFile: z.string().optional(),
+                timeoutMs: z.number().int().positive().optional(),
+              })
+              .passthrough(),
+          )
+          .optional(),
       })
       .passthrough()
       .optional(),
@@ -105,6 +123,8 @@ const llmSchema = z
     timeoutMs: z.number().int().positive().optional(),
     retries: z.number().int().min(0).max(10).optional(),
     backoffMs: z.number().int().min(0).optional(),
+    redactPrompts: z.boolean().optional(),
+    redactPatterns: z.array(z.string()).optional(),
     budget: z
       .object({
         maxUsd: z.number().positive().optional(),
@@ -184,6 +204,10 @@ const validateSchema = z
   .object({
     headless: z.boolean().optional(),
     maxRounds: z.number().int().min(1).max(10).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    evidenceRetentionDays: z.number().positive().optional(),
+    allowedHosts: z.array(z.string()).optional(),
+    emitTests: z.boolean().optional(),
     guardrails: z
       .object({
         deny: z.array(z.string()).optional(),
@@ -209,6 +233,7 @@ const pathsSchema = z
     specsRoot: z.string().optional(),
     docsOut: z.string().optional(),
     securityTests: z.string().optional(),
+    e2eTests: z.string().optional(),
     proofLedger: z.string().optional(),
   })
   .passthrough();
@@ -258,6 +283,10 @@ const remediateSchema = z
     semgrep: z.boolean().optional(),
     gitleaks: z.boolean().optional(),
     strictUnexercised: z.boolean().optional(),
+    autoMerge: z
+      .object({ enabled: z.boolean().optional(), denyPackages: z.array(z.string()).optional(), allowMinor: z.boolean().optional() })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
@@ -292,6 +321,11 @@ const configSchema = z
       })
       .optional(),
     plugins: z.array(z.union([z.string(), z.object({ name: z.string(), package: z.string() })])).optional(),
+    disabledPlugins: z.array(z.string()).optional(),
+    proof: z
+      .object({ requiredLayers: z.array(z.enum(TEST_LAYERS)).optional(), enforceLayers: z.enum(['off', 'warn', 'fail']).optional() })
+      .passthrough()
+      .optional(),
     featureState: featureStateSchema.optional(),
     auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
     validate: validateSchema.optional(),
@@ -418,6 +452,11 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
   // canonical type and stamp the resolved root directory.
   const config = result.data as unknown as SpecGuardConfig;
   config.rootDir = rootDir;
+  // A plugin the repo disabled stays off even when an extended config enables it.
+  if (config.disabledPlugins?.length && config.plugins) {
+    const off = new Set(config.disabledPlugins);
+    config.plugins = config.plugins.filter((e) => !off.has(typeof e === 'string' ? e : e.name));
+  }
   // The LLM layer is configured once per process from the config it was given.
   configureLlm({ rootDir, llm: config.llm });
   return config;

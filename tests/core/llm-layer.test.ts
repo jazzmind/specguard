@@ -334,3 +334,54 @@ describe('per-request scopes [llm-scope]', () => {
     await expect(runWithLlmScope({ onUsage: () => { throw new Error('sink down'); } }, () => call())).resolves.toBe('hi');
   });
 });
+
+describe('credentials never leave in a prompt [prompt-redaction]', () => {
+  const AWS_LIKE = 'Authorization: Bearer abc123def456ghi789jkl0';
+  const SK = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCD';
+
+  // [claims: capabilities/platform-foundation#prompt-redaction]
+  it('masks credentials in the prompt and the system message of a text call, whichever pipeline asked', async () => {
+    configure({});
+    gt.mockResolvedValue(ok());
+    await call({ system: `You hold ${SK} for the run.`, prompt: `Review this config:\n${AWS_LIKE}\npassword="hunter2hunter2"\nand the spec text.` });
+    const sent = gt.mock.calls[0][0] as { system: string; prompt: string };
+    expect(sent.system).not.toContain('abcdefghijklmnopqrstuvwxyz');
+    expect(sent.prompt).not.toContain('abc123def456ghi789jkl0');
+    expect(sent.prompt).not.toContain('hunter2hunter2');
+    expect(sent.prompt).toContain('Review this config:');
+    expect(sent.prompt).toContain('and the spec text.');
+  });
+
+  // [claims: capabilities/platform-foundation#prompt-redaction]
+  it('masks credentials in a structured call too, and in the message form used for images', async () => {
+    configure({});
+    go.mockResolvedValue({ object: { ok: true }, usage: { inputTokens: 1, outputTokens: 1 } });
+    await llmGenerateObject({ provider: 'anthropic', model: 'm', apiKeyEnv: KEY, prompt: `token ${SK}`, schema: z.object({ ok: z.boolean() }), images: [Buffer.from('png')] });
+    const msg = JSON.stringify((go.mock.calls[0][0] as { messages: unknown }).messages);
+    expect(msg).not.toContain('abcdefghijklmnopqrstuvwxyz');
+    expect(msg).toContain('token');
+  });
+
+  // [claims: capabilities/platform-foundation#prompt-redaction]
+  it('adds the project\'s own patterns, skips a bad one, and can be turned off explicitly', async () => {
+    configure({ redactPatterns: ['ACME-\\d{6}', '(unclosed'] });
+    gt.mockResolvedValue(ok());
+    await call({ prompt: 'ticket ACME-123456 and ACME-1 stay or go' });
+    expect((gt.mock.calls[0][0] as { prompt: string }).prompt).toBe('ticket [REDACTED] and ACME-1 stay or go');
+
+    gt.mockClear();
+    configure({ redactPrompts: false });
+    gt.mockResolvedValue(ok());
+    await call({ prompt: `raw ${SK}` });
+    expect((gt.mock.calls[0][0] as { prompt: string }).prompt).toContain(SK);
+  });
+
+  // [claims: capabilities/platform-foundation#prompt-redaction]
+  it('leaves a prompt with nothing sensitive byte for byte, so replay recordings keep matching', async () => {
+    configure({});
+    gt.mockResolvedValue(ok());
+    const prompt = 'Basic requirements: users can sign in. Bearer tokenization is out of scope.';
+    await call({ prompt });
+    expect((gt.mock.calls[0][0] as { prompt: string }).prompt).toBe(prompt);
+  });
+});

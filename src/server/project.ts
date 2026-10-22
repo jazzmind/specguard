@@ -13,6 +13,8 @@ import type { Snapshot } from '../core/snapshot.js';
 import type { PlanStore } from '../core/state/plan-store.js';
 import type { TraceModel } from '../core/trace.js';
 import type { SpecGuardConfig } from '../core/types.js';
+import { loadConfig } from '../core/config.js';
+import type { WorkspaceManifest } from '../core/workspace.js';
 import { loadTrace } from '../pipelines/check.js';
 import { planStoreFor } from '../pipelines/security-plan.js';
 
@@ -57,6 +59,8 @@ export interface ProjectRegistry {
   get(name: string): Promise<ProjectSource | undefined>;
   /** Accept a snapshot for a project, creating the project on first publish. Only a writable registry has it. */
   publish?(snapshot: Snapshot): Promise<PublishResult>;
+  /** Named sets of projects shown together. Only a server that keeps them has it. */
+  workspaces?: import('./central/backend.js').WorkspaceStore;
 }
 
 /** A trace is cheap but not free; repeated requests within this window share one. */
@@ -89,5 +93,26 @@ export function localRegistry(config: SpecGuardConfig): ProjectRegistry {
     writable: false,
     list: async () => [{ name: project.name, kind: 'working-tree' }],
     get: async (name) => (name === project.name ? project : undefined),
+  };
+}
+
+/**
+ * A registry holding every active repo of a workspace as its own project, read live. Ignored repos,
+ * and repos with no SpecGuard config, are not projects. There is no default project: routes name one.
+ */
+export async function workspaceRegistry(manifest: WorkspaceManifest): Promise<ProjectRegistry> {
+  const projects = new Map<string, ProjectSource>();
+  for (const [key, repo] of Object.entries(manifest.repos)) {
+    try {
+      const config = await loadConfig(path.resolve(manifest.rootDir, repo.path));
+      projects.set(key, { ...localProject(config), name: key });
+    } catch {
+      /* not a SpecGuard repo: it is in the rollup as `no-config` and has no project of its own */
+    }
+  }
+  return {
+    writable: false,
+    list: async () => [...projects.keys()].map((name) => ({ name, kind: 'working-tree' as const })),
+    get: async (name) => projects.get(name),
   };
 }

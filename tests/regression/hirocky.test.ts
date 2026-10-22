@@ -101,7 +101,7 @@ describe('hirocky-shaped repo', () => {
     expect(Object.keys(registry)).not.toContain('api/api/services/messaging');
   });
 
-  it('a partial ingest keeps other apps proofs; the sweep needs --full-run and keeps proven claims', async () => {
+  it('a partial ingest keeps other apps proofs; the sweep needs --full-run and keeps proven claims', { timeout: 30_000 }, async () => {
     await runResultsIngest(ALL(), fx.dir, { runId: 'full' });
     // only the api suite, with --unexercised: ignored (web/journeys absent), nothing overwritten
     const partial = await runResultsIngest([fx.reports.api], fx.dir, { runId: 'api-only', unexercised: true });

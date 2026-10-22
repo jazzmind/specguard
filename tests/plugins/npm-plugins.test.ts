@@ -16,7 +16,7 @@ describe('npm plugins [npm-plugins]', () => {
     await expect(loadPlugins(['demo'], repo.dir)).rejects.toThrow(/unknown plugin 'demo'.*\{ "name": "demo", "package"/);
   });
 
-  // [claims: capabilities/integration-surfaces#planned-plugin-extensions]
+  // [claims: capabilities/integration-surfaces#planned-plugin-extensions, capabilities/integration-surfaces#plugin-package-names]
   it('refuses a package name that is a path or URL, one that is not installed, and one whose id differs from the listed name [refusals]', async () => {
     const repo = makeRepo({});
     for (const bad of ['../evil', './local', 'https://x.example/p.js', '/abs/path', 'Upper Case']) {

@@ -22,6 +22,7 @@ export async function serverCommand(flags: CentralFlags): Promise<void> {
     host: settings.host,
     basePath: settings.basePath,
     auth: settings.auth,
+    rateLimit: settings.rateLimit,
   });
   process.stdout.write(`specguard team server (${backend.kind}) listening on ${server.url}\n`);
   // The sandbox cannot receive webhooks, so the server asks GitHub for new CI evidence.

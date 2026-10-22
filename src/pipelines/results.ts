@@ -19,6 +19,7 @@ import { expandGlobs, fileExists, readFile } from '../core/reader.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
 import {
   aggregateClaims,
+  detectResultFormat,
   parseResults,
   RESULT_FORMATS,
   type ClaimAggregate,
@@ -26,6 +27,7 @@ import {
   type TestCaseResult,
 } from '../core/test-results.js';
 import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
+import { classifyTest, layerGlobIndex, readFileLayer, type EvidenceLayer, type TestLayer } from '../core/test-layers.js';
 import { loadWorkspace } from '../core/workspace.js';
 import { canonicalClaimRef } from '../core/workspace-units.js';
 import { ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
@@ -42,6 +44,10 @@ export interface ResultsIngestOpts extends ProofOpts {
   sweep?: boolean;
   /** Declares that the ingested files are the complete run, enabling the sweep. */
   fullRun?: boolean;
+  /** `--layer`: the layer of tests that no tag, config glob or suite places. */
+  layer?: TestLayer;
+  /** The layer of the suite that produced these files (`test run` sets it from `test.suites`). */
+  suiteLayer?: TestLayer;
 }
 
 export function isResultFormat(value: string): value is ResultFormat | 'auto' {
@@ -120,6 +126,66 @@ async function appCoverage(config: SpecGuardConfig, tagged: Set<string>): Promis
   return { all, covered };
 }
 
+export interface LayeredVerdictsOpts {
+  /** The report format when it is known; else `rowFormats` says it per row. */
+  format?: string;
+  rowFormats?: Map<TestCaseResult, string>;
+  suiteLayer?: TestLayer;
+  forced?: TestLayer;
+  evidence?: (agg: ClaimAggregate) => string | undefined;
+}
+
+/**
+ * Give each test a layer and write one verdict per claim and layer. Shared by `results ingest` and by
+ * `remediate`, so both record the same evidence from the same tests.
+ */
+export async function layeredVerdicts(
+  all: TestCaseResult[],
+  cwd: string,
+  o: LayeredVerdictsOpts = {},
+): Promise<{ aggregates: ClaimAggregate[]; verdicts: VerdictFile['verdicts'] }> {
+  let configured: Map<string, TestLayer> = new Map();
+  try {
+    const cfg = await loadConfig(cwd);
+    const merged: Partial<Record<TestLayer, string[]>> = {};
+    for (const app of cfg.apps) for (const [layer, globs] of Object.entries(app.test?.layers ?? {})) merged[layer as TestLayer] = [...(merged[layer as TestLayer] ?? []), ...(globs ?? [])];
+    configured = await layerGlobIndex(merged, cfg.rootDir ?? cwd);
+  } catch {
+    /* no config: path conventions and tags still classify */
+  }
+  const fileComments = new Map<string, TestLayer | undefined>();
+  const layerOfRow = (row: TestCaseResult): TestLayer => {
+    if (!fileComments.has(row.file)) fileComments.set(row.file, readFileLayer(cwd, row.file));
+    return classifyTest({
+      file: row.file,
+      title: row.title,
+      fullTitle: row.fullTitle,
+      tags: row.tags,
+      fileComment: fileComments.get(row.file),
+      configured: configured.get(row.file),
+      suite: o.suiteLayer,
+      forced: o.forced,
+      format: o.format ?? o.rowFormats?.get(row),
+    });
+  };
+  const aggregates = aggregateClaims(all);
+  const layerOf = new Map<TestCaseResult, TestLayer>(all.map((row) => [row, layerOfRow(row)]));
+  const verdicts: VerdictFile['verdicts'] = [];
+  for (const layer of new Set(layerOf.values())) {
+    for (const agg of aggregateClaims(all.filter((row) => layerOf.get(row) === layer))) {
+      verdicts.push({
+        claim: agg.claim,
+        verdict: agg.verdict,
+        exercised: agg.exercised,
+        counterexamples: agg.counterexamples,
+        evidencePath: o.evidence?.(agg),
+        layer: layer as EvidenceLayer,
+      });
+    }
+  }
+  return { aggregates, verdicts };
+}
+
 export async function runResultsIngest(
   inputs: string[],
   cwd: string,
@@ -147,12 +213,18 @@ export async function runResultsIngest(
     }
   })();
   const all: TestCaseResult[] = [];
+  const rowFormats = new Map<TestCaseResult, string>();
   const perFile = new Map<string, ClaimAggregate[]>();
   let parseFailures = 0;
   for (const abs of files) {
     const rel = relPosix(cwd, abs);
     try {
-      const rows = parseResults(await readFile(abs), opts.format ?? 'auto');
+      const text = await readFile(abs);
+      const rows = parseResults(text, opts.format ?? 'auto');
+      if (!opts.format || opts.format === 'auto') {
+        const detected = detectResultFormat(text);
+        if (detected) for (const row of rows) rowFormats.set(row, detected);
+      }
       // A tag in a comment above a test is not in the report: join it back by file and title.
       attachSourceClaimTags(rows, cwd);
       if (migration || packageUnits) {
@@ -175,14 +247,13 @@ export async function runResultsIngest(
     return result;
   }
 
-  const aggregates = aggregateClaims(all);
-  const verdicts: VerdictFile['verdicts'] = aggregates.map((agg) => ({
-    claim: agg.claim,
-    verdict: agg.verdict,
-    exercised: agg.exercised,
-    counterexamples: agg.counterexamples,
-    evidencePath: evidenceFor(agg, perFile),
-  }));
+  const { aggregates, verdicts } = await layeredVerdicts(all, cwd, {
+    format: opts.format && opts.format !== 'auto' ? opts.format : undefined,
+    rowFormats,
+    suiteLayer: opts.suiteLayer,
+    forced: opts.layer,
+    evidence: (agg) => evidenceFor(agg, perFile),
+  });
 
   if (opts.unexercised || opts.sweep) {
     let config: SpecGuardConfig | undefined;

@@ -43,6 +43,12 @@ docs:
   - "docs/user/writer.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-intent-catch-up-for-the-2026-10-19-chang
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-plugin-and-hook-modules-are-loa
+  - 2026-10-22-security-no-rate-limit-or-throttle-on-re
+  - 2026-10-22-security-replay-recordings-containing-se
 ---
 
 # Platform Foundation
@@ -82,6 +88,10 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, with remediation-specific codes 8 to 11 scoped to that command <!-- claim: errors-and-exit-codes -->
 - [ ] One build version is reported everywhere: `--version` prints it, `--version --json` prints name, version and Node version on one line, and the MCP server and extension report the same value <!-- claim: single-version-source -->
 - [ ] A glob names a path literally where it can: a parenthesised segment such as the Next.js route group `app/(authenticated)/page.tsx` matches the folder `(authenticated)` instead of being read as a glob group, while extglob forms (`!(a|b)`, `@(a|b)`) and already-escaped characters keep their meaning <!-- claim: glob-literal-parens -->
+- [ ] What SpecGuard writes down for people to read later is passed through the secret redactor first: activity-log messages (a failure can quote a command line or a response that held a credential) and the prompt preview in an LLM replay recording, which is committed <!-- claim: log-redaction -->
+- [ ] Every model call, from every pipeline, has credentials masked in its prompt and system message before it leaves the machine (JWTs, bearer and basic tokens, provider API keys, private keys, `password=` and `secret=` values; a prompt with nothing sensitive is unchanged byte for byte, so replay recordings still match); `llm.redactPatterns` adds the project's own patterns, a pattern that is not a regular expression is skipped, and `llm.redactPrompts: false` is the only way to turn it off <!-- claim: prompt-redaction -->
+- [ ] A redaction hook fails closed: it must be a synchronous function returning a string of at most 2,000,000 characters, and a throw, a promise or any other result raises an error instead of letting text through that the project's own rules never saw <!-- claim: redaction-hook-fails-closed -->
+- [ ] A redaction hook module is a file inside the project: a URL, an absolute path elsewhere, `..` and a symlink that leaves the project are refused before it is imported <!-- claim: hook-path-inside-project -->
 
 ## Scenarios
 ### Scenario 1: Run inside a sub-repo with no config

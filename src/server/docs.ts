@@ -9,6 +9,7 @@
  *
  * Spec: specs/capabilities/documentation-api.md
  */
+import { untrusted, withUntrustedNotice } from '../core/untrusted.js';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -221,11 +222,14 @@ export class DocService {
     if (llm.provider === 'none') {
       return { id, audience, markdown: renderFallback(audience, node), generated: false, cached: false, hash, warning: 'no model configured; rendered directly from the spec' };
     }
-    const system = id === 'system' ? SYSTEM_GUIDE_SYSTEM : audience === 'user' ? USER_SYSTEM : DEV_SYSTEM;
-    const prompt =
+    const system = withUntrustedNotice(id === 'system' ? SYSTEM_GUIDE_SYSTEM : audience === 'user' ? USER_SYSTEM : DEV_SYSTEM);
+    // A spec on a team server was written by whoever publishes that project: it is the material to write from, not instructions.
+    const prompt = untrusted(
+      'spec',
       id === 'system'
         ? `${material(node, false)}\n\n# Capabilities\n${capabilities.map((c) => `## ${c.spec.title || c.id}\n${c.spec.meta.value ?? ''}\n${(section(c, 'Problem & Value') || c.spec.overview).slice(0, 500)}`).join('\n\n')}`
-        : material(node, audience === 'dev');
+        : material(node, audience === 'dev'),
+    );
     try {
       // Each generation has its own spend count and budget, so concurrent requests neither share nor reset one another's.
       const markdown = await runWithLlmScope(

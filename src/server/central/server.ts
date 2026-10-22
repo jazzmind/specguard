@@ -13,10 +13,11 @@ import { gunzipSync } from 'node:zlib';
 
 import type { LlmConfig } from '../../core/types.js';
 import { MAX_SNAPSHOT_BYTES } from '../../core/snapshot.js';
-import { Api, type ApiRequest } from '../api.js';
+import { Api, HTML_SECURITY_HEADERS, type ApiRequest } from '../api.js';
 import { authenticate, tokenRoute, type AuthConfig } from './auth.js';
 import { handleMcp } from './mcp.js';
 import type { Backend } from './backend.js';
+import { DEFAULT_RATE_LIMITS, RateLimiter, type RateLimitConfig } from './rate-limit.js';
 import { centralRegistry, type CentralRegistry } from './registry.js';
 
 export interface CentralServerOptions {
@@ -31,6 +32,8 @@ export interface CentralServerOptions {
   workDir?: string;
   /** Largest request body accepted, in bytes. Default: a snapshot's limit plus 1 MB. */
   maxBodyBytes?: number;
+  /** Per-minute request limits. Default: `DEFAULT_RATE_LIMITS`. */
+  rateLimit?: RateLimitConfig;
   /** Called with the registry once it exists, for things that publish into it (the artifact puller). */
   onRegistry?: (registry: CentralRegistry) => void;
 }
@@ -101,8 +104,11 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
   const registry = centralRegistry({ backend: opts.backend, llm: opts.llm, workDir: opts.workDir });
   const api = new Api(registry, {
     basePath,
+    onAudit: (e) => void opts.backend.audit({ at: new Date().toISOString(), ...e }).catch(() => undefined),
     onUsage: (usage, project) => void opts.backend.usage({ at: new Date().toISOString(), ...(usage.user ? { user: usage.user } : {}), project, pipeline: usage.pipeline, model: usage.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedUsd: usage.estimatedUsd }).catch(() => undefined),
   });
+
+  const limiter = new RateLimiter(opts.rateLimit ?? DEFAULT_RATE_LIMITS);
 
   const listener: http.RequestListener = async (req, res) => {
     const send = (status: number, type: string, body: string, extra: Record<string, string> = {}): void => {
@@ -139,10 +145,24 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
 
       const isApi = pathname.startsWith('/api/v1');
       const normalized = pathname.replace(/\/+$/, '') || '/';
-      const auth = isApi && !PUBLIC.has(normalized) ? await authenticate(headers, authConfig) : { identity: undefined };
+      const auth = isApi && !PUBLIC.has(normalized) ? await authenticate(headers, authConfig, req.socket.remoteAddress) : { identity: undefined };
       if (isApi && !PUBLIC.has(normalized)) {
-        if ('rejected' in auth && auth.rejected) return sendJson(401, { error: 'that token is not valid' }, { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
-        if (!auth.identity) return sendJson(401, { error: 'sign in, or send a token' }, { 'WWW-Authenticate': 'Bearer' });
+        // Every API request is counted against its caller, a credential-less one against the connecting address.
+        const caller = auth.identity?.user ?? req.socket.remoteAddress ?? 'unknown';
+        const wait = limiter.hit(caller, { anonymous: !auth.identity, docs: /\/docs(\/|$)/.test(normalized) });
+        if (wait !== undefined) return sendJson(429, { error: `too many requests: try again in ${wait}s` }, { 'Retry-After': String(wait) });
+        // An attempt to change something without a valid credential is worth a line in the trail; a refused read is not.
+        const refusedWrite = (why: string): void => {
+          if (!reading) void opts.backend.audit({ at: new Date().toISOString(), actor: 'anonymous', action: 'write.refused', detail: `${method} ${normalized}: ${why}` }).catch(() => undefined);
+        };
+        if ('rejected' in auth && auth.rejected) {
+          refusedWrite('invalid token');
+          return sendJson(401, { error: 'that token is not valid' }, { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
+        }
+        if (!auth.identity) {
+          refusedWrite('no credential');
+          return sendJson(401, { error: 'sign in, or send a token' }, { 'WWW-Authenticate': 'Bearer' });
+        }
       }
       // A browser session can be driven by another site; a token cannot. Changing anything from a session needs a header
       // that only same-origin script can set.
@@ -152,7 +172,7 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
 
       if (normalized === '/mcp') {
         // MCP clients send a token; a signed-in browser has no business here.
-        const mcpAuth = await authenticate(headers, authConfig);
+        const mcpAuth = await authenticate(headers, authConfig, req.socket.remoteAddress);
         if (mcpAuth.rejected || !mcpAuth.identity || mcpAuth.via === 'header') return sendJson(401, { error: 'send a token' }, { 'WWW-Authenticate': 'Bearer' });
         // The transport reads the body itself, so its size is bounded by the declared length instead.
         if (method === 'POST') {
@@ -182,7 +202,7 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
       const request: ApiRequest = { method, path: normalized, body, headers, identity: auth.identity };
       const response = await api.handle(request);
       const extra: Record<string, string> = response.type.startsWith('text/html')
-        ? { 'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" }
+        ? HTML_SECURITY_HEADERS
         : {};
       return send(response.status, response.type, response.body, extra);
     } catch (err) {

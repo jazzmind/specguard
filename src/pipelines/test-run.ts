@@ -17,6 +17,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { loadWorkspace, type WorkspaceManifest } from '../core/workspace.js';
+import type { TestLayer } from '../core/test-layers.js';
 import { affectedUnits, unitDependencies, unitsToTest } from '../core/workspace-units.js';
 import { runResultsIngest } from './results.js';
 
@@ -47,6 +48,9 @@ interface Suite {
   resultsFile?: string;
   timeoutMs?: number;
   image?: string;
+  /** The layer its tests belong to, from `test.suites`. */
+  layer?: TestLayer;
+  passEnv?: string[];
 }
 
 /** Throws when git fails: an unknown ref must not look like "nothing changed". */
@@ -136,6 +140,32 @@ export async function runTestRun(config: SpecGuardConfig, opts: TestRunPipelineO
       return result;
     }
     for (const app of apps) {
+      // An app with `test.suites` runs each of them (a command and a layer) instead of its single command.
+      const appSuites = app.test?.suites ?? [];
+      if (appSuites.length > 0) {
+        for (const suite of appSuites) {
+          const reporter = suite.reporter ?? app.test?.reporter;
+          const suiteRunner: RunnerId | undefined = reporter && isRunnerId(reporter) ? reporter : runnerForFramework(app.framework);
+          if (!suiteRunner) {
+            result.skipped += 1;
+            result.items.push({ key: `${app.name}/${suite.name}`, status: 'skipped', message: `no test runner for suite "${suite.name}"` });
+            log(`[skip] ${app.name}/${suite.name}: no test runner`);
+            continue;
+          }
+          suites.push({
+            label: `${app.name}/${suite.name}`,
+            runner: suiteRunner,
+            cwd: path.resolve(root, suite.cwd ?? app.test?.cwd ?? app.repo),
+            command: suite.command,
+            resultsFile: suite.resultsFile,
+            timeoutMs: suite.timeoutMs ?? app.test?.timeoutMs,
+            image: app.test?.image,
+            layer: suite.layer,
+            passEnv: app.test?.passEnv,
+          });
+        }
+        continue;
+      }
       const configured = app.test?.reporter;
       const runner: RunnerId | undefined = configured && isRunnerId(configured) ? configured : runnerForFramework(app.framework);
       if (!runner) {
@@ -152,11 +182,13 @@ export async function runTestRun(config: SpecGuardConfig, opts: TestRunPipelineO
         resultsFile: app.test?.resultsFile,
         timeoutMs: app.test?.timeoutMs,
         image: app.test?.image,
+        passEnv: app.test?.passEnv,
       });
     }
   }
 
-  const byRunner = new Map<RunnerId, string[]>();
+  // Reports are ingested per runner and layer, so each suite's tests carry its layer.
+  const byRunner = new Map<string, { runner: RunnerId; layer?: TestLayer; files: string[] }>();
   const ran = new Set<string>();
   let suiteFailed = false;
   for (const suite of suites) {
@@ -172,6 +204,7 @@ export async function runTestRun(config: SpecGuardConfig, opts: TestRunPipelineO
       timeoutMs: suite.timeoutMs,
       selection: opts.selection,
       sandbox: config.runners?.testRunner === 'docker' ? 'docker' : 'local',
+      passEnv: suite.passEnv,
       image: suite.image,
       keepReport: true,
     });
@@ -187,14 +220,18 @@ export async function runTestRun(config: SpecGuardConfig, opts: TestRunPipelineO
     result.created += 1;
     result.items.push({ key: suite.label, status: report.exitCode === 0 ? 'ok' : 'failed', message: `${report.tests.length} test(s), exit ${report.exitCode}` });
     const files = report.reportFiles.map((f) => path.relative(root, f).split(path.sep).join('/'));
-    byRunner.set(suite.runner, [...(byRunner.get(suite.runner) ?? []), ...files]);
+    const groupKey = `${suite.runner}\0${suite.layer ?? ''}`;
+    const group = byRunner.get(groupKey) ?? { runner: suite.runner, layer: suite.layer, files: [] };
+    group.files.push(...files);
+    byRunner.set(groupKey, group);
   }
 
   let ingestExit: number = ExitCode.Success;
   const runId = opts.runId ?? `test-run-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const allAppsRan = !opts.app && !opts.selection && !(opts.units && opts.units.length > 0) && !opts.affected;
-  for (const [runner, files] of byRunner) {
+  for (const { runner, layer, files } of byRunner.values()) {
     const ingest = await runResultsIngest(files, root, {
+      suiteLayer: layer,
       // The pytest adapter writes JUnit XML; the `pytest` result format is pytest-json-report's JSON.
       format: runner === 'pytest' ? 'junit' : runner,
       runId,

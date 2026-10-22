@@ -1,0 +1,2282 @@
+{
+  "version": 1,
+  "id": "scan-20261022T185628Z",
+  "createdAt": "2026-10-22T18:56:28.548Z",
+  "tool": {
+    "name": "specguard",
+    "version": "0.2.0"
+  },
+  "previous": "scan-20261015T182735Z",
+  "items": [
+    {
+      "id": "sec-05cfa7757d34",
+      "title": "No access control or authentication requirement for MCP tools exposing workspace graph and drift data",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that MCP tool endpoints must authenticate callers (e.g., via a shared secret, token, or OS-level restriction) and that only principals with explicit workspace-read permission may invoke read tools; only principals with workspace-write permission may invoke commands that write files or trigger drift runs.",
+      "findings": [
+        {
+          "id": "workspaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The MCP tools `specguard_contracts`, `specguard_impact`, `specguard_workspace_status`, and `specguard_workspace_drift` are listed as interfaces but no requirement specifies who may invoke them, what authentication is needed, or how authorization is enforced. These tools expose the full cross-repo contract graph, spec paths, API surface names, and drift status. An unauthenticated caller could enumerate the entire system topology or trigger drift runs against arbitrary repos listed in the manifest.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "05cfa7757d34"
+    },
+    {
+      "id": "sec-36d778e91e0c",
+      "title": "npm plugin loader lacks package-name validation against path/URL injection",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: at config-load time, each npm plugin entry's `package` value MUST match the npm package-name regex (`^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$`); any entry that does not match MUST be rejected as a configuration error with exit code 1 before any plugin code is imported, and the error message MUST name the offending entry.",
+      "findings": [
+        {
+          "id": "integration-surfaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec states npm plugins load only from an explicit `{name, package}` allowlist with 'package names restricted to npm names (no paths or URLs)'. However, no requirement defines what constitutes a valid npm package name, who enforces that restriction, what the rejection behavior is (exit code, error message), or whether the allowlist itself is validated at config-load time versus at plugin-load time. A malicious or misconfigured config entry such as `{name: 'x', package: '../evil'}` or `{name: 'x', package: 'https://evil.com/pkg'}` could execute arbitrary code. The requirement is stated as a goal but never operationalised as a testable rule.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#planned-plugin-extensions",
+        "capabilities/integration-surfaces#plugin-contract"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "36d778e91e0c"
+    },
+    {
+      "id": "sec-82f1b3d37d83",
+      "title": "No requirement governs who may invoke validation or the MCP tool against arbitrary URLs",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that (a) the MCP tool enforces caller authentication before accepting any validation request, and (b) a URL allowlist/denylist configuration controls which base URLs the agent is permitted to target, with production-like hostnames blocked by default unless explicitly whitelisted.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The CLI and MCP tool accept a `--url` base-URL override and a `--allow-outbound` flag with no requirement specifying authentication, authorization, or access control over who may point the agent at an arbitrary target. An unauthorized user (or a malicious CI actor) could redirect the agent to a production environment or an attacker-controlled server, causing credential exposure via outbound requests or exfiltrating page content captured in evidence. No requirement limits which URLs are permissible targets or requires any form of caller authentication for the MCP tool surface.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#validate-targets",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "82f1b3d37d83"
+    },
+    {
+      "id": "sec-a1ed06b4c0db",
+      "title": "No access control on inbox file containing redacted but sensitive prompt data",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `history inbox` creates `.specguard/history/inbox.jsonl` with owner-read/write-only permissions (mode 0600 on POSIX systems) and that `history add` / `history capture` create committed entry files with at most 0644. Document the expected umask or explicit chmod call.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec states that prompts 'routinely contain secrets, customer data and internal URLs' and that the inbox file at `.specguard/history/inbox.jsonl` is uncommitted and gitignored. However, no requirement specifies file-system permissions for the inbox file (e.g., mode 0600) or for the `specs/history/` directory. Any local user or process with access to the working directory can read the inbox, which may contain prompt text that survived redaction or partial redaction. The Security & Data Considerations section acknowledges the sensitivity but only mentions gitignore, not filesystem access controls.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-redaction"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "a1ed06b4c0db"
+    },
+    {
+      "id": "sec-aa788e09ece8",
+      "title": "No authentication or authorization requirement on `security plan set-status` CLI and plan lifecycle API",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that `security plan set-status` and any API endpoint that mutates plan state must authenticate the caller (e.g., via a configured token or OS-level permission check) and that unauthenticated or unauthorized mutation attempts are rejected with a non-zero exit code and a logged audit entry.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec defines `security plan set-status` as the mechanism by which external trackers update plan item statuses (plan-lifecycle, plan-transitions), and the documentation API serves plans. However, no requirement specifies who is permitted to call `set-status`, what credentials or roles are required, or how the CLI or API authenticates callers. An unauthenticated actor could arbitrarily mark open vulnerabilities as 'wont-fix' or 'verified', silently suppressing real findings. The Security & Data Considerations section mentions LLM key handling but says nothing about access control for plan mutation.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#plan-lifecycle",
+        "capabilities/security-and-remediation#plan-transitions",
+        "capabilities/security-and-remediation#plan-carry-over"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "aa788e09ece8"
+    },
+    {
+      "id": "sec-c89dbb269df2",
+      "title": "proxy-addr@2.0.7: proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "severity": "critical",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade proxy-addr to 2.0.8 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-jqcg-44mw-7w3h",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "c89dbb269df2",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-c8f4314a49a7",
+      "title": "No authentication or authorization requirement for external verdict ingest endpoint",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that externally supplied verdict files must carry a verifiable signature or originate from an authenticated source, and that `proof ingest` rejects files whose provenance cannot be confirmed. At minimum require that CI-supplied files are written to a path only writable by the CI identity, and document the trust boundary explicitly.",
+      "findings": [
+        {
+          "id": "conformance-testing:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec allows external systems (QA services, manual test tools) to post verdict files via `specguard proof ingest`. The Security & Data Considerations section says verdict files are schema-checked and claim references must resolve, but there is no requirement governing who is permitted to call `proof ingest` or `results ingest`, what credentials or signatures are required, or how the tool verifies the origin of an externally supplied verdicts file. A malicious actor who can write a verdicts file to the filesystem or supply one via the MCP tool could inject fraudulent 'proven' verdicts into the ledger, causing a release to be approved on false evidence.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ingest-validation",
+        "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+        "capabilities/conformance-testing#proof-reporting"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "c8f4314a49a7"
+    },
+    {
+      "id": "sec-ead84bb9cce7",
+      "title": "No authentication or access-control requirement for the HTTP API server",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that requests to sensitive endpoints (at minimum /security/plans and /audit) require a locally-generated bearer token or equivalent secret presented at server startup, so other local processes cannot read security-sensitive data without authorization.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec explicitly states 'Authentication and multi-user access control for the planned server' is out of scope, and no requirement restricts who may call the API endpoints. Although the server binds to localhost, the serve-host-guard requirement only blocks DNS-rebinding via Host-header checks. Any local process or user on the machine can freely read all capability specs, audit data, traceability matrices, security remediation plans, and generated docs via the API. Sensitive internal information (e.g., /security/plans, /audit) is exposed to every local process with no credential requirement.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#serve-readonly",
+        "capabilities/documentation-api#serve-host-guard",
+        "capabilities/documentation-api#audit-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "ead84bb9cce7"
+    },
+    {
+      "id": "sec-f217d9cb555d",
+      "title": "Plugin and hook modules are loaded without integrity or path-restriction controls",
+      "severity": "critical",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that plugin and hook module paths must resolve to locations within the repository root (as exposed by config-validation), that relative paths are resolved relative to the config file, that absolute paths outside the repo root are an invalid-config error, and that no URL schemes are permitted.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The Security & Data Considerations section states 'Config-selected plugin or hook modules execute code and are loaded only from paths the project names,' but no requirement enforces what constitutes a valid path (e.g., must be within the repo root, cannot be absolute paths pointing outside the repo, cannot be URLs). An attacker who can modify `.specguard/config.json` (e.g., via a dependency confusion or supply-chain PR) could point a plugin path at an arbitrary file system location or a network-loadable module and execute arbitrary code. The spec names no validation, sandboxing, or allowlist requirement for plugin/hook resolution.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#config-apps-and-defaults",
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "f217d9cb555d"
+    },
+    {
+      "id": "sec-01c595a7187a",
+      "title": "@modelcontextprotocol/sdk@1.29.0: MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade @modelcontextprotocol/sdk to 1.32.0.",
+      "findings": [
+        {
+          "id": "GHSA-22jm-h49p-29qw",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "01c595a7187a",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-0aadc8d6f22d",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to server-side request forgery via repeated hostname percent-decoding",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.5 or 3.1.6 or 4.1.3 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-fph4-wmhf-6fwf",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to server-side request forgery via repeated hostname percent-decoding",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "0aadc8d6f22d",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-165e685d3754",
+      "title": "vuln-ignore.json suppression file has no integrity or authorization requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that modifications to `.specguard/vuln-ignore.json` are subject to the same review process as code changes (e.g., require PR review), that the scan logs all suppressed advisories with their suppression reason and expiry, that expired entries are treated as if absent and logged as warnings, and that entries without an expiry date are rejected.",
+      "findings": [
+        {
+          "id": "security-and-remediation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The `unified-detection` requirement states advisories are suppressed by a `.specguard/vuln-ignore.json` file with expiry dates, but no requirement specifies who may modify this file, whether it must be signed or reviewed, or how tampering is detected. An attacker with write access to the repository (or a malicious dependency update) could add entries to this file to suppress real vulnerabilities indefinitely. The `plan-carry-over` requirement's careful rules about reopening 'fixed' items do not apply to ignore-file suppression, creating a bypass path.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#unified-detection",
+        "capabilities/security-and-remediation#scan-only-and-secrets",
+        "capabilities/security-and-remediation#plan-carry-over"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "165e685d3754"
+    },
+    {
+      "id": "sec-17d48a7f5e00",
+      "title": "Prompt-injection via spec content sent to LLM is not addressed",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that spec content passed to the LLM is treated as untrusted user input: it must be placed in a delimited section of the prompt with explicit LLM instructions not to follow embedded instructions, and generated output must be validated to contain only the expected document structure before being cached or returned.",
+      "findings": [
+        {
+          "id": "documentation-api:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The docs-strip-internal requirement removes metadata, scenarios and security notes before sending spec text to the LLM, but the remaining spec content (requirements, problem statements, interface descriptions) is author-controlled text that could contain adversarial instructions. No requirement mandates sanitisation or isolation of spec content to prevent prompt injection that could cause the LLM to produce malicious output (e.g., exfiltration instructions embedded in generated docs, XSS payloads in markdown). The ui-escapes-markdown requirement partially mitigates the UI vector but does not address the API consumers who receive raw model output.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#docs-strip-internal",
+        "capabilities/documentation-api#fast-tier-on-demand",
+        "capabilities/documentation-api#docs-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "17d48a7f5e00"
+    },
+    {
+      "id": "sec-1aa46e497c6b",
+      "title": "javascript.lang.security.detect-child-process.detect-child-process in extension/src/cli-version.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+      "findings": [
+        {
+          "id": "javascript.lang.security.detect-child-process.detect-child-process@extension/src/cli-version.ts:59",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.detect-child-process.detect-child-process",
+          "message": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+          "file": "extension/src/cli-version.ts",
+          "line": 59
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/cli-version.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "1aa46e497c6b",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-1f2d1ecd16b3",
+      "title": "source-map-js@1.2.1: source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade source-map-js to 1.2.2 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-68fv-2mgg-jv7q",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "1f2d1ecd16b3",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-207d4f0e1f10",
+      "title": "No access-control requirement on MCP tool exposure of scan results and remediation actions",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that MCP tool invocations are gated by an authentication mechanism (e.g., a shared secret or OAuth token configured in the environment) and that the MCP server rejects unauthenticated calls. Additionally require that MCP exposure is disabled by default and must be explicitly enabled in config.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The MCP tools `specguard_security`, `specguard_security_scan`, `specguard_security_plan` and `specguard_remediate` are listed as interfaces with no requirement governing who may invoke them or how invocation is authenticated. Scan results can include file paths, package names, secret rule hits and finding summaries. The spec notes that reports 'should be treated as internal' but imposes no enforcement requirement on MCP access. A compromised or malicious MCP client could read all findings or trigger scan-only/dry-run operations to enumerate vulnerabilities.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#unified-scan",
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#plan-lifecycle"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "207d4f0e1f10"
+    },
+    {
+      "id": "sec-2dc44e983b5a",
+      "title": "Evidence path traversal not constrained by a normalisation requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that evidence paths are canonicalised (symlinks resolved, `..` collapsed) and then verified to lie within the repository root before being stored or read, and that ingest rejects any verdict whose evidence path fails this check.",
+      "findings": [
+        {
+          "id": "conformance-testing:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The Security & Data Considerations section states 'Evidence paths must stay inside the repository', but no requirement specifies how this is enforced: there is no requirement to normalise or canonicalise the path, reject `../` sequences, resolve symlinks, or compare the resolved path against the repository root before storing or reading the evidence. A crafted verdicts file containing a path like `../../etc/passwd` could satisfy a naive string prefix check while actually pointing outside the repository.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ledger-records-basis",
+        "capabilities/conformance-testing#ingest-validation"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "2dc44e983b5a"
+    },
+    {
+      "id": "sec-31fa2c207001",
+      "title": "@modelcontextprotocol/sdk@1.29.0: MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade @modelcontextprotocol/sdk to 1.32.0.",
+      "findings": [
+        {
+          "id": "GHSA-46jr-4wx8-v453",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "31fa2c207001",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-3846ae58a28f",
+      "title": "@modelcontextprotocol/sdk@1.29.0: MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade @modelcontextprotocol/sdk to 1.31.0.",
+      "findings": [
+        {
+          "id": "GHSA-6qxp-vccf-f47h",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "3846ae58a28f",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-3852f59a079e",
+      "title": "No rate-limit or call-frequency requirement on LLM-backed operations preventing cost and exfiltration abuse",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying a maximum number of LLM calls per scan run, a maximum payload size per call, and a configurable opt-out (`--no-llm` is already a flag on `remediate` but not on `security scan` or `security`). Require that `--no-llm` is honoured on all LLM-touching commands and that the scan aborts rather than silently skipping the limit.",
+      "findings": [
+        {
+          "id": "security-and-remediation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Multiple requirements (`owasp-test-stubs`, `spec-review`, `security-exit-and-report`) involve sending file contents or finding summaries to an external LLM. There is no requirement limiting how frequently these calls may be made, how much data may be sent per call, or how many files may be batched. A malicious or misconfigured CI pipeline could trigger continuous scans exfiltrating large amounts of source code to an external LLM endpoint, or exhaust API quotas. The spec mentions only that 'only the file named by a finding is sent for a code fix' for remediation, but no similar constraint exists for stub generation or spec review.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#owasp-test-stubs",
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#security-exit-and-report",
+        "capabilities/security-and-remediation#verify-after-patch"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "3852f59a079e"
+    },
+    {
+      "id": "sec-3acbaeefed4b",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.5 or 3.1.6 or 4.1.3 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-f65p-4m7j-42xc",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "3acbaeefed4b",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-47c79894246f",
+      "title": "Redaction spec references a 'shared redactor' with no defined scope or failure mode",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that references or defines the redactor's pattern catalogue, specifies a fail-closed posture (if the redactor errors the entry is not written), and requires that `history add` and `history capture` surface a warning when redaction is skipped or degraded so operators know the risk.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Requirements `history-inbox-capture` and `history-redaction` rely on 'the shared secret redactor' applied twice. The spec never defines what patterns the redactor recognises (e.g., AWS key patterns, JWTs, URLs with credentials), what it does when it is uncertain (redact conservatively or pass through), or what happens when the redactor itself errors. Because committed history entries are described as 'append-only' with no automated deletion, a redaction miss permanently leaks a secret into the repository. The out-of-scope section confirms that manual editing is the only remediation, making the redactor's correctness critical.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-redaction",
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-plan-capture"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "47c79894246f"
+    },
+    {
+      "id": "sec-4c32a06fcc03",
+      "title": "Hook reads untrusted stdin JSON but no input-size limit is specified, enabling resource exhaustion",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the hook enforces a maximum stdin read size (e.g., 8 MB) and discards the payload with a silent no-op if the limit is exceeded, logging the event to a debug log file rather than stderr/stdout.",
+      "findings": [
+        {
+          "id": "requirement-history:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Requirement `history-inbox-capture` specifies that the `UserPromptSubmit` hook 'reads the hook's JSON from stdin with a real JSON parser' to prevent shell injection. However, no maximum input size is stated. A malformed or adversarially crafted hook payload with a gigabyte-scale JSON string would be parsed entirely into memory before any validation, potentially hanging or crashing the hook process. Since the hook 'never fails the user's prompt' (exits 0), a crash loop would silently swallow all prompt history.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-hooks-silent"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "4c32a06fcc03"
+    },
+    {
+      "id": "sec-4e788bdece5b",
+      "title": "No rate-limit or resource-limit requirement for LLM extraction over spec text",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add requirements that (1) `--with-llm` prints a clear warning listing which specs will be sent before proceeding (with a confirmation prompt in interactive mode), (2) there is a configurable per-run request cap, (3) specs matching a configurable exclusion pattern are never sent, and (4) the LLM provider endpoint and data-retention policy must be declared in workspace configuration.",
+      "findings": [
+        {
+          "id": "workspaces:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The `contract-sources` requirement allows `--with-llm` to send spec text to an LLM for free-text dependency extraction. No requirement limits which specs are sent, how large the payload may be, how many requests are made per run, or what happens if a spec contains sensitive information (e.g., internal API details, credentials embedded by mistake). A developer running `contracts --with-llm` on a large workspace could inadvertently exfiltrate all spec text to an external service without any warning.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#contract-sources"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "4e788bdece5b"
+    },
+    {
+      "id": "sec-5421e6071071",
+      "title": "javascript.lang.security.detect-child-process.detect-child-process in extension/src/api/local-server.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+      "findings": [
+        {
+          "id": "javascript.lang.security.detect-child-process.detect-child-process@extension/src/api/local-server.ts:24",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.detect-child-process.detect-child-process",
+          "message": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+          "file": "extension/src/api/local-server.ts",
+          "line": 24
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/api/local-server.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "5421e6071071",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-5bd46552329f",
+      "title": "Spec-review findings containing source file content sent to LLM have no data-classification requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a data-classification requirement for spec files and source files transmitted to the LLM during spec review. At minimum, require that only the specific capability text relevant to a finding is included in the prompt, that no adjacent capability specs are included without explicit opt-in, and that a `--no-llm` flag suppresses spec review LLM calls with a warning.",
+      "findings": [
+        {
+          "id": "security-and-remediation:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "`spec-review` requires that `security scan` performs a capability-level review by an LLM, which presumably requires sending spec text and possibly related source files to the external model. The Security & Data Considerations section restricts what is sent for code fixes ('only the file named by a finding') but makes no equivalent statement for spec-level review. The data classification of spec files (which may contain internal architecture details, proprietary business logic, or references to sensitive endpoints) is never defined, and no requirement prevents sending entire capability specs to a third-party LLM.",
+          "file": "specs/capabilities/security-and-remediation.md"
+        }
+      ],
+      "capability": "security-and-remediation",
+      "claims": [
+        "capabilities/security-and-remediation#spec-review",
+        "capabilities/security-and-remediation#unified-scan"
+      ],
+      "files": [
+        "specs/capabilities/security-and-remediation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "5bd46552329f"
+    },
+    {
+      "id": "sec-5de8374cb838",
+      "title": "MCP commit tool has no requirement preventing staging of secrets or env files",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add an explicit requirement: the commit tool (both CLI and MCP) MUST never stage `.specguard/.env`, `.specguard/.env.*`, or any file matched by the managed git-ignore block, even if those paths fall inside a configured commit directory. A violation MUST be reported as an error and exit 1.",
+      "findings": [
+        {
+          "id": "integration-surfaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "Requirement `mcp-activity-and-limits` states the commit tool 'stages only SpecGuard-generated files', and `git-helpers` lists the paths: tests, docs, specs, `.specguard/` and the directories the config writes to. `.specguard/.env` is inside `.specguard/` and is listed as holding API keys. No requirement explicitly excludes `.specguard/.env` or other secret-bearing paths from the set of files the commit tool is allowed to stage. An agent invoking `specguard_commit` over MCP could therefore commit API keys.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#mcp-activity-and-limits",
+        "capabilities/integration-surfaces#git-helpers"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "5de8374cb838"
+    },
+    {
+      "id": "sec-615d6e58d184",
+      "title": "Activity log may capture prompt text containing secrets",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: the activity-log schema MUST be defined (tool name, timestamp, duration, pass/fail/error, and a bounded summary of at most N characters of sanitised arguments); no raw argument values, file contents, or environment variable values MAY be written; the sanitiser MUST redact any token matching the pattern of known secret formats (e.g., matching `sk-`, `gh_`, `Bearer `).",
+      "findings": [
+        {
+          "id": "integration-surfaces:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Requirement `mcp-activity-and-limits` states every MCP tool call appends entries with 'duration' to the activity log but does not specify what fields are recorded. Tool arguments (e.g., spec content passed to `write_spec`, prompts passed to `history_add`) may contain sensitive data such as API keys embedded in spec text or personal information. The requirement that 'logs and results never include key values' appears only in the Security section as a prose note, not as a testable requirement on the activity log schema.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#mcp-activity-and-limits"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "615d6e58d184"
+    },
+    {
+      "id": "sec-65a2a0d0f7b8",
+      "title": "No authorization requirement for `GET /api/v1/units` endpoint",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `GET /api/v1/units` enforces authentication (e.g., bearer token or local-only binding) and that the `serve` command documents its trust boundary and defaults to listening only on localhost unless explicitly configured otherwise.",
+      "findings": [
+        {
+          "id": "workspaces:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec lists `GET /api/v1/units` as a served endpoint carrying per-unit rollup data (source files, capabilities, drift verdicts, unit keys). No requirement addresses who may call this endpoint, what authentication is required, or whether it is network-accessible. An unauthenticated remote caller could enumerate all units, their capabilities, and drift status.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#unit-aware-pipelines"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "65a2a0d0f7b8"
+    },
+    {
+      "id": "sec-674875601462",
+      "title": "ip-address@10.2.0: ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade ip-address to 10.3.1 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-mwp4-54f8-5fhr",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "674875601462",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-690777a2a99e",
+      "title": "Budget cap is per-process only, enabling cost exhaustion across parallel CI runs",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the documentation (or a runtime warning) explicitly states the per-process scope of the budget cap, and consider adding an optional shared-budget file mechanism (e.g., an atomic counter in `.specguard/`) that multiple processes can read and update to enforce a cross-process cap.",
+      "findings": [
+        {
+          "id": "platform-foundation:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The llm-budget-cap requirement states the cap applies 'per process run.' In a monorepo or matrix CI setup, many SpecGuard processes can run simultaneously, each with its own independent cap and usage log. There is no requirement for a shared or cross-process budget, nor any requirement to warn users that the per-process cap does not bound total spend across parallel jobs. A team lead who sets a cap expecting it to limit total pipeline cost will be surprised when N parallel jobs each spend up to the cap.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#llm-budget-cap",
+        "capabilities/platform-foundation#llm-usage-log"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "690777a2a99e"
+    },
+    {
+      "id": "sec-6b2a78669701",
+      "title": "javascript.lang.security.detect-child-process.detect-child-process in extension/src/dashboard/cli.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Detected calls to child_process from a function argument `args`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+      "findings": [
+        {
+          "id": "javascript.lang.security.detect-child-process.detect-child-process@extension/src/dashboard/cli.ts:136",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.detect-child-process.detect-child-process",
+          "message": "Detected calls to child_process from a function argument `args`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+          "file": "extension/src/dashboard/cli.ts",
+          "line": 136
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/dashboard/cli.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "6b2a78669701",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-6b47af1e2c40",
+      "title": "init --history-hooks writes to personal, uncommitted settings with no integrity check",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: on each `init` or `scaffold` run, SpecGuard MUST verify that any previously written hook command matches the currently resolved runner; if it differs, it MUST print a diff and require `--update-hooks` to overwrite, identical to the behaviour specified in `agent-wiring-and-runner`. Additionally, the installed hook script MUST be restricted to the resolved absolute binary path, not a shell alias or PATH lookup.",
+      "findings": [
+        {
+          "id": "integration-surfaces:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Requirement `planned-history-hooks` states hooks are installed into `.claude/settings.local.json` (described as 'personal and uncommitted') so that prompts and plans are captured into requirement history. No requirement covers what happens if that file is replaced or tampered with after installation (e.g., by another tool or a supply-chain attack that redirects the hook to a malicious binary). There is also no requirement to verify that the resolved runner path written into the hook has not changed between `init` runs.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#planned-history-hooks",
+        "capabilities/integration-surfaces#agent-wiring-and-runner"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "6b47af1e2c40"
+    },
+    {
+      "id": "sec-6fe4eb4261aa",
+      "title": "No rate-limit or throttle on redaction hook execution",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the redaction hook is called with a per-invocation timeout (configurable, defaulting to a short value), that a hook timeout or exception causes the call to fail with an internal error rather than proceeding with unredacted text, and that the hook result is validated to confirm it is a string no longer than the input.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The secret-redaction requirement allows projects to add 'a hook' that executes for every piece of text before it leaves the machine. There is no requirement bounding how often or how fast this hook is called, what happens if the hook throws or hangs, or whether a timeout applies. A malicious or buggy hook could block the process indefinitely, silently swallow redaction failures, or exfiltrate text. The LLM layer has timeout/retry requirements (llm-timeout-retry) but nothing analogous exists for the redaction hook.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "6fe4eb4261aa"
+    },
+    {
+      "id": "sec-7010413ff7ec",
+      "title": "javascript.lang.security.detect-child-process.detect-child-process in extension/src/dashboard/cli.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+      "findings": [
+        {
+          "id": "javascript.lang.security.detect-child-process.detect-child-process@extension/src/dashboard/cli.ts:136",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.detect-child-process.detect-child-process",
+          "message": "Detected calls to child_process from a function argument `cliPath`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+          "file": "extension/src/dashboard/cli.ts",
+          "line": 136
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/dashboard/cli.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "7010413ff7ec",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-71ae5cfea0a4",
+      "title": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true in extension/src/api/local-server.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Found '$SPAWN' with '{shell: ext === '.ts'}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+      "findings": [
+        {
+          "id": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true@extension/src/api/local-server.ts:24",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true",
+          "message": "Found '$SPAWN' with '{shell: ext === '.ts'}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+          "file": "extension/src/api/local-server.ts",
+          "line": 24
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/api/local-server.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "71ae5cfea0a4",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-71d17db6f6d8",
+      "title": "No data-classification requirement for diffs and spec excerpts sent to the LLM",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that specguard must apply a mandatory redaction pass before any content is sent to the LLM, with a built-in default ruleset that suppresses credential patterns (API keys, passwords, tokens), and that unconfigured redaction must default to deny-send rather than allow-send.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The spec acknowledges that 'Diffs and spec excerpts sent to the LLM for drift and alignment are subject to the configured redaction' but never defines what redaction rules must exist, what classes of data (credentials, PII, internal IP) are prohibited from being sent, who configures redaction, or what happens when redaction is not configured. Without a concrete requirement, source code containing secrets or sensitive data may be transmitted to an external LLM.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [
+        "capabilities/traceability-and-drift#drift-hash-registry",
+        "capabilities/traceability-and-drift#align-prepass-first",
+        "capabilities/traceability-and-drift#drift-chunking"
+      ],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "71d17db6f6d8"
+    },
+    {
+      "id": "sec-7382404030f1",
+      "title": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true in extension/src/dashboard/cli.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Found '$SPAWN' with '{shell: useShell || process.platform === 'win32'}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+      "findings": [
+        {
+          "id": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true@extension/src/dashboard/cli.ts:136",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true",
+          "message": "Found '$SPAWN' with '{shell: useShell || process.platform === 'win32'}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+          "file": "extension/src/dashboard/cli.ts",
+          "line": 136
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/dashboard/cli.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "7382404030f1",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-78345daf4db3",
+      "title": "SSRF via `import` URL fetching is not mitigated by any requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `import` resolves the target hostname before connecting and refuses to connect to loopback, link-local, or private IP ranges (RFC 1918/4193/3927); also require that any redirect target is subject to the same check before following it.",
+      "findings": [
+        {
+          "id": "spec-authoring:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "`import-documents` allows `import` to fetch any http/https URL. The only stated constraint is 'follows at most one redirect, and refuses other schemes'. There is no requirement to block private/link-local IP ranges (RFC 1918, loopback, 169.254.x.x), to validate the resolved IP before connecting, or to use a network egress proxy. This leaves the CLI open to Server-Side Request Forgery when run on a server or in CI, allowing an attacker-supplied URL to probe internal infrastructure.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [
+        "capabilities/spec-authoring#import-documents"
+      ],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "78345daf4db3"
+    },
+    {
+      "id": "sec-78ad9bfb1048",
+      "title": "Inbox size cap is unspecified, leaving denial-of-service and data-retention risks undefined",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Specify the inbox cap as a concrete maximum (e.g., 10 MB or 1 000 entries), define the eviction policy (drop oldest entries by session_id+timestamp), and require that a dropped entry is silently discarded rather than causing the hook to fail, consistent with `history-hooks-silent`.",
+      "findings": [
+        {
+          "id": "requirement-history:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "Requirement `history-inbox-capture` states the hook 'caps the inbox size' but gives no concrete bound (number of entries, bytes, or age). Without a defined limit, a busy session could grow the inbox unboundedly before a plan is captured, storing large volumes of potentially sensitive prompt text on disk. Conversely, an overly aggressive cap could silently drop prompts that are needed to pair with a later approved plan, causing `history-plan-capture` to fall back to the session transcript and miss context. The spec gives implementers no guidance on what to cap or what to do when the cap is reached (drop oldest, drop newest, reject, warn).",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-inbox-capture",
+        "capabilities/requirement-history#history-plan-capture"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "78ad9bfb1048"
+    },
+    {
+      "id": "sec-79d3992e5400",
+      "title": "No rate limit on `history add` or MCP `history_add` calls from automated agents",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement capping the number of history entries that can be created per minute per caller identity (e.g., 10/min for the MCP tool, unlimited for interactive CLI use) and that the MCP tool returns a structured error when the limit is exceeded rather than silently dropping the entry.",
+      "findings": [
+        {
+          "id": "requirement-history:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The MCP tool `history_add` (requirement `history-mcp-tool`) exposes the same write behaviour as the CLI. Coding agents calling the MCP server in a tight loop could create thousands of committed history-entry files in `specs/history/`, filling the repository and potentially leaking incremental prompt fragments that individually pass redaction but together reconstruct a secret. There is no per-session, per-minute, or per-capability limit stated anywhere in the spec.",
+          "file": "specs/capabilities/requirement-history.md"
+        }
+      ],
+      "capability": "requirement-history",
+      "claims": [
+        "capabilities/requirement-history#history-mcp-tool",
+        "capabilities/requirement-history#history-add"
+      ],
+      "files": [
+        "specs/capabilities/requirement-history.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "79d3992e5400"
+    },
+    {
+      "id": "sec-7b9253dd34d7",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.5 or 3.1.6 or 4.1.3 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-jqff-g426-hqxp",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "7b9253dd34d7",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-86e6368e2ed8",
+      "title": "No requirement classifying what constitutes a 'secret' or 'credential' subject to redaction",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that defines the classification of secret/credential values (e.g., values from named config keys, values matching configurable patterns, or values tagged in spec metadata) and specifies that the redaction mechanism MUST be applied uniformly before any external transmission or file write.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Several requirements (docs-no-secrets, served-redaction, docs-strip-internal) mandate that credentials and secret values never appear in output, but no requirement defines what counts as a secret or how redaction identifies secrets (e.g., by pattern, by config key, by vault reference). Without a normative definition, implementations may miss novel credential formats or over-redact legitimate content, and auditors cannot verify compliance.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#docs-no-secrets",
+        "capabilities/documentation-api#served-redaction",
+        "capabilities/documentation-api#docs-strip-internal"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "86e6368e2ed8"
+    },
+    {
+      "id": "sec-95a99beb5d22",
+      "title": "No rate limit on API endpoints to prevent LLM budget exhaustion or denial-of-service",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the server enforces a per-source or global rate limit on /docs endpoint calls (e.g., requests per second) and returns HTTP 429 when the limit is exceeded, independent of the per-request LLM budget.",
+      "findings": [
+        {
+          "id": "documentation-api:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The single-flight-budget requirement only bounds a single request's LLM spend; there is no requirement limiting how many requests per unit time a caller may make. An unauthenticated local caller (or a page exploiting a DNS-rebinding gap) can issue many concurrent /docs requests, each triggering a separate LLM call once cache misses occur, exhausting the LLM budget or causing severe latency. The single-flight mechanism only deduplicates identical concurrent requests, not a rapid series of distinct ones.",
+          "file": "specs/capabilities/documentation-api.md"
+        }
+      ],
+      "capability": "documentation-api",
+      "claims": [
+        "capabilities/documentation-api#single-flight-budget",
+        "capabilities/documentation-api#fast-tier-on-demand",
+        "capabilities/documentation-api#docs-endpoints"
+      ],
+      "files": [
+        "specs/capabilities/documentation-api.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "95a99beb5d22"
+    },
+    {
+      "id": "sec-96e1a94dc706",
+      "title": "Credentials embedded in imported documents may be forwarded to the LLM",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement for `import` analogous to `reverse-safety`: define the secret-detection patterns applied to fetched/local document content, specify that matching content is redacted (not merely warned about) before the model call, and require that the model is instructed not to reproduce any value that was redacted.",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "Security & Data Considerations states `import` 'must not forward credentials found in a document to the model', but no requirement defines what constitutes a credential, how detection works, what patterns are matched, or what action is taken when one is found (redact, abort, warn?). Without a concrete requirement, implementers have no basis for testing compliance, and the prohibition is unenforceable. By contrast, `reverse` has `reverse-safety` which at least mandates a warning for secret-looking files and instructs the model not to reproduce them.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [
+        "capabilities/spec-authoring#import-documents"
+      ],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "96e1a94dc706"
+    },
+    {
+      "id": "sec-99c23110df63",
+      "title": "nanoid@3.3.15: nanoid: custom generators can loop indefinitely when size is zero",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade nanoid to 3.3.18 or 5.1.6 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-2v37-7h3g-55p8",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "nanoid: custom generators can loop indefinitely when size is zero",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "99c23110df63",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-9df18e559548",
+      "title": "vite@7.3.6: launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade vite to 8.3.3 or 8.2.4 or 8.1.6 or 7.3.7 or 6.4.4 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-587h-7wmj-h5pm",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "9df18e559548",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-a531bd62714a",
+      "title": "Drift registry and alignment checkpoint files have no integrity protection requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that .specguard/ output files must carry an HMAC or be stored under version control with write-protection enforced by CI policy, and that specguard must warn or fail when a registry file has been modified outside a specguard run.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The drift registry (drift-registry.json) stores hashes and verdicts that gate CI failures (exit code 3). The alignment checkpoint (alignment.json) records coverage decisions. Neither file has a requirement for integrity verification. An attacker who can write to .specguard/ can mark every file as unchanged or every claim as covered, silently bypassing drift and alignment gates. The spec notes 'Hashes detect change; they are not an integrity guarantee against an adversary' but provides no compensating control requirement.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [
+        "capabilities/traceability-and-drift#drift-hash-registry",
+        "capabilities/traceability-and-drift#align-score-and-checkpoint",
+        "capabilities/traceability-and-drift#stale-proof-is-drift"
+      ],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "a531bd62714a"
+    },
+    {
+      "id": "sec-ad0ba986852d",
+      "title": "No authentication or authorization requirement for any CLI command or spec mutation",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying that mutating commands verify the caller has write permission to the target spec directory (e.g., by checking filesystem ACLs or a configurable allowlist) and that CI invocations are authenticated via a scoped token; document what happens when the check fails (exit 1 with an explanatory message).",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "Every capability that mutates state—`claims assign`, `spec consolidate`, `spec tag`, `reverse`, `import`, `index`—has no requirement governing who is permitted to run it. In a multi-user or CI/CD environment, an unauthorized user or compromised agent could rewrite claim ids, archive specs, or overwrite the spec tree. The spec only restricts write destinations ('written only inside the repo's spec directories') but says nothing about who may trigger writes.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "ad0ba986852d"
+    },
+    {
+      "id": "sec-af9e4ff44ee1",
+      "title": "MCP server has no rate-limit or authentication requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement: the MCP server MUST enforce a per-session rate limit on tool calls (e.g., no more than N calls per minute, configurable); calls exceeding the limit MUST return an error result (not throw) and MUST be logged. Additionally, specify that write-effect tools (`write_spec`, `commit`) MUST be disabled or return an error when invoked in a non-interactive context unless explicitly enabled by config.",
+      "findings": [
+        {
+          "id": "integration-surfaces:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The MCP server runs over stdio and is described as executing with 'the user's privileges'. Any process on the same machine that can write to the MCP server's stdin can invoke tools including `write_spec`, `specguard_commit`, and plugin tools. No requirement specifies authentication, session validation, or rate-limiting for MCP tool calls. The activity log bounds (200 entries / 1 MB) are a storage cap, not a rate control. A rogue local process or a prompt-injection attack on an agent could issue unlimited destructive calls.",
+          "file": "specs/capabilities/integration-surfaces.md"
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [
+        "capabilities/integration-surfaces#mcp-tools-parity",
+        "capabilities/integration-surfaces#mcp-activity-and-limits"
+      ],
+      "files": [
+        "specs/capabilities/integration-surfaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "af9e4ff44ee1"
+    },
+    {
+      "id": "sec-b2a24aa89bdb",
+      "title": "Evidence screenshots containing personal data have no defined retention or access-control requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that evidence and saved login state files are written with restrictive file-system permissions (e.g., mode 0600), that a configurable retention period causes automatic deletion of evidence older than N days, and that the documentation normatively states these directories must not be stored in shared or world-readable locations.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The Security & Data Considerations section acknowledges that 'evidence screenshots can contain personal data' and says they 'should be treated as confidential', but no normative requirement mandates a retention policy, file-system permissions, encryption at rest, or deletion schedule for `.specguard/evidence/` and `.specguard/auth/`. The `evidence-gitignored` requirement only prevents accidental git commits; it does not protect files already written to disk.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#evidence-and-history",
+        "capabilities/agentic-verification#evidence-gitignored"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "b2a24aa89bdb"
+    },
+    {
+      "id": "sec-b61d2832d923",
+      "title": "Config extends allows loading arbitrary files by explicit path with no boundary check",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the resolved target of `extends` must lie within the repository root (as determined by the repository boundary used during config discovery), and that an extends path resolving outside this boundary is treated as an invalid-config error.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The config-extends requirement allows a config to extend 'exactly one other config by explicit path (file or directory)' with no restriction on where that path may point. This means a config file could extend a path outside the repository boundary (e.g., `../../shared/specguard-config.json`), bypassing the repo-boundary isolation guarantee established by config-discovery. The two requirements directly contradict each other in their security postures: config-discovery prevents inheriting parent configs silently, but config-extends allows explicit cross-boundary inheritance.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#config-discovery",
+        "capabilities/platform-foundation#config-extends"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "b61d2832d923"
+    },
+    {
+      "id": "sec-c5b430802644",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to host confusion via failed IDN canonicalization",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 4.0.1 or 3.1.3 or 2.4.2 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-4c8g-83qw-93j6",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to host confusion via failed IDN canonicalization",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "c5b430802644",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-c5d4976d327f",
+      "title": "Shared `.env` file containing secrets has no confidentiality or integrity requirements beyond git-ignore",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add requirements that (1) `init` creates `.specguard/.env` with owner-read-only permissions, (2) no command prints `.env` values in output or logs, (3) secret values are masked in any diagnostic output, and (4) the file's presence and permissions are reported as a configuration health item in `workspace status`.",
+      "findings": [
+        {
+          "id": "workspaces:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The `shared-env` requirement states that `.specguard/.env` may hold API keys and is git-ignored by `init`, and that real environment variables win over file values. However, there is no requirement on file permissions (e.g., mode 0600), no requirement preventing the file's contents from being logged or included in error output, no requirement on how secrets are redacted from `workspace status` or `impact` output, and no integrity check to detect tampering. Secrets in a world-readable file or leaked into log output are a significant risk.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#shared-env"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "c5d4976d327f"
+    },
+    {
+      "id": "sec-cbe130a32b8a",
+      "title": "No access-control requirement for the proof ledger itself",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that the ledger is written with a computed integrity tag (e.g. HMAC keyed to a value not present in the repo) or that its filesystem permissions are hardened, and that any command reading the ledger verifies the tag before trusting the content.",
+      "findings": [
+        {
+          "id": "conformance-testing:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The proof ledger (`.specguard/proofs.json` or `paths.proofLedger`) is the authoritative record of which claims are proven. Any process with filesystem write access can alter it without detection: the spec records hashes of source files and dependencies for staleness, but no requirement protects the ledger file itself from tampering, enforces file permissions, or requires an integrity check (e.g. an HMAC or signature) before the ledger is read. A tampered ledger could suppress failures or inject proven verdicts silently.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#ledger-records-basis",
+        "capabilities/conformance-testing#ledger-verdict-states",
+        "capabilities/conformance-testing#proof-reporting"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "cbe130a32b8a"
+    },
+    {
+      "id": "sec-cfbacb3ecdc9",
+      "title": "No requirement bounding path traversal via manifest `path` fields or contract block `specPath` values",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that all path values in the manifest and all `specPath` values in contract blocks are validated to resolve strictly within the workspace root after symlink resolution; any path that escapes the root must be rejected with an error, not a warning, and no opt-out should permit reads outside the workspace root.",
+      "findings": [
+        {
+          "id": "workspaces:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The security section states 'paths are resolved relative to the workspace root and the manifest cannot cause reads outside it by default', but no requirement specifies how this bound is enforced or what happens when a path contains `..` sequences, symlinks pointing outside the workspace root, or absolute paths. Contract block lines (`<repoKey>::<specPath>`) are parsed from spec files and could contain traversal sequences. The 'by default' qualifier implies an opt-out exists but it is not defined.",
+          "file": "specs/capabilities/workspaces.md"
+        }
+      ],
+      "capability": "workspaces",
+      "claims": [
+        "capabilities/workspaces#workspace-manifest",
+        "capabilities/workspaces#contract-graph-model",
+        "capabilities/workspaces#contract-sources"
+      ],
+      "files": [
+        "specs/capabilities/workspaces.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "cfbacb3ecdc9"
+    },
+    {
+      "id": "sec-d1d9878c0941",
+      "title": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true in src/adapters/test-runners.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Found '$SPAWN' with '{shell: true}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+      "findings": [
+        {
+          "id": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true@src/adapters/test-runners.ts:229",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true",
+          "message": "Found '$SPAWN' with '{shell: true}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+          "file": "src/adapters/test-runners.ts",
+          "line": 229
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [],
+      "files": [
+        "src/adapters/test-runners.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "d1d9878c0941",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-d454c2915b84",
+      "title": "Prompt-injection via page content reaching the LLM is not addressed",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that page-derived content is presented to the LLM in a structurally separated context that cannot override system instructions, and that the action-classification step is performed deterministically (not LLM-driven) for any action whose target is resolvable in the accessibility tree, with the LLM's output treated as untrusted input subject to a second deterministic safety check before execution.",
+      "findings": [
+        {
+          "id": "agentic-verification:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "The redact-before-llm requirement removes credentials from page text before it reaches the LLM, but no requirement addresses adversarial content on the target page designed to manipulate the LLM's planning step (prompt injection). Because the agent acts on a live application and its planned actions are derived from page content, a malicious page could instruct the LLM to classify a destructive action as safe or to exfiltrate data through an outbound action, bypassing the deterministic guardrails which only apply after classification.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#redact-before-llm",
+        "capabilities/agentic-verification#action-classification",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "d454c2915b84"
+    },
+    {
+      "id": "sec-d62f35b2e0d2",
+      "title": "nanoid@3.3.15: nanoid: non-secure generators can loop indefinitely with negative size",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade nanoid to 3.3.16 or 5.1.16 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-28wg-ghj8-5hjv",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "nanoid: non-secure generators can loop indefinitely with negative size",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "d62f35b2e0d2",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-da3bbe4c39f3",
+      "title": "Replay recordings containing sensitive data have no access-control or encryption requirement",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that replay responses are written only after redaction has been applied to the prompt and response text, that the managed ignore block (filesystem-access) does NOT add the replay directory to .gitignore by default (so accidental commit is flagged rather than silently excluded), and that a warning is emitted when recording while the provider is anything other than `none`.",
+      "findings": [
+        {
+          "id": "platform-foundation:missing-data-classification",
+          "detector": "spec-review",
+          "ruleId": "missing-data-classification",
+          "message": "The spec states 'Replay recordings contain prompts and responses and should be treated as repository content' but this is advisory language in the Security & Data Considerations section, not an enforced requirement. The llm-replay-record requirement specifies that recordings are stored in `.specguard/replay/` with no requirement to redact content before writing, restrict file permissions, or warn when recordings are written in a context where redaction was disabled. Prompts may contain personal or secret data (as acknowledged by the redaction requirement), meaning replays could permanently store PII or secrets on disk.",
+          "file": "specs/capabilities/platform-foundation.md"
+        }
+      ],
+      "capability": "platform-foundation",
+      "claims": [
+        "capabilities/platform-foundation#llm-replay-record",
+        "capabilities/platform-foundation#secret-redaction"
+      ],
+      "files": [
+        "specs/capabilities/platform-foundation.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "da3bbe4c39f3"
+    },
+    {
+      "id": "sec-da4ac2d554b5",
+      "title": "No rate limit or budget cap on LLM calls from `import` when fetching remote URLs",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that `import` truncates or rejects any fetched document exceeding a defined character/byte limit (matching or derived from the 20,000-character cap used by `reverse`) before passing content to the LLM, and that the shared LLM layer enforces a per-invocation token budget with a hard exit when exceeded.",
+      "findings": [
+        {
+          "id": "spec-authoring:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The Security & Data Considerations section says `reverse` and `import` run through the shared LLM layer with 'budget caps', but no requirement specifies what those caps are, how they are enforced, or what happens when they are exceeded. More critically, `import` can fetch an arbitrary http/https URL and feed its content to the model; there is no requirement limiting the size of the fetched document before it is sent to the LLM, unlike `reverse` which explicitly caps each file at 20,000 characters (reverse-safety). An attacker who controls the URL target (or a very large document) could force unbounded token consumption.",
+          "file": "specs/capabilities/spec-authoring.md"
+        }
+      ],
+      "capability": "spec-authoring",
+      "claims": [
+        "capabilities/spec-authoring#import-documents",
+        "capabilities/spec-authoring#reverse-safety"
+      ],
+      "files": [
+        "specs/capabilities/spec-authoring.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "da4ac2d554b5"
+    },
+    {
+      "id": "sec-daf8c963b087",
+      "title": "No requirement to sanitise LLM output before writing test files",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that generated and healed test file content is statically validated against an allowlist of permitted imports and patterns before being written to disk, and that any output containing disallowed constructs is rejected and logged rather than written.",
+      "findings": [
+        {
+          "id": "conformance-testing:unspecified-abuse-case",
+          "detector": "spec-review",
+          "ruleId": "unspecified-abuse-case",
+          "message": "`generate-safe-writes` requires stripping stray Markdown fences from LLM output before writing, but no requirement addresses other dangerous content that an LLM (or a compromised LLM provider) could emit: arbitrary shell commands embedded in test files, require/import of unexpected modules, or exfiltration payloads. The heal flow re-runs the rewritten tests with the developer's or CI's privileges, so malicious test code executes in a privileged context. The spec notes that heal only writes test files but does not constrain what those files may contain.",
+          "file": "specs/capabilities/conformance-testing.md"
+        }
+      ],
+      "capability": "conformance-testing",
+      "claims": [
+        "capabilities/conformance-testing#generate-safe-writes",
+        "capabilities/conformance-testing#heal-classifies-failures",
+        "capabilities/conformance-testing#heal-exit-and-safety"
+      ],
+      "files": [
+        "specs/capabilities/conformance-testing.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/conformance-testing#claim-tag-forms",
+          "capabilities/conformance-testing#framework-profiles",
+          "capabilities/conformance-testing#generate-claim-tags",
+          "capabilities/conformance-testing#generate-per-scenario",
+          "capabilities/conformance-testing#generate-safe-writes",
+          "capabilities/conformance-testing#heal-classifies-failures",
+          "capabilities/conformance-testing#heal-exit-and-safety",
+          "capabilities/conformance-testing#ingest-validation",
+          "capabilities/conformance-testing#ledger-records-basis",
+          "capabilities/conformance-testing#normalised-results",
+          "capabilities/conformance-testing#partial-and-sweep",
+          "capabilities/conformance-testing#results-ingest",
+          "capabilities/conformance-testing#runner-adapters",
+          "capabilities/conformance-testing#runner-invocation",
+          "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+          "capabilities/conformance-testing#stale-rule",
+          "capabilities/conformance-testing#test-run-fails-honestly",
+          "capabilities/conformance-testing#test-run-ingests"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "daf8c963b087"
+    },
+    {
+      "id": "sec-db084251a0dc",
+      "title": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true in extension/src/cli-version.ts",
+      "severity": "high",
+      "type": "code",
+      "change": "code",
+      "summary": "Found '$SPAWN' with '{shell: shell}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+      "findings": [
+        {
+          "id": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true@extension/src/cli-version.ts:59",
+          "detector": "semgrep",
+          "ruleId": "javascript.lang.security.audit.spawn-shell-true.spawn-shell-true",
+          "message": "Found '$SPAWN' with '{shell: shell}'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use '{shell: false}' instead.",
+          "file": "extension/src/cli-version.ts",
+          "line": 59
+        }
+      ],
+      "capability": "integration-surfaces",
+      "claims": [],
+      "files": [
+        "extension/src/cli-version.ts"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "fingerprint": "db084251a0dc",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-dd1bcb547fb1",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.6 or 3.1.7 or 4.1.4 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-qw65-cvwx-89v3",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "dd1bcb547fb1",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-de30b32f9f87",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to host confusion via literal backslash authority delimiter",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.3 or 3.1.4 or 4.1.1 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-v2hh-gcrm-f6hx",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to host confusion via literal backslash authority delimiter",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "de30b32f9f87",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-e4561bcb9c7f",
+      "title": "fast-uri@3.1.2: fast-uri vulnerable to host confusion via backslash authority introducer",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade fast-uri to 2.4.4 or 3.1.5 or 4.1.2 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-7p8r-x3mc-p8w7",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "fast-uri vulnerable to host confusion via backslash authority introducer",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "e4561bcb9c7f",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-ef9364aa87e6",
+      "title": "No access control requirement on LLM key environment variables",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement that LLM API key environment variables must be sourced from a secrets store with least-privilege access, must not be printed to stdout/stderr or logs by any specguard command, and must not be forwarded to sub-processes that do not need them.",
+      "findings": [
+        {
+          "id": "traceability-and-drift:missing-authorization",
+          "detector": "spec-review",
+          "ruleId": "missing-authorization",
+          "message": "The spec states 'LLM keys are referenced by environment variable name only and never appear in plans, gaps.json or the registry' but contains no requirement governing who or what process may read those environment variables, how they are scoped, or whether they must be restricted in CI. An attacker with read access to the CI environment or to process listings could exfiltrate keys. The Security section describes behaviour after the key is available but never requires any access restriction.",
+          "file": "specs/capabilities/traceability-and-drift.md"
+        }
+      ],
+      "capability": "traceability-and-drift",
+      "claims": [],
+      "files": [
+        "specs/capabilities/traceability-and-drift.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": []
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "ef9364aa87e6"
+    },
+    {
+      "id": "sec-fe27c1da5ce3",
+      "title": "postcss@8.5.16: PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "severity": "high",
+      "type": "dependency",
+      "change": "dependency",
+      "summary": "Upgrade postcss to 8.5.18 (transitive: pin it with an override).",
+      "findings": [
+        {
+          "id": "GHSA-r28c-9q8g-f849",
+          "detector": "advisory",
+          "ruleId": "osv-scanner,pnpm-audit",
+          "message": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+          "file": "package.json"
+        }
+      ],
+      "claims": [],
+      "files": [
+        "package.json"
+      ],
+      "verify": {
+        "scope": "all-proven",
+        "claims": []
+      },
+      "fingerprint": "fe27c1da5ce3",
+      "status": "open",
+      "statusHistory": []
+    },
+    {
+      "id": "sec-fea65e971201",
+      "title": "No rate-limit or budget cap on LLM calls or browser actions per run",
+      "severity": "high",
+      "type": "spec",
+      "change": "spec",
+      "summary": "Add a requirement specifying maximum LLM calls per run and per spec, a wall-clock timeout per spec and per run, and a hard upper bound on `validate.maxRounds`, with the run failing with exit code 1 when any budget is exceeded.",
+      "findings": [
+        {
+          "id": "agentic-verification:missing-rate-limit",
+          "detector": "spec-review",
+          "ruleId": "missing-rate-limit",
+          "message": "The perceive-plan-act-verify and verify-walks-journeys requirements allow up to `validate.maxRounds` plan-act rounds per capability, but there is no requirement capping total LLM API calls, browser page loads, or network requests across an entire run of `--all`. An attacker or misconfiguration could trigger unbounded LLM spending and network traffic (including outbound calls if `--allow-outbound` is set) by supplying a large number of specs or a high maxRounds value.",
+          "file": "specs/capabilities/agentic-verification.md"
+        }
+      ],
+      "capability": "agentic-verification",
+      "claims": [
+        "capabilities/agentic-verification#perceive-plan-act-verify",
+        "capabilities/agentic-verification#verify-walks-journeys",
+        "capabilities/agentic-verification#guardrail-blocking"
+      ],
+      "files": [
+        "specs/capabilities/agentic-verification.md"
+      ],
+      "verify": {
+        "scope": "listed",
+        "claims": [
+          "capabilities/agentic-verification#action-classification",
+          "capabilities/agentic-verification#auth-failures-and-cache",
+          "capabilities/agentic-verification#auth-strategies",
+          "capabilities/agentic-verification#browser-lifecycle",
+          "capabilities/agentic-verification#credentials-never-leak",
+          "capabilities/agentic-verification#criterion-verdicts",
+          "capabilities/agentic-verification#evidence-and-history",
+          "capabilities/agentic-verification#guardrail-blocking",
+          "capabilities/agentic-verification#ledger-proof",
+          "capabilities/agentic-verification#one-context-per-profile",
+          "capabilities/agentic-verification#validate-exit-code",
+          "capabilities/agentic-verification#validate-targets",
+          "capabilities/agentic-verification#value-judgement",
+          "capabilities/agentic-verification#verify-proof-matching",
+          "capabilities/agentic-verification#verify-value-fails",
+          "capabilities/agentic-verification#verify-walks-journeys"
+        ]
+      },
+      "status": "open",
+      "statusHistory": [],
+      "fingerprint": "fea65e971201"
+    }
+  ]
+}

@@ -7,8 +7,6 @@
  * Spec: specs/capabilities/spec-authoring.md
  */
 import path from 'node:path';
-import https from 'node:https';
-import http from 'node:http';
 
 import { z } from 'zod';
 
@@ -18,6 +16,9 @@ import { SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { readFile, fileExists } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import { resolveInside } from '../core/safe-path.js';
+import { untrusted, withUntrustedNotice } from '../core/untrusted.js';
+import { safeFetchText, type SafeFetchOptions } from '../core/safe-fetch.js';
 import { llmGenerateText, llmGenerateObject } from '../core/llm.js';
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,10 @@ export interface ImportOpts {
   out?: string;
   /** Overwrite an existing spec file. */
   force?: boolean;
+  /** Let a URL source resolve to a loopback, private or link-local address (a document on your own network). */
+  allowPrivate?: boolean;
+  /** Read a file source only from inside the project. The MCP server sets this: an agent must not be able to name `~/.ssh/id_rsa`. */
+  restrictToProject?: boolean;
   /**
    * Force single-spec output instead of decomposing a multi-section document
    * into a set of specs. Defaults to false (decompose when the document has
@@ -205,7 +210,7 @@ async function planDecomposition(
     `Document title: ${docTitle}`,
     '',
     'Section outline:',
-    outline,
+    untrusted('section-outline', outline),
     '',
     'Produce the decomposition plan.',
   ].join('\n');
@@ -214,53 +219,18 @@ async function planDecomposition(
     provider: config.llm.provider,
     model: config.llm.model,
     apiKeyEnv: config.llm.apiKeyEnv,
-    system: PLAN_SYSTEM,
+    system: withUntrustedNotice(PLAN_SYSTEM),
     prompt,
     schema: PLAN_SCHEMA,
   });
 }
 
-/** Fetch content from an http/https URL. Rejects on redirect to file:// or private IPs. */
-export function fetchUrl(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url);
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      reject(new Error(`Unsupported protocol: ${parsedUrl.protocol}`));
-      return;
-    }
-
-    const lib = parsedUrl.protocol === 'https:' ? https : http;
-    const req = lib.get(
-      url,
-      { headers: { 'User-Agent': 'SpecGuard/1.0' } },
-      (res) => {
-        // Follow one redirect.
-        if (
-          (res.statusCode === 301 || res.statusCode === 302) &&
-          res.headers.location &&
-          (res.headers.location.startsWith('http://') || res.headers.location.startsWith('https://'))
-        ) {
-          fetchUrl(res.headers.location).then(resolve).catch(reject);
-          res.resume();
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode}: ${url}`));
-          res.resume();
-          return;
-        }
-        const chunks: Buffer[] = [];
-        res.on('data', (chunk: Buffer) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-        res.on('error', reject);
-      },
-    );
-    req.on('error', reject);
-    req.setTimeout(15_000, () => {
-      req.destroy();
-      reject(new Error(`Timeout fetching ${url}`));
-    });
-  });
+/**
+ * Fetch content from an http/https URL. Refuses non-public addresses (also after a redirect), credentials in the URL,
+ * more than five redirects and answers over 5 MB; see `safeFetchText`.
+ */
+export function fetchUrl(url: string, opts: SafeFetchOptions = {}): Promise<string> {
+  return safeFetchText(url, opts);
 }
 
 // ---------------------------------------------------------------------------
@@ -304,9 +274,9 @@ export async function runImport(
   try {
     if (isUrl) {
       log(`[fetch] ${opts.source}`);
-      content = await fetchUrl(opts.source);
+      content = await fetchUrl(opts.source, { allowPrivate: opts.allowPrivate });
     } else {
-      const absPath = resolveFromRoot(config, opts.source);
+      const absPath = opts.restrictToProject ? resolveInside(config.rootDir ?? process.cwd(), opts.source) : resolveFromRoot(config, opts.source);
       content = await readFile(absPath);
     }
   } catch (err) {
@@ -338,9 +308,7 @@ export async function runImport(
       `Convert the following requirements document into a Living Specification:`,
       ...(title ? [`Suggested spec title: ${title}`] : []),
       '',
-      '--- SOURCE DOCUMENT START ---',
-      sourceText.slice(0, MAX_SOURCE_CHARS),
-      '--- SOURCE DOCUMENT END ---',
+      untrusted('source-document', sourceText.slice(0, MAX_SOURCE_CHARS)),
     ].join('\n');
 
     try {
@@ -348,7 +316,7 @@ export async function runImport(
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
-        system: SYSTEM_PROMPT,
+        system: withUntrustedNotice(SYSTEM_PROMPT),
         prompt,
       });
       await writeFile(targetPath, specContent.endsWith('\n') ? specContent : specContent + '\n');

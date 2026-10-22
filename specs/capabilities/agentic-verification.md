@@ -12,6 +12,9 @@ sources:
   - "src/adapters/guardrails.ts"
   - "src/pipelines/validate.ts"
   - "src/cli/commands/validate.ts"
+  - "src/core/e2e-script.ts"
+  - "src/core/untrusted.ts"
+  - "src/core/validate-targets.ts"
 tests:
   - "tests/adapters/playwright.test.ts"
   - "tests/adapters/auth-state-machine.test.ts"
@@ -24,6 +27,12 @@ docs:
   - "README.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-3-test-layers-and-ci
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-no-requirement-governs-who-may
+  - 2026-10-22-security-evidence-screenshots-containing
+  - 2026-10-22-security-prompt-injection-via-page-conte
+  - 2026-10-22-security-no-rate-limit-or-budget-cap-on-2
 ---
 
 # Agentic Verification
@@ -63,6 +72,11 @@ Agentic verification points an LLM-driven browser agent at the running applicati
 - [ ] `verify` takes every v2 capability when given a base URL, even one with no `url:` of its own, and walks up to `validate.maxRounds` (default 3) plan-act rounds so one run can cross pages; the page is not reloaded between rounds <!-- claim: verify-walks-journeys -->
 - [ ] Only PASS and FAIL verdicts are written as proof; BLOCKED and INCONCLUSIVE never overwrite a proof a test run earned, and a verdict is matched to a requirement by its id (exact, or followed by a delimiter) or its exact text, never by substring <!-- claim: verify-proof-matching -->
 - [ ] A capability whose value is judged NO fails the verification even when every requirement passes, and the judgement with its gaps is written to `.specguard/reports/verify-<spec>.json` <!-- claim: verify-value-fails -->
+- [ ] The planner may take `click`, `fill`, `navigate` (same site only), `waitFor` and `assertText` steps, a step that fails or does not hold is reported as `[action-failed]` instead of being swallowed, and `verify --emit-tests` (or `validate.emitTests`) turns a passing run in which every step ran into a `@playwright/test` file under `paths.e2eTests` (default `tests/e2e`) that starts from `BASE_URL`, carries `[layer: e2e]`, tags only the claims that have an assertion step of their own, is not written when a value would be redacted, and never replaces a file it did not generate <!-- claim: verify-emits-playwright -->
+- [ ] Page content the model reads (the title, the accessibility tree, the HTML, console errors) and imported or fetched documents are fenced as untrusted data (`<untrusted-...>` tags the content cannot close, a closing tag inside it is defanged), every system message says that nothing inside the fence is an instruction, and what the model proposes is still classified and guarded deterministically, never trusted because it asked <!-- claim: untrusted-content-fenced -->
+- [ ] One run is bounded: at most five browser steps per round whatever the model plans, `validate.maxRounds` of at most 10, and a wall-clock budget per spec (`validate.timeoutMs`, default 10 minutes) after which no further round is planned, the run says so and judges what it saw <!-- claim: verify-run-bounds -->
+- [ ] A check started by an agent (the MCP tool) may target only loopback and the hosts listed in `validate.allowedHosts` (`host`, `host:port` on that port only, `*.domain` for subdomains only); any other target is BLOCKED before a browser or the model sees it; a person on the command line is not restricted <!-- claim: agent-target-allowlist -->
+- [ ] The evidence, saved-login and report folders are private to their owner (mode 0700, login files 0600), and `validate.evidenceRetentionDays` removes evidence older than that at the start of a run (default: keep it) <!-- claim: evidence-retention -->
 
 ## Scenarios
 ### Scenario 1: All criteria pass

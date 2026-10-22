@@ -68,6 +68,22 @@ describe.each(makers)('backend contract: %s [backend-contract]', (_name, make) =
     expect((await b.snapshots.latest('demo'))!.snapshot.project).toBe('demo');
   });
 
+  // [claims: capabilities/workspaces#server-workspace]
+  it('stores workspaces: create, replace, read back, list in name order, and refuse a bad name [workspaces]', async () => {
+    const b = await backend();
+    expect(await b.workspaces.list()).toEqual([]);
+    expect(await b.workspaces.get('sandbox')).toBeUndefined();
+    const def = (name: string, projects: string[], at = '2026-10-22T10:00:00.000Z') => ({ name, projects: projects.map((project) => ({ project })), updatedAt: at, updatedBy: 'ada@plymouthrock.com' });
+    await b.workspaces.put(def('zeta', ['web']));
+    await b.workspaces.put(def('sandbox', ['web', 'api']));
+    await b.workspaces.put({ ...def('sandbox', ['web', 'api', 'docs'], '2026-10-22T11:00:00.000Z'), description: 'replaced' });
+    expect((await b.workspaces.list()).map((w) => w.name)).toEqual(['sandbox', 'zeta']);
+    expect(await b.workspaces.get('sandbox')).toMatchObject({ description: 'replaced', updatedAt: '2026-10-22T11:00:00.000Z' });
+    expect((await b.workspaces.get('sandbox'))!.projects).toHaveLength(3);
+    expect(await b.workspaces.get('../etc')).toBeUndefined();
+    await expect(b.workspaces.put(def('bad name', []))).rejects.toThrow(/invalid workspace name/);
+  });
+
   // [claims: capabilities/team-server#team-server-storage]
   it('lists projects, knows which commits it has, and prunes the oldest [snapshots-housekeeping]', async () => {
     const b = await backend();

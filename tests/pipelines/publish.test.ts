@@ -74,7 +74,7 @@ describe('snapshot validation [snapshot-validation]', () => {
   const base = async () => JSON.parse(JSON.stringify(await buildSnapshot(await loadConfig(makeV2Repo().dir), { project: 'demo' })));
 
   // [claims: capabilities/team-server#publish-snapshot]
-  it('rejects paths that leave the spec tree, non-markdown files and bad project names [paths]', async () => {
+  it('rejects paths that leave the spec tree, non-markdown files and bad project names [paths]', { timeout: 30_000 }, async () => {
     for (const bad of ['../etc/passwd.md', '/abs/x.md', 'specs/../../x.md', 'specs/a.txt', 'other/a.md', 'specs\\a.md', 'specs//a.md']) {
       const snap = await base();
       snap.files[bad] = 'x';

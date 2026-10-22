@@ -26,6 +26,7 @@ sources:
   - "src/pipelines/test-run.ts"
   - "src/cli/commands/test.ts"
   - "src/core/claim-migration.ts"
+  - "src/core/test-layers.ts"
 tests:
   - "tests/core/claim-tags.test.ts"
   - "tests/core/state-stores.test.ts"
@@ -44,6 +45,10 @@ docs:
   - "docs/ci.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-0-3-phase-3-test-layers-and-ci
+  - 2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-evidence-path-traversal-not-con
 ---
 
 # Conformance Testing
@@ -88,6 +93,13 @@ Conformance testing turns specs into tests, runs the project's own test suite th
 - [ ] A proof records what produced it: a test run leaves `evidence` unset and an agentic browser run records `agentic` <!-- claim: proof-evidence-kind -->
 - [ ] `test generate`, `test run` and `test heal` group the test commands; the older `generate` and `heal` names keep working <!-- claim: test-command-group -->
 - [ ] After a consolidation, results that still carry old claim tags are accepted for one release through `.specguard/claim-migration.json` and recorded under the new claim refs <!-- claim: old-claim-tags-accepted -->
+- [ ] Evidence is kept per test layer (`unit`, `integration`, `e2e`, `security`, `functional`): each claim's ledger row holds one entry per layer with its own staleness inputs, and the row's combined fields come from the layer that decides it (a failure in any layer, else the newest proof), so a failing browser check is not overwritten by the next passing unit run and the other way round; a row written before layers existed reads as one layer (`functional` when the browser check wrote it, else `unclassified`) and a project that requires no layers sees exactly the old verdicts <!-- claim: layered-proofs -->
+- [ ] A test's layer is the first of: an `@layer:` tag on the test or a `[layer: x]` comment in the first lines of its file; the app's `test.layers` globs; the suite that ran it; `results ingest --layer`; Playwright means `e2e`; path conventions (`e2e`, `integration`, `security` folders and `.e2e.`/`.int.` file names); otherwise `unit` <!-- claim: layer-classification -->
+- [ ] A capability's `layers:` frontmatter (a list for every claim, or a default plus per-claim lists) and the project's `proof.requiredLayers` say which layers a claim needs, the claim's own list first, then the capability's default, then the project's; an unknown layer name is reported, not ignored <!-- claim: layer-requirements -->
+- [ ] `results ingest` writes one verdict per claim and layer, an unclassified `unexercised` sweep row replaces the whole row, classified evidence replaces unclassified evidence of the same tests so an old failure cannot outlive its fix, and `test run` ingests each suite's report with the suite's layer <!-- claim: layer-ingest -->
+- [ ] When layers are required, `check` and `proof status` list `[proof-incomplete] <claim> (missing: <layers>)` for each claim not proven in every required layer, print a `LAYERS:` line with proven over required per layer, leave the `PROOFS:` line unchanged, and `proof.enforceLayers: fail` makes `proof status` fail on them (`warn` is the default, `off` hides them); the trace carries `required`, `layers` and `missing` per claim and `layerCounts` per capability and in total <!-- claim: layer-reports -->
+- [ ] An app's `test.suites` lists suites that each have a command, a report and a layer (for example vitest for `unit` and Playwright for `e2e`); `test run` runs every suite in place of the app's single command, a failing suite fails only the layer it covers, and the report of each suite is ingested with its layer <!-- claim: layer-suites -->
+- [ ] An evidence path is recorded only when it stays inside the repository, normalised and relative; an absolute path, one that climbs out or a symlink that leaves is dropped with a message and the verdict itself is kept <!-- claim: evidence-path-inside-repo -->
 
 ## Scenarios
 ### Scenario 1: Spec to tagged tests

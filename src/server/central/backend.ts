@@ -34,6 +34,25 @@ export interface SnapshotStore {
   prune(project: string, keep: number): Promise<number>;
 }
 
+/** A named set of projects the server shows together: the combined view of a system that spans repositories. */
+export interface WorkspaceDef {
+  name: string;
+  description?: string;
+  projects: Array<{ project: string; /** The repo's key in the workspace manifest. */ key?: string; role?: string; /** Listed, but left out of the totals. */ ignore?: boolean }>;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface WorkspaceStore {
+  list(): Promise<WorkspaceDef[]>;
+  get(name: string): Promise<WorkspaceDef | undefined>;
+  /** Create or replace a workspace. */
+  put(def: WorkspaceDef): Promise<void>;
+}
+
+/** Workspace names are used in paths and URLs. */
+export const WORKSPACE_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
+
 export type TokenRole = 'viewer' | 'maintainer' | 'admin';
 
 export interface TokenRecord {
@@ -87,6 +106,7 @@ export interface Backend {
   /** Cache for generated documents, per project. */
   cache(project: string): ContentCache;
   tokens: TokenStore;
+  workspaces: WorkspaceStore;
   audit(entry: AuditEntry): Promise<void>;
   usage(row: UsageRow): Promise<void>;
   /** Everything recorded so far, newest last. For admin reports and tests. */

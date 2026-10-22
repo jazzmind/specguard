@@ -1,10 +1,15 @@
 /**
  * Who is calling the team server, and the token routes.
  *
- * Browsers arrive through the sandbox's sign-in, which names the user in a header; that is trusted for reading and
- * for minting a user's own tokens, but never for anything administrative, because another container on the same network
- * could forge it. Everything that changes state, and everything administrative, goes through a token: a user's own
- * (minted from the web UI or `specguard login`), a project's CI token, or the bootstrap token the operator sets.
+ * Browsers arrive through the sandbox's sign-in, which names the user in a header. That header is only as trustworthy
+ * as the path it arrived by: another container on the same network could send it directly and name anyone. So:
+ *  - it is never enough for anything administrative;
+ *  - without `trustedProxies` it signs in a viewer at most (read, and minting viewer tokens), whoever it names;
+ *  - with `trustedProxies` it is honoured only from those addresses, and only then can naming a maintainer's email
+ *    make a signed-in browser a maintainer (change plans and workspaces with `X-Requested-With`, mint tokens up to
+ *    that role).
+ * Everything else that changes state, and everything administrative, goes through a token: a user's own, a project's
+ * CI token, or the bootstrap token the operator sets.
  *
  * Spec: specs/capabilities/team-server.md
  */
@@ -16,7 +21,7 @@ import { PROJECT_NAME } from './backend.js';
 
 export interface AuthConfig {
   backend: Backend;
-  /** People who may maintain every project when they sign in through the browser. They are never admins that way. */
+  /** People who may maintain every project when they sign in through the browser from a trusted proxy. They are never admins that way. */
   maintainerEmails?: string[];
   /** Listed for the record and for the UI; an admin acts only through an admin token. */
   adminEmails?: string[];
@@ -26,6 +31,37 @@ export interface AuthConfig {
   emailHeader?: string;
   /** Accept the header only for this domain (for example `plymouthrock.com`). */
   allowedDomain?: string;
+  /** Addresses (IPv4 or IPv6, or IPv4 CIDR ranges) the sign-in header is accepted from. Absent: from anywhere. */
+  trustedProxies?: string[];
+}
+
+/** An IPv4 address as a number, or undefined. */
+function ipv4(addr: string): number | undefined {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(addr);
+  if (!m || [m[1], m[2], m[3], m[4]].some((p) => Number(p) > 255)) return undefined;
+  return ((Number(m[1]) << 24) | (Number(m[2]) << 16) | (Number(m[3]) << 8) | Number(m[4])) >>> 0;
+}
+
+const unmap = (addr: string): string => addr.trim().toLowerCase().replace(/^::ffff:/, '');
+
+/** Whether the connection's peer address is one of `trusted` (exact addresses or IPv4 CIDR ranges). */
+export function peerIsTrusted(peer: string | undefined, trusted: string[]): boolean {
+  if (!peer) return false;
+  const p = unmap(peer);
+  const pn = ipv4(p);
+  for (const entry of trusted) {
+    const [base, bitsText] = unmap(entry).split('/');
+    if (bitsText === undefined) {
+      if (base === p) return true;
+      continue;
+    }
+    const bits = Number(bitsText);
+    const bn = ipv4(base);
+    if (pn === undefined || bn === undefined || !Number.isInteger(bits) || bits < 0 || bits > 32) continue;
+    const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+    if ((pn & mask) >>> 0 === (bn & mask) >>> 0) return true;
+  }
+  return false;
 }
 
 export type Via = 'token' | 'bootstrap' | 'header';
@@ -51,7 +87,7 @@ function safeEqual(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export async function authenticate(headers: Record<string, string | undefined>, cfg: AuthConfig): Promise<AuthResult> {
+export async function authenticate(headers: Record<string, string | undefined>, cfg: AuthConfig, peer?: string): Promise<AuthResult> {
   const authorization = headers.authorization;
   if (authorization) {
     const match = /^Bearer\s+(\S+)$/i.exec(authorization);
@@ -64,11 +100,16 @@ export async function authenticate(headers: Record<string, string | undefined>, 
     void cfg.backend.tokens.touch(record.id).catch(() => undefined);
     return { identity: { user: record.owner, role: record.role, ...(record.project ? { project: record.project } : {}) }, via: 'token' };
   }
+  // The header names a user only when it came through the proxy that sets it.
+  if (cfg.trustedProxies && cfg.trustedProxies.length > 0 && !peerIsTrusted(peer, cfg.trustedProxies)) return {};
   const email = headers[cfg.emailHeader ?? 'x-deploykit-email']?.trim().toLowerCase();
   if (!email || !email.includes('@')) return {};
   if (cfg.allowedDomain && !email.endsWith(`@${cfg.allowedDomain.toLowerCase()}`)) return {};
   const maintainers = [...(cfg.maintainerEmails ?? []), ...(cfg.adminEmails ?? [])].map((e) => e.toLowerCase());
-  return { identity: { user: email, role: maintainers.includes(email) ? 'maintainer' : 'viewer' }, via: 'header' };
+  // Naming a maintainer makes you one only when the request provably came through the sign-in proxy. Without
+  // `trustedProxies` the header could have been written by anyone who can reach this server, so it is read-only.
+  const throughProxy = Boolean(cfg.trustedProxies?.length) && peerIsTrusted(peer, cfg.trustedProxies ?? []);
+  return { identity: { user: email, role: maintainers.includes(email) && throughProxy ? 'maintainer' : 'viewer' }, via: 'header' };
 }
 
 const json = (status: number, value: unknown): ApiResponse => ({ status, type: 'application/json; charset=utf-8', body: JSON.stringify(value) });

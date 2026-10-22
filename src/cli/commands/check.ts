@@ -6,6 +6,7 @@ import { runStatus } from '../../pipelines/status.js';
 import { isV2Repo } from '../../pipelines/check.js';
 import { teamLines } from '../../pipelines/team.js';
 import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
+import { workspaceCheckCommand } from './workspace-check.js';
 
 export interface CheckCliOpts extends GlobalOpts {
   coverage?: boolean;
@@ -19,9 +20,14 @@ export interface CheckCliOpts extends GlobalOpts {
   out?: string;
   /** Show what the team's server knows next to this working tree's proofs. */
   team?: boolean;
+  /** The combined view of a workspace: a path, or true for the manifest above the current directory. */
+  workspace?: string | true;
+  /** With --workspace: run check in each repo first. */
+  refresh?: boolean;
 }
 
 export async function checkCommand(opts: CheckCliOpts): Promise<void> {
+  if (opts.workspace !== undefined) return workspaceCheckCommand({ workspace: opts.workspace, refresh: opts.refresh, json: opts.json });
   const config = await loadCliConfig(opts);
   const view: CheckView = opts.coverage ? 'coverage' : opts.gaps ? 'gaps' : opts.matrix ? 'matrix' : opts.drift ? 'drift' : opts.align ? 'align' : 'summary';
   // A repo that has not moved to v2 specs gets the file-based status, with a pointer to the migration.

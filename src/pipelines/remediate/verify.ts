@@ -15,7 +15,7 @@ import type { EcosystemAdapter } from '../../core/ecosystems/index.js';
 import type { CommandRunner } from '../../core/ecosystems/types.js';
 import type { RemediateConfig, SpecGuardConfig } from '../../core/types.js';
 import type { BaselineResult } from './baseline.js';
-import { ingestRun, readLedgerFile, reprovenClaims, seedLedger, staleClaims, type IngestOutcome } from './ledger.js';
+import { ingestRun, layersNotReproven, provenLayers, readLedgerFile, reprovenClaims, seedLedger, staleClaims, type IngestOutcome } from './ledger.js';
 import { selectionByJob, type Selection } from './select-tests.js';
 import { buildAndTypecheck, runJobs, testJobs, type JobsRun, type StepResult } from './steps.js';
 import type { ChangeType, TestSummary } from './types.js';
@@ -38,6 +38,10 @@ export interface VerifyArgs {
   runId: string;
   /** Called between the build and the tests, to check the write allowlist before the long step. */
   afterBuild?: () => void;
+  /** Claims the change is meant to repair (an application fix): they must be proven afterwards. */
+  intendedFlips?: string[];
+  /** Count baseline claims no test exercised as inconclusive. Default: `cfg.strictUnexercised`, which is on unless set. */
+  strictUnexercised?: boolean;
 }
 
 export interface VerifyOutcome {
@@ -50,6 +54,8 @@ export interface VerifyOutcome {
   patchedLedgerPath: string;
   advisoriesAfter: Advisory[];
   proofs: ProofReprove;
+  /** Claims proven in some layer before the change and not proven in it after (a browser or e2e proof no test here re-ran). */
+  layersLost: Array<{ claim: string; layers: string[] }>;
   verdict: VerdictResult;
 }
 
@@ -88,6 +94,12 @@ export async function verifyPatched(a: VerifyArgs): Promise<VerifyOutcome> {
     reprovenWithNewFingerprint: patchedLedger ? reprovenClaims(patchedLedger, a.root, provenBaseline) : [],
   };
 
+  // Per layer: what was proven against the old dependencies, and what is proven against the new ones.
+  const patchedFp = dependencyFingerprint(a.root);
+  const layersLost = baseLedger && patchedLedger
+    ? layersNotReproven(provenLayers(baseLedger, a.root, a.baseline.dependencyFingerprint), provenLayers(patchedLedger, a.root, patchedFp))
+    : [];
+
   const advisoriesAfter = await a.redetect();
 
   const verdict = computeVerdict({
@@ -104,8 +116,9 @@ export async function verifyPatched(a: VerifyArgs): Promise<VerifyOutcome> {
     proofs,
     selectedForPackage: a.selection.ids.length,
     selectedTestIds: a.selection.ids,
-    strictUnexercised: a.cfg.strictUnexercised,
+    strictUnexercised: a.strictUnexercised ?? a.cfg.strictUnexercised,
+    intendedFlips: a.intendedFlips,
   });
 
-  return { build, typecheck, selectedRun, fullRun, patchedSummary: fullRun.summary, ingest, patchedLedgerPath, advisoriesAfter, proofs, verdict };
+  return { build, typecheck, selectedRun, fullRun, patchedSummary: fullRun.summary, ingest, patchedLedgerPath, advisoriesAfter, proofs, layersLost, verdict };
 }

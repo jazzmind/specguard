@@ -6,7 +6,7 @@
  * commands to run.
  */
 import path from 'node:path';
-import { loadWorkspaceWithConfigs } from '../../core/workspace.js';
+import { loadWorkspaceWithConfigs, workspaceHint } from '../../core/workspace.js';
 import { runImpact } from '../../pipelines/impact.js';
 import { outputResult } from './helpers.js';
 import type { GlobalOpts } from './helpers.js';
@@ -14,6 +14,7 @@ import type { GlobalOpts } from './helpers.js';
 export interface ImpactCmdOpts extends GlobalOpts {
   maxDepth?: string;
   upstream?: boolean;
+  workspace?: string;
 }
 
 export async function impactCommand(target: string, opts: ImpactCmdOpts): Promise<void> {
@@ -21,7 +22,7 @@ export async function impactCommand(target: string, opts: ImpactCmdOpts): Promis
 
   let manifest: Awaited<ReturnType<typeof loadWorkspaceWithConfigs>>['manifest'];
   try {
-    ({ manifest } = await loadWorkspaceWithConfigs(cwd));
+    ({ manifest } = await loadWorkspaceWithConfigs(cwd, workspaceHint(opts.workspace)));
   } catch {
     process.stderr.write(
       '[impact] No workspace.json found. Run `specguard workspace init` first.\n',

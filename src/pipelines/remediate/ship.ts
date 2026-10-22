@@ -1,6 +1,7 @@
 /**
  * Ship: scoped commit on the remediation branch, then (only with `--pr`) push and `gh pr create`.
- * There is no auto-merge anywhere in this module.
+ * Merging is never done here. The one exception is `armAutoMerge`, which only runs when the auto-merge policy
+ * allowed it, and only asks GitHub to merge once the base branch's required checks pass.
  *
  * Spec: specs/capabilities/security-and-remediation.md
  */
@@ -9,6 +10,7 @@ import path from 'node:path';
 
 import type { Verdict } from '../../core/behavior-verdict.js';
 import { parsePorcelain, partitionByScope, type ChangeScope } from '../../core/git-scope.js';
+import { hasRequiredChecks } from '../../core/auto-merge-policy.js';
 import { currentBranch, hasRemote, RemediateSetupError } from './git.js';
 import type { Exec } from './types.js';
 
@@ -37,6 +39,8 @@ export interface ShipResult {
   pushed: boolean;
   prUrl?: string;
   draft: boolean;
+  /** The branch the pull request targets. */
+  base?: string;
 }
 
 /** Commit identity for CI machines that have none configured. */
@@ -78,5 +82,19 @@ export function ship(a: ShipArgs): ShipResult {
   if (draft) args.push('--draft');
   const out = ok(a.gh(args, a.wtDir), 'gh pr create');
   result.prUrl = /https?:\/\/\S+/.exec(out)?.[0];
+  result.base = base;
   return result;
+}
+
+/**
+ * Ask GitHub to merge `prUrl` once its required checks pass (`gh pr merge --auto --squash`). Refuses when the base
+ * branch has no required status checks or they cannot be read, because auto-merge on such a branch merges at once.
+ */
+export function armAutoMerge(gh: Exec, cwd: string, prUrl: string, base: string): { armed: boolean; reason?: string } {
+  const protection = gh(['api', `repos/{owner}/{repo}/branches/${encodeURIComponent(base)}/protection/required_status_checks`], cwd);
+  if (protection.status !== 0 || !hasRequiredChecks(protection.stdout)) {
+    return { armed: false, reason: `${base} has no required status checks, or they could not be read, so auto-merge would merge before any check ran` };
+  }
+  const merge = gh(['pr', 'merge', prUrl, '--auto', '--squash'], cwd);
+  return merge.status === 0 ? { armed: true } : { armed: false, reason: `gh pr merge --auto failed: ${(merge.stderr || merge.stdout).trim().slice(0, 300)}` };
 }

@@ -10,6 +10,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { createSecretRedactor } from '../core/redact.js';
+
 export type ActivityStatus = 'running' | 'pass' | 'fail' | 'error' | 'info';
 export type ActivitySource = 'extension' | 'mcp' | 'cli';
 
@@ -52,6 +54,8 @@ export function appendActivityLogEntry(
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: Date.now(),
       ...entry,
+      // A failure message can quote a command line or a response that held a credential.
+      ...(entry.message !== undefined ? { message: createSecretRedactor().text(entry.message) } : {}),
     };
 
     existing.push(full);

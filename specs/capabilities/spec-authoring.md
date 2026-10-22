@@ -30,6 +30,7 @@ sources:
   - "src/pipelines/spec-index.ts"
   - "src/pipelines/spec-tag.ts"
   - "src/core/test-declarations.ts"
+  - "src/core/safe-fetch.ts"
 tests:
   - "tests/core/spec-parser.test.ts"
   - "tests/core/spec-frontmatter.test.ts"
@@ -49,6 +50,11 @@ docs:
   - "docs/user/import.md"
 history:
   - 2026-10-15-functional-specs-and-four-pillars
+  - 2026-10-22-security-ssrf-via-import-url-fetching-is
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-credentials-embedded-in-importe
+  - 2026-10-22-security-no-rate-limit-or-budget-cap-on
 ---
 
 # Spec Authoring
@@ -89,6 +95,8 @@ Spec Authoring gives every other SpecGuard capability something solid to stand o
 - [ ] `spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; `import <file> --capability <id>` adds only the requirements a document states that the capability does not already cover (a dry run unless `--yes`), appends them with unique claim anchors, and records a history entry for what it changed <!-- claim: spec-index-refreshes-map -->
 - [ ] `spec consolidate` clusters existing per-file specs into capability specs, assigns every old spec to exactly one capability (otherwise it stops and lists the unassigned ones), merges their requirements with unique claim ids that never use numeric suffixes, carries over every old claim with an id that the model did not absorb (a bullet that never had an id has no reference to preserve and is superseded by the model's functional requirements), then rewrites claim tags in tests, rekeys the proof ledger and drift registry, archives the old specs under `_archive/v1`, and writes `.specguard/claim-migration.json` so results carrying old tags are still accepted on ingest <!-- claim: spec-consolidate-migrates-state -->
 - [ ] `spec tag` links existing tests to requirements: for each capability the model is shown its requirements and the leaf tests in the files its `tests:` globs name, and says which requirements each test clearly exercises; only real requirement ids and test numbers survive, a `[claims: ...]` comment is written above the test in the file's comment style (a test already tagged is never touched, and two capabilities citing one test are merged into one comment), the run is a dry run unless `--yes`, and it reports which requirements no test covers <!-- claim: spec-tag-links-tests -->
+- [ ] `import <url>` reaches only public addresses: the host is resolved by SpecGuard, every loopback, private, link-local (including the cloud metadata address), carrier-grade, multicast, unique-local and IPv4-mapped or translated address is refused (also when only one of several answers is private), the connection goes to the address that was checked, each redirect is checked the same way, at most five redirects are followed, an https to http redirect, credentials in the URL and an answer over 5 MB are refused, and `--allow-private` is the only way to import from your own network <!-- claim: import-ssrf -->
+- [ ] When `import` is called through the MCP server a file source must be inside the project (symlinks resolved first) and a URL may not reach a private address, so an agent cannot read `~/.ssh/id_rsa` or an internal URL into a spec <!-- claim: import-project-files -->
 
 ## Scenarios
 ### Scenario 1: Adopt specs on an existing codebase

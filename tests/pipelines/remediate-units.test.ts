@@ -161,6 +161,31 @@ describe('detection', () => {
   });
 });
 
+describe('the vulnerability ignore file [vuln-ignore]', () => {
+  // [claims: capabilities/security-and-remediation#vuln-ignore-expiry]
+  it('suppresses only while an entry is dated in the future, and says when one has lapsed or has no date', async () => {
+    const dir = tmp();
+    mkdirSync(path.join(dir, '.specguard'));
+    writeFileSync(path.join(dir, '.specguard/vuln-ignore.json'), JSON.stringify({ ignore: [
+      { id: 'GHSA-live', reason: 'waiting on upstream', expires: '2027-01-01' },
+      { id: 'GHSA-lapsed', reason: 'was waiting', expires: '2026-01-01' },
+      { id: 'GHSA-undated', reason: 'forever' },
+    ] }));
+    writeFileSync(path.join(dir, 'package.json'), '{}');
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    const vuln = (id: string) => ({ name: id, severity: 'high', isDirect: true, via: [{ source: 1, name: id, title: 't', url: `https://github.com/advisories/${id}`, severity: 'high', range: '<2.0.0' }], effects: [], range: '<2.0.0' });
+    const audit = JSON.stringify({ vulnerabilities: { a: vuln('GHSA-live'), b: vuln('GHSA-lapsed'), c: vuln('GHSA-undated') } });
+    const run: RemediateDeps['run'] = async (cmd, args) => (cmd === 'npm' && args[0] === 'audit' ? { stdout: audit, stderr: '', status: 1 } : { stdout: '', stderr: '', status: null, error: 'ENOENT' });
+    const deps = { run, now: () => new Date('2026-10-06'), sast: async () => ({ ok: true, findings: [] }) } as unknown as RemediateDeps;
+    const det = await detect({ ...cfg, rootDir: dir } as SpecGuardConfig, dir, deps, { threshold: 'high' });
+    expect(det.suppressed.map((s) => s.id)).toEqual(['GHSA-live']);
+    expect(det.advisories.map((a) => a.id).sort()).toEqual(['GHSA-lapsed', 'GHSA-undated']);
+    expect(det.warnings.join('\n')).toContain('ignore entry GHSA-lapsed expired on 2026-01-01');
+    expect(det.warnings.join('\n')).toContain('ignore entry GHSA-undated has no expiry date');
+    expect(det.warnings.join('\n')).not.toContain('GHSA-live');
+  });
+});
+
 describe('write allowlist and limits', () => {
   const scope = { type: 'dependency' as const, files: ['package.json', 'package-lock.json'] };
 

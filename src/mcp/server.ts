@@ -25,6 +25,7 @@ import { loadSpecGuardEnv } from '../core/env.js';
 import { parseSpecContent } from '../core/spec-parser.js';
 import { readFile } from '../core/reader.js';
 import { writeFile } from '../core/writer.js';
+import { isInside, OutsideRootError } from '../core/safe-path.js';
 import { emptyResult } from '../core/types.js';
 import { resolveProfile } from '../core/language-profiles.js';
 import { scaffoldHarnessFiles } from '../core/scaffold.js';
@@ -61,7 +62,9 @@ import { runWithPipeline } from '../core/llm-runtime.js';
 import { cliVersion } from '../core/version.js';
 import { enabledPluginCommands } from '../plugins/commands.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
+import { formatPluginRows, listPlugins } from '../pipelines/plugin-manage.js';
 import { appendActivityLogEntry } from './activity-hook.js';
+import { mcpLimiter, mcpReadOnly, WRITE_TOOLS } from './limits.js';
 
 const SERVER_NAME = 'specguard-mcp';
 const SERVER_VERSION = cliVersion();
@@ -83,6 +86,11 @@ async function withActivityLog(
   fn: () => Promise<ToolResult>,
 ): Promise<ToolResult> {
   const startMs = Date.now();
+  const limited = mcpLimiter.check(pipeline);
+  if (limited) {
+    appendActivityLogEntry(cwd, { pipeline, status: 'error', source: 'mcp', message: limited });
+    return errorResult(new Error(limited));
+  }
   // The CLI loads `.specguard/.env` at start-up; an MCP server has no start-up directory, so each call loads its own project's.
   loadSpecGuardEnv(cwd);
   appendActivityLogEntry(cwd, { pipeline, status: 'running', source: 'mcp' });
@@ -178,6 +186,30 @@ export const CORE_TOOLS: ReadonlySet<string> = new Set([
   'specguard_init',
 ]);
 
+
+/**
+ * The directories a spec may be read from or written to through the MCP server: the specs root and each app's spec
+ * directory of the project at `base`, or `<base>/specs` when there is no config. An agent that has read a hostile page
+ * can be told to write any path with any content, so a file outside these (or one that is not Markdown) is refused.
+ */
+async function specRootsFor(base: string): Promise<string[]> {
+  try {
+    const config = await loadConfig(base);
+    const root = config.rootDir ?? base;
+    return [...new Set([config.paths?.specsRoot ?? 'specs', ...config.apps.map((a) => a.specDir)].map((d) => path.resolve(root, d)))];
+  } catch {
+    return [path.resolve(base, 'specs')];
+  }
+}
+
+export async function specFileInside(base: string, file: string): Promise<string> {
+  const abs = path.resolve(base, file);
+  if (!abs.endsWith('.md')) throw new Error(`${file} is not a Markdown spec file`);
+  const roots = await specRootsFor(base);
+  if (!roots.some((r) => isInside(r, abs))) throw new OutsideRootError(file, roots.join(' or '));
+  return abs;
+}
+
 /**
  * Build and configure the MCP server, registering the core tools (and the legacy
  * ones when asked). Does NOT connect a transport — see {@link main}.
@@ -187,8 +219,10 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
   const legacy = opts.legacy ?? process.env.SPECGUARD_MCP_LEGACY === '1';
   const register = server.registerTool.bind(server) as (...args: unknown[]) => unknown;
   // Filter while the built-in tools register; plugin tools are added afterwards through the original method.
+  // A read-only server never offers a tool that changes files.
+  const readOnly = mcpReadOnly();
   (server as { registerTool: unknown }).registerTool = (name: string, ...rest: unknown[]) =>
-    legacy || CORE_TOOLS.has(name) ? register(name, ...rest) : undefined;
+    (legacy || CORE_TOOLS.has(name)) && !(readOnly && WRITE_TOOLS.has(name)) ? register(name, ...rest) : undefined;
 
   // --- Pipeline tools ------------------------------------------------------
 
@@ -343,7 +377,7 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
       inputSchema: {
         spec: z.string().optional().describe('Spec key to validate.'),
         all: z.boolean().optional().describe('Validate all specs with url: metadata.'),
-        baseUrl: z.string().optional().describe('Base URL of the running app.'),
+        baseUrl: z.string().optional().describe('Base URL of the running app. Loopback, or a host listed in validate.allowedHosts.'),
         app: z.string().optional().describe('Limit to a single app.'),
         allowOutbound: z.boolean().optional().describe('Let outbound actions run (staging). Destructive actions stay blocked.'),
         headed: z.boolean().optional().describe('Show the browser window.'),
@@ -353,7 +387,8 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
     ({ spec, all, baseUrl, app, allowOutbound, headed, cwd }): Promise<ToolResult> =>
       withActivityLog(toolName === 'specguard_verify' ? 'verify' : 'validate', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runValidate(config, { spec, all, baseUrl, app, allowOutbound, headed });
+        // An agent started this: it may only check loopback and the hosts the project lists in validate.allowedHosts.
+        const result = await runValidate(config, { spec, all, baseUrl, app, allowOutbound, headed, restrictHosts: true });
         return toolResult(result);
       }).catch(errorResult),
   );
@@ -393,7 +428,7 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
       description:
         'Import an external requirements document (Markdown file or URL) and convert it to a Living Spec (CLI: specguard import).',
       inputSchema: {
-        source: z.string().describe('File path or https:// URL to import.'),
+        source: z.string().describe('File path (inside the project) or public https:// URL to import.'),
         app: z.string().optional().describe('Target app from config.'),
         out: z.string().optional().describe('Override output spec path.'),
         force: z.boolean().optional().describe('Overwrite existing spec.'),
@@ -403,7 +438,8 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
     ({ source, app, out, force, cwd }): Promise<ToolResult> =>
       withActivityLog('import', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runImport(config, { source, app, out, force });
+        // An agent names the source: a URL may not reach private addresses and a file must be inside the project.
+        const result = await runImport(config, { source, app, out, force, restrictToProject: true });
         return toolResult(result);
       }).catch(errorResult),
   );
@@ -490,13 +526,15 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
       },
     },
     async ({ specKey, path: specPath, cwd }): Promise<ToolResult> => {
+      const limited = mcpLimiter.check('read-spec');
+      if (limited) return errorResult(new Error(limited));
       try {
         const baseCwd = resolveCwd(cwd);
         let filePath: string;
         let specsRoot: string;
 
         if (specPath) {
-          filePath = path.resolve(baseCwd, specPath);
+          filePath = await specFileInside(baseCwd, specPath);
           // Best-effort specs root: the spec file's directory's nearest ancestor
           // is unknown here, so use the file's directory for specKey derivation.
           specsRoot = path.dirname(filePath);
@@ -508,7 +546,7 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
           }
           specsRoot = path.resolve(config.rootDir ?? baseCwd, app.specDir);
           const rel = specKey.endsWith('.md') ? specKey : `${specKey}.md`;
-          filePath = path.join(specsRoot, rel);
+          filePath = await specFileInside(specsRoot, rel);
         } else {
           return errorResult(new Error('Provide either specKey or path.'));
         }
@@ -535,7 +573,7 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
   server.registerTool(
     'specguard_write_spec',
     {
-      description: 'Write content to a spec file (creates parent directories).',
+      description: 'Write content to a spec file (creates parent directories). Only Markdown files inside the project\'s spec directories can be written.',
       inputSchema: {
         path: z.string().describe('Path to the spec file to write.'),
         content: z.string().describe('Full file content.'),
@@ -543,8 +581,10 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
       },
     },
     async ({ path: specPath, content, cwd }): Promise<ToolResult> => {
+      const limited = mcpLimiter.check('write-spec');
+      if (limited) return errorResult(new Error(limited));
       try {
-        const filePath = path.resolve(resolveCwd(cwd), specPath);
+        const filePath = await specFileInside(resolveCwd(cwd), specPath);
         await writeFile(filePath, content);
         return textResult(`Wrote ${content.length} bytes to ${filePath}`);
       } catch (err) {
@@ -610,6 +650,27 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
             showUpstream: upstream,
           });
           return toolResult(result);
+        } catch (err) {
+          return errorResult(err);
+        }
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_plugin_list',
+    {
+      description:
+        'List the plugins available to this repo and whether each is enabled, with the commands it adds. ' +
+        'Read-only; change them with the CLI: specguard plugin enable|disable|add|remove. (CLI: specguard plugin list)',
+      inputSchema: {
+        cwd: z.string().optional().describe('Directory to load .specguard/config.json from.'),
+      },
+    },
+    ({ cwd }): Promise<ToolResult> =>
+      withActivityLog('plugin-list', resolveCwd(cwd), async () => {
+        try {
+          const { plugins } = await listPlugins(resolveCwd(cwd));
+          return textResult(formatPluginRows(plugins).join('\n'));
         } catch (err) {
           return errorResult(err);
         }
@@ -979,7 +1040,8 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
 /** Start the server on a stdio transport. Only called when run as main. */
 async function main(): Promise<void> {
   const server = buildServer();
-  await registerPluginTools(server);
+  // A plugin's command may write anything, so a read-only server offers none.
+  if (!mcpReadOnly()) await registerPluginTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -25,6 +25,7 @@
  *
  * The PipelineItem key / log key is `<app.name>/<feature>`.
  */
+import { untrusted, withUntrustedNotice } from '../core/untrusted.js';
 import path from 'node:path';
 import { z } from 'zod';
 
@@ -319,7 +320,7 @@ export async function runDocGenerate(
       `Document title: ${title}`,
       '',
       'Source spec (internal sections already removed):',
-      stripped || '(no content)',
+      untrusted('spec', stripped || '(no content)'),
     ].join('\n');
 
     attempted += 1;
@@ -328,7 +329,7 @@ export async function runDocGenerate(
         provider: config.llm.provider,
         model: config.llm.model,
         apiKeyEnv: config.llm.apiKeyEnv,
-        system: SYSTEM_PROMPT,
+        system: withUntrustedNotice(SYSTEM_PROMPT),
         prompt,
         schema: DocOutputSchema,
       });

@@ -70,6 +70,18 @@ agents and CI drive SpecGuard; platform-foundation is the shared engine undernea
 | [Workspaces - Multi-Repo and Monorepo](capabilities/workspaces.md) | Teams that split one system across several repos or packages can treat it as one system, so a change in one place shows what else must be re-checked. | active | 19 |
 <!-- specguard:capability-map:end -->
 
+## Trust model
+
+What SpecGuard assumes, and the controls it has instead of authentication where authentication does not fit. Security reviews of the capability specs repeatedly ask for authentication on the CLI, the local API and the MCP server; this is why those are not in the specs, and what stands in for them.
+
+- **The CLI and the stdio MCP server run as the user who started them.** They hold that user's files and keys, the way any developer tool does, and a client that can start them can already do what they do. There is no one to authenticate. Controls: an agent's reach through MCP is limited (spec files inside the project only, public URLs and project files for import, hosts the project lists for verification, per-minute limits, a read-only mode); the credentials SpecGuard holds are masked from every prompt, from logs and from test commands.
+- **The project's `.specguard/config.json` is code.** It can set the command a test run executes, so running SpecGuard in a repository you do not trust is running that repository's code; `extends` adds no power the config did not already have, which is why it may point outside the repository (shared configs across repos). Review a config change as you review a build script.
+- **`specguard serve` is a read-only view for its own user, on loopback.** It checks the `Host` header (so a web page cannot read it through DNS rebinding), sets no CORS, and refuses a wider bind without `--allow-remote`. Other processes of the same user can read it, as they can read the files it serves. To share a project use the team server.
+- **The team server has authentication.** Tokens, a sign-in header honoured only from a trusted proxy, roles, per-caller rate limits, audit entries for token and plan changes. See its capability.
+- **Files in `.specguard/` are evidence, not authority.** The proof ledger and the drift registry are repository files: whoever can write the repository can write them, as they can write the tests. A ledger edited by hand is caught the way a test edited by hand is: by CI re-running the tests and the server's snapshots, and by review of the diff. They carry no signature because a key kept beside them would add nothing; the controls that matter are branch protection and a CI run that proves claims from a clean checkout. Files that hold secrets or personal data (`.env`, saved logins, evidence, the prompt inbox) are owner-only and are never staged by the commit command.
+- **Generated tests and specs are code a person reviews.** Model output is written only to a path derived from the spec, never one the model chose, and reaches the branch through a pull request; it is not statically filtered, because an allowlist of imports would break real tests without stopping a determined output. Repairs and dependency updates are limited to named files and merged by a person (apart from the narrow auto-merge policy).
+- **LLM spend is bounded per process.** `llm.budget` (dollars, tokens, calls) is checked in the process that makes the calls, so a fleet of parallel CI jobs has one budget each, not one between them. Use the provider's own spend limit for a shared cap; the budget is a guard against a runaway loop in one run.
+
 ## Non-goals
 
 - Replacing the test runner, the issue tracker or the CI system. SpecGuard integrates with them.

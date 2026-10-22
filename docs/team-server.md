@@ -47,8 +47,10 @@ All settings come from environment variables; flags override them.
 | `SPECGUARD_BASE_PATH` | Path the server is mounted under, for example `/specguard`. |
 | `SPECGUARD_BOOTSTRAP_TOKEN` | A secret you choose. Presenting it makes you an admin; use it to create the first tokens. |
 | `SPECGUARD_ALLOWED_DOMAIN` | Accept the sign-in header only for this email domain. |
+| `SPECGUARD_TRUSTED_PROXIES` | Addresses (or IPv4 CIDR ranges, comma separated) the sign-in header is accepted from, normally the sign-in proxy. Without it the header is accepted from anywhere, so it signs in a read-only viewer whoever it names, and `SPECGUARD_MAINTAINER_EMAILS` has no effect (changes from a browser, and plan status buttons in the UI, need it; tokens work either way). |
+| `SPECGUARD_RATE_LIMIT_PER_MIN` / `_DOCS_PER_MIN` / `_ANON_PER_MIN` | Requests a minute per signed-in caller (default 600), to document routes, which can start a model call (30), and per connecting address with no credential (60). Over the limit: `429` with `Retry-After`. |
 | `SPECGUARD_EMAIL_HEADER` | Header that carries the signed-in user (default `x-deploykit-email`). |
-| `SPECGUARD_MAINTAINER_EMAILS` | People who may change plans when signed in through a browser. |
+| `SPECGUARD_MAINTAINER_EMAILS` | People who may change plans when signed in through a browser. Honoured only for requests that come from `SPECGUARD_TRUSTED_PROXIES`. |
 | `SPECGUARD_LLM_PROVIDER` / `_MODEL` / `_BASE_URL` | The model that writes documents (default `litellm`, `fast`). The key is read from `LITELLM_API_KEY`. |
 | `SPECGUARD_LLM_MAX_USD` | A spend cap for each generated document. |
 | `SPECGUARD_GITHUB_REPOS` | `owner/name=project,owner/other` repositories to pull CI evidence from. |

@@ -26,9 +26,27 @@ import type { TraceModel, TraceNode } from '../core/trace.js';
 import type { SpecGuardConfig } from '../core/types.js';
 import { DocNotFoundError, DocService, isAudience, AUDIENCES } from './docs.js';
 import { parseSnapshot } from '../core/snapshot.js';
+import { listPlugins } from '../pipelines/plugin-manage.js';
+import { rollupRepo, rollupWorkspace, type WorkspaceRollup } from '../core/workspace-rollup.js';
+import { PROJECT_NAME, WORKSPACE_NAME, type WorkspaceDef } from './central/backend.js';
+import { z } from 'zod';
 import { PlanStatusError, itemVersion, setItemStatus } from '../pipelines/security-plan.js';
 import { localRegistry, type ProjectRegistry, type ProjectSource } from './project.js';
 import { renderUi } from './ui.js';
+
+const WorkspaceBodySchema = z.object({
+  description: z.string().max(500).optional(),
+  projects: z
+    .array(
+      z.object({
+        project: z.string().regex(PROJECT_NAME, 'not a valid project name'),
+        key: z.string().max(64).optional(),
+        role: z.string().max(32).optional(),
+        ignore: z.boolean().optional(),
+      }),
+    )
+    .max(200),
+});
 
 /** Who is calling. Set by the server's authentication; absent means anonymous. */
 export interface Identity {
@@ -57,6 +75,16 @@ export interface ApiResponse {
   body: string;
 }
 
+/**
+ * Headers for the HTML page. The page's own script is inline, so `script-src` allows it; everything else is closed:
+ * it cannot be framed (clickjacking), cannot change its base URL or post forms elsewhere, and sends no referrer.
+ */
+export const HTML_SECURITY_HEADERS: Record<string, string> = {
+  'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+};
+
 /** Version of the HTTP API's shape. Clients check it before trusting a server. */
 export const API_VERSION = 1;
 
@@ -79,6 +107,10 @@ export class Api {
       onUsage?: (usage: UsageEvent, project: string) => void;
       /** Names the pages' path prefix is mounted under, for the UI. */
       basePath?: string;
+      /** Answers `GET /api/v1/workspace` with the combined picture of the workspace being served. */
+      workspace?: () => Promise<unknown>;
+      /** Told of every change made through the API and every refused attempt to make one, for an audit trail. */
+      onAudit?: (entry: { actor: string; action: string; project?: string; detail: string }) => void;
     } = {},
   ) {
     this.registry = isRegistry(source) ? source : localRegistry(source);
@@ -124,6 +156,11 @@ export class Api {
 
     try {
       if (parts.length === 0 || parts[0] === 'health' || parts[0] === 'version') return this.health();
+      if (parts[0] === 'workspaces') return await this.workspacesRoute(req, parts.slice(1));
+      if (parts[0] === 'workspace' && parts.length === 1) {
+        if (!this.opts.workspace) return notFound('this server is not serving a workspace; start it with `specguard serve --workspace`');
+        return reading ? json(200, await this.opts.workspace()) : json(405, { error: 'the workspace view is read-only' });
+      }
       if (parts[0] === 'projects' && parts.length === 3 && parts[2] === 'snapshots' && req.method === 'POST') return await this.publish(req, parts[1]);
       if (parts[0] === 'projects') {
         if (parts.length === 1) return reading ? json(200, { projects: await this.registry.list(), default: this.registry.defaultProject ?? null }) : json(405, { error: 'projects are created by publishing to them' });
@@ -139,6 +176,63 @@ export class Api {
     }
   }
 
+  /**
+   * Workspaces: named sets of projects with a combined rollup. A credential limited to one project reaches only a
+   * workspace made of that project alone, and may not define one.
+   */
+  private async workspacesRoute(req: ApiRequest, parts: string[]): Promise<ApiResponse> {
+    const store = this.registry.workspaces;
+    if (!store) return notFound('this server does not keep workspaces');
+    const scoped = req.identity?.project;
+    const visible = (def: WorkspaceDef): boolean => !scoped || (def.projects.length > 0 && def.projects.every((p) => p.project === scoped));
+    const reading = req.method === 'GET' || req.method === 'HEAD';
+
+    if (parts.length === 0) {
+      if (!reading) return json(405, { error: 'a workspace is created by putting it at /api/v1/workspaces/<name>' });
+      return json(200, { workspaces: (await store.list()).filter(visible) });
+    }
+    const name = parts[0];
+    if (!WORKSPACE_NAME.test(name)) return json(400, { error: 'workspace names are letters, digits, . _ and -, up to 64 characters' });
+
+    if (req.method === 'PUT' && parts.length === 1) {
+      const refused = this.mayWrite(req);
+      if (refused) return refused;
+      if (scoped) return json(403, { error: `a credential limited to project "${scoped}" cannot define a workspace` });
+      let parsed: z.infer<typeof WorkspaceBodySchema>;
+      try {
+        parsed = WorkspaceBodySchema.parse(JSON.parse(req.body ?? ''));
+      } catch (err) {
+        return json(400, { error: err instanceof z.ZodError ? err.errors.map((e) => `${e.path.join('.') || '(body)'}: ${e.message}`).join('; ') : 'the body is not valid JSON' });
+      }
+      const def: WorkspaceDef = { name, ...(parsed.description ? { description: parsed.description } : {}), projects: parsed.projects, updatedAt: new Date().toISOString(), updatedBy: req.identity?.user ?? 'unknown' };
+      await store.put(def);
+      this.opts.onAudit?.({ actor: def.updatedBy, action: 'workspace.put', detail: `${name}: ${def.projects.length} project(s)` });
+      return json(200, def);
+    }
+    if (!reading) return json(405, { error: 'workspaces are read with GET and defined with PUT' });
+    const def = await store.get(name);
+    if (!def || !visible(def)) return notFound(`no workspace "${name}"`);
+    if (parts.length === 1) return json(200, def);
+    if (parts.length === 2 && parts[1] === 'rollup') return json(200, await this.workspaceRollup(def));
+    return notFound(`no route /workspaces/${parts.join('/')}`);
+  }
+
+  /** Each project's newest snapshot, rolled up the way the local `check --workspace` rolls up working trees. */
+  private async workspaceRollup(def: WorkspaceDef): Promise<WorkspaceRollup> {
+    const rows = [];
+    for (const p of def.projects) {
+      const source = await this.registry.get(p.project);
+      const base = { key: p.key ?? p.project, path: p.project, role: p.role ?? 'consumer', ignored: p.ignore === true, configured: true };
+      if (!source) {
+        rows.push(rollupRepo({ ...base, trace: null }));
+        continue;
+      }
+      rows.push(rollupRepo({ ...base, trace: await source.trace(), plan: await source.plans.read('latest') }));
+    }
+    rows.sort((a, b) => Number(a.ignored) - Number(b.ignored) || a.key.localeCompare(b.key));
+    return rollupWorkspace(def.name, rows);
+  }
+
   /** A project-scoped credential reaches only its own project. */
   private scopeRefusal(req: ApiRequest, name: string): ApiResponse | null {
     return req.identity?.project && req.identity.project !== name ? json(403, { error: `this credential is limited to project "${req.identity.project}"` }) : null;
@@ -152,6 +246,7 @@ export class Api {
     if (!parsed.ok) return json(400, { error: parsed.error });
     if (parsed.snapshot.project !== name) return json(400, { error: `the snapshot is for project "${parsed.snapshot.project}", not "${name}"` });
     const published = await this.registry.publish(parsed.snapshot);
+    this.opts.onAudit?.({ actor: req.identity?.user ?? 'unknown', action: 'snapshot.publish', project: name, detail: `${published.snapshotId}${published.commit ? ` at ${published.commit.slice(0, 8)}` : ''}` });
     return json(201, published);
   }
 
@@ -182,13 +277,34 @@ export class Api {
     if (parts[0] === 'docs' && parts.length === 1) return await this.docList(project);
     if (parts[0] === 'docs' && parts.length === 3) return await this.doc(project, parts[1], parts[2], req);
     if (parts[0] === 'security' && parts[1] === 'plans') return await this.plans(project, parts[2]);
+    if (parts[0] === 'plugins' && parts.length === 1) return await this.plugins(project);
     return notFound(`no route /${parts.join('/')}`);
+  }
+
+  /**
+   * The plugins of a working-tree project. A snapshot project has no checkout to read a config from, so it
+   * reports none rather than guessing; the answer is informational and nothing changes through the API.
+   */
+  private async plugins(project: ProjectSource): Promise<ApiResponse> {
+    const root = project.config.rootDir;
+    if (!root || !fs.existsSync(path.join(root, '.specguard', 'config.json'))) return json(200, { plugins: [], note: 'this project has no working tree to read plugins from' });
+    try {
+      return json(200, await listPlugins(root));
+    } catch (err) {
+      return json(500, { error: (err as Error).message });
+    }
   }
 
   /** Writes need a signed-in maintainer. Returns the refusal, or null when the caller may write. */
   private mayWrite(req: ApiRequest): ApiResponse | null {
-    if (!req.identity) return json(401, { error: 'sign in, or send a token, to change anything' });
-    if (ROLE_RANK[req.identity.role] < ROLE_RANK.maintainer) return json(403, { error: 'changing anything needs the maintainer role' });
+    if (!req.identity) {
+      this.opts.onAudit?.({ actor: 'anonymous', action: 'write.refused', detail: `${req.method} ${req.path}: no credential` });
+      return json(401, { error: 'sign in, or send a token, to change anything' });
+    }
+    if (ROLE_RANK[req.identity.role] < ROLE_RANK.maintainer) {
+      this.opts.onAudit?.({ actor: req.identity.user, action: 'write.refused', detail: `${req.method} ${req.path}: needs the maintainer role, has ${req.identity.role}` });
+      return json(403, { error: 'changing anything needs the maintainer role' });
+    }
     return null;
   }
 
@@ -227,6 +343,7 @@ export class Api {
         ...(typeof body.externalRef === 'string' ? { externalRef: body.externalRef } : {}),
         ...(expectedVersion !== undefined ? { expectedVersion } : {}),
       });
+      this.opts.onAudit?.({ actor: req.identity?.user ?? 'unknown', action: 'plan.item.status', project: project.name, detail: `${change.plan.id}/${change.item.id}: ${change.was} -> ${change.item.status}` });
       return json(200, { plan: change.plan.id, item: change.item, was: change.was, version: itemVersion(change.item) });
     } catch (err) {
       if (!(err instanceof PlanStatusError)) throw err;
@@ -308,6 +425,8 @@ export class Api {
       // Owned means not in `unowned`: `ownedFiles` counts a file once per capability that owns it, and includes non-source files.
       sourceCoverage: pct(Math.max(0, m.totals.sourceFiles - m.unowned.length), m.totals.sourceFiles),
       provenCoverage: pct(m.totals.proven, m.totals.claims),
+      // Per test layer, over the claims that require it; absent when no claim requires a layer.
+      ...(m.totals.layerCounts ? { layerCoverage: m.totals.layerCounts } : {}),
       unowned: m.unowned,
       capabilities: caps.map((n) => ({
         id: n.id,
@@ -316,6 +435,7 @@ export class Api {
         files: n.ownedFiles.length,
         tests: n.tests.length,
         counts: n.counts,
+        ...(n.layerCounts ? { layers: n.layerCounts } : {}),
         provenPercent: pct(n.counts.proven, n.counts.claims),
         testedPercent: pct(n.counts.withTests, n.counts.claims),
       })),

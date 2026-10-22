@@ -12,6 +12,8 @@ vi.mock('../../src/adapters/playwright.js', () => {
     on: vi.fn(),
     fill: vi.fn(async () => {}),
     click: vi.fn(async () => {}),
+    textContent: vi.fn(async () => 'Welcome back, Sam'),
+    waitForSelector: vi.fn(async () => {}),
   };
   return {
     launchBrowser: vi.fn(async () => ({ _browser: { close: vi.fn() }, _page: page, _consoleErrors: [] })),
@@ -207,3 +209,142 @@ describe('verify: capability journeys judged against value [verify-v2]', () => {
     expect(await ledger().catch(() => ({}))).toEqual({});
   });
 });
+
+describe('verify: replaying a passing check as a Playwright test [verify-emit]', () => {
+  const page = async () => {
+    const pw = (await import('../../src/adapters/playwright.js')) as unknown as { launchBrowser: () => Promise<{ _page: Record<string, ReturnType<typeof vi.fn>> }> };
+    return (await pw.launchBrowser())._page;
+  };
+  const plan = (actions: unknown[]) => [{ actions }, { actions: [] }];
+  const good = { verdicts: verdicts([['login-valid-code', 'PASS'], ['login-invalid-code', 'PASS']]), value: { delivers: 'YES', reason: 'ok', gaps: [] } };
+
+  // [claims: capabilities/agentic-verification#verify-emits-playwright]
+  it('writes a Playwright test and tags only the requirements an assertion checks [emit-tagged]', async () => {
+    script(good, plan([
+      { description: 'enter the code', kind: 'fill', selector: '#code', value: '123456' },
+      { description: 'press go', kind: 'click', selector: '#go' },
+      { description: 'the welcome shows', kind: 'assertText', selector: '#msg', value: 'Welcome', claim: 'login-valid-code' },
+    ]));
+    const r = await run({ all: true, baseUrl: 'http://localhost:3000', emitTests: true });
+    expect(r.messages.join('\n')).toContain('[emit] capabilities/auth — Playwright test written to tests/e2e/auth.verify.spec.ts');
+    const text = await readFile(path.join(root, 'tests/e2e/auth.verify.spec.ts'), 'utf8');
+    expect(text.split('\n')[0]).toBe('// [layer: e2e]');
+    expect(text).toContain('@claim:capabilities/auth#login-valid-code');
+    expect(text).not.toContain('login-invalid-code'); // passed in the check, but nothing in the test asserts it
+    expect(text).toContain('await page.fill("#code", "123456");');
+    expect(text).toContain('await expect(page.locator("#msg")).toContainText("Welcome");');
+    expect((await ledger())['capabilities/auth#login-valid-code']).toMatchObject({ verdict: 'proven', evidence: 'agentic' });
+  });
+
+  // [claims: capabilities/agentic-verification#verify-emits-playwright]
+  it('writes nothing unless asked, by flag or validate.emitTests [emit-opt-in]', async () => {
+    script(good, plan([{ description: 'press go', kind: 'click', selector: '#go' }]));
+    await run();
+    expect(await readFile(path.join(root, 'tests/e2e/auth.verify.spec.ts'), 'utf8').catch(() => null)).toBeNull();
+    script(good, plan([{ description: 'press go', kind: 'click', selector: '#go' }]));
+    await run(undefined, (c) => {
+      c.validate = { ...c.validate, emitTests: true };
+    });
+    expect(await readFile(path.join(root, 'tests/e2e/auth.verify.spec.ts'), 'utf8')).toContain('page.click("#go")');
+  });
+
+  // [claims: capabilities/agentic-verification#verify-emits-playwright]
+  it('does not emit a test from a run in which a step failed, and says why, and reports the failed step [emit-incomplete]', async () => {
+    (await page()).textContent.mockResolvedValueOnce('Something else');
+    script(good, plan([{ description: 'the welcome shows', kind: 'assertText', selector: '#msg', value: 'Welcome', claim: 'login-valid-code' }]));
+    const r = await run({ all: true, baseUrl: 'http://localhost:3000', emitTests: true });
+    const out = r.messages.join('\n');
+    expect(out).toContain('[action-failed] capabilities/auth — the welcome shows');
+    expect(out).toContain('no Playwright test: a step failed or was blocked');
+    expect(await readFile(path.join(root, 'tests/e2e/auth.verify.spec.ts'), 'utf8').catch(() => null)).toBeNull();
+  });
+
+  // [claims: capabilities/agentic-verification#verify-emits-playwright]
+  it('refuses to navigate off the site under test [emit-same-site]', async () => {
+    script(good, plan([{ description: 'open the partner site', kind: 'navigate', value: 'https://evil.example/phish' }]));
+    const r = await run({ all: true, baseUrl: 'http://localhost:3000', emitTests: true });
+    expect(r.messages.join('\n')).toContain('navigation leaves the site (https://evil.example)');
+    expect((await page()).goto).not.toHaveBeenCalledWith('https://evil.example/phish');
+  });
+
+  // [claims: capabilities/agentic-verification#verify-emits-playwright]
+  it('keeps a test file it did not generate, and refuses values the redactor would mask [emit-safe-writes]', async () => {
+    await put('tests/e2e/auth.verify.spec.ts', '// my own test\n');
+    script(good, plan([{ description: 'press go', kind: 'click', selector: '#go' }]));
+    const r = await run({ all: true, baseUrl: 'http://localhost:3000', emitTests: true });
+    expect(r.messages.join('\n')).toContain('exists and was not generated by specguard');
+    expect(await readFile(path.join(root, 'tests/e2e/auth.verify.spec.ts'), 'utf8')).toBe('// my own test\n');
+  });
+});
+
+describe('verify: bounds on what one run does [verify-bounds]', () => {
+  const page = async () => {
+    const pw = (await import('../../src/adapters/playwright.js')) as unknown as { launchBrowser: () => Promise<{ _page: Record<string, ReturnType<typeof vi.fn>> }> };
+    return (await pw.launchBrowser())._page;
+  };
+  const good = { verdicts: verdicts([['login-valid-code', 'PASS']]), value: { delivers: 'YES', reason: 'ok', gaps: [] } };
+
+  // [claims: capabilities/agentic-verification#verify-run-bounds]
+  it('takes at most five steps in a round, whatever the model plans [action-cap]', async () => {
+    const click = (await page()).click;
+    click.mockClear();
+    const many = Array.from({ length: 9 }, (_, n) => ({ description: `click item ${n}`, selector: `#i${n}` }));
+    script(good, [{ actions: many }, { actions: [] }]);
+    await run();
+    expect(click).toHaveBeenCalledTimes(5);
+  });
+
+  // [claims: capabilities/agentic-verification#verify-run-bounds]
+  it('stops planning when the time budget for the spec is spent, and says so, but still judges what it saw [deadline]', async () => {
+    script(good, [{ actions: [{ description: 'click a', selector: '#a' }] }, { actions: [] }]);
+    const r = await run(undefined, (c) => {
+      c.validate = { ...c.validate, timeoutMs: -1 }; // already spent
+    });
+    expect(r.messages.join('\n')).toContain('[timeout] capabilities/auth');
+    expect(mocked).toHaveBeenCalledTimes(1); // only the verdict call: no round was planned
+  });
+
+  // [claims: capabilities/agentic-verification#untrusted-content-fenced]
+  it('fences the page text and tree the model reads as untrusted data in every step, and tells it so [fenced]', async () => {
+    script(good, [{ actions: [{ description: 'click a', selector: '#a' }] }, { actions: [] }]);
+    await run();
+    for (const [args] of mocked.mock.calls) {
+      const { prompt, system } = args as { prompt: string; system: string };
+      expect(system).toContain('never instructions');
+      if (prompt.includes('Accessibility tree')) expect(prompt).toContain('<untrusted-page-accessibility-tree>');
+      expect(prompt).toContain('<untrusted-page-title>');
+    }
+    expect(mocked.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  // [claims: capabilities/agentic-verification#evidence-retention]
+  it('keeps the evidence, saved-login and report folders private to their owner [evidence-private]', async () => {
+    if (process.platform === 'win32') return;
+    const { statSync } = await import('node:fs');
+    script(good);
+    await run();
+    for (const d of ['evidence', 'auth', 'reports']) expect(statSync(path.join(root, '.specguard', d)).mode & 0o777, d).toBe(0o700);
+  });
+
+  // [claims: capabilities/agentic-verification#agent-target-allowlist]
+  it('an agent-started run checks loopback and listed hosts only; a person is not restricted [allowlist]', async () => {
+    mocked.mockReset();
+    const blocked = await run({ all: true, baseUrl: 'http://admin.internal.corp:8443', restrictHosts: true });
+    expect(mocked).not.toHaveBeenCalled(); // nothing was sent to the model, and no browser went there
+    expect(blocked.messages.join('\n')).toContain('[blocked] capabilities/auth');
+    expect(blocked.messages.join('\n')).toContain('validate.allowedHosts');
+
+    script(good);
+    const loop = await run({ all: true, baseUrl: 'http://localhost:3000', restrictHosts: true });
+    expect(loop.exitCode).toBe(0);
+    script(good);
+    const listed = await run({ all: true, baseUrl: 'https://staging.example.com', restrictHosts: true }, (c) => {
+      c.validate = { ...c.validate, allowedHosts: ['staging.example.com'] };
+    });
+    expect(listed.exitCode).toBe(0);
+    script(good);
+    const person = await run({ all: true, baseUrl: 'http://admin.internal.corp:8443' });
+    expect(person.exitCode).toBe(0);
+  });
+});
+

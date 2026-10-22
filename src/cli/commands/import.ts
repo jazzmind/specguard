@@ -11,12 +11,13 @@ export interface ImportCliOpts extends GlobalOpts {
   force?: boolean;
   capability?: string;
   yes?: boolean;
+  allowPrivate?: boolean;
 }
 
 export async function importCommand(source: string, opts: ImportCliOpts): Promise<void> {
   const config = await loadCliConfig(opts);
   if (opts.capability) {
-    const into = await runImportIntoCapability(config, { source, capability: opts.capability, yes: opts.yes });
+    const into = await runImportIntoCapability(config, { source, capability: opts.capability, yes: opts.yes, allowPrivate: opts.allowPrivate });
     for (const line of into.messages) process.stdout.write(`${line}\n`);
     process.stdout.write(`import: ${into.updated} added, ${into.skipped} skipped, ${into.failed} failed\n`);
     process.exit(into.exitCode);
@@ -26,6 +27,7 @@ export async function importCommand(source: string, opts: ImportCliOpts): Promis
     app: opts.app,
     out: opts.out,
     force: opts.force,
+    allowPrivate: opts.allowPrivate,
   });
 
   for (const line of result.messages) {

@@ -5,6 +5,7 @@ import {
   coverageRowDescription,
   coverageRowLabel,
   docsOutputDescription,
+  layersRow,
   testsOutputDescription,
   traceRow,
 } from './coverage-label.js';
@@ -45,3 +46,22 @@ describe('coverage labels [vscode-dashboard]', () => {
     expect(contractsDescription(0, 59)).toBe('59 nodes');
   });
 });
+
+describe('proof by layer row [vscode-dashboard]', () => {
+  const c = (required: number, proven: number, over: Partial<{ failed: number; stale: number; missing: number }> = {}) => ({ required, proven, failed: 0, stale: 0, missing: required - proven, ...over });
+
+  it('is absent when no claim requires a layer', () => {
+    expect(layersRow(undefined)).toBeUndefined();
+    expect(layersRow({})).toBeUndefined();
+    expect(layersRow({ unit: c(0, 0) })).toBeUndefined();
+  });
+
+  it('shows proven over required in a fixed order, with what is left', () => {
+    const row = layersRow({ e2e: c(4, 1, { stale: 1, missing: 2 }), unit: c(40, 38, { missing: 2 }), functional: c(0, 0) })!;
+    expect(row.title).toBe('Layers: unit 38/40 · e2e 1/4');
+    expect(row.description).toBe('5 to go');
+    expect(row.tooltip).toBe('unit: 38 of 40 claims proven (2 not proven)\ne2e: 1 of 4 claims proven (1 stale, 2 not proven)');
+    expect(layersRow({ unit: c(3, 3) })!.description).toBe('every required layer proven');
+  });
+});
+

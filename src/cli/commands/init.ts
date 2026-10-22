@@ -24,6 +24,8 @@ export interface InitOpts {
   runnerPath?: string;
   updateHooks?: boolean;
   historyHooks?: boolean;
+  ci?: string;
+  autoMerge?: boolean;
 }
 
 const RUNNERS = ['node', 'npx', 'path'];
@@ -37,6 +39,15 @@ function checkRunner(runner: string | undefined): 'node' | 'npx' | 'path' | unde
   return runner as 'node' | 'npx' | 'path';
 }
 
+function checkCi(ci: string | undefined): 'github' | undefined {
+  if (ci === undefined) return undefined;
+  if (ci !== 'github') {
+    process.stderr.write(`unknown --ci '${ci}'. Only github is supported.\n`);
+    process.exit(1);
+  }
+  return 'github';
+}
+
 export async function initCommand(opts: InitOpts): Promise<void> {
   const result = await runInit({
     framework: opts.withPlaywright ? 'playwright' : undefined,
@@ -47,6 +58,8 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
     historyHooks: opts.historyHooks,
+    ci: checkCi(opts.ci),
+    autoMerge: opts.autoMerge,
   });
 
   for (const line of result.messages) {

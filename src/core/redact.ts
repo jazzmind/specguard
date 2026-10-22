@@ -6,6 +6,7 @@
  *
  * Spec: specs/capabilities/platform-foundation.md
  */
+import { isInside } from './safe-path.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -103,6 +104,34 @@ export function createSecretRedactor(): Redactor {
 
 const noop: Redactor = { text: (t) => t, blankSelectors: [] };
 
+/** The largest text a hook may return, so a broken hook cannot flood a prompt or a log. */
+export const MAX_HOOK_RESULT_CHARS = 2_000_000;
+
+/** Raised when a redaction hook fails: the text is not sent or written, because it may not be redacted. */
+export class RedactionHookError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RedactionHookError';
+  }
+}
+
+/**
+ * Run the project's hook. It must return a string within `MAX_HOOK_RESULT_CHARS`; a throw, a promise (the hook is
+ * synchronous) or any other result fails closed with `RedactionHookError`, since carrying on would send text the
+ * project's own rules never saw.
+ */
+function runHook(hook: RedactHook, text: string, kind: RedactKind): string {
+  let result: unknown;
+  try {
+    result = hook(text, kind);
+  } catch (err) {
+    throw new RedactionHookError(`the redaction hook threw: ${(err as Error).message}`);
+  }
+  if (typeof result !== 'string') throw new RedactionHookError(`the redaction hook must return a string, not ${result instanceof Promise ? 'a promise (hooks are synchronous)' : typeof result}`);
+  if (result.length > MAX_HOOK_RESULT_CHARS) throw new RedactionHookError(`the redaction hook returned ${result.length} characters, over the limit of ${MAX_HOOK_RESULT_CHARS}`);
+  return result;
+}
+
 /** Build a redactor from config. Returns an identity redactor for `builtin: false` with nothing else set. */
 export function createRedactor(config?: RedactionConfig, hook?: RedactHook): Redactor {
   const builtin = config?.builtin !== false;
@@ -127,13 +156,7 @@ export function createRedactor(config?: RedactionConfig, hook?: RedactHook): Red
         }
       }
       for (const regex of custom) out = out.replace(regex, '[REDACTED]');
-      if (hook) {
-        try {
-          out = hook(out, kind);
-        } catch {
-          // A failing hook must not leak the unredacted text: keep the built-in result.
-        }
-      }
+      if (hook) out = runHook(hook, out, kind);
       return out;
     },
   };
@@ -141,11 +164,10 @@ export function createRedactor(config?: RedactionConfig, hook?: RedactHook): Red
 
 /** Load the hook module named in config. A missing or invalid hook is an error: silently skipping it would leak. */
 export async function loadRedactHook(rootDir: string, hookPath: string): Promise<RedactHook> {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(hookPath) && !/^[a-z]:[\\/]/i.test(hookPath)) throw new Error(`redaction hook ${hookPath} must be a path inside the project, not a URL`);
   const abs = path.resolve(rootDir, hookPath);
-  const rel = path.relative(rootDir, abs);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error(`redaction hook ${hookPath} must be inside the project`);
-  }
+  // Symlinks are resolved first: a link inside the project that points elsewhere is not inside it.
+  if (!isInside(rootDir, abs)) throw new Error(`redaction hook ${hookPath} must be inside the project`);
   if (!existsSync(abs)) throw new Error(`redaction hook not found: ${hookPath}`);
   const mod = (await import(pathToFileURL(abs).href)) as { default?: unknown; redact?: unknown };
   const fn = typeof mod.default === 'function' ? mod.default : mod.redact;

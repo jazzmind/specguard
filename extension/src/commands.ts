@@ -9,7 +9,12 @@ import { registerMcpForCursor } from './mcp-registration.js';
 import { openDashboardPanel, openAndRun } from './dashboard/panel.js';
 import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot, getWorkspaceManifestRoot } from './workspace-state.js';
 import { forceUpdateProjectFiles } from './project-updater.js';
-import { openWorkspacePanel } from './workspace-panel.js';
+import { openWorkspacePanel, registerWorkspacePanelCommands } from './workspace-panel.js';
+import { resolveCliCommand } from './dashboard/cli.js';
+import { shellQuote } from './safe-spawn.js';
+import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
+import { ensurePluginEnabled } from './plugins-view.js';
+import { loadWorkspaceManifest } from './workspace-state.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -40,7 +45,7 @@ export function registerCommands(
       }
 
       const terminal = vscode.window.createTerminal('SpecGuard Init');
-      const cli = await resolveCliPath(ws);
+      const cli = await resolveCliCommand(ws);
       const lang = detectWorkspaceLanguage(ws);
       terminal.sendText(`${cli} init --language ${lang} --harness both`);
       terminal.show();
@@ -98,35 +103,14 @@ export function registerCommands(
 
   // --- specguard.qualityCheck -----------------------------------------------
   context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.qualityCheck', () => {
-      void openAndRun(context, 'quality');
+    vscode.commands.registerCommand('specguard.qualityCheck', async () => {
+      if (await ensurePluginEnabled('quality')) void openAndRun(context, 'quality');
     }),
   );
 
   // --- specguard.validateFunctional -----------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.validateFunctional', () => {
-      void openAndRun(context, 'validate');
-    }),
-  );
-
-  // --- specguard.validateFunctionalAll --------------------------------------
-  context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.validateFunctionalAll', () => {
-      void openAndRun(context, 'validate');
-    }),
-  );
-
-  // --- specguard.validateFunctionalIntegration ------------------------------
-  context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.validateFunctionalIntegration', () => {
-      void openAndRun(context, 'validate');
-    }),
-  );
-
-  // --- specguard.validateFunctionalE2E --------------------------------------
-  context.subscriptions.push(
-    vscode.commands.registerCommand('specguard.validateFunctionalE2E', () => {
       void openAndRun(context, 'validate');
     }),
   );
@@ -276,7 +260,7 @@ export function registerCommands(
         );
         return;
       }
-      const cli = await resolveCliPath(manifestRoot);
+      const cli = await resolveCliCommand(manifestRoot);
       const terminal = vscode.window.createTerminal({
         name: 'SpecGuard: Build Contracts',
         cwd: manifestRoot,
@@ -292,6 +276,26 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.workspaceStatus', () => {
       openWorkspacePanel(context, 'status');
+    }),
+  );
+
+  registerWorkspacePanelCommands(context);
+
+  // --- specguard.syncWorkspace / ignoreRepo / unignoreRepo / refreshWorkspace --
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.syncWorkspace', async () => {
+      if (await syncCodeWorkspace(context, { interactive: true })) void coverageProvider.refresh();
+    }),
+    vscode.commands.registerCommand('specguard.ignoreRepo', async (key?: string) => changeIgnore(coverageProvider, true, key)),
+    vscode.commands.registerCommand('specguard.unignoreRepo', async (key?: string) => changeIgnore(coverageProvider, false, key)),
+    vscode.commands.registerCommand('specguard.refreshWorkspace', () => {
+      const manifestRoot = getWorkspaceManifestRoot();
+      if (!manifestRoot) {
+        vscode.window.showWarningMessage('SpecGuard: no workspace.json found. Open a .code-workspace file or run "specguard workspace init".');
+        return;
+      }
+      openWorkspacePanel(context, 'status');
+      void vscode.commands.executeCommand('specguard.workspacePanel.refreshAll');
     }),
   );
 
@@ -330,12 +334,12 @@ export function registerCommands(
       }
 
       const cwd = manifestRoot ?? ws;
-      const cli = await resolveCliPath(cwd);
+      const cli = await resolveCliCommand(cwd);
       const terminal = vscode.window.createTerminal({
         name: 'SpecGuard: Impact Analysis',
         cwd,
       });
-      terminal.sendText(`${cli} impact "${targetPath}" --upstream`);
+      terminal.sendText(`${cli} impact ${shellQuote(targetPath)} --upstream`);
       terminal.show();
     }),
   );
@@ -372,14 +376,6 @@ function detectWorkspaceLanguage(workspaceRoot: string): string {
   return 'typescript';
 }
 
-async function resolveCliPath(workspaceRoot: string): Promise<string> {
-  const config = vscode.workspace.getConfiguration('specguard');
-  const custom = config.get<string>('cliPath', '');
-  if (custom) return custom;
-  const local = path.join(workspaceRoot, 'node_modules', '.bin', 'specguard');
-  return fs.existsSync(local) ? local : 'npx -p specguard-ai specguard';
-}
-
 function deriveSpecKey(workspaceRoot: string, filePath: string): string | undefined {
   const rel = path.relative(workspaceRoot, filePath);
   const specsIdx = rel.indexOf('specs' + path.sep);
@@ -388,4 +384,31 @@ function deriveSpecKey(workspaceRoot: string, filePath: string): string | undefi
     .slice(specsIdx + 'specs'.length + 1)
     .replace(/\.md$/i, '')
     .replace(/\\/g, '/');
+}
+
+/** Ignore or include a repo: the given key, or one picked from the workspace's repos. */
+async function changeIgnore(coverageProvider: CoverageProvider, ignore: boolean, key?: string): Promise<void> {
+  const data = loadWorkspaceManifest();
+  if (!data) {
+    vscode.window.showWarningMessage('SpecGuard: no workspace.json found. Open a .code-workspace file or run "specguard workspace init".');
+    return;
+  }
+  let target = key;
+  if (!target) {
+    const candidates = data.repos.filter((r) => r.ignore !== ignore);
+    if (candidates.length === 0) {
+      vscode.window.showInformationMessage(ignore ? 'SpecGuard: every repo is already ignored.' : 'SpecGuard: no repo is ignored.');
+      return;
+    }
+    const picked = await vscode.window.showQuickPick(
+      candidates.map((r) => ({ label: r.key, description: r.ignore ? r.ignoreReason : r.role, detail: r.path })),
+      { title: ignore ? 'Ignore which repo?' : 'Include which repo?', placeHolder: ignore ? 'It is left out of every workspace analysis' : 'It is analysed again' },
+    );
+    target = picked?.label;
+  }
+  if (!target) return;
+  if (await setRepoIgnored(data.manifestRoot, target, ignore)) {
+    void coverageProvider.refresh();
+    await vscode.commands.executeCommand('specguard.workspacePanel.refresh');
+  }
 }

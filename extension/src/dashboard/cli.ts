@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { planSpawn, shellQuote, type SpawnPlan } from '../safe-spawn.js';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -46,6 +47,19 @@ export async function resolveCliPath(workspaceRoot: string): Promise<string> {
 
   // Nothing found — caller will surface an actionable error
   return '';
+}
+
+/**
+ * The same CLI as `resolveCliPath`, as a command line a terminal can run. Terminal-driven commands
+ * use this so they pick the same CLI (setting, local install, dev checkout, bundled) as the
+ * dashboard; with nothing found they fall back to the explicitly named npm package.
+ */
+export async function resolveCliCommand(workspaceRoot: string): Promise<string> {
+  const cli = await resolveCliPath(workspaceRoot);
+  if (!cli) return 'npx -p specguard-ai specguard';
+  if (cli.endsWith('.js')) return `node ${shellQuote(cli)}`;
+  if (cli.endsWith('.ts')) return `node --import tsx ${shellQuote(cli)}`;
+  return shellQuote(cli);
 }
 
 /**
@@ -113,14 +127,17 @@ export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (
     return { promise: promise.catch((e: unknown) => { throw e; }), kill: () => {} };
   }
 
-  const [cmd, cmdArgs, useShell] = cliPath.endsWith('.js')
-    ? ['node', [cliPath, ...args], false] as const
-    : cliPath.endsWith('.ts')
-      ? ['npx', ['tsx', cliPath, ...args], true] as const
-      : [cliPath, args, false] as const;
+  let plan: SpawnPlan;
+  try {
+    plan = planSpawn(cliPath, args);
+  } catch (err) {
+    return { promise: Promise.reject(err), kill: () => {} };
+  }
 
   const env = buildEnv(cwd);
-  const proc = cp.spawn(cmd, cmdArgs as string[], { cwd, env, shell: useShell || process.platform === 'win32' });
+  // No shell: the command and arguments are planned by `planSpawn`, which quotes for cmd.exe where Windows needs it.
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+  const proc = cp.spawn(plan.command, plan.args, { cwd, env, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
 
   const promise = new Promise<number>((resolve, reject) => {
     let buf = '';

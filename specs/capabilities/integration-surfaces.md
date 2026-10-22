@@ -21,6 +21,10 @@ sources:
   - "action.yml"
   - "extension/src/**"
   - "extension/webview/src/**"
+  - "src/cli/commands/plugin.ts"
+  - "src/pipelines/plugin-manage.ts"
+  - "src/core/ci-workflow.ts"
+  - "src/core/safe-path.ts"
 tests:
   - "tests/action/run-gates.test.ts"
   - "tests/mcp/*.test.ts"
@@ -54,6 +58,15 @@ docs:
 history:
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-15-catalog-exclude
+  - 2026-10-22-0-3-phase-2-plugin-management
+  - 2026-10-22-0-3-phase-3-test-layers-and-ci
+  - 2026-10-22-security-mcp-commit-tool-has-no-requirem
+  - 2026-10-22-security-activity-log-may-capture-prompt
+  - 2026-10-22-security-npm-plugin-loader-lacks-package
+  - 2026-10-22-security-hardening-from-audit-sast-and-p
+  - 2026-10-22-header-role-fix-and-spec-level-security
+  - 2026-10-22-security-init-history-hooks-writes-to-pe
+  - 2026-10-22-security-mcp-server-has-no-rate-limit-or
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -81,7 +94,11 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] The MCP server runs over stdio, registers one tool per core command plus `read_spec` and `write_spec` (the pre-0.2 names only with `SPECGUARD_MCP_LEGACY=1`), calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport <!-- claim: mcp-tools-parity -->
 - [ ] Every MCP tool call appends a running entry and then a pass, fail or error entry with duration to `.specguard/activity-log.json`, which is bounded to the latest 200 entries once it exceeds 1 MB, recovers from invalid JSON and never throws; `read_spec` needs a spec key or path; MCP tools never perform effects outside the machine (remediate is scan-only and dry-run only, commit stages only SpecGuard-generated files) <!-- claim: mcp-activity-and-limits -->
 - [ ] The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, check, test, verify, scan; `deps` is an alias of `scan`), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state <!-- claim: action-gates -->
-- [ ] `fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job <!-- claim: action-fail-on -->
+- [ ] `fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, proof-incomplete (claims missing a required test layer), align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job <!-- claim: action-fail-on -->
+- [ ] With `affected: true` the `test` gate measures changed workspace units against `affected-since`, else the pull request's base commit, else the working tree against HEAD, so a clean checkout of a pull request tests what the pull request changed instead of nothing <!-- claim: action-affected-since -->
+- [ ] On a pull request the Action posts one comment (found again by a marker, and updated on later runs) with the failed thresholds, the numbers `check`, `proof` and `scan` printed (specs, tests, claims proven, failed, stale and missing a layer, findings) and how each moved since the previous run on that pull request; a run that cannot comment (no token, a fork, an API error) says so and does not fail <!-- claim: action-pr-comment -->
+- [ ] With `sarif: true` the `scan` gate also writes `.specguard/security/scan.sarif` and the Action uploads it to GitHub code scanning <!-- claim: action-sarif -->
+- [ ] `init --ci github` writes `.github/workflows/specguard.yml` (a pull request and main-branch gate: full-history checkout, the project's own install step, gates `check,test,scan,proof,publish`, `fail-on` of missing specs, failed or stale proofs and tests plus `proof-incomplete` when layers are required, changed-units testing only for a workspace with packages, the comment, SARIF, and an optional manual browser `verify` run) and `.github/workflows/specguard-remediate.yml` (weekday remediation pull requests, with auto-merge and the bot token it needs only when `--auto-merge` is given); it never overwrites a workflow that exists and writes none unless asked <!-- claim: init-ci -->
 - [ ] `mode: remediate` runs `specguard remediate` instead of the gates, adds `--pr` when asked, exposes the exit code, fails only on exit 1 or 11, and never merges; a release tag must equal the package version with the CLI published before the extension <!-- claim: action-remediate-and-release -->
 - [ ] The VS Code extension adds an activity-bar sidebar and a singleton dashboard panel that run the CLI (resolved from a setting, a local binary or npx) and read `.specguard` files for coverage, pipeline status, drift, traceability and agent activity; commands needing a workspace report when none is open, the project can be switched, and no secrets are passed through. A capability project shows source coverage as a percentage of source files and counts capabilities separately from those files; archived v1 specs are not counted as current specs; `trace.json` is preferred over an older `traceability.json`; a contract edge with no `lastVerified` or one older than 30 days is described as unverified <!-- claim: vscode-dashboard -->
 - [ ] Optional behaviour is added through plugins named in `config.plugins`: a plugin may supply commands, catalog providers, implementation discoverers, external-id adapters, result sources, feature-state tuning, module stems and contract importers; an unknown or malformed plugin name is a configuration error where a pipeline loads it, and core never imports a plugin by name <!-- claim: plugin-contract -->
@@ -96,6 +113,16 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] The feature catalog's layout is entirely `featureState` config (catalog directory and format, file-name globs to leave out, results directories, id rules, placeholder and MCP patterns, repo channels, module stems, and where agent tools are declared and which of them do not count); no platform's layout is built in, and a test fails if a customer platform is named anywhere in code, docs or specs <!-- claim: catalog-layout-config -->
 - [ ] The `contract-mappings` plugin adds contract edges from a JSON file of spec-to-provider mappings whose location and key names are `contractMappings` config, with plain defaults, and yields nothing for a missing or malformed file <!-- claim: contract-mappings-importer -->
 - [ ] Core reaches optional functionality only through enabled plugins: `quality` exists only when a plugin provides it, and core commands never run code quality themselves <!-- claim: core-plugin-boundary -->
+- [ ] Built-in plugins are described in a catalog (id, title, description, the parts of the plugin interface each provides, its config key and whether `init` turns it on); the catalog lists exactly the directories under `src/plugins/` and each plugin exports the id it is listed under; an npm plugin may describe itself with `meta` <!-- claim: plugin-catalog -->
+- [ ] `specguard plugin list [--json]` shows every built-in and every configured npm plugin with whether it is on, whether it is inherited through `extends` or turned off here, the commands it adds and any load error; `plugin enable|disable <id>` edit only the repo's own raw config (keeping every other key), a repo with no list of its own writes one that restates what it inherits, and a plugin enabled only by an extended config is turned off with `disabledPlugins`; a disabled npm plugin keeps its package so it can be re-enabled by id <!-- claim: plugin-manage -->
+- [ ] `plugin add <id> --package <name> --yes [--install]` imports the package to check it exports a plugin with that id (which runs its code, so it is refused without `--yes`), installs with scripts disabled when asked, validates the name and package, and only then lists it; `plugin remove` drops it from the list and refuses built-ins <!-- claim: plugin-add-remove -->
+- [ ] The plugin list is also served at `GET /api/v1/plugins` (read-only, empty for a project with no working tree) and by the `specguard_plugin_list` MCP tool, which is part of the extra tool set (`SPECGUARD_MCP_LEGACY=1`) because the default MCP tool list is capped at 16 <!-- claim: plugin-surfaces -->
+- [ ] The VS Code extension has a Plugins view driven by `plugin list --json`: each plugin with its description, enabled state, commands and errors; Enable, Disable, Add (a modal that names the package and says its code will run) and Remove actions run the CLI, then restart the local API and refresh the actions; the pipeline actions come from the enabled plugins' commands instead of a fixed list, and heal commits its result only when the `git` plugin is enabled <!-- claim: extension-plugins-view -->
+- [ ] Through the MCP server an agent may read and write only Markdown files inside the project's spec directories (the specs root and each app's spec directory, or `<cwd>/specs` with no config): `..`, absolute paths elsewhere, other file types and symlinks that leave the project are refused, so a spec tool cannot write a git hook, a shell profile or an agent settings file <!-- claim: mcp-spec-paths -->
+- [ ] The `commit` command never stages a file that holds secrets or personal data, even inside a safe root: environment files (templates such as `.env.example` excepted), private keys and certificates, credentials files, `.npmrc`, saved login state under `.specguard/auth` and browser evidence under `.specguard/evidence` <!-- claim: commit-never-secrets -->
+- [ ] An npm plugin is named only by a valid npm package name: a path, a URL, an uppercase or spaced name is refused before anything is imported, a package that is not installed or that exports another id is refused, and a bare string never names a package <!-- claim: plugin-package-names -->
+- [ ] The MCP server limits what an agent can do in one process: at most 300 tool calls a minute (`SPECGUARD_MCP_RATE_PER_MIN`) and 20 history entries a minute (`SPECGUARD_MCP_HISTORY_PER_MIN`), a call over the limit gets an error result naming the setting, not a thrown error, and is logged <!-- claim: mcp-limits -->
+- [ ] With `SPECGUARD_MCP_READONLY=1` the MCP server offers no tool that creates or changes files (spec writes, history entries, init, generation, test runs, verification, scans, ingest, contracts) and no plugin tool, leaving the tools that read <!-- claim: mcp-readonly -->
 
 ## Scenarios
 ### Scenario 1: Bootstrap a project for humans and agents

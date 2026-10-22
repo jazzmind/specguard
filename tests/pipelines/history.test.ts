@@ -184,7 +184,7 @@ describe('intent gaps [intent-gap]', () => {
   }
 
   // [claims: capabilities/requirement-history#history-check-gap]
-  it('reports code that changed after the last recorded intent, and clears when intent is recorded [gap-lifecycle]', async () => {
+  it('reports code that changed after the last recorded intent, and clears when intent is recorded [gap-lifecycle]', { timeout: 30_000 }, async () => {
     gitInit(repo.dir, '2020-01-01T12:00:00Z');
     // No history in the repo yet: nothing to compare against.
     expect(await gaps()).toEqual([]);

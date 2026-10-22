@@ -39,6 +39,22 @@ const day = (seconds: number): string => (seconds > 0 ? new Date(seconds * 1000)
 /** A history entry only has a day; it covers code committed any time that day. */
 const endOfDay = (date: string): number => Math.floor(Date.parse(`${date}T23:59:59Z`) / 1000) || 0;
 
+/**
+ * Capabilities whose code changed after their docs did: the docs may no longer describe the code.
+ * Skipped outside git, and for capabilities with no docs or no committed code.
+ */
+export function staleDocs(root: string, nodes: TraceNode[]): string[] {
+  const stale: string[] = [];
+  for (const n of nodes) {
+    if (n.kind !== 'capability' && n.kind !== 'component') continue;
+    if (n.ownedFiles.length === 0 || n.docs.length === 0) continue;
+    const code = lastCommitTime(root, n.ownedFiles);
+    const docs = lastCommitTime(root, n.docs);
+    if (code > 0 && docs > 0 && code > docs) stale.push(n.id);
+  }
+  return stale;
+}
+
 export function intentGaps(root: string, nodes: TraceNode[], entries: HistoryEntry[], specsRootRel = 'specs'): IntentGap[] {
   if (entries.length === 0) return [];
   const gaps: IntentGap[] = [];

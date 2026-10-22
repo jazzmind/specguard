@@ -24,6 +24,8 @@ import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
 import { writeHistory } from './history.js';
+import { resolveInside } from '../core/safe-path.js';
+import { untrusted, withUntrustedNotice } from '../core/untrusted.js';
 import { fetchUrl } from './import.js';
 
 export interface ImportIntoCapabilityOpts {
@@ -35,6 +37,10 @@ export interface ImportIntoCapabilityOpts {
   yes?: boolean;
   /** Skip the requirement-history entry. */
   noHistory?: boolean;
+  /** Let a URL source resolve to a loopback, private or link-local address. */
+  allowPrivate?: boolean;
+  /** Read a file source only from inside the project. */
+  restrictToProject?: boolean;
 }
 
 const MAX_SOURCE_CHARS = 48_000;
@@ -91,7 +97,7 @@ export async function runImportIntoCapability(config: SpecGuardConfig, opts: Imp
   let doc: string;
   try {
     const isUrl = /^https?:\/\//.test(opts.source);
-    doc = isUrl ? await fetchUrl(opts.source) : await readFile(path.resolve(root, opts.source));
+    doc = isUrl ? await fetchUrl(opts.source, { allowPrivate: opts.allowPrivate }) : await readFile(opts.restrictToProject ? resolveInside(root, opts.source) : path.resolve(root, opts.source));
   } catch (err) {
     return fail(`could not load ${opts.source}: ${(err as Error).message}`);
   }
@@ -102,12 +108,12 @@ export async function runImportIntoCapability(config: SpecGuardConfig, opts: Imp
     model: config.llm.model,
     apiKeyEnv: config.llm.apiKeyEnv,
     pipeline: 'import',
-    system: SYSTEM,
+    system: withUntrustedNotice(SYSTEM),
     prompt: [
       `Capability: ${node.spec.title || node.id} (${node.id})`,
       `## Problem & Value\n${node.spec.sections['Problem & Value']?.trim() || node.spec.overview}`,
       `## Current requirements\n${node.spec.claims.map((c) => `- ${c.id ?? '(no id)'}: ${c.text}`).join('\n') || '(none)'}`,
-      `## Document (${path.basename(opts.source)})\n${doc.slice(0, MAX_SOURCE_CHARS)}`,
+      `## Document (${path.basename(opts.source)})\n${untrusted('source-document', doc.slice(0, MAX_SOURCE_CHARS))}`,
     ].join('\n\n'),
     schema: AdditionsSchema,
   });

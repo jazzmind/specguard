@@ -30,6 +30,9 @@
 | `run-id` | `<run id>-<attempt>` | Run id stored in the proof ledger. |
 | `drift-since` | `HEAD~1` | Git ref for `drift --since`, e.g. `origin/main`. |
 | `validate-url` | empty | Base URL for `validate --all --url`. |
+| `affected`, `affected-since` | `false`, empty | With `affected: true` the `test` gate runs only the workspace units a pull request changed and their dependents, measured against `affected-since`, else the pull request's base commit (the checkout needs `fetch-depth: 0`). |
+| `comment` | `true` | On a pull request, post one comment with the results and update it on every run; needs `github-token` with `pull-requests: write`. |
+| `sarif` | `false` | Upload the `scan` gate's findings to GitHub code scanning (needs `security-events: write`). |
 | `install-playwright` | `false` | Install browsers (needed by `validate`). |
 | `working-directory` | `.` | Directory containing `.specguard/config.json`. |
 | `upload-evidence`, `artifact-name` | `true`, `specguard-evidence` | Evidence artifact. |
@@ -46,12 +49,15 @@ Outputs: `failed` (`true` or `false`) and `tripped` (comma list).
 | `proof-stale` | the ledger has a stale proof (spec, source, or lockfile changed) |
 | `proof-unexercised` | the ledger has an unexercised claim |
 | `proof-unproven` | a spec claim has no ledger row |
+| `proof-incomplete` | a claim is not proven in every test layer it requires (capability `layers:` or `proof.requiredLayers`) |
 | `align-below:<n>` | the average alignment score is under n percent |
 | `results` | `results ingest` exited non-zero (a failed claim or an unreadable report) |
 | `validate`, `security`, `check`, `test`, `verify`, `scan`, `deps` | that gate exited non-zero |
 | `none` | never fail; report only |
 
 A gate that did not run never trips. `proof-*` thresholds are skipped, with a note in the summary, when there is no ledger yet.
+
+`specguard init --ci github` writes a workflow that uses these. See [workspaces-layers-plugins.md](workspaces-layers-plugins.md#ci).
 
 ## Examples
 

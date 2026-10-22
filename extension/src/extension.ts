@@ -15,6 +15,9 @@ import { expectedCliVersion, mismatchMessage, queryCliVersion } from './cli-vers
 import { ApiHub } from './api/hub.js';
 import { setHub } from './api/shared.js';
 import { getActiveWorkspaceRoot } from './workspace-state.js';
+import { watchCodeWorkspace } from './code-workspace.js';
+import { registerPluginViews } from './plugins-view.js';
+import { getPlugins, onDidChangePlugins } from './plugins-state.js';
 import * as path from 'path';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
@@ -58,6 +61,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(pipelinesView);
 
+  // Plugins view; the Pipelines view follows which plugins are on.
+  const syncPipelines = async (): Promise<void> => {
+    const root = getActiveWorkspaceRoot();
+    pipelinesProvider.setPluginRows(root ? (await getPlugins(root)).rows : undefined);
+  };
+  registerPluginViews(context, hub, () => void coverageProvider?.refresh());
+  context.subscriptions.push(onDidChangePlugins(() => void syncPipelines()));
+  void syncPipelines();
+
   // Status bar: shows "SpecGuard: 82%" or similar
   const config = vscode.workspace.getConfiguration('specguard');
   if (config.get<boolean>('showStatusBar', true)) {
@@ -84,6 +96,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initial coverage load (non-blocking)
   void coverageProvider.refresh();
 
+  // Keep the workspace manifest in step with the open .code-workspace file.
+  watchCodeWorkspace(context, () => void coverageProvider?.refresh());
+
   // Warn (once per session) when an installed CLI is not the version this extension was built for.
   void warnOnCliMismatch(context);
 
@@ -93,7 +108,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 async function warnOnCliMismatch(context: vscode.ExtensionContext): Promise<void> {
   try {
-    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const ws = getActiveWorkspaceRoot();
     const expected = expectedCliVersion();
     if (!ws || !expected) return;
     const cliPath = await resolveCliPath(ws);

@@ -17,6 +17,8 @@
  *
  * Spec: specs/capabilities/agentic-verification.md
  */
+import { chmodSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { checkAgentTarget } from '../core/validate-targets.js';
 import path from 'node:path';
 import { readFile as fsReadFile } from 'node:fs/promises';
 import { z } from 'zod';
@@ -50,6 +52,8 @@ import {
   type GuardrailPolicy,
 } from '../adapters/guardrails.js';
 import { createRedactor, loadRedactHook, type Redactor } from '../core/redact.js';
+import { untrusted, withUntrustedNotice } from '../core/untrusted.js';
+import { e2eTestPath, renderPlaywrightTest, type ScriptStep } from '../core/e2e-script.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +75,10 @@ export interface ValidateOpts {
    * Useful for fast iteration when you only need criterion verdicts.
    */
   noReview?: boolean;
+  /** The run was started by an agent: it may only target loopback and `validate.allowedHosts`. The MCP server sets this. */
+  restrictHosts?: boolean;
+  /** Write a Playwright test from each passing capability check, in `paths.e2eTests` (default tests/e2e). */
+  emitTests?: boolean;
   /** Show the browser window (overrides `validate.headless`). */
   headed?: boolean;
   /** Let outbound actions (send, invite, pay, ...) run, for staging. Destructive actions stay blocked. */
@@ -112,12 +120,20 @@ export interface ValidationEntry {
 // LLM schemas
 // ---------------------------------------------------------------------------
 
+/** Most browser steps taken in one plan-act round. */
+export const MAX_ACTIONS_PER_ROUND = 5;
+
 const PlannedActionSchema = z.object({
   actions: z.array(
     z.object({
       description: z.string(),
+      /** What to do. Omitted: a fill when there is a selector and a value, else a click. */
+      kind: z.enum(['click', 'fill', 'navigate', 'assertText', 'waitFor']).optional(),
       selector: z.string().optional(),
+      /** Text to type, text that must be visible (assertText), or the same-site path to open (navigate). */
       value: z.string().optional(),
+      /** For assertText and waitFor: the id of the requirement the step checks. */
+      claim: z.string().optional(),
     }),
   ),
 });
@@ -189,11 +205,53 @@ function resolveUrl(base: string | undefined, specUrl: string | undefined): stri
  * `.gitignore` inside the evidence and auth directories so they stay out of
  * version control even when the repo's own ignore file does not mention them.
  */
+/** Delete evidence files older than `days`, leaving the `.gitignore` marker. Returns how many were removed. */
+export function pruneEvidence(dir: string, days: number, now = Date.now()): number {
+  let removed = 0;
+  const cutoff = now - days * 86_400_000;
+  const walk = (current: string): void => {
+    let entries: import('node:fs').Dirent[];
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        try {
+          if (readdirSync(full).length === 0) rmSync(full, { recursive: true });
+        } catch {
+          /* leave it */
+        }
+      } else if (entry.name !== '.gitignore') {
+        try {
+          if (statSync(full).mtimeMs < cutoff) {
+            rmSync(full);
+            removed += 1;
+          }
+        } catch {
+          /* leave it */
+        }
+      }
+    }
+  };
+  walk(dir);
+  return removed;
+}
+
 async function ensureEvidenceIgnored(config: SpecGuardConfig): Promise<void> {
   for (const dir of ['.specguard/evidence', '.specguard/auth', '.specguard/reports']) {
     try {
       const abs = resolveFromRoot(config, dir);
       await ensureDir(abs);
+      // Screenshots, DOM and saved logins can hold personal data and session tokens: this folder is for its owner.
+      try {
+        chmodSync(abs, 0o700);
+      } catch {
+        /* no POSIX permissions here (Windows) */
+      }
       const marker = path.join(abs, '.gitignore');
       if (!(await fileExists(marker))) await writeFile(marker, '*\n!.gitignore\n');
     } catch {
@@ -235,33 +293,78 @@ async function writeIssueReport(
  * count: BLOCKED and INCONCLUSIVE say nothing and must not overwrite a proof
  * a test run already earned.
  */
+/** One requirement's verdict from a browser check, as a ledger row. Only PASS and FAIL say anything. */
+function agenticRows(spec: ParsedSpec): (verdicts: CriterionVerdict[]) => Array<{ claim: string; verdict: 'proven' | 'failed'; exercised: number; counterexamples: number; evidencePath: string; evidence: 'agentic'; layer: 'functional' }> {
+  return (verdicts) => {
+    const rows: Array<{ claim: string; verdict: 'proven' | 'failed'; exercised: number; counterexamples: number; evidencePath: string; evidence: 'agentic'; layer: 'functional' }> = [];
+    for (const claim of spec.claims) {
+      if (!claim.id) continue;
+      // The id, exactly or followed by a delimiter, or the claim's own text. Never a substring: `login` must not match `login-valid-code`.
+      const hit = verdicts.find((v) => {
+        const c = v.criterion.trim();
+        return c === claim.id || c.startsWith(`${claim.id}:`) || c.startsWith(`${claim.id} `) || c === claim.text;
+      });
+      if (!hit || (hit.verdict !== 'PASS' && hit.verdict !== 'FAIL')) continue;
+      rows.push({
+        claim: `${spec.specKey}#${claim.id}`,
+        verdict: hit.verdict === 'PASS' ? 'proven' : 'failed',
+        exercised: 1,
+        counterexamples: hit.verdict === 'FAIL' ? 1 : 0,
+        evidencePath: `.specguard/evidence/${spec.specKey}`,
+        evidence: 'agentic',
+        layer: 'functional',
+      });
+    }
+    return rows;
+  };
+}
+
+/**
+ * Write an agentic verdict per requirement into the proof ledger, so `check`
+ * treats browser verification as proof like any other. Only PASS and FAIL
+ * count: BLOCKED and INCONCLUSIVE say nothing and must not overwrite a proof
+ * earned some other way. The evidence goes in the `functional` layer, so it sits beside
+ * test evidence instead of replacing it.
+ */
 async function recordAgenticProofs(
   config: SpecGuardConfig,
   spec: ParsedSpec,
   verdicts: CriterionVerdict[],
   runId: string,
 ): Promise<number> {
-  const rows: Array<{ claim: string; verdict: 'proven' | 'failed'; exercised: number; counterexamples: number; evidencePath: string; evidence: 'agentic' }> = [];
-  for (const claim of spec.claims) {
-    if (!claim.id) continue;
-    // The id, exactly or followed by a delimiter, or the claim's own text. Never a substring: `login` must not match `login-valid-code`.
-    const hit = verdicts.find((v) => {
-      const c = v.criterion.trim();
-      return c === claim.id || c.startsWith(`${claim.id}:`) || c.startsWith(`${claim.id} `) || c === claim.text;
-    });
-    if (!hit || (hit.verdict !== 'PASS' && hit.verdict !== 'FAIL')) continue;
-    rows.push({
-      claim: `${spec.specKey}#${claim.id}`,
-      verdict: hit.verdict === 'PASS' ? 'proven' : 'failed',
-      exercised: 1,
-      counterexamples: hit.verdict === 'FAIL' ? 1 : 0,
-      evidencePath: `.specguard/evidence/${spec.specKey}`,
-      evidence: 'agentic',
-    });
-  }
+  const rows = agenticRows(spec)(verdicts);
   if (rows.length === 0) return 0;
   const res = await ingestVerdicts({ runId, verdicts: rows }, config.rootDir ?? process.cwd());
   return res.updated;
+}
+
+/**
+ * Turn a passing check into a Playwright test (`verify --emit-tests`). Written only when every step ran, so the
+ * test replays something that worked, and never over a file that is already there unless it was generated here.
+ * Returns the path written, or a reason it was not.
+ */
+async function emitPlaywrightTest(
+  config: SpecGuardConfig,
+  spec: ParsedSpec,
+  verdicts: CriterionVerdict[],
+  script: JourneyScript,
+  redact: (text: string) => string,
+): Promise<{ path?: string; skipped?: string }> {
+  if (!script.complete) return { skipped: 'a step failed or was blocked, so the run cannot be replayed' };
+  if (script.steps.length === 0) return { skipped: 'the check took no browser steps' };
+  const passing = agenticRows(spec)(verdicts).filter((r) => r.verdict === 'proven').map((r) => r.claim);
+  if (passing.length === 0) return { skipped: 'no requirement passed' };
+  const text = renderPlaywrightTest({ specKey: spec.specKey, title: spec.title || spec.specKey, startUrl: script.startUrl, steps: script.steps, passing }, redact);
+  if (!text) return { skipped: 'a step holds a value the redactor would mask' };
+  const rel = e2eTestPath(config.paths?.e2eTests ?? 'tests/e2e', spec.specKey);
+  const abs = resolveFromRoot(config, rel);
+  if (await fileExists(abs)) {
+    const existing = await fsReadFile(abs, 'utf-8');
+    if (!existing.includes('Generated by `specguard verify`')) return { skipped: `${rel} exists and was not generated by specguard` };
+  }
+  await ensureDir(path.dirname(abs));
+  await writeFile(abs, text);
+  return { path: rel };
 }
 
 async function appendHistory(config: SpecGuardConfig, entry: ValidationEntry): Promise<void> {
@@ -337,19 +440,93 @@ function collectSpecs(config: SpecGuardConfig, opts: ValidateOpts): ParsedSpec[]
 // Per-spec validation loop
 // ---------------------------------------------------------------------------
 
+/** The steps a browser check performed, and whether every planned step ran, for turning the check into a test. */
+interface JourneyScript {
+  steps: ScriptStep[];
+  /** False when a step failed, was blocked or could not be recorded: such a run is not replayable. */
+  complete: boolean;
+  startUrl: string;
+}
+
+type ActPage = {
+  click?: (sel: string) => Promise<void>;
+  fill?: (sel: string, val: string) => Promise<void>;
+  goto?: (url: string) => Promise<unknown>;
+  textContent?: (sel: string) => Promise<string | null>;
+  waitForSelector?: (sel: string, opts?: { timeout?: number }) => Promise<unknown>;
+  url?: () => string;
+};
+
+type PlannedAction = z.infer<typeof PlannedActionSchema>['actions'][number];
+
+/**
+ * Perform one planned step. `done` means it ran (and, for an assertion, held); `failed` means it could not run or
+ * the assertion did not hold; `skipped` means the planner gave too little to act on.
+ */
+async function performAction(page: ActPage, action: PlannedAction, startUrl: string): Promise<{ outcome: 'done' | 'failed' | 'skipped'; step?: ScriptStep; why?: string }> {
+  const kind = action.kind ?? (action.selector && action.value ? 'fill' : 'click');
+  const step: ScriptStep = { kind, description: action.description, ...(action.selector ? { selector: action.selector } : {}), ...(action.value ? { value: action.value } : {}), ...(action.claim ? { claim: action.claim } : {}) };
+  try {
+    switch (kind) {
+      case 'fill':
+        if (!action.selector || !action.value || !page.fill) return { outcome: 'skipped' };
+        await page.fill(action.selector, action.value);
+        break;
+      case 'click':
+        if (!action.selector || !page.click) return { outcome: 'skipped' };
+        await page.click(action.selector);
+        break;
+      case 'navigate': {
+        if (!action.value || !page.goto) return { outcome: 'skipped' };
+        // Stay on the site under test: a link out of it is an outbound action the guardrails do not cover here.
+        const target = new URL(action.value, page.url?.() ?? startUrl);
+        if (target.origin !== new URL(startUrl).origin) return { outcome: 'failed', why: `navigation leaves the site (${target.origin})` };
+        await page.goto(target.toString());
+        step.value = `${target.pathname}${target.search}${target.hash}`;
+        break;
+      }
+      case 'waitFor':
+        if (!action.selector || !page.waitForSelector) return { outcome: 'skipped' };
+        await page.waitForSelector(action.selector, { timeout: 5000 });
+        break;
+      case 'assertText': {
+        if (!action.value || !page.textContent) return { outcome: 'skipped' };
+        const text = await page.textContent(action.selector ?? 'body');
+        if (!text?.includes(action.value)) return { outcome: 'failed', why: `"${action.value}" is not in ${action.selector ?? 'body'}` };
+        break;
+      }
+    }
+  } catch (err) {
+    return { outcome: 'failed', why: (err as Error).message.split('\n')[0] };
+  }
+  return { outcome: 'done', step };
+}
+
 async function validateSpec(
   config: SpecGuardConfig,
   spec: ParsedSpec,
   opts: ValidateOpts,
   log: (line: string) => void,
   run: RunContext,
-): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport; value?: ValueJudgement }> {
+): Promise<{ verdicts: CriterionVerdict[]; evidence: string[]; issueReport?: IssueReport; value?: ValueJudgement; script?: JourneyScript }> {
   const verdicts: CriterionVerdict[] = [];
   const evidenceFiles: string[] = [];
   let issueReportResult: IssueReport | undefined;
   let valueJudgement: ValueJudgement | undefined;
+  // What the check did, for turning it into a Playwright test afterwards.
+  const script: ScriptStep[] = [];
+  let scriptComplete = true;
 
   const url = resolveUrl(opts.baseUrl, spec.meta.url);
+  if (opts.restrictHosts) {
+    const target = checkAgentTarget(url, config.validate?.allowedHosts);
+    if (!target.ok) {
+      log(`[blocked] ${spec.specKey} — ${target.reason}`);
+      return { verdicts: [{ criterion: '(target)', verdict: 'BLOCKED', reason: target.reason }], evidence: [] };
+    }
+  }
+  // One spec's check has a wall-clock budget: it stops planning further steps when it is spent.
+  const deadline = Date.now() + (config.validate?.timeoutMs ?? 600_000);
   const evidenceDir = resolveFromRoot(config, `.specguard/evidence/${spec.specKey}`);
   await ensureDir(evidenceDir);
 
@@ -444,24 +621,32 @@ async function validateSpec(
     let pageUrl = url;
     let pageTitle = snapshot.title;
     for (let round = 1; round <= rounds; round += 1) {
+      if (Date.now() > deadline) {
+        log(`[timeout] ${spec.specKey} — the ${Math.round((config.validate?.timeoutMs ?? 600_000) / 1000)}s budget for this check is spent; judging what was seen so far`);
+        scriptComplete = false;
+        break;
+      }
       const planPrompt = [
         `You are validating a web application. The spec's acceptance criteria are:`,
         v2 ? requirementsText(spec) : spec.acceptanceCriteria,
         '',
         v2 ? journeyText(spec) : '',
         `Current page: ${pageUrl}`,
-        `Page title: "${safe(pageTitle, 'dom')}"`,
+        `Page title: ${untrusted('page-title', safe(pageTitle, 'dom'))}`,
         round === 1 ? `HTTP status: ${snapshot.statusCode}` : '',
         snapshot.consoleErrors.length > 0
-          ? `Console errors: ${snapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
+          ? `Console errors: ${untrusted('console', snapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; '))}`
           : '',
         '',
         taken.length > 0 ? `Actions already taken: ${taken.join('; ')}` : '',
         `Accessibility tree:`,
-        currentA11y.slice(0, 3000),
+        untrusted('page-accessibility-tree', currentA11y.slice(0, 3000)),
         '',
         `List the browser actions needed to verify all acceptance criteria.`,
         `Each action should be atomic (one click, one fill, one navigate).`,
+        v2
+          ? `Set "kind" to click, fill, navigate (value = a path on this site), waitFor (selector) or assertText (selector, and value = text that must be visible). For a requirement the page can show, add an assertText or waitFor step whose "claim" is that requirement's id, exactly.`
+          : '',
         `If a criterion can be verified from the current page state alone, include NO actions for it.`,
         v2 && round > 1 ? `If every journey step has been walked, return no actions.` : '',
         `Keep the action list SHORT — maximum 5 actions.`,
@@ -475,7 +660,7 @@ async function validateSpec(
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
-          system: 'You are a QA automation planner. Output ONLY valid JSON matching the schema.',
+          system: withUntrustedNotice('You are a QA automation planner. Output ONLY valid JSON matching the schema.'),
           prompt: planPrompt,
           schema: PlannedActionSchema,
         });
@@ -485,33 +670,29 @@ async function validateSpec(
       if (round > 1 && plannedActions.actions.length === 0) break;
 
       // --- ACT ---
-      for (const action of plannedActions.actions) {
+      // The prompt asks for at most MAX_ACTIONS_PER_ROUND; the model's answer is not trusted to have kept to it.
+      for (const action of plannedActions.actions.slice(0, MAX_ACTIONS_PER_ROUND)) {
+        if (Date.now() > deadline) break;
         // Judge the element the action will touch (its role and accessible name), not just the planner's words.
         const target = action.selector ? await inspectTarget(handle, action.selector) : null;
         const classification = classifyAction(action.description, target ?? undefined, run.policy);
         if (isBlocked(classification, run.policy)) {
           const blocked = makeBlockedAction(action.description, classification);
           blockedActions.push(blocked);
+          scriptComplete = false;
           log(`[blocked] ${spec.specKey} — ${blocked.reason}: "${action.description}"`);
           continue;
         }
 
-        // Execute action (best-effort — failures don't abort validation).
-        try {
-          const page = handle._page as {
-            click?: (sel: string) => Promise<void>;
-            fill?: (sel: string, val: string) => Promise<void>;
-          };
+        // Execute the step. A failure does not abort the check, but it is reported and a run with one is not replayable.
+        const done = await performAction(handle._page as ActPage, action, url);
+        if (done.outcome === 'done') {
           // Only an action that was really performed counts as taken: a planner step with no selector did nothing.
-          if (action.selector && action.value && page.fill) {
-            await page.fill(action.selector, action.value);
-            taken.push(action.description);
-          } else if (action.selector && page.click) {
-            await page.click(action.selector);
-            taken.push(action.description);
-          }
-        } catch {
-          // Action failed — continue to verify
+          if (done.step?.kind !== 'assertText' && done.step?.kind !== 'waitFor') taken.push(action.description);
+          if (done.step) script.push(done.step);
+        } else if (done.outcome === 'failed') {
+          scriptComplete = false;
+          log(`[action-failed] ${spec.specKey} — ${action.description}${done.why ? `: ${done.why}` : ''}`);
         }
       }
       if (plannedActions.actions.length === 0) break;
@@ -565,14 +746,14 @@ async function validateSpec(
       '',
       v2 && taken.length > 0 ? `Actions taken during the journey: ${taken.join('; ')}\n` : '',
       `Page state after actions:`,
-      `Title: "${safe(postSnapshot.title, 'dom')}"`,
+      `Title: ${untrusted('page-title', safe(postSnapshot.title, 'dom'))}`,
       `HTTP status: ${postSnapshot.statusCode}`,
       postSnapshot.consoleErrors.length > 0
-        ? `Console errors: ${postSnapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; ')}`
+        ? `Console errors: ${untrusted('console', postSnapshot.consoleErrors.slice(0, 5).map((e) => safe(e, 'console')).join('; '))}`
         : '',
       '',
       `Accessibility tree (post-action):`,
-      postA11y.slice(0, 3000),
+      untrusted('page-accessibility-tree', postA11y.slice(0, 3000)),
       '',
       blockedActions.length > 0
         ? `Blocked actions (not executed): ${blockedDescriptions.join(', ')}`
@@ -604,7 +785,7 @@ async function validateSpec(
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
-          system: 'You are a QA verification agent judging a running system against its stated problem and value. Output ONLY valid JSON matching the schema.',
+          system: withUntrustedNotice('You are a QA verification agent judging a running system against its stated problem and value. Output ONLY valid JSON matching the schema.'),
           prompt: verifyPrompt,
           schema: VerifyV2Schema,
         });
@@ -615,7 +796,7 @@ async function validateSpec(
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
-          system: 'You are a QA verification agent. Output ONLY valid JSON matching the schema.',
+          system: withUntrustedNotice('You are a QA verification agent. Output ONLY valid JSON matching the schema.'),
           prompt: verifyPrompt,
           schema: VerifyResponseSchema,
         });
@@ -692,10 +873,10 @@ async function validateSpec(
           spec.acceptanceCriteria,
           ``,
           `Accessibility tree:`,
-          postA11y.slice(0, 4000),
+          untrusted('page-accessibility-tree', postA11y.slice(0, 4000)),
           ``,
           `Page HTML (truncated):`,
-          postHtml.slice(0, 6000),
+          untrusted('page-html', postHtml.slice(0, 6000)),
           ``,
           `For each issue found, provide:`,
           `- type: functional | ux | accessibility | visual`,
@@ -715,9 +896,10 @@ async function validateSpec(
           provider: config.llm.provider,
           model: config.llm.model,
           apiKeyEnv: config.llm.apiKeyEnv,
-          system:
+          system: withUntrustedNotice(
             'You are a senior QA engineer specialising in UX, accessibility, and functional correctness. ' +
-            'Output ONLY valid JSON matching the schema.',
+              'Output ONLY valid JSON matching the schema.',
+          ),
           prompt: reviewPrompt,
           schema: IssueReportSchema,
           images: screenshotBuffer ? [screenshotBuffer] : undefined,
@@ -741,7 +923,7 @@ async function validateSpec(
     ...(valueJudgement ? { value: valueJudgement } : {}),
   });
 
-  return { verdicts, evidence: evidenceFiles, issueReport: issueReportResult, value: valueJudgement };
+  return { verdicts, evidence: evidenceFiles, issueReport: issueReportResult, value: valueJudgement, script: { steps: script, complete: scriptComplete, startUrl: url } };
 }
 
 // ---------------------------------------------------------------------------
@@ -810,6 +992,10 @@ export async function runValidate(
     allowImages: config.llm.allowImages !== false,
   };
   await ensureEvidenceIgnored(config);
+  if (config.validate?.evidenceRetentionDays) {
+    const gone = pruneEvidence(resolveFromRoot(config, '.specguard/evidence'), config.validate.evidenceRetentionDays);
+    if (gone > 0) log(`[evidence] removed ${gone} file(s) older than ${config.validate.evidenceRetentionDays} day(s)`);
+  }
 
   try {
   for (const spec of specs) {
@@ -823,7 +1009,7 @@ export async function runValidate(
     log(`[validate] ${spec.specKey}`);
 
     try {
-      const { verdicts, issueReport, value } = await validateSpec(config, spec, opts, log, run);
+      const { verdicts, issueReport, value, script } = await validateSpec(config, spec, opts, log, run);
       const ov = overallVerdict(verdicts);
 
       for (const v of verdicts) {
@@ -837,6 +1023,10 @@ export async function runValidate(
         const runId = `verify-${new Date().toISOString().replace(/[:.]/g, '-')}`;
         const proven = await recordAgenticProofs(config, spec, verdicts, runId);
         if (proven > 0) log(`[proof] ${spec.specKey} — ${proven} requirement verdict(s) recorded as agentic proof`);
+        if ((opts.emitTests || config.validate?.emitTests) && script) {
+          const emitted = await emitPlaywrightTest(config, spec, verdicts, script, (t) => run.redactor.text(t));
+          log(emitted.path ? `[emit] ${spec.specKey} — Playwright test written to ${emitted.path}` : `[emit] ${spec.specKey} — no Playwright test: ${emitted.skipped}`);
+        }
         if (value) {
           log(`  value: ${value.delivers} — ${value.reason}`);
           for (const gap of value.gaps) log(`  ! [gap] ${gap}`);

@@ -1,7 +1,8 @@
 /**
  * `specguard remediate`: patch a vulnerable dependency or code issue in a temporary worktree,
  * prove behavior is preserved with the project's own tests, and only then propose the change.
- * Humans always merge: there is no auto-merge.
+ * A person merges, except for a dependency fix the auto-merge policy allows (patch or 1.x+ minor, manifests and lockfiles
+ * only, every proof re-proven in every layer) on a base branch that requires checks, and only when asked twice (config and flag).
  *
  * Spec: specs/capabilities/security-and-remediation.md
  */
@@ -38,7 +39,8 @@ import {
 import { existingWork, planDependencies, sastBranch } from './plan.js';
 import { renderPrBody } from './report.js';
 import { importingFiles, loadRegistryAt, selectTests, specsForFiles, type Selection } from './select-tests.js';
-import { ship } from './ship.js';
+import { armAutoMerge, ship } from './ship.js';
+import { autoMergeDecision } from '../../core/auto-merge-policy.js';
 import { installProject, projectEcosystems } from './steps.js';
 import { resolveUserLedger } from './ledger.js';
 import { verifyPatched } from './verify.js';
@@ -386,7 +388,7 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
       repoRoot: c.gitTop,
       branch: item.branch,
       scope,
-      commitMessage: `fix(${item.changeType === 'dependency' ? 'deps' : 'security'}): ${subject}\n\nSpecGuard remediate run ${c.runId}. Verdict: ${rep.verdict}.\nA human must review and merge; nothing was merged automatically.`,
+      commitMessage: `fix(${item.changeType === 'dependency' ? 'deps' : 'security'}): ${subject}\n\nSpecGuard remediate run ${c.runId}. Verdict: ${rep.verdict}.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).`,
       title: `[SpecGuard${rep.verdict === 'PRESERVED' ? '' : `: ${rep.verdict}`}] fix: ${subject}`.slice(0, 200),
       bodyPath,
       body,
@@ -397,6 +399,35 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
     keepBranch = true;
     rep.commit = shipped.commit;
     rep.pr = { url: shipped.prUrl, draft: shipped.draft, pushed: shipped.pushed, recorded: Boolean(opts.pr) };
+    rep.layersLost = out.layersLost;
+    if (shipped.pushed && shipped.prUrl && !shipped.draft && opts.autoMerge) {
+      const decision = autoMergeDecision({
+        configEnabled: cfg.autoMerge?.enabled === true,
+        flag: opts.autoMerge === true,
+        changeType: item.changeType,
+        changedFiles: rep.changedFiles.map((f) => f.path),
+        candidate: item.candidate,
+        denyPackages: cfg.autoMerge?.denyPackages,
+        allowMinor: cfg.autoMerge?.allowMinor,
+        verdict: out.verdict.verdict,
+        verdictReasons: out.verdict.reasons.map((r) => `${r.kind}: ${r.detail}`),
+        selectedTests: rep.selectedTests.total,
+        layersNotReproven: out.layersLost,
+        risk: item.risk.level,
+        breaking: item.breaking?.breaking === true,
+      });
+      rep.autoMerge = { eligible: decision.eligible, armed: false, reasons: decision.failed };
+      if (decision.eligible) {
+        const armed = armAutoMerge(deps.gh, wt.dir, shipped.prUrl, shipped.base ?? cfg.baseBranch ?? 'main');
+        rep.autoMerge.armed = armed.armed;
+        if (!armed.armed && armed.reason) rep.autoMerge.reasons.push(armed.reason);
+      }
+      const note = rep.autoMerge.armed
+        ? 'Auto-merge is armed: GitHub merges this pull request when its required checks pass. Every proof was shown to hold again in every layer it was proven in.'
+        : `Auto-merge was not armed, so a person merges this one:\n${rep.autoMerge.reasons.map((r) => `- ${r}`).join('\n')}`;
+      deps.gh(['pr', 'comment', shipped.prUrl, '--body', `**SpecGuard auto-merge policy**\n\n${note}`], wt.dir); // best effort: the decision is also in the report
+      c.log(`[auto-merge] ${item.branch}: ${rep.autoMerge.armed ? 'armed' : `not armed (${rep.autoMerge.reasons[0] ?? 'not eligible'})`}`);
+    }
     c.log(shipped.pushed ? `[pr] ${item.branch}: ${shipped.draft ? 'draft ' : ''}PR ${shipped.prUrl ?? 'created'}` : `[branch] ${item.branch}: committed ${shipped.commit.slice(0, 8)} (not pushed)`);
     return rep;
   } catch (err) {

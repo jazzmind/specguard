@@ -63,21 +63,6 @@
         "icon": "$(run-all)"
       },
       {
-        "command": "specguard.validateFunctionalAll",
-        "title": "SpecGuard: Validate — All tests",
-        "icon": "$(run-all)"
-      },
-      {
-        "command": "specguard.validateFunctionalIntegration",
-        "title": "SpecGuard: Validate — Integration tests",
-        "icon": "$(layers)"
-      },
-      {
-        "command": "specguard.validateFunctionalE2E",
-        "title": "SpecGuard: Validate — E2E tests",
-        "icon": "$(browser)"
-      },
-      {
         "command": "specguard.qualityCheck",
         "title": "SpecGuard: Quality Check",
         "icon": "$(verified)"
@@ -184,6 +169,56 @@
         "command": "specguard.securityPlan",
         "title": "SpecGuard: Security Scan (Remediation Plan)",
         "icon": "$(package)"
+      },
+      {
+        "command": "specguard.syncWorkspace",
+        "title": "SpecGuard: Sync Workspace with .code-workspace",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "specguard.ignoreRepo",
+        "title": "SpecGuard: Ignore Repo in Workspace",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "specguard.unignoreRepo",
+        "title": "SpecGuard: Include Ignored Repo in Workspace",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "specguard.refreshWorkspace",
+        "title": "SpecGuard: Refresh All Repos (Workspace Check)",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "specguard.plugins.refresh",
+        "title": "SpecGuard: Refresh Plugins",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "specguard.plugins.add",
+        "title": "SpecGuard: Add npm Plugin…",
+        "icon": "$(add)"
+      },
+      {
+        "command": "specguard.plugins.enable",
+        "title": "Enable Plugin",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "specguard.plugins.disable",
+        "title": "Disable Plugin",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "specguard.plugins.remove",
+        "title": "Remove Plugin from List",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "specguard.plugins.run",
+        "title": "Run Plugin Command",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -226,6 +261,16 @@
           "command": "specguard.openDashboard",
           "when": "view == specguard.coverageView",
           "group": "navigation@2"
+        },
+        {
+          "command": "specguard.plugins.add",
+          "when": "view == specguard.pluginsView",
+          "group": "navigation@0"
+        },
+        {
+          "command": "specguard.plugins.refresh",
+          "when": "view == specguard.pluginsView",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -233,6 +278,36 @@
           "command": "specguard.importSpec",
           "when": "view == specguard.pipelinesView && viewItem == pipeline-action",
           "group": "inline"
+        },
+        {
+          "command": "specguard.plugins.enable",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-.*-off$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "specguard.plugins.disable",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-.*-on$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "specguard.plugins.remove",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-npm-/",
+          "group": "inline@1"
+        },
+        {
+          "command": "specguard.plugins.enable",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-.*-off$/",
+          "group": "plugin@0"
+        },
+        {
+          "command": "specguard.plugins.disable",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-.*-on$/",
+          "group": "plugin@0"
+        },
+        {
+          "command": "specguard.plugins.remove",
+          "when": "view == specguard.pluginsView && viewItem =~ /^plugin-npm-/",
+          "group": "plugin@1"
         }
       ]
     },
@@ -262,6 +337,14 @@
           "tooltip": "SpecGuard Pipelines",
           "description": "View pipeline status and run pipelines.",
           "type": "tree"
+        },
+        {
+          "id": "specguard.pluginsView",
+          "name": "Plugins",
+          "icon": "$(extensions)",
+          "tooltip": "SpecGuard Plugins",
+          "description": "Browse, enable, disable, add and remove plugins.",
+          "type": "tree"
         }
       ]
     },
@@ -269,6 +352,10 @@
       {
         "view": "specguard.coverageView",
         "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs."
+      },
+      {
+        "view": "specguard.pluginsView",
+        "contents": "No plugin information yet.\n[Initialize SpecGuard](command:specguard.init) or open a folder that has .specguard/config.json."
       }
     ],
     "configuration": {
@@ -336,6 +423,7 @@
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.1",
+    "jsonc-parser": "^3.3.1",
     "typescript": "^5.7",
     "vitest": "^4.1.11"
   }

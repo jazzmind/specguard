@@ -14,7 +14,7 @@ import type { PlanStore } from '../../core/state/plan-store.js';
 import { planStem } from '../../core/state/plan-store.js';
 import { RemediationPlanSchema, type RemediationPlan } from '../../core/remediation-schema.js';
 import type { Snapshot } from '../../core/snapshot.js';
-import { PROJECT_NAME, type AuditEntry, type Backend, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow } from './backend.js';
+import { PROJECT_NAME, WORKSPACE_NAME, type AuditEntry, type Backend, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow, type WorkspaceDef, type WorkspaceStore } from './backend.js';
 
 /** The part of a Postgres pool this backend uses. `pg.Pool` satisfies it; so does a pg-mem adapter. */
 export interface Db {
@@ -41,6 +41,8 @@ const MIGRATIONS: string[] = [
      id text PRIMARY KEY, owner text NOT NULL, name text NOT NULL, role text NOT NULL, project text,
      hash text NOT NULL, created_at text NOT NULL, last_used_at text, revoked_at text)`,
   `CREATE INDEX IF NOT EXISTS sg_tokens_hash ON sg_tokens (hash)`,
+  `CREATE TABLE IF NOT EXISTS sg_workspaces (
+     name text PRIMARY KEY, body text NOT NULL, updated_at text NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS sg_audit (
      seq SERIAL PRIMARY KEY, at text NOT NULL, actor text NOT NULL, action text NOT NULL, project text, detail text)`,
   `CREATE TABLE IF NOT EXISTS sg_usage (
@@ -124,6 +126,35 @@ function snapshotStore(db: Db): SnapshotStore {
     },
   };
   return store;
+}
+
+function workspaceStore(db: Db): WorkspaceStore {
+  const parse = (body: string): WorkspaceDef | undefined => {
+    try {
+      return JSON.parse(body) as WorkspaceDef;
+    } catch {
+      return undefined;
+    }
+  };
+  return {
+    async list() {
+      const rows = (await db.query<{ body: string }>('SELECT body FROM sg_workspaces ORDER BY name ASC')).rows;
+      return rows.map((r) => parse(r.body)).filter((w): w is WorkspaceDef => Boolean(w));
+    },
+    async get(name) {
+      if (!WORKSPACE_NAME.test(name)) return undefined;
+      const row = (await db.query<{ body: string }>('SELECT body FROM sg_workspaces WHERE name = $1', [name])).rows[0];
+      return row ? parse(row.body) : undefined;
+    },
+    async put(def) {
+      if (!WORKSPACE_NAME.test(def.name)) throw new Error(`invalid workspace name "${def.name}"`);
+      await db.query(
+        `INSERT INTO sg_workspaces (name, body, updated_at) VALUES ($1,$2,$3)
+         ON CONFLICT (name) DO UPDATE SET body = EXCLUDED.body, updated_at = EXCLUDED.updated_at`,
+        [def.name, JSON.stringify(def), def.updatedAt],
+      );
+    },
+  };
 }
 
 function planStore(db: Db, project: string): PlanStore {
@@ -248,6 +279,7 @@ export async function pgBackend(db: Db): Promise<Backend> {
     plans: (project) => planStore(db, project),
     cache: (project) => contentCache(db, project),
     tokens: tokenStore(db),
+    workspaces: workspaceStore(db),
     audit: async (e: AuditEntry) => {
       await db.query('INSERT INTO sg_audit (at, actor, action, project, detail) VALUES ($1,$2,$3,$4,$5)', [e.at, e.actor, e.action, e.project ?? null, e.detail ?? null]);
     },
