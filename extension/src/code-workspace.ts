@@ -78,6 +78,52 @@ export async function syncCodeWorkspace(context: vscode.ExtensionContext, opts: 
   return changes.length > 0;
 }
 
+/**
+ * "SpecGuard: Initialize Workspace": create the workspace manifest by hand, whether or not the automatic offer was
+ * dismissed. With a `.code-workspace` open it registers that file's folders and links the manifest to it (an existing
+ * manifest is synced instead). Otherwise the user picks a folder and its tree is scanned for repos.
+ * Returns true when a manifest was created or changed.
+ */
+export async function initWorkspace(context: vscode.ExtensionContext): Promise<boolean> {
+  const file = codeWorkspaceFile();
+  let res: { code: number; lines: string[] };
+  let where: string;
+  if (file) {
+    const root = manifestRootForCodeWorkspace(file);
+    if (fs.existsSync(path.join(root, '.specguard', 'workspace.json'))) return syncCodeWorkspace(context, { interactive: true });
+    where = path.basename(file);
+    res = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `SpecGuard: creating a workspace from ${where}…` }, () =>
+      runCli(['workspace', 'init', '--from', file, '--link'], path.dirname(file)),
+    );
+  } else {
+    const start = vscode.workspace.workspaceFolders?.[0]?.uri;
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: 'Scan this folder for repos',
+      title: 'SpecGuard: the folder that holds your repos',
+      ...(start ? { defaultUri: vscode.Uri.file(path.dirname(start.fsPath)) } : {}),
+    });
+    if (!picked?.[0]) return false;
+    const dir = picked[0].fsPath;
+    if (fs.existsSync(path.join(dir, '.specguard', 'workspace.json'))) {
+      void vscode.window.showInformationMessage(`SpecGuard: ${dir} already has a workspace manifest.`);
+      return false;
+    }
+    where = path.basename(dir);
+    res = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `SpecGuard: scanning ${where} for repos…` }, () =>
+      runCli(['workspace', 'init', '--recursive'], dir),
+    );
+  }
+  if (res.code !== 0) {
+    void vscode.window.showErrorMessage(`SpecGuard: could not create the workspace: ${res.lines.slice(-2).join(' ')}`);
+    return false;
+  }
+  void vscode.window.showInformationMessage(`SpecGuard: workspace ${where} created with ${changeLines(res.lines).length || 'its'} repos. Ignore any you do not want analysed.`);
+  return true;
+}
+
 /** Sync on activation and whenever folders are added or removed. */
 export function watchCodeWorkspace(context: vscode.ExtensionContext, onChanged: () => void): void {
   const run = (interactive: boolean): void => {

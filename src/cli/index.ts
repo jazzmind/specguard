@@ -756,6 +756,10 @@ program
   );
 
 // --- plugin ---------------------------------------------------------------
+/** The root program also defines `--json` and takes it wherever it appears, so a subcommand's own `--json` stays unset. */
+function withRootJson<T extends { json?: boolean }>(opts: T): T {
+  return { ...opts, json: opts.json ?? Boolean(program.opts().json) };
+}
 const pluginCmd = program.command('plugin').description('browse, enable, disable, add and remove plugins for this repo');
 
 pluginCmd
@@ -763,7 +767,7 @@ pluginCmd
   .description('built-in and configured plugins, whether each is on, and the commands it adds')
   .option('--json', 'machine-readable output')
   .action(async (opts: { json?: boolean }) => {
-    await pluginListCommand(opts);
+    await pluginListCommand(withRootJson(opts));
   });
 
 pluginCmd
@@ -772,7 +776,7 @@ pluginCmd
   .argument('<id>', 'plugin id')
   .option('--json', 'machine-readable output')
   .action(async (id: string, opts: { json?: boolean }) => {
-    await pluginEnableCommand(id, opts);
+    await pluginEnableCommand(id, withRootJson(opts));
   });
 
 pluginCmd
@@ -781,7 +785,7 @@ pluginCmd
   .argument('<id>', 'plugin id')
   .option('--json', 'machine-readable output')
   .action(async (id: string, opts: { json?: boolean }) => {
-    await pluginDisableCommand(id, opts);
+    await pluginDisableCommand(id, withRootJson(opts));
   });
 
 pluginCmd
@@ -793,7 +797,7 @@ pluginCmd
   .option('--yes', 'confirm that you trust the package')
   .option('--json', 'machine-readable output')
   .action(async (id: string, opts: { package: string; install?: boolean; yes?: boolean; json?: boolean }) => {
-    await pluginAddCommand(id, opts);
+    await pluginAddCommand(id, withRootJson(opts));
   });
 
 pluginCmd
@@ -802,7 +806,7 @@ pluginCmd
   .argument('<id>', 'plugin id')
   .option('--json', 'machine-readable output')
   .action(async (id: string, opts: { json?: boolean }) => {
-    await pluginRemoveCommand(id, opts);
+    await pluginRemoveCommand(id, withRootJson(opts));
   });
 
 // --- workspace ------------------------------------------------------------
@@ -840,7 +844,7 @@ workspaceCmd
   .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
   .option('--json', 'machine-readable output')
   .action(async (opts: { name?: string; server?: string; token?: string; workspace?: string; json?: boolean }) => {
-    await workspacePublishCommand(opts);
+    await workspacePublishCommand(withRootJson(opts));
   });
 
 workspaceCmd

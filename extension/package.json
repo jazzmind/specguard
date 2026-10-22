@@ -2,7 +2,7 @@
   "name": "specguard",
   "displayName": "SpecGuard",
   "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "WesSonnenreich",
   "repository": {
     "type": "git",
@@ -171,6 +171,11 @@
         "icon": "$(package)"
       },
       {
+        "command": "specguard.initWorkspace",
+        "title": "SpecGuard: Initialize Workspace",
+        "icon": "$(repo-create)"
+      },
+      {
         "command": "specguard.syncWorkspace",
         "title": "SpecGuard: Sync Workspace with .code-workspace",
         "icon": "$(sync)"
@@ -251,6 +256,11 @@
           "command": "specguard.switchProject",
           "when": "view == specguard.coverageView",
           "group": "navigation@0"
+        },
+        {
+          "command": "specguard.initWorkspace",
+          "when": "view == specguard.coverageView && specguard.hasWorkspaceManifest == false",
+          "group": "navigation@3"
         },
         {
           "command": "specguard.refreshCoverage",
@@ -351,7 +361,7 @@
     "viewsWelcome": [
       {
         "view": "specguard.coverageView",
-        "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs."
+        "contents": "No SpecGuard config found in this workspace.\n[Initialize SpecGuard](command:specguard.init)\nThis will scaffold .specguard/config.json and create your first specs.\nWorking across several repos?\n[Initialize Workspace](command:specguard.initWorkspace)"
       },
       {
         "view": "specguard.pluginsView",

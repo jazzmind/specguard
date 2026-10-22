@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { planSpawn, shellQuote, UnsafeArgumentError, winQuote } from './safe-spawn.js';
+import { nodeRuntime, planSpawn, shellQuote, UnsafeArgumentError, winQuote } from './safe-spawn.js';
 
 // [claims: capabilities/security-and-remediation#no-shell-spawn]
 describe('starting the CLI without a shell', () => {
@@ -54,3 +54,19 @@ describe('quoting an argument for a terminal', () => {
   });
 });
 
+
+describe('nodeRuntime', () => {
+  // [claims: capabilities/security-and-remediation#no-shell-spawn]
+  it('uses the host executable as Node inside Electron, and plain node elsewhere', () => {
+    const electron = Object.getOwnPropertyDescriptor(process.versions, 'electron');
+    try {
+      Object.defineProperty(process.versions, 'electron', { value: '30.0.0', configurable: true });
+      expect(nodeRuntime()).toEqual({ command: process.execPath, env: { ELECTRON_RUN_AS_NODE: '1' } });
+      Object.defineProperty(process.versions, 'electron', { value: undefined, configurable: true });
+      expect(nodeRuntime()).toEqual({ command: 'node', env: {} });
+    } finally {
+      if (electron) Object.defineProperty(process.versions, 'electron', electron);
+      else delete (process.versions as Record<string, unknown>).electron;
+    }
+  });
+});

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { planSpawn, shellQuote, type SpawnPlan } from '../safe-spawn.js';
+import { nodeRuntime, planSpawn, shellQuote, type SpawnPlan } from '../safe-spawn.js';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -129,12 +129,12 @@ export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (
 
   let plan: SpawnPlan;
   try {
-    plan = planSpawn(cliPath, args);
+    plan = planSpawn(cliPath, args, { node: nodeRuntime().command });
   } catch (err) {
     return { promise: Promise.reject(err), kill: () => {} };
   }
 
-  const env = buildEnv(cwd);
+  const env = { ...buildEnv(cwd), ...nodeRuntime().env };
   // No shell: the command and arguments are planned by `planSpawn`, which quotes for cmd.exe where Windows needs it.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
   const proc = cp.spawn(plan.command, plan.args, { cwd, env, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-22T19:41:52.516Z",
+  "generated": "2026-10-22T20:19:22.199Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -73,7 +73,11 @@
       "history": [
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-0-3-phase-3-test-layers-and-ci",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-no-requirement-governs-who-may",
+        "2026-10-22-security-evidence-screenshots-containing",
+        "2026-10-22-security-prompt-injection-via-page-conte",
+        "2026-10-22-security-no-rate-limit-or-budget-cap-on-2"
       ],
       "claims": [
         {
@@ -916,7 +920,8 @@
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-0-3-phase-3-test-layers-and-ci",
         "2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-evidence-path-traversal-not-con"
       ],
       "claims": [
         {
@@ -1980,7 +1985,10 @@
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-prompt-injection-via-spec-conte",
+        "2026-10-22-security-no-requirement-classifying-what",
+        "2026-10-22-security-no-rate-limit-on-api-endpoints"
       ],
       "claims": [
         {
@@ -2689,6 +2697,7 @@
         "extension/src/spec-inventory.test.ts",
         "tests/action/run-gates.test.ts",
         "tests/cli/features.test.ts",
+        "tests/cli/plugin-json.test.ts",
         "tests/core/ci-workflow.test.ts",
         "tests/core/cli.test.ts",
         "tests/core/env.test.ts",
@@ -2741,7 +2750,10 @@
         "2026-10-22-security-activity-log-may-capture-prompt",
         "2026-10-22-security-npm-plugin-loader-lacks-package",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-init-history-hooks-writes-to-pe",
+        "2026-10-22-security-mcp-server-has-no-rate-limit-or",
+        "2026-10-22-extension-runs-the-cli-under-the-host-ex"
       ],
       "claims": [
         {
@@ -4021,6 +4033,12 @@
           "proof": "proven",
           "tests": [
             {
+              "file": "tests/cli/plugin-json.test.ts",
+              "line": 15,
+              "title": "`plugin list --json` prints JSON, not the table",
+              "origin": "source"
+            },
+            {
               "file": "tests/pipelines/plugin-manage.test.ts",
               "line": 34,
               "title": "lists every built-in with whether it is on and the commands it adds",
@@ -4299,7 +4317,10 @@
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-intent-catch-up-for-the-2026-10-19-chang",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-plugin-and-hook-modules-are-loa",
+        "2026-10-22-security-no-rate-limit-or-throttle-on-re",
+        "2026-10-22-security-replay-recordings-containing-se"
       ],
       "claims": [
         {
@@ -5299,16 +5320,43 @@
         "specs/history/2026-10-22-0-3-phase-2-plugin-management.md",
         "specs/history/2026-10-22-0-3-phase-3-test-layers-and-ci.md",
         "specs/history/2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer.md",
+        "specs/history/2026-10-22-extension-manual-initialize-workspace-co.md",
+        "specs/history/2026-10-22-extension-runs-the-cli-under-the-host-ex.md",
         "specs/history/2026-10-22-header-role-fix-and-spec-level-security.md",
         "specs/history/2026-10-22-intent-catch-up-for-the-2026-10-19-chang.md",
         "specs/history/2026-10-22-security-activity-log-may-capture-prompt.md",
+        "specs/history/2026-10-22-security-credentials-embedded-in-importe.md",
+        "specs/history/2026-10-22-security-evidence-path-traversal-not-con.md",
+        "specs/history/2026-10-22-security-evidence-screenshots-containing.md",
         "specs/history/2026-10-22-security-hardening-from-audit-sast-and-p.md",
         "specs/history/2026-10-22-security-hook-reads-untrusted-stdin-json.md",
         "specs/history/2026-10-22-security-inbox-size-cap-is-unspecified-l.md",
+        "specs/history/2026-10-22-security-init-history-hooks-writes-to-pe.md",
         "specs/history/2026-10-22-security-mcp-commit-tool-has-no-requirem.md",
+        "specs/history/2026-10-22-security-mcp-server-has-no-rate-limit-or.md",
+        "specs/history/2026-10-22-security-no-access-control-on-inbox-file.md",
+        "specs/history/2026-10-22-security-no-access-control-requirement-o.md",
+        "specs/history/2026-10-22-security-no-authorization-requirement-fo.md",
+        "specs/history/2026-10-22-security-no-data-classification-requirem.md",
+        "specs/history/2026-10-22-security-no-rate-limit-on-api-endpoints.md",
+        "specs/history/2026-10-22-security-no-rate-limit-on-history-add-or.md",
+        "specs/history/2026-10-22-security-no-rate-limit-or-budget-cap-on-2.md",
+        "specs/history/2026-10-22-security-no-rate-limit-or-budget-cap-on.md",
+        "specs/history/2026-10-22-security-no-rate-limit-or-resource-limit.md",
+        "specs/history/2026-10-22-security-no-rate-limit-or-throttle-on-re.md",
         "specs/history/2026-10-22-security-no-requirement-bounding-path-tr.md",
+        "specs/history/2026-10-22-security-no-requirement-classifying-what.md",
+        "specs/history/2026-10-22-security-no-requirement-governs-who-may.md",
         "specs/history/2026-10-22-security-npm-plugin-loader-lacks-package.md",
+        "specs/history/2026-10-22-security-plugin-and-hook-modules-are-loa.md",
+        "specs/history/2026-10-22-security-prompt-injection-via-page-conte.md",
+        "specs/history/2026-10-22-security-prompt-injection-via-spec-conte.md",
+        "specs/history/2026-10-22-security-redaction-spec-references-a-sha.md",
+        "specs/history/2026-10-22-security-replay-recordings-containing-se.md",
+        "specs/history/2026-10-22-security-shared-env-file-containing-secr.md",
+        "specs/history/2026-10-22-security-spec-review-findings-containing.md",
         "specs/history/2026-10-22-security-ssrf-via-import-url-fetching-is.md",
+        "specs/history/2026-10-22-security-vuln-ignore-json-suppression-fi.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -5331,7 +5379,10 @@
         "2026-10-22-security-hook-reads-untrusted-stdin-json",
         "2026-10-22-security-inbox-size-cap-is-unspecified-l",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-no-access-control-on-inbox-file",
+        "2026-10-22-security-redaction-spec-references-a-sha",
+        "2026-10-22-security-no-rate-limit-on-history-add-or"
       ],
       "claims": [
         {
@@ -5808,7 +5859,10 @@
         "2026-10-22-0-3-phase-3-test-layers-and-ci",
         "2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-vuln-ignore-json-suppression-fi",
+        "2026-10-22-security-spec-review-findings-containing",
+        "2026-10-22-extension-runs-the-cli-under-the-host-ex"
       ],
       "claims": [
         {
@@ -6857,6 +6911,12 @@
               "origin": "source"
             },
             {
+              "file": "extension/src/safe-spawn.test.ts",
+              "line": 59,
+              "title": "uses the host executable as Node inside Electron, and plain node elsewhere",
+              "origin": "source"
+            },
+            {
               "file": "tests/adapters/test-runners.test.ts",
               "line": 197,
               "title": "single-quotes on POSIX so file names are text, and a real shell gives them back untouched",
@@ -6994,7 +7054,9 @@
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-security-ssrf-via-import-url-fetching-is",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-credentials-embedded-in-importe",
+        "2026-10-22-security-no-rate-limit-or-budget-cap-on"
       ],
       "claims": [
         {
@@ -8697,7 +8759,9 @@
       "history": [
         "2026-10-15-functional-specs-and-four-pillars",
         "2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co",
-        "2026-10-22-0-3-phase-3-test-layers-and-ci"
+        "2026-10-22-0-3-phase-3-test-layers-and-ci",
+        "2026-10-22-security-no-data-classification-requirem",
+        "2026-10-22-security-no-access-control-requirement-o"
       ],
       "claims": [
         {
@@ -9378,7 +9442,12 @@
         "2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv",
         "2026-10-22-security-no-requirement-bounding-path-tr",
         "2026-10-22-security-hardening-from-audit-sast-and-p",
-        "2026-10-22-header-role-fix-and-spec-level-security"
+        "2026-10-22-header-role-fix-and-spec-level-security",
+        "2026-10-22-security-no-rate-limit-or-resource-limit",
+        "2026-10-22-security-no-authorization-requirement-fo",
+        "2026-10-22-security-shared-env-file-containing-secr",
+        "2026-10-22-extension-runs-the-cli-under-the-host-ex",
+        "2026-10-22-extension-manual-initialize-workspace-co"
       ],
       "claims": [
         {
@@ -10159,16 +10228,11 @@
     "withTests": 250,
     "incomplete": 0,
     "capabilities": 11,
-    "ownedFiles": 294,
+    "ownedFiles": 321,
     "sourceFiles": 258
   },
   "gaps": {
     "intent": [],
-    "docsStale": [
-      "documentation-api",
-      "platform-foundation",
-      "requirement-history",
-      "team-server"
-    ]
+    "docsStale": []
   }
 }

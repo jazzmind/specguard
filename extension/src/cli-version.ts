@@ -8,7 +8,7 @@
  *
  * Spec: specs/capabilities/integration-surfaces.md
  */
-import { planSpawn, type SpawnPlan } from './safe-spawn.js';
+import { nodeRuntime, planSpawn, type SpawnPlan } from './safe-spawn.js';
 import { spawn } from 'child_process';
 
 declare const __EXPECTED_CLI_VERSION__: string | undefined;
@@ -43,7 +43,7 @@ export function queryCliVersion(cliPath: string, cwd: string, timeoutMs = 10_000
   return new Promise((resolve) => {
     let plan: SpawnPlan;
     try {
-      plan = planSpawn(cliPath, ['--version', '--json']);
+      plan = planSpawn(cliPath, ['--version', '--json'], { node: nodeRuntime().command });
     } catch {
       return resolve(null);
     }
@@ -58,7 +58,7 @@ export function queryCliVersion(cliPath: string, cwd: string, timeoutMs = 10_000
     try {
       // No shell: see `planSpawn`.
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-      const child = spawn(plan.command, plan.args, { cwd, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
+      const child = spawn(plan.command, plan.args, { cwd, env: { ...process.env, ...nodeRuntime().env }, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
       const timer = setTimeout(() => {
         child.kill();
         done(null);

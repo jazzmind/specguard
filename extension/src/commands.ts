@@ -12,7 +12,7 @@ import { forceUpdateProjectFiles } from './project-updater.js';
 import { openWorkspacePanel, registerWorkspacePanelCommands } from './workspace-panel.js';
 import { resolveCliCommand } from './dashboard/cli.js';
 import { shellQuote } from './safe-spawn.js';
-import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
+import { initWorkspace, setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 import { ensurePluginEnabled } from './plugins-view.js';
 import { loadWorkspaceManifest } from './workspace-state.js';
 
@@ -283,6 +283,11 @@ export function registerCommands(
 
   // --- specguard.syncWorkspace / ignoreRepo / unignoreRepo / refreshWorkspace --
   context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.initWorkspace', async () => {
+      if (!(await initWorkspace(context))) return;
+      void coverageProvider.refresh();
+      openWorkspacePanel(context, 'status');
+    }),
     vscode.commands.registerCommand('specguard.syncWorkspace', async () => {
       if (await syncCodeWorkspace(context, { interactive: true })) void coverageProvider.refresh();
     }),

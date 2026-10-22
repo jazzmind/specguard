@@ -2,7 +2,7 @@
  * The local fallback: a `specguard serve` child process on an ephemeral port, serving this workspace's working tree
  * through the same API a team server does.
  */
-import { planSpawn, type SpawnPlan } from '../safe-spawn.js';
+import { nodeRuntime, planSpawn, type SpawnPlan } from '../safe-spawn.js';
 import * as cp from 'child_process';
 
 const SERVING = /specguard serving (https?:\/\/\S+)/;
@@ -21,13 +21,13 @@ export function startLocalServer(cliPath: string, cwd: string, env: NodeJS.Proce
     if (!cliPath) return reject(new Error('no SpecGuard command line was found to serve this workspace'));
     let plan: SpawnPlan;
     try {
-      plan = planSpawn(cliPath, ['serve', '--port', '0'], { node: process.execPath });
+      plan = planSpawn(cliPath, ['serve', '--port', '0'], { node: nodeRuntime().command });
     } catch (err) {
       return reject(err);
     }
     // No shell: see `planSpawn`.
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-    const child = cp.spawn(plan.command, plan.args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
+    const child = cp.spawn(plan.command, plan.args, { cwd, env: { ...env, ...nodeRuntime().env }, stdio: ['ignore', 'pipe', 'pipe'], ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });
     let settled = false;
     let output = '';
     const done = (fn: () => void): void => {

@@ -11,6 +11,7 @@
  *   __EXPECTED_CLI_VERSION__ the host warns when the CLI it finds differs
  */
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +25,10 @@ const version = JSON.stringify(rootPkg.version);
 const target = process.argv[2];
 const watch = process.argv.includes('--watch');
 
+// jsonc-parser's default entry is a UMD build whose runtime require('./impl/format') esbuild cannot follow,
+// so the bundle crashes at startup. Point it at the ESM build instead.
+const jsoncEsm = (from) => createRequire(from).resolve('jsonc-parser/lib/esm/main.js');
+
 const common = { bundle: true, platform: 'node', sourcemap: true, logLevel: 'info' };
 
 const targets = {
@@ -31,6 +36,7 @@ const targets = {
     ...common,
     entryPoints: [path.resolve(extRoot, '..', 'src', 'cli', 'index.ts')],
     format: 'cjs',
+    alias: { 'jsonc-parser': jsoncEsm(path.resolve(extRoot, '..', 'package.json')) },
     outfile: path.resolve(extRoot, 'dist', 'cli.js'),
     // import.meta.url does not exist in CJS: map it to the bundle's own file URL.
     define: { 'import.meta.url': '__importMetaUrl', __SPECGUARD_VERSION__: version },
@@ -44,6 +50,7 @@ const targets = {
     ...common,
     entryPoints: [path.resolve(extRoot, 'src', 'extension.ts')],
     external: ['vscode'],
+    alias: { 'jsonc-parser': jsoncEsm(path.resolve(extRoot, 'package.json')) },
     outfile: path.resolve(extRoot, 'dist', 'extension.js'),
     define: { __EXPECTED_CLI_VERSION__: version },
   },

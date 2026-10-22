@@ -42,6 +42,8 @@ history:
   - 2026-10-22-security-no-rate-limit-or-resource-limit
   - 2026-10-22-security-no-authorization-requirement-fo
   - 2026-10-22-security-shared-env-file-containing-secr
+  - 2026-10-22-extension-runs-the-cli-under-the-host-ex
+  - 2026-10-22-extension-manual-initialize-workspace-co
 ---
 
 # Workspaces - Multi-Repo and Monorepo

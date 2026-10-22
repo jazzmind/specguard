@@ -67,6 +67,7 @@ history:
   - 2026-10-22-header-role-fix-and-spec-level-security
   - 2026-10-22-security-init-history-hooks-writes-to-pe
   - 2026-10-22-security-mcp-server-has-no-rate-limit-or
+  - 2026-10-22-extension-runs-the-cli-under-the-host-ex
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins

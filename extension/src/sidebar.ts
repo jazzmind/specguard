@@ -108,6 +108,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     this._coverageSection.label = root
       ? `Coverage — ${path.basename(root)}${this._source ? ` · ${this._source.label}` : ''}`
       : 'Coverage';
+    // Drives the "Initialize Workspace" button: shown only while there is no manifest to show.
+    void vscode.commands.executeCommand('setContext', 'specguard.hasWorkspaceManifest', Boolean(getWorkspaceManifestRoot()));
     const manifest = loadWorkspaceManifest();
     this._workspaceSection.label = manifest ? `Workspace — ${manifest.name}` : 'Workspace';
   }
@@ -123,12 +125,17 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
   getChildren(element?: CoverageTreeItem): CoverageTreeItem[] {
     // Root level: sections
     if (!element) {
-      if (this._noConfig) return [];
+      if (this._noConfig) {
+        this._labelSections();
+        return getWorkspaceManifestRoot() ? [this._workspaceSection] : [];
+      }
       if (this._loading) {
         return [new CoverageTreeItem('Loading…', vscode.TreeItemCollapsibleState.None, 'loading')];
       }
       if (this._error) {
-        return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error')];
+        // The workspace rollup is read from files, so it still shows when this project's own coverage failed.
+        this._labelSections();
+        return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error'), ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];
       }
       this._labelSections();
       return [this._coverageSection, this._outputsSection, ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];

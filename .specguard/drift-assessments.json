@@ -1,5 +1,108 @@
 {
-  "capabilities/agentic-verification": {},
+  "capabilities/agentic-verification": {
+    "src/cli/commands/validate.ts@8fe205ad2d8e3b280a765612de152211189f4ab029f23c939234284ba43c4833": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    },
+    "src/adapters/playwright.ts@a9c40e2a8be47210dc22957cea844b7001cf6ae5b8a016fe115153817dfbdec1": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    },
+    "src/core/e2e-script.ts@0e06bd1cac61d28ef602205db50ba0fc020ac8f1812a108265b8bdbe141369f6": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    },
+    "src/core/untrusted.ts@c6c0e7c2c85b3f1bb33253f49120cfebbd7228d793a614ac6e1f6a85446a37c1": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    },
+    "src/core/validate-targets.ts@785ccff77a0528fd48648bf87c7c6e94c87d0347228b2dc8855851b7c94919e6": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    },
+    "src/pipelines/validate.ts@9a3ca7b6a4e7da932278b8feba9218071b4a267940ec8ef3975269dc4665adcc": {
+      "affectedClaims": [
+        "validate-targets",
+        "perceive-plan-act-verify",
+        "guardrail-blocking",
+        "redact-before-llm",
+        "browser-lifecycle",
+        "evidence-retention",
+        "verify-emits-playwright",
+        "untrusted-content-fenced",
+        "agent-target-allowlist",
+        "verify-run-bounds",
+        "ledger-proof"
+      ],
+      "at": "2026-10-22T20:18:48.241Z",
+      "reason": "No diff is available, so the files are read as the full implementation. They touch behaviour the requirements describe: the validate command and its options, the agent-started host allowlist, untrusted-content fencing, Playwright test emission, browser lifecycle and the pipeline loop. The visible code matches the requirement text, and I could not identify what actually changed."
+    }
+  },
   "capabilities/conformance-testing": {
     "src/core/proof-ledger.ts@e71bf9548e6eb0c7be6705acb62fb219eb62f0e2d7a5f12df6cd87d877f6e613": {
       "affectedClaims": [
@@ -50,6 +153,56 @@
       ],
       "at": "2026-10-15T19:08:33.224Z",
       "reason": "The change implements several behaviours described in the requirements: (1) proof-provenance – provenance fields (origin, repo, branch, actor, hashVersion) are now recorded on every ProofRecord, with CI/GitHub Actions/local detection; (2) ledger-records-basis – the HASH_VERSION is now stored on each row (hashVersion field); (3) shared-ingest-and-ledger-path – the ledger is now written through a single LedgerStore interface (fileLedgerStore) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten; (4) the ProofOpts interface gains a 'store' field allowing a team-server database backend (proof-provenance mentions 'server' origin and a store interface). All of these are behaviours specified in the requirements."
+    },
+    "src/cli/commands/proof.ts@b761e2873d02a5faba73b3b852a7a052f0d160f7c9916ee1fc88611f07a2eddc": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/cli/commands/results.ts@1c3fe02f08a510616a3942ba0194d51b20c1d99f219952c452e1da6f1b025055": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/adapters/test-runners.ts@fbfd3ad446569bc138bea30e555408165bd0b2325b0d9a19e0ae2d8250fe64d5": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/core/proof-ledger.ts@160f4387ebc8f895602554f17ca6e6860346238403d9efe08d3a68e7b22604cf": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/core/test-layers.ts@44da5699e50a0ec44d352d2e276bab9b237aacf2c16f24ee98f221be6bd440c5": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/pipelines/forward-generate.ts@677f8d6632e2a36c2a21689c6757bef6230e921eab99ac2310ae04b1e001429b": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/pipelines/heal.ts@d28e1657cf8e3db9b699e11cfec689171dde31582f0a1270b7fd8bff41000c91": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/pipelines/proof.ts@5d5bad4590ba64ed6eca3050653aac4d44c4517374bedb9ace8f6b570ad9bcc7": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/pipelines/results.ts@ab32e573cda2e9f4efd20b1e505b7c16fb8892f476daa1d1a93ddbcfec982aa5": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
+    },
+    "src/pipelines/test-run.ts@17470366f03c0f5a45bda772505239192f90be0bcd4bc8d06088c8b735098cb9": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:18:57.877Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change to requirement behaviour can be identified. The visible code matches the requirements: layered proofs, `--layer` validation, `proof.enforceLayers: fail` in `proof status`, reporter-file runner adapters, and heal and test-run seams. The items listed under unspecified behaviour appear in the shown code but are not covered by any requirement."
     }
   },
   "capabilities/documentation-api": {
@@ -236,6 +389,128 @@
       ],
       "at": "2026-10-15T19:09:08.730Z",
       "reason": "The root-doc-sync.ts change alters the content written into the auto-generated marked sections of README.md, CLAUDE.md, and AGENTS.md (the command list and AGENTS.md template). This directly affects the behaviour described by root-doc-sync-sentinels and root-doc-sync-safe, which specify what is placed between the markers. The content-cache.ts file introduces the file-based cache implementation referenced by the cache-key requirement, which is new behaviour (storing cache entries under .specguard/cache/)."
+    },
+    "src/cli/commands/serve.ts@72a2d05321cae576baf0953a278deb603342142ebfb32b953c766cc5974deb5d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/api.ts@eee51cc7ded7a48bee9e80ed4ef41ec92dd43386dd83f341b4d66e532f52cb49": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/auth.ts@33f214dc897e4fa0a0e98004b7eadf74afcda23b88251341926834d7d0a8c7c1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/backend.ts@1e94d5be9c9dfb2d1f4c30823dbb72b50917d422ff99f2006bebf52ce2ee72db": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/config.ts@f75c6a47c66f8ece4efb91a6de300a2139dc10d75cbdc8e0beba968254375fd3": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/file-backend.ts@34bcbd0830d84cab65389d5e82d854cebb99d61fe6ca8966b2752785a93917a1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/pg-backend.ts@8ebcc7c055237430c4d6d364f96e67caa5313581aa5675a97bbef1fcbdf712a8": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/rate-limit.ts@3e10e86aba007486893a75d10ab68c717600729d1bc914e4f1d713dc1909ad15": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/registry.ts@5484ea203de3af2f44362d094bcf1cc1aa29865342271599aab4c9a8ea7816e9": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/central/server.ts@68dc89bb8b25a3f8b35ff4378863337612c2ddaef3fecdeb2e0d70a8712cbe5c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:07.783Z",
+      "reason": "No diff is available, so only the shown file contents can be judged. The shown code matches the existing requirements: serve refuses non-loopback hosts without --allow-remote, points to `specguard server`, and does not treat a host name that merely starts with 127. as loopback (it requires a numeric 127.x.x.x form), and the HTML security headers match html-headers. Nothing in the shown code contradicts or changes a requirement. One piece of user-visible `serve` behaviour has no requirement: the `--workspace` mode."
+    },
+    "src/server/docs.ts@4c6a9b03b76be694af1e55ac87429d9bc1caf77c710e71626b34615ecb5e189d": {
+      "affectedClaims": [
+        "serve-bind-loopback",
+        "serve-host-guard",
+        "serve-readonly",
+        "html-headers",
+        "docs-endpoints",
+        "audience-shapes",
+        "cache-key",
+        "docs-per-spec",
+        "docs-strip-internal",
+        "docs-failure-isolation",
+        "single-flight-budget",
+        "fast-tier-on-demand"
+      ],
+      "at": "2026-10-22T20:19:16.525Z",
+      "reason": "No diff was supplied, so I judged the shown file contents against the spec. They touch the serve, docs-generation and doc-sync requirements. The clearest mismatch is in src/server/index.ts: isLoopback() uses /^127\\./ on the raw host string, so a name like `127.evil.com` counts as loopback. serve-bind-loopback says such a name is not loopback. The code also adds multi-project and workspace behaviour that no requirement describes."
+    },
+    "src/server/index.ts@0380cf5055262e90fe0e5d36074c2be10d6caa90ea785e44e46e177a1ad0cecc": {
+      "affectedClaims": [
+        "serve-bind-loopback",
+        "serve-host-guard",
+        "serve-readonly",
+        "html-headers",
+        "docs-endpoints",
+        "audience-shapes",
+        "cache-key",
+        "docs-per-spec",
+        "docs-strip-internal",
+        "docs-failure-isolation",
+        "single-flight-budget",
+        "fast-tier-on-demand"
+      ],
+      "at": "2026-10-22T20:19:16.525Z",
+      "reason": "No diff was supplied, so I judged the shown file contents against the spec. They touch the serve, docs-generation and doc-sync requirements. The clearest mismatch is in src/server/index.ts: isLoopback() uses /^127\\./ on the raw host string, so a name like `127.evil.com` counts as loopback. serve-bind-loopback says such a name is not loopback. The code also adds multi-project and workspace behaviour that no requirement describes."
+    },
+    "src/server/project.ts@f0701d079866007d7112fcb8eb19d4db8abf725f5950a06c0eb1e04b90b21baa": {
+      "affectedClaims": [
+        "serve-bind-loopback",
+        "serve-host-guard",
+        "serve-readonly",
+        "html-headers",
+        "docs-endpoints",
+        "audience-shapes",
+        "cache-key",
+        "docs-per-spec",
+        "docs-strip-internal",
+        "docs-failure-isolation",
+        "single-flight-budget",
+        "fast-tier-on-demand"
+      ],
+      "at": "2026-10-22T20:19:16.525Z",
+      "reason": "No diff was supplied, so I judged the shown file contents against the spec. They touch the serve, docs-generation and doc-sync requirements. The clearest mismatch is in src/server/index.ts: isLoopback() uses /^127\\./ on the raw host string, so a name like `127.evil.com` counts as loopback. serve-bind-loopback says such a name is not loopback. The code also adds multi-project and workspace behaviour that no requirement describes."
+    },
+    "src/pipelines/doc-generate.ts@7869fcdf1db2e0e9694483b0b51717e14658846466565016e13cfeb96ad46839": {
+      "affectedClaims": [
+        "serve-bind-loopback",
+        "serve-host-guard",
+        "serve-readonly",
+        "html-headers",
+        "docs-endpoints",
+        "audience-shapes",
+        "cache-key",
+        "docs-per-spec",
+        "docs-strip-internal",
+        "docs-failure-isolation",
+        "single-flight-budget",
+        "fast-tier-on-demand"
+      ],
+      "at": "2026-10-22T20:19:16.525Z",
+      "reason": "No diff was supplied, so I judged the shown file contents against the spec. They touch the serve, docs-generation and doc-sync requirements. The clearest mismatch is in src/server/index.ts: isLoopback() uses /^127\\./ on the raw host string, so a name like `127.evil.com` counts as loopback. serve-bind-loopback says such a name is not loopback. The code also adds multi-project and workspace behaviour that no requirement describes."
     }
   },
   "capabilities/integration-surfaces": {
@@ -582,6 +857,403 @@
       ],
       "at": "2026-10-15T19:09:58.455Z",
       "reason": "The change affects multiple requirements: (1) The VS Code sidebar/dashboard now shows a source label and notice for coverage data and attempts to load from a team server API hub before falling back to the CLI, which goes beyond what vscode-dashboard specifies (no secrets through the extension, project switching, CLI-based reading). The API hub with sign-in/sign-out commands is new user-visible behaviour not covered by any requirement. (2) The pipelines-view replaces 'Dependency Audit'/'depsAudit' with 'Security Scan'/'securityPlan', aligning with planned-reduced-surface which removes deps and replaces it with security scan/check. (3) The FlowView removes the analyze pipeline, AnalyzePanel, FixPlanPanel, plan-fix pipeline calls, and replaces them with a 'Check' button; this aligns with planned-reduced-surface (analyze and plan-fix are gone, check replaces them). The FlowView also removes 'deps' from HEALABLE_PIPELINES and COMMITTABLE_PIPELINES and replaces the deps card with a security-scan card. (4) The types.ts additions of SecurityDetector, DocRenderer and their registration on SpecGuardPlugin implement planned-plugin-extensions requirements. (5) The loadPlugins calls now pass rootDir, which relates to plugin-contract/core-plugin-boundary resolution. (6) The webview reducer and protocol remove AnalysisRecommendation and FixPlan types and their reducer cases. The test-run card addition in FlowView is new user-visible behaviour in the dashboard not explicitly specified. The ApiHub/signIn/signOut wiring in the extension is new user-visible behaviour not covered by any requirement."
+    },
+    "extension/src/api/adapters.test.ts@6a376c97d2450e483f7f6a6832b7e687987bcb304949b0c2a7d074dfdc2fb09c": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/api/adapters.ts@aa76b108a879bdb58a430abfac876d2631584eaba2276c125a863bede8d53719": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/api/local-server.ts@66b4e734497baec21b53b1f7e7a29f20e242c9e3bd4d47268bae727a6faf6089": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/api/types.ts@a4a4a2e82dcd6a7b2269c34d652bfaa1b03a0ae95403db12b4e96711d359bfbf": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/dashboard/cli.test.ts@8a675a2da4f3151154f4271c0f9bf199840133b8ed299da7937c2de570588467": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/dashboard/cli.ts@c5f3bb4679d1313cdc9ede9ca0d98728c34e5d0299066a940882d993a988851a": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "src/cli/commands/init.ts@944c8307208716c54310391fbccc9c6a09e4b5e15ccde5666542d6819cb4e46a": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "src/cli/commands/plugin.ts@cb9cda77bea5175e7434cdc657507c7616049a6d4b880048c966a349c8dd1ce6": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "src/cli/index.ts@e9be9b201ce18f6d021cde271d3706a873d6e0fde286ec20d1ea6dbc85aa029a": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "src/mcp/server.ts@f60f6bd90de1e918d2a9d1dd13b7d3ed7a1360d514321a085cd3243b1030eeab": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "action.yml@9ee2736616ca6fbd301e1112ca551436f581218ab6ae4b5e622cc34476a5544a": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "action/run-gates.mjs@6c4ab46f033507403a2563e694fbb911327f7961e3832fd0524908f6f44d4a42": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/cli-version.ts@c9329f2d8e65e22409d6a97ccb39b39e6c7e36a432aca83ed00a69aa08a1ffc7": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/code-workspace.ts@be2930e79f8e3c639b2ab33f4307799777df29cbcb0e728feaf0055165e04a74": {
+      "affectedClaims": [
+        "cli-routing-and-flags",
+        "plugin-manage",
+        "extension-plugins-view",
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:26.681Z",
+      "reason": "Three changes touch described behaviour. (1) In src/cli/index.ts, the plugin subcommands and `workspace publish` now honour the root-level `--json`, which previously left the subcommand's own `--json` unset. This changes how the global `--json` reaches commands (cli-routing-and-flags), the `plugin list --json` output (plugin-manage) and the Plugins view that is driven by it (extension-plugins-view). (2) The VS Code extension now spawns the CLI, the local API server and the version query with a node runtime command and extra environment from `nodeRuntime()`. This changes how the extension runs the CLI (vscode-dashboard), and the requirement that no secrets are passed through should be re-checked against the added env. (3) `initWorkspace` adds a new user-facing 'SpecGuard: Initialize Workspace' command that creates a workspace manifest, and no requirement covers it."
+    },
+    "extension/src/commands.ts@1901d7d9429837e367cda972c5da38801c1beaf59333138d9fe82ac9286ab35a": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/coverage-label.test.ts@71d6dc998afdcbd7960cc15d4a8797ebcc67beda2d1b9176549281ea6d68f351": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/coverage-label.ts@6c85652edbb6eb0779333b06111c1d168dec9e4e3ba20423357cc4638b1a50dd": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/dashboard/coverage-parse.test.ts@67eeb3e2c7c54d023aa947a1cd75a22a607f020038f887d8ea4612b86cdde6c1": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/dashboard/coverage-parse.ts@4c3b6ba42415145780cfea638261d4fc43f53fd2eeb426227db7a7ce50b167e0": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/dashboard/host.ts@6666d8b77ed352d38e97ab95f4d38d96e01a950357e2589c422d32a9b4fa8ede": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/dashboard/protocol.ts@9f0546f8c7742f797b6183d5cf225434329066e150177f4d6ef04952be571cc6": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/extension.ts@227c134702dc9019e5a88cc204d1c47e426fa9b11463dfebbd12ee84c89a95aa": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/mcp-registration.ts@b0d052e6b066f30e530a4217cc24b6f2ff21b5c7e0b81776c35287d12d49db67": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/pipelines-view.ts@cf3e90126772ad995df1573467226e1daffea40a2eb65a9169de9fed8f02efef": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/plugins-model.test.ts@ade1bbcfb9e03cc7b8efc0da2ee907674a89a108d454d8eb7aa2467ffc515514": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/plugins-model.ts@aa9e5fab2c3ac51d5e74ea764eb2a676775c83b3b861330ab5ef8cdc44a5fb0d": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:33.314Z",
+      "reason": "The only real diff registers a new VS Code command, `specguard.initWorkspace`. It runs `initWorkspace`, refreshes the coverage view and opens the workspace panel on the status tab. This adds user-visible behaviour to the VS Code extension, which `vscode-dashboard` describes. That requirement lists the sidebar, dashboard panel, CLI running, project switching and the no-workspace report, but not initialising a workspace. The other files show no diff and are unchanged."
+    },
+    "extension/src/plugins-state.ts@83941924ab5068c4b0443eb7435bd03c2fa14ea7ac9302db723e76aafb4650a5": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/plugins-view.ts@c0c258ecaf0028aa4ea1f816f7c08ddfe16aead434375b3ea860d94b178c2cc6": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/safe-spawn.test.ts@18f11214f60ee7c99f072da1fd255d5e0433889ebf50e765ec7d579abce62c4a": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/safe-spawn.ts@d643f1d91006d03a79c9e665ff93379dfa4e67d74539ca6f8b31987b7b31edf8": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/sidebar.ts@f03e75871cd19bb048069e67ae2ba57742121e5fd1a7cc555e080bf96201c23d": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/spec-inventory.test.ts@e25dd322aabe23209ec3b18eb9621afd4baa3e56ed16b2d94d0bc957cf309216": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/spec-inventory.ts@91d54a6df53d5c3c4d94944a793b63c27b20db682cb0d86e37ad55a18d557f45": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/workspace-panel.ts@e00a853bcc01f4b7a2e5b32db84441fa9d616d365d51827ab45747191e0aea2d": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "extension/src/workspace-state.ts@71586f9e33110fc1335ad1f62cc4156ee13522d52a88c0404ff1f7b0e9fa93f8": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/core/ci-workflow.ts@55f8d06205a938c5c0533edb887c3beea4d859dcb0cf711d3a809bbb7521c28d": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/core/safe-path.ts@beba567d2d47a86dbd0c87c4828400fc08d8ba307e37c6f9460430c1b18faa9e": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/mcp/activity-hook.ts@0fdaedbaa3b422915f6383c60e49ddb223048959a4e431e5bbfe2a2aa5b193da": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/mcp/limits.ts@81ea1450bf974b538f5259c7eae092b53bf1db8344dbdea521e99240f50dd7ac": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/pipelines/init.ts@ff56c375f420bd588096fde07c859c312cc166f82c77ff21d19f931fb077b7d6": {
+      "affectedClaims": [
+        "vscode-dashboard"
+      ],
+      "at": "2026-10-22T20:19:42.083Z",
+      "reason": "The sidebar change alters what the VS Code extension shows. The Workspace rollup section now appears when the project has no config and when its coverage load fails, and an 'Initialize Workspace' button is controlled by a new context key. This falls under vscode-dashboard, whose text covers coverage, status, drift, traceability and activity but not the workspace rollup or this button. The nodeRuntime helper in safe-spawn.ts (use Electron's executable as Node instead of a bare node) is added but not shown being used. If it is used to launch the CLI, it touches how vscode-dashboard says the CLI is resolved. The other changed files are shown without diffs or are only tests."
+    },
+    "src/pipelines/plugin-manage.ts@a76cd45b60af7f153eae71012f3711bad93a7ff5e1c4edf778965861275e7234": {
+      "affectedClaims": [
+        "plugin-contract",
+        "feature-catalog",
+        "feature-state",
+        "plugin-catalog",
+        "plugin-manage",
+        "plugin-add-remove",
+        "plugin-package-names",
+        "plugin-surfaces",
+        "catalog-layout-config"
+      ],
+      "at": "2026-10-22T20:19:49.939Z",
+      "reason": "No diff is available, so these files are treated as new. They add the behaviour the spec describes for plugin management (list, enable, disable, add, remove, with raw-config edits and npm package-name validation), the built-in plugin catalog, the YAML feature catalog with schema validation and bare-list parsing, and the feature-state model and plugin interfaces. I found no behaviour in the visible code that the spec does not cover. Both plugin-manage.ts and feature-state.ts are cut off, so that is not certain."
+    },
+    "src/plugins/catalog.ts@b1b6ab51bdb4c047868d06b3c31438b3b12e9d7c1e3077a9029ceb80fb708975": {
+      "affectedClaims": [
+        "plugin-contract",
+        "feature-catalog",
+        "feature-state",
+        "plugin-catalog",
+        "plugin-manage",
+        "plugin-add-remove",
+        "plugin-package-names",
+        "plugin-surfaces",
+        "catalog-layout-config"
+      ],
+      "at": "2026-10-22T20:19:49.939Z",
+      "reason": "No diff is available, so these files are treated as new. They add the behaviour the spec describes for plugin management (list, enable, disable, add, remove, with raw-config edits and npm package-name validation), the built-in plugin catalog, the YAML feature catalog with schema validation and bare-list parsing, and the feature-state model and plugin interfaces. I found no behaviour in the visible code that the spec does not cover. Both plugin-manage.ts and feature-state.ts are cut off, so that is not certain."
+    },
+    "src/plugins/feature-catalog/catalog.ts@96be830c56882e97b6b0b1247dadc4292386d2eba167ca6ce8e84be2d15a1b4d": {
+      "affectedClaims": [
+        "plugin-contract",
+        "feature-catalog",
+        "feature-state",
+        "plugin-catalog",
+        "plugin-manage",
+        "plugin-add-remove",
+        "plugin-package-names",
+        "plugin-surfaces",
+        "catalog-layout-config"
+      ],
+      "at": "2026-10-22T20:19:49.939Z",
+      "reason": "No diff is available, so these files are treated as new. They add the behaviour the spec describes for plugin management (list, enable, disable, add, remove, with raw-config edits and npm package-name validation), the built-in plugin catalog, the YAML feature catalog with schema validation and bare-list parsing, and the feature-state model and plugin interfaces. I found no behaviour in the visible code that the spec does not cover. Both plugin-manage.ts and feature-state.ts are cut off, so that is not certain."
+    },
+    "src/plugins/feature-catalog/feature-state.ts@df648dcd4a5911f0241d1e3bef9014c0829b8ea0232890a167f9caee249f2991": {
+      "affectedClaims": [
+        "plugin-contract",
+        "feature-catalog",
+        "feature-state",
+        "plugin-catalog",
+        "plugin-manage",
+        "plugin-add-remove",
+        "plugin-package-names",
+        "plugin-surfaces",
+        "catalog-layout-config"
+      ],
+      "at": "2026-10-22T20:19:49.939Z",
+      "reason": "No diff is available, so these files are treated as new. They add the behaviour the spec describes for plugin management (list, enable, disable, add, remove, with raw-config edits and npm package-name validation), the built-in plugin catalog, the YAML feature catalog with schema validation and bare-list parsing, and the feature-state model and plugin interfaces. I found no behaviour in the visible code that the spec does not cover. Both plugin-manage.ts and feature-state.ts are cut off, so that is not certain."
+    },
+    "src/plugins/types.ts@1e22d5e675b417905820141571e02ef455eaae2e5ed1701bcfd03a8a719324fe": {
+      "affectedClaims": [
+        "plugin-contract",
+        "feature-catalog",
+        "feature-state",
+        "plugin-catalog",
+        "plugin-manage",
+        "plugin-add-remove",
+        "plugin-package-names",
+        "plugin-surfaces",
+        "catalog-layout-config"
+      ],
+      "at": "2026-10-22T20:19:49.939Z",
+      "reason": "No diff is available, so these files are treated as new. They add the behaviour the spec describes for plugin management (list, enable, disable, add, remove, with raw-config edits and npm package-name validation), the built-in plugin catalog, the YAML feature catalog with schema validation and bare-list parsing, and the feature-state model and plugin interfaces. I found no behaviour in the visible code that the spec does not cover. Both plugin-manage.ts and feature-state.ts are cut off, so that is not certain."
     }
   },
   "capabilities/platform-foundation": {
@@ -624,6 +1296,31 @@
       ],
       "at": "2026-10-15T19:10:12.784Z",
       "reason": "The change introduces several behaviours described by requirements: (1) `baseUrl` in config for openai/litellm providers affects llm-provider-layer (config-driven endpoint override instead of only env vars); (2) `runWithLlmScope` with per-scope spend, budget, config and user directly implements llm-budget-cap's server mode isolation; (3) `UsageEvent` and `onUsage` callback implement llm-budget-cap's usage reporting to scope callback; (4) `scopeCallOptions` sending user and tags to the provider implements llm-budget-cap's requirement that a scope's user and labels are sent to the provider; (5) plugins now accepting `{name, package}` objects extends config-apps-and-defaults/plugin settings; (6) the new `server` config block (ServerConfig) and its schema are new user-visible behaviour not covered by any requirement."
+    },
+    "src/core/config.ts@1218750f256681e6235cc8fbf2d8a054e2eb465e2c71d8d7045e684863a711a1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:55.343Z",
+      "reason": "No diff is available for any of the five files; each is listed as new or committed earlier, and only unchanged file content is shown. The visible code matches the requirements already described (config schema, LLM adapter with budget and replay, redactor masks, generated-state ignore block, core types), so no added, altered or removed behaviour can be identified. Confidence is low because the actual change is not visible."
+    },
+    "src/core/llm.ts@d6221b1ef7653fd9931ae46812dae0922fc756412e87ee6adfa0a4d807e1d904": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:55.343Z",
+      "reason": "No diff is available for any of the five files; each is listed as new or committed earlier, and only unchanged file content is shown. The visible code matches the requirements already described (config schema, LLM adapter with budget and replay, redactor masks, generated-state ignore block, core types), so no added, altered or removed behaviour can be identified. Confidence is low because the actual change is not visible."
+    },
+    "src/core/redact.ts@df6eddc6833477b7cb58368546a80f1bcbb3ae05d7752e5bef63f426a0cc427d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:55.343Z",
+      "reason": "No diff is available for any of the five files; each is listed as new or committed earlier, and only unchanged file content is shown. The visible code matches the requirements already described (config schema, LLM adapter with budget and replay, redactor masks, generated-state ignore block, core types), so no added, altered or removed behaviour can be identified. Confidence is low because the actual change is not visible."
+    },
+    "src/core/state-ignore.ts@9c14c649ec9ba712843428cc5a75e5fc6aec8770452d219139eccd1a95f6d599": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:55.343Z",
+      "reason": "No diff is available for any of the five files; each is listed as new or committed earlier, and only unchanged file content is shown. The visible code matches the requirements already described (config schema, LLM adapter with budget and replay, redactor masks, generated-state ignore block, core types), so no added, altered or removed behaviour can be identified. Confidence is low because the actual change is not visible."
+    },
+    "src/core/types.ts@300fcaae7777db77df801a95d2e1a5e049f32686017590b4e8f3facc52ebe98f": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:19:55.343Z",
+      "reason": "No diff is available for any of the five files; each is listed as new or committed earlier, and only unchanged file content is shown. The visible code matches the requirements already described (config schema, LLM adapter with budget and replay, redactor masks, generated-state ignore block, core types), so no added, altered or removed behaviour can be identified. Confidence is low because the actual change is not visible."
     }
   },
   "capabilities/requirement-history": {
@@ -631,6 +1328,411 @@
       "affectedClaims": [],
       "at": "2026-10-15T19:10:18.809Z",
       "reason": "This change adds a new history entry file at specs/history/2026-10-15-local-first-specguard-with-an-optional-t.md. The file itself is a history entry (kind: prompt+plan) conforming to the history-entry-format requirement. Adding a history entry is exactly what the system is designed to hold — it is not a code change that alters any behaviour described in the requirements. The content describes a planning session about team-server capabilities, and the affects list references 'team-server'. No requirement logic is modified; this is purely additive data that the system is built to store and serve."
+    },
+    "src/cli/commands/history.ts@c34bd4570908ff7a7b93453d7a1b177d6dc6426498eca42d5906ab4cad063faa": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-15-catalog-exclude.md@95a4ba17da9cb429db28ebfbef421139f35705f27b77f9e8e493b361ab0df8af": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co.md@b70af530482fc8a1d42fad80e3d74d7dd9c14501c1920335d1ab4b44206713a9": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv.md@d2975b063616a3e8d0ef9267538e9c3aab8c553ec9b7bde7c18ca1ae2b0e9b2e": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-0-3-phase-2-plugin-management.md@94aaacae16ce59a4251a4113d1c97199294bc4119bb7d48fb2ddceaf864cb2c1": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-0-3-phase-3-test-layers-and-ci.md@e9cc3478f250ee52260c2e25f09fc36e3bd62d1f44aa03d2c7e7e2cfada668fc": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer.md@07e962227e49accc519c56d02e1b04fa4e270eaa2110e68ff9570395c6edc0b6": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-extension-manual-initialize-workspace-co.md@ac812ca68ab9092d661d80a2c5a90512a500be74d815270702bfe26d2225b4b4": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-extension-runs-the-cli-under-the-host-ex.md@43cfb044ab757ef968a298bcd128bc863e7801cea5915fb03d3f954e650509bb": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-header-role-fix-and-spec-level-security.md@22d9842b630fe5c41f6258609fd8b994e3f3abfe5d82bc4788108fa4a51d2710": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-intent-catch-up-for-the-2026-10-19-chang.md@8c1b2d76df40b03863f201c7db70abf959384564f927382aef1488fe916bb6cd": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-activity-log-may-capture-prompt.md@02af9425ea5020dce5c64234cc7f36e7e96fb542148efdf6a9739479cc186e14": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-credentials-embedded-in-importe.md@b7911acb1b1e88ebd42d9d8b63a6d0e8869a1421b03d50c551b63c4e9586e7ae": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-evidence-path-traversal-not-con.md@4dcd76dcc44612c2a4ad9abdf2614f76629ac1491a463d58fa25a5e2460779e7": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-evidence-screenshots-containing.md@af0be6ef600e8a7dafef079a0b170eb612e9aea9a71a14eaa4a290672d13b21a": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-hardening-from-audit-sast-and-p.md@f60f0c26ce3339c8f367e8e492a0fed704a05bc915dd5fda4cdb7961251f67bb": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-hook-reads-untrusted-stdin-json.md@c28f5ec74dd31d0c7d2b3b252780f561009d3de9327b66a5a2fbf30c554794c8": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-inbox-size-cap-is-unspecified-l.md@18f965d0ca32c1367a1f5569e3e078629a50a3fcbb82fc4301a105fbb077cbae": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-init-history-hooks-writes-to-pe.md@3785bfe75cc736cf88ecf8aab372ac97e9cbe11beb3e15780e2b468533693414": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-mcp-commit-tool-has-no-requirem.md@d49eca7e17677cb0e48cc9d9e9c53e748d541a1d206345b31ef1bb296a096447": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-mcp-server-has-no-rate-limit-or.md@d684b232fcc6cf3967d493b3e47d010f7dbeaa51acd95f2be1ba270fb4deda63": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-access-control-on-inbox-file.md@c9170ff54fb9aaab67a2e7bca539e20fc756b4e80e08cd95028a5b4dea9fbb62": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-access-control-requirement-o.md@d2bd939ff73fe32557785ca9bc5a76f37ff01c674a3a5a67a998119d66129e1a": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-authorization-requirement-fo.md@87c4141a974939cf1b80ff5c4b859bcea35b987cb7ebfc99ffcfe6ebca7c939b": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-data-classification-requirem.md@f269e4241e7c9def5cca84fbbbe1c86d5881bd733b1299614ab766e8e76a6e71": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-on-api-endpoints.md@f81448ad271d615d6e8845c9456cde3c90fa1df1e687d12dddccf98cbf9586e8": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-on-history-add-or.md@751b119bcef39f0a5e470c71df6fc835bb763e809da06c175179b3661ffac703": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-or-budget-cap-on-2.md@30f28fcef57c9e3cfb07f06d757f849d26131f24d0da1ca31095a774e11b3edf": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-or-budget-cap-on.md@5d56e073b4232f05779744a44cc6c69851d84ad89c83e611de986e6e14d6d71a": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-or-resource-limit.md@dda35dd4ebd451f9f7f34e0de2910c08199efb30255d07d34353db726ca497a0": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-rate-limit-or-throttle-on-re.md@1913b34031be5343e4193ec48e7af3f9404c3b30e9d28af6668990d75e30165c": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-requirement-bounding-path-tr.md@640d3e366faab80f27099cd9353f7b596f02bbd9c3c45ea0201285853bb7ea56": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-requirement-classifying-what.md@937513613f4429d321ee5ee403d55304a41d5ec827b60ce955197d3225c8c0cf": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-no-requirement-governs-who-may.md@4d5b3b169c66dcf9fcc03e94bf7b5966844beb59542bac46bf2c580f0f0e372f": {
+      "affectedClaims": [
+        "hook-input-bounded",
+        "history-inbox-capture",
+        "history-plan-capture",
+        "history-hooks-silent"
+      ],
+      "at": "2026-10-22T20:20:06.497Z",
+      "reason": "No diff is shown, but history.ts contains the stdin cap (4 MB, larger input dropped whole), the hook entry points that read stdin, print nothing and always exit 0, and the history add/log commands. These are the behaviours covered by hook-input-bounded, history-inbox-capture, history-plan-capture and history-hooks-silent. The code matches those requirements as written, so the change affects them but does not contradict them. The new history entries only record intent and do not change behaviour."
+    },
+    "specs/history/2026-10-22-security-npm-plugin-loader-lacks-package.md@a8a11abbdfae2e6907cfcac8216d1fbedfb3e78c8c57cc9a21e8cf0ddf51ea96": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-plugin-and-hook-modules-are-loa.md@368f5fec5b5d7fe12ee6c03d092eaabbe74d7c59d419479f33c184c95429d75c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-prompt-injection-via-page-conte.md@1f155b26c8967d89ccf9438fb6b62053db132293f6f4c61fca332c76db80f4d6": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-prompt-injection-via-spec-conte.md@7f829e0965bfb442312e275675a0662919eab06ef637550fa09d772edbd40e4d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-redaction-spec-references-a-sha.md@0f5966df96461565a2f10eef35fcc972278d3016b37ec064fd14d88c6a6b7ce4": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-replay-recordings-containing-se.md@81fed0e1852356bd032f8d05609bdb3769649ca87ddd04317c330f8394a4f122": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-shared-env-file-containing-secr.md@84dd33c5b9ff79e69e1b34a46f392e5dfdd53c080ed394f0308803aeabf1a90f": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-spec-review-findings-containing.md@44102fee63967d65a16d7211569ce304c807dc5016132733323f7dd94720c2cb": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-ssrf-via-import-url-fetching-is.md@f1545ddcdfc688cb85fae7b9c08cc42621d50b5ff6c82bb6f910a7b0406efb1c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "specs/history/2026-10-22-security-vuln-ignore-json-suppression-fi.md@f6d6233b2649e6604c5bc32dbfed90b690f10e71c290a0a61af27514aa243d54": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "src/core/intent-gap.ts@7ce61d3ea3371b998d2321e81254d56d331f12ff3f2dd9149a8f1cdccc125c59": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "src/core/redact.ts@df6eddc6833477b7cb58368546a80f1bcbb3ae05d7752e5bef63f426a0cc427d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
+    },
+    "src/pipelines/history.ts@b0c98b66e078621212e430e655a982592621be686acbbd1fea4e5a499fd75593": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:14.195Z",
+      "reason": "The change is mostly new history entries (data files under specs/history/, which are not specs) plus source files shown without diffs. The entries record decisions about other capabilities. The only one touching requirement-history concerns the redactor's scope and fail-closed posture. Its note says this is already defined elsewhere, and the visible code (history.ts, redact.ts, intent-gap.ts) is consistent with history-redaction, history-check-gap, and hook-input-bounded. No visible code alters, adds or removes behaviour that the requirements describe."
     }
   },
   "capabilities/security-and-remediation": {
@@ -711,6 +1813,86 @@
       ],
       "at": "2026-10-15T19:10:35.487Z",
       "reason": "The change introduces plugin detectors as a new first-class detection source ('plugin' added to DETECTORS enum, plugin findings emitted and stored, plugin-sourced items skipped by security fix with a new message), adds a 'unit' field to plan items (surfaced in plan show output and stored in scan results), adds 'source' field to FindingRef, adds optimistic-concurrency conflict detection (expectedVersion/itemVersion) to set-status, and moves plan operations to a store interface with serialised concurrent updates. These affect: (1) plan-transitions — the new expectedVersion/conflict mechanism is new user-visible behaviour the requirement does not cover; (2) plan-lifecycle — the store interface and serialised updates are required by plan-transitions; (3) remediation-plan — the 'unit' field on PlanItem and 'source' field on FindingRef are schema changes; the 'unit' field was already mentioned in the spec for workspace manifests so that is covered; (4) security-fix-statuses — plugin-sourced items are now explicitly skipped rather than attempted, which is new behaviour not covered; (5) unified-scan and plan-carry-over — plugin detectors affect the 'can close' logic and which detectors are tracked as completed; (6) spec-review display now shows [unit] in plan show output. The conflict/version mechanism and plugin detector lifecycle are unspecified."
+    },
+    "src/cli/commands/remediate.ts@6289dd02f172440ae17c00bd217dae3bcafdc680377330c3657681b090a12402": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/cli/commands/security.ts@fc67b434d3968da80f6bb0a3828fd48b2a6558f861aaaac94be05466897a6de4": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/pipelines/remediate/index.ts@7ba0a2f946147912bdb66c56625be4fffe9455919b340292b811b674e0a30da5": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/core/auto-merge-policy.ts@a7dba6bba62434b3a3fdd46080174d85034b78709fb9544de1f07085fb166ea2": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/core/behavior-verdict.ts@efcee140f84eeee1fc510edb4649da518d27d23d82b2f32e66c75b9a212141ec": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/core/git-scope.ts@fadd088bd05cbf8907fb323a5a48db81a9d01eb629e9790f000adab1c11fcc80": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/core/sarif.ts@164a480afb87bc41acbae5d4b6b769f8262a4fe48a2c3bac83f889bddc79de61": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/pipelines/remediate/app-fix.ts@8d0ba22f4325eb8372a64a645b795614c055328d90d5f736dd57c5243588e7b7": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/pipelines/remediate/detect.ts@b4fc3fe4e72f41b583b01b82eb42346c3d7454262b3e4e4cccfaa4e12a17ccf9": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/pipelines/remediate/ledger.ts@20714d531bdaaa39b9366dde87d0b189e53d7216dc0d6d0da1eac6bc91f8f14d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:18.965Z",
+      "reason": "No diff is available for any file; each is shown as new or committed earlier, so no change in behaviour can be identified. The visible code (remediate CLI with --from failing, security scan --sarif, auto-merge policy, SARIF export, app-fix, detection, ledger layering) matches existing requirements, and no new user-visible behaviour appears beyond what they describe."
+    },
+    "src/pipelines/remediate/report.ts@b883c0597f951d6a233f7e49b0acb2bb84daa5e62f86cff6064124248acc5730": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
+    },
+    "src/pipelines/remediate/ship.ts@3b2cf5edea7688cc92c47e15f89bd081d6511ecce87fb2ec6d93bc00c19ac445": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
+    },
+    "src/pipelines/remediate/steps.ts@904eeac92a17dfa5cfaa846644edb8b92c3ccdc20c401b3653aa3fc5f36b162d": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
+    },
+    "src/pipelines/remediate/types.ts@3924375853af7dcdf3dbdf4ac9a7d0e7e5af0a9f47cf030c38e2f9129036c4d3": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
+    },
+    "src/pipelines/remediate/verify.ts@7d522f394caf7e4fb98ebcae15eb44a5dbdc7f26c7cb6e9a942ec1aa5d69860c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
+    },
+    "src/pipelines/security.ts@5e8c45aaffd7b898dc7353c1f65102494e8006e540a5c9a4eb74a1d322faa17f": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:24.409Z",
+      "reason": "No diff is available; the files are new or committed earlier, so only their current contents can be read. Those contents match the existing requirements: the PR body rendering and the draft-versus-normal PR rule, `armAutoMerge` checking required status checks, verify running selected tests then the full suite with no heal, and the dependency and code change types. Nothing visible alters, adds or removes behaviour the requirements describe, but the displayed content is truncated."
     }
   },
   "capabilities/spec-authoring": {
@@ -737,6 +1919,71 @@
       ],
       "at": "2026-10-15T19:10:46.904Z",
       "reason": "The import.ts change adds support for the --capability and --yes flags to the import command, routing to runImportIntoCapability. This directly implements the behaviour described in spec-index-refreshes-map: 'import <file> --capability <id> adds only the requirements a document states that the capability does not already cover (a dry run unless --yes), appends them with unique claim anchors, and records a history entry for what it changed'. The import-capability.ts pipeline file implements this pipeline including appendRequirements, the LLM call, dry-run behaviour, and history writing. The spec-synth.ts change adds a prompt version stamp to the cache hash, which is an internal caching refinement not described by any requirement and constitutes new unspecified behaviour (cache invalidation when the prompt version or model changes)."
+    },
+    "src/cli/commands/import.ts@5d4c62782a57a0cbfa79e0b310bba020b49a7301fa85233823d63364ad73aa1e": {
+      "affectedClaims": [
+        "import-ssrf",
+        "import-project-files",
+        "import-documents",
+        "spec-index-refreshes-map",
+        "frontmatter-v2-metadata",
+        "frontmatter-errors",
+        "sections-and-scenarios"
+      ],
+      "at": "2026-10-22T20:20:34.613Z",
+      "reason": "No diff is available, so the whole files were read. They implement behaviour the requirements already describe: SSRF-safe URL fetching with a public-address check, pinned connections, redirect and size limits and `--allow-private`; project-restricted file sources for MCP imports; document import; `import --capability` with dry-run by default; and YAML frontmatter parsing with file-naming errors. The change touches these requirements but appears consistent with them. Two small points are not covered: the 48,000-character cap on source text sent to the model, and the `noHistory` option on capability import. `--single` is in the requirement but is not declared in the CLI options or passed through in the code shown."
+    },
+    "src/core/safe-fetch.ts@f236c44b3152d897581bf024368cbdb4a6bc0976a61f67853683edcdd56da909": {
+      "affectedClaims": [
+        "import-ssrf",
+        "import-project-files",
+        "import-documents",
+        "spec-index-refreshes-map",
+        "frontmatter-v2-metadata",
+        "frontmatter-errors",
+        "sections-and-scenarios"
+      ],
+      "at": "2026-10-22T20:20:34.613Z",
+      "reason": "No diff is available, so the whole files were read. They implement behaviour the requirements already describe: SSRF-safe URL fetching with a public-address check, pinned connections, redirect and size limits and `--allow-private`; project-restricted file sources for MCP imports; document import; `import --capability` with dry-run by default; and YAML frontmatter parsing with file-naming errors. The change touches these requirements but appears consistent with them. Two small points are not covered: the 48,000-character cap on source text sent to the model, and the `noHistory` option on capability import. `--single` is in the requirement but is not declared in the CLI options or passed through in the code shown."
+    },
+    "src/core/spec-parser.ts@9b933a880cb31628c270d5a5a3ef9c66c558bc297673201b61536769e8ca7874": {
+      "affectedClaims": [
+        "import-ssrf",
+        "import-project-files",
+        "import-documents",
+        "spec-index-refreshes-map",
+        "frontmatter-v2-metadata",
+        "frontmatter-errors",
+        "sections-and-scenarios"
+      ],
+      "at": "2026-10-22T20:20:34.613Z",
+      "reason": "No diff is available, so the whole files were read. They implement behaviour the requirements already describe: SSRF-safe URL fetching with a public-address check, pinned connections, redirect and size limits and `--allow-private`; project-restricted file sources for MCP imports; document import; `import --capability` with dry-run by default; and YAML frontmatter parsing with file-naming errors. The change touches these requirements but appears consistent with them. Two small points are not covered: the 48,000-character cap on source text sent to the model, and the `noHistory` option on capability import. `--single` is in the requirement but is not declared in the CLI options or passed through in the code shown."
+    },
+    "src/pipelines/import-capability.ts@c34332df4294c3a8ee0bf8cbf919d1c3d1233def5d30fb06e3dd2dd20d33d496": {
+      "affectedClaims": [
+        "import-ssrf",
+        "import-project-files",
+        "import-documents",
+        "spec-index-refreshes-map",
+        "frontmatter-v2-metadata",
+        "frontmatter-errors",
+        "sections-and-scenarios"
+      ],
+      "at": "2026-10-22T20:20:34.613Z",
+      "reason": "No diff is available, so the whole files were read. They implement behaviour the requirements already describe: SSRF-safe URL fetching with a public-address check, pinned connections, redirect and size limits and `--allow-private`; project-restricted file sources for MCP imports; document import; `import --capability` with dry-run by default; and YAML frontmatter parsing with file-naming errors. The change touches these requirements but appears consistent with them. Two small points are not covered: the 48,000-character cap on source text sent to the model, and the `noHistory` option on capability import. `--single` is in the requirement but is not declared in the CLI options or passed through in the code shown."
+    },
+    "src/pipelines/import.ts@eea1a7b7fdd253b0ec32c913479d5fbcf59d54b7214b13ff089ce14c516ba68d": {
+      "affectedClaims": [
+        "import-ssrf",
+        "import-project-files",
+        "import-documents",
+        "spec-index-refreshes-map",
+        "frontmatter-v2-metadata",
+        "frontmatter-errors",
+        "sections-and-scenarios"
+      ],
+      "at": "2026-10-22T20:20:34.613Z",
+      "reason": "No diff is available, so the whole files were read. They implement behaviour the requirements already describe: SSRF-safe URL fetching with a public-address check, pinned connections, redirect and size limits and `--allow-private`; project-restricted file sources for MCP imports; document import; `import --capability` with dry-run by default; and YAML frontmatter parsing with file-naming errors. The change touches these requirements but appears consistent with them. Two small points are not covered: the 48,000-character cap on source text sent to the model, and the `noHistory` option on capability import. `--single` is in the requirement but is not declared in the CLI options or passed through in the code shown."
     }
   },
   "capabilities/traceability-and-drift": {
@@ -759,6 +2006,42 @@
       "affectedClaims": [],
       "at": "2026-10-15T19:10:54.237Z",
       "reason": "The changes are: (1) adding a `team` flag to the check command that appends team server lines to the output – this is new behaviour not described in any requirement; (2) exporting a HASH_VERSION constant from claim-hash.ts – internal/informational, no requirement covers versioned hashing rules; (3) removing a stale comment from gap-analysis.ts – comment-only change; (4) passing an extra `rootDir` argument to `loadPlugins` in status.ts – likely a bug-fix/refactor with no visible behaviour change described in requirements. None of these touch behaviour that the listed requirements describe, except the `team` flag which introduces entirely new user-visible behaviour not covered by any requirement."
+    },
+    "src/cli/commands/check.ts@d9bfc1a806ce0eef4687f76a11a93542821dab4ddc1dd5f82a6c05324f167871": {
+      "affectedClaims": [
+        "planned-unified-check",
+        "check-exit-codes",
+        "planned-capability-drift"
+      ],
+      "at": "2026-10-22T20:20:53.310Z",
+      "reason": "The change implements the unified `check` command and the trace model written to `.specguard/trace.json`, which touches planned-unified-check and check-exit-codes. The drift and align views delegate to the capability-drift pipeline, so planned-capability-drift is also touched. The change adds user-visible behaviour with no requirement: intent-gap and stale-docs reporting, `--team`, `--workspace` and `--refresh`, per-layer evidence in the trace, workspace unit rollups, and a fallback to file-based status for repos not yet on v2 specs. There is also a likely bug: the non-v2 fallback calls outputResult but does not return, so `runCheck` still runs afterwards."
+    },
+    "src/core/intent-gap.ts@7ce61d3ea3371b998d2321e81254d56d331f12ff3f2dd9149a8f1cdccc125c59": {
+      "affectedClaims": [
+        "planned-unified-check",
+        "check-exit-codes",
+        "planned-capability-drift"
+      ],
+      "at": "2026-10-22T20:20:53.310Z",
+      "reason": "The change implements the unified `check` command and the trace model written to `.specguard/trace.json`, which touches planned-unified-check and check-exit-codes. The drift and align views delegate to the capability-drift pipeline, so planned-capability-drift is also touched. The change adds user-visible behaviour with no requirement: intent-gap and stale-docs reporting, `--team`, `--workspace` and `--refresh`, per-layer evidence in the trace, workspace unit rollups, and a fallback to file-based status for repos not yet on v2 specs. There is also a likely bug: the non-v2 fallback calls outputResult but does not return, so `runCheck` still runs afterwards."
+    },
+    "src/core/trace.ts@171c85977236d1a9f3b3bff537d09edaedcf9299dbac69d1a03dfa4d4affc7b5": {
+      "affectedClaims": [
+        "planned-unified-check",
+        "check-exit-codes",
+        "planned-capability-drift"
+      ],
+      "at": "2026-10-22T20:20:53.310Z",
+      "reason": "The change implements the unified `check` command and the trace model written to `.specguard/trace.json`, which touches planned-unified-check and check-exit-codes. The drift and align views delegate to the capability-drift pipeline, so planned-capability-drift is also touched. The change adds user-visible behaviour with no requirement: intent-gap and stale-docs reporting, `--team`, `--workspace` and `--refresh`, per-layer evidence in the trace, workspace unit rollups, and a fallback to file-based status for repos not yet on v2 specs. There is also a likely bug: the non-v2 fallback calls outputResult but does not return, so `runCheck` still runs afterwards."
+    },
+    "src/pipelines/check.ts@343650e16802cd4b2c28c0e87474ca91530bede1e636374989bdb93acc3ddd69": {
+      "affectedClaims": [
+        "planned-unified-check",
+        "check-exit-codes",
+        "planned-capability-drift"
+      ],
+      "at": "2026-10-22T20:20:53.310Z",
+      "reason": "The change implements the unified `check` command and the trace model written to `.specguard/trace.json`, which touches planned-unified-check and check-exit-codes. The drift and align views delegate to the capability-drift pipeline, so planned-capability-drift is also touched. The change adds user-visible behaviour with no requirement: intent-gap and stale-docs reporting, `--team`, `--workspace` and `--refresh`, per-layer evidence in the trace, workspace unit rollups, and a fallback to file-based status for repos not yet on v2 specs. There is also a likely bug: the non-v2 fallback calls outputResult but does not return, so `runCheck` still runs afterwards."
     }
   },
   "capabilities/workspaces": {
@@ -771,7 +2054,133 @@
       "affectedClaims": [],
       "at": "2026-10-15T19:11:00.284Z",
       "reason": "The changes are internal refactors: (1) src/core/env.ts implements the shared-env requirement and is a new file with no behavioural diff to compare against; (2) src/pipelines/contracts.ts changes how plugins are deduplicated (from Set+string names to Map+JSON.stringify for PluginEntry objects) and passes manifest.rootDir to loadPlugins — these are implementation-level fixes/improvements to how plugins are loaded, not changes to the user-visible behaviour described in the requirements. The contract-sources requirement says edges are built from structured blocks, plugin importers, and optionally LLM; this refactor does not change that model. No requirement-described behaviour is altered, added, or removed."
+    },
+    "src/cli/commands/contracts.ts@84f21b596b4d06657379913751fdda8c0e352c08b081fb4e086e7e7a175f757c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/cli/commands/impact.ts@0f707a5af5e14b18519eacf32aa810e1c0981de4571ab5460397c8c29948bcb7": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/cli/commands/workspace-check.ts@b604daba6ac3ecdb55462640eb0cdbb5491233e239edeac4f3871fbd82f99c7f": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/cli/commands/workspace.ts@e5c408eb465fd3d5de355c394d63f2cd0d9e2cd1d2f4a0bd86705e710e09983f": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/core/env.ts@891cf1adeca754193720e46c46becc0b37f14c8549382635b6f3ee7b70d44c00": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/core/workspace-rollup.ts@615a735a7f3c4b5a03a3cafe86b1318c15c8996699b1f4074934b344e7cf65d4": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/core/workspace-sync.ts@2715acc36c6659db9850137258c699c5745ef0f4a290fea4f30d093227ae1bf1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/core/workspace.ts@9fc86537efe386f7877b0aa0668c535ad888234836b3ac2b49260ed3ae891468": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/pipelines/contracts.ts@f487f5159e0763791876f40400e0d231597dbf4e425ffc37434ebff203369b82": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
+    },
+    "src/pipelines/workspace-publish.ts@3d4a25a50b34c99765df9884d0265e11ac74538a4df3d4dfb4317ec821cba30b": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:58.820Z",
+      "reason": "No diff is available, so I compared the supplied file contents with the requirements. The code matches them: env precedence (real env, then repo, then workspace) and the chmod 600 warning, the `contracts` options and LLM cap default of 50, publish project naming (manifest map, then repo config, then folder), rollup states and ignore handling, sync and ignore semantics, and `--workspace` resolution. No behaviour appears to be changed, added or removed beyond what the requirements describe."
     }
   },
-  "capabilities/team-server": {}
+  "capabilities/team-server": {
+    "extension/src/api/adapters.test.ts@6a376c97d2450e483f7f6a6832b7e687987bcb304949b0c2a7d074dfdc2fb09c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "extension/src/api/adapters.ts@aa76b108a879bdb58a430abfac876d2631584eaba2276c125a863bede8d53719": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "extension/src/api/local-server.ts@66b4e734497baec21b53b1f7e7a29f20e242c9e3bd4d47268bae727a6faf6089": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "extension/src/api/types.ts@a4a4a2e82dcd6a7b2269c34d652bfaa1b03a0ae95403db12b4e96711d359bfbf": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/cli/commands/server.ts@3c423af7b14cecb758ec2373904d2dea6448199d4912fee66af67325d0765805": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/client/index.ts@9bfb5ed89b5009ab821df35c711b91a4dab309b799464e758fc82eabd5f66729": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/auth.ts@33f214dc897e4fa0a0e98004b7eadf74afcda23b88251341926834d7d0a8c7c1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/backend.ts@1e94d5be9c9dfb2d1f4c30823dbb72b50917d422ff99f2006bebf52ce2ee72db": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/config.ts@f75c6a47c66f8ece4efb91a6de300a2139dc10d75cbdc8e0beba968254375fd3": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/file-backend.ts@34bcbd0830d84cab65389d5e82d854cebb99d61fe6ca8966b2752785a93917a1": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/pg-backend.ts@8ebcc7c055237430c4d6d364f96e67caa5313581aa5675a97bbef1fcbdf712a8": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/rate-limit.ts@3e10e86aba007486893a75d10ab68c717600729d1bc914e4f1d713dc1909ad15": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:39.800Z",
+      "reason": "The only visible diff changes how the VS Code extension launches its local `serve` child process. It now takes the node command and environment from `nodeRuntime()` instead of `process.execPath`. This is an internal spawn detail. The requirements only say the extension uses the server when it answers and local files when it does not, and nothing in this diff changes that, the API version handshake or any write rule. The other listed files have no diff, so nothing in them counts as a change."
+    },
+    "src/server/central/registry.ts@5484ea203de3af2f44362d094bcf1cc1aa29865342271599aab4c9a8ea7816e9": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:44.606Z",
+      "reason": "No diff is available for any of the three files; they are shown as new or committed earlier. The visible content (snapshot materialization with a path-escape guard, plan merge keeping server-set statuses and reopening fixed items, gzip body handling with size limits, public paths, local registry that is not writable) matches what the requirements already describe, so there is no evidence of altered behaviour. The gzip request body support and the 413/415/400 responses are not named in a requirement, but they cannot be confirmed as new, and they are covered loosely by the snapshot size limit."
+    },
+    "src/server/central/server.ts@68dc89bb8b25a3f8b35ff4378863337612c2ddaef3fecdeb2e0d70a8712cbe5c": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:44.606Z",
+      "reason": "No diff is available for any of the three files; they are shown as new or committed earlier. The visible content (snapshot materialization with a path-escape guard, plan merge keeping server-set statuses and reopening fixed items, gzip body handling with size limits, public paths, local registry that is not writable) matches what the requirements already describe, so there is no evidence of altered behaviour. The gzip request body support and the 413/415/400 responses are not named in a requirement, but they cannot be confirmed as new, and they are covered loosely by the snapshot size limit."
+    },
+    "src/server/project.ts@f0701d079866007d7112fcb8eb19d4db8abf725f5950a06c0eb1e04b90b21baa": {
+      "affectedClaims": [],
+      "at": "2026-10-22T20:20:44.606Z",
+      "reason": "No diff is available for any of the three files; they are shown as new or committed earlier. The visible content (snapshot materialization with a path-escape guard, plan merge keeping server-set statuses and reopening fixed items, gzip body handling with size limits, public paths, local registry that is not writable) matches what the requirements already describe, so there is no evidence of altered behaviour. The gzip request body support and the 413/415/400 responses are not named in a requirement, but they cannot be confirmed as new, and they are covered loosely by the snapshot size limit."
+    }
+  }
 }

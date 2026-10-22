@@ -1,0 +1,1309 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SpecGuard",
+          "version": "0.2.0",
+          "informationUri": "https://github.com/jazzmind/specguard",
+          "rules": [
+            {
+              "id": "missing-authorization",
+              "name": "missingAuthorization",
+              "shortDescription": {
+                "text": "No access control or authentication requirement for MCP tools exposing workspace graph and drift data"
+              },
+              "properties": {
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "spec"
+                ]
+              }
+            },
+            {
+              "id": "unspecified-abuse-case",
+              "name": "unspecifiedAbuseCase",
+              "shortDescription": {
+                "text": "vuln-ignore.json suppression file has no integrity or authorization requirement"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security",
+                  "spec"
+                ]
+              }
+            },
+            {
+              "id": "missing-data-classification",
+              "name": "missingDataClassification",
+              "shortDescription": {
+                "text": "Redaction spec references a 'shared redactor' with no defined scope or failure mode"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security",
+                  "spec"
+                ]
+              }
+            },
+            {
+              "id": "missing-rate-limit",
+              "name": "missingRateLimit",
+              "shortDescription": {
+                "text": "No rate-limit or throttle on redaction hook execution"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security",
+                  "spec"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No access control or authentication requirement for MCP tools exposing workspace graph and drift data. Add a requirement specifying that MCP tool endpoints must authenticate callers (e.g., via a shared secret, token, or OS-level restriction) and that only principals with explicit workspace-read permission may invoke read tools; only principals with workspace-write permission may invoke commands that write files or trigger drift runs."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-05cfa7757d34"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/workspaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "workspaces",
+            "claims": []
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "npm plugin loader lacks package-name validation against path/URL injection. Add a requirement: at config-load time, each npm plugin entry's `package` value MUST match the npm package-name regex (`^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$`); any entry that does not match MUST be rejected as a configuration error with exit code 1 before any plugin code is imported, and the error message MUST name the offending entry."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-36d778e91e0c"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/integration-surfaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "integration-surfaces",
+            "claims": [
+              "capabilities/integration-surfaces#planned-plugin-extensions",
+              "capabilities/integration-surfaces#plugin-contract"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No requirement governs who may invoke validation or the MCP tool against arbitrary URLs. Add a requirement that (a) the MCP tool enforces caller authentication before accepting any validation request, and (b) a URL allowlist/denylist configuration controls which base URLs the agent is permitted to target, with production-like hostnames blocked by default unless explicitly whitelisted."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-82f1b3d37d83"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/agentic-verification.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "agentic-verification",
+            "claims": [
+              "capabilities/agentic-verification#validate-targets",
+              "capabilities/agentic-verification#guardrail-blocking"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No access control on inbox file containing redacted but sensitive prompt data. Add a requirement that `history inbox` creates `.specguard/history/inbox.jsonl` with owner-read/write-only permissions (mode 0600 on POSIX systems) and that `history add` / `history capture` create committed entry files with at most 0644. Document the expected umask or explicit chmod call."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-a1ed06b4c0db"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/requirement-history.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "requirement-history",
+            "claims": [
+              "capabilities/requirement-history#history-inbox-capture",
+              "capabilities/requirement-history#history-redaction"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No authentication or authorization requirement on `security plan set-status` CLI and plan lifecycle API. Add a requirement specifying that `security plan set-status` and any API endpoint that mutates plan state must authenticate the caller (e.g., via a configured token or OS-level permission check) and that unauthenticated or unauthorized mutation attempts are rejected with a non-zero exit code and a logged audit entry."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-aa788e09ece8"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/security-and-remediation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "security-and-remediation",
+            "claims": [
+              "capabilities/security-and-remediation#plan-lifecycle",
+              "capabilities/security-and-remediation#plan-transitions",
+              "capabilities/security-and-remediation#plan-carry-over"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No authentication or authorization requirement for external verdict ingest endpoint. Add a requirement that externally supplied verdict files must carry a verifiable signature or originate from an authenticated source, and that `proof ingest` rejects files whose provenance cannot be confirmed. At minimum require that CI-supplied files are written to a path only writable by the CI identity, and document the trust boundary explicitly."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-c8f4314a49a7"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/conformance-testing.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "conformance-testing",
+            "claims": [
+              "capabilities/conformance-testing#ingest-validation",
+              "capabilities/conformance-testing#shared-ingest-and-ledger-path",
+              "capabilities/conformance-testing#proof-reporting"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No authentication or access-control requirement for the HTTP API server. Add a requirement that requests to sensitive endpoints (at minimum /security/plans and /audit) require a locally-generated bearer token or equivalent secret presented at server startup, so other local processes cannot read security-sensitive data without authorization."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-ead84bb9cce7"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/documentation-api.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "documentation-api",
+            "claims": [
+              "capabilities/documentation-api#serve-readonly",
+              "capabilities/documentation-api#serve-host-guard",
+              "capabilities/documentation-api#audit-endpoints"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "Plugin and hook modules are loaded without integrity or path-restriction controls. Add a requirement that plugin and hook module paths must resolve to locations within the repository root (as exposed by config-validation), that relative paths are resolved relative to the config file, that absolute paths outside the repo root are an invalid-config error, and that no URL schemes are permitted."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-f217d9cb555d"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/platform-foundation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "critical",
+            "status": "open",
+            "capability": "platform-foundation",
+            "claims": [
+              "capabilities/platform-foundation#config-apps-and-defaults",
+              "capabilities/platform-foundation#secret-redaction"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "vuln-ignore.json suppression file has no integrity or authorization requirement. Add a requirement that modifications to `.specguard/vuln-ignore.json` are subject to the same review process as code changes (e.g., require PR review), that the scan logs all suppressed advisories with their suppression reason and expiry, that expired entries are treated as if absent and logged as warnings, and that entries without an expiry date are rejected."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-165e685d3754"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/security-and-remediation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "security-and-remediation",
+            "claims": [
+              "capabilities/security-and-remediation#unified-detection",
+              "capabilities/security-and-remediation#scan-only-and-secrets",
+              "capabilities/security-and-remediation#plan-carry-over"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Prompt-injection via spec content sent to LLM is not addressed. Add a requirement that spec content passed to the LLM is treated as untrusted user input: it must be placed in a delimited section of the prompt with explicit LLM instructions not to follow embedded instructions, and generated output must be validated to contain only the expected document structure before being cached or returned."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-17d48a7f5e00"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/documentation-api.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "documentation-api",
+            "claims": [
+              "capabilities/documentation-api#docs-strip-internal",
+              "capabilities/documentation-api#fast-tier-on-demand",
+              "capabilities/documentation-api#docs-endpoints"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No access-control requirement on MCP tool exposure of scan results and remediation actions. Add a requirement that MCP tool invocations are gated by an authentication mechanism (e.g., a shared secret or OAuth token configured in the environment) and that the MCP server rejects unauthenticated calls. Additionally require that MCP exposure is disabled by default and must be explicitly enabled in config."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-207d4f0e1f10"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/security-and-remediation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "security-and-remediation",
+            "claims": [
+              "capabilities/security-and-remediation#unified-scan",
+              "capabilities/security-and-remediation#spec-review",
+              "capabilities/security-and-remediation#plan-lifecycle"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Evidence path traversal not constrained by a normalisation requirement. Add a requirement that evidence paths are canonicalised (symlinks resolved, `..` collapsed) and then verified to lie within the repository root before being stored or read, and that ingest rejects any verdict whose evidence path fails this check."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-2dc44e983b5a"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/conformance-testing.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "conformance-testing",
+            "claims": [
+              "capabilities/conformance-testing#ledger-records-basis",
+              "capabilities/conformance-testing#ingest-validation"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "No rate-limit or call-frequency requirement on LLM-backed operations preventing cost and exfiltration abuse. Add a requirement specifying a maximum number of LLM calls per scan run, a maximum payload size per call, and a configurable opt-out (`--no-llm` is already a flag on `remediate` but not on `security scan` or `security`). Require that `--no-llm` is honoured on all LLM-touching commands and that the scan aborts rather than silently skipping the limit."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-3852f59a079e"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/security-and-remediation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "security-and-remediation",
+            "claims": [
+              "capabilities/security-and-remediation#owasp-test-stubs",
+              "capabilities/security-and-remediation#spec-review",
+              "capabilities/security-and-remediation#security-exit-and-report",
+              "capabilities/security-and-remediation#verify-after-patch"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Redaction spec references a 'shared redactor' with no defined scope or failure mode. Add a requirement that references or defines the redactor's pattern catalogue, specifies a fail-closed posture (if the redactor errors the entry is not written), and requires that `history add` and `history capture` surface a warning when redaction is skipped or degraded so operators know the risk."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-47c79894246f"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/requirement-history.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "requirement-history",
+            "claims": [
+              "capabilities/requirement-history#history-redaction",
+              "capabilities/requirement-history#history-inbox-capture",
+              "capabilities/requirement-history#history-plan-capture"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Hook reads untrusted stdin JSON but no input-size limit is specified, enabling resource exhaustion. Add a requirement that the hook enforces a maximum stdin read size (e.g., 8 MB) and discards the payload with a silent no-op if the limit is exceeded, logging the event to a debug log file rather than stderr/stdout."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-4c32a06fcc03"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/requirement-history.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "requirement-history",
+            "claims": [
+              "capabilities/requirement-history#history-inbox-capture",
+              "capabilities/requirement-history#history-hooks-silent"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "No rate-limit or resource-limit requirement for LLM extraction over spec text. Add requirements that (1) `--with-llm` prints a clear warning listing which specs will be sent before proceeding (with a confirmation prompt in interactive mode), (2) there is a configurable per-run request cap, (3) specs matching a configurable exclusion pattern are never sent, and (4) the LLM provider endpoint and data-retention policy must be declared in workspace configuration."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-4e788bdece5b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/workspaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "workspaces",
+            "claims": [
+              "capabilities/workspaces#contract-sources"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Spec-review findings containing source file content sent to LLM have no data-classification requirement. Add a data-classification requirement for spec files and source files transmitted to the LLM during spec review. At minimum, require that only the specific capability text relevant to a finding is included in the prompt, that no adjacent capability specs are included without explicit opt-in, and that a `--no-llm` flag suppresses spec review LLM calls with a warning."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-5bd46552329f"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/security-and-remediation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "security-and-remediation",
+            "claims": [
+              "capabilities/security-and-remediation#spec-review",
+              "capabilities/security-and-remediation#unified-scan"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "MCP commit tool has no requirement preventing staging of secrets or env files. Add an explicit requirement: the commit tool (both CLI and MCP) MUST never stage `.specguard/.env`, `.specguard/.env.*`, or any file matched by the managed git-ignore block, even if those paths fall inside a configured commit directory. A violation MUST be reported as an error and exit 1."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-5de8374cb838"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/integration-surfaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "integration-surfaces",
+            "claims": [
+              "capabilities/integration-surfaces#mcp-activity-and-limits",
+              "capabilities/integration-surfaces#git-helpers"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Activity log may capture prompt text containing secrets. Add a requirement: the activity-log schema MUST be defined (tool name, timestamp, duration, pass/fail/error, and a bounded summary of at most N characters of sanitised arguments); no raw argument values, file contents, or environment variable values MAY be written; the sanitiser MUST redact any token matching the pattern of known secret formats (e.g., matching `sk-`, `gh_`, `Bearer `)."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-615d6e58d184"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/integration-surfaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "integration-surfaces",
+            "claims": [
+              "capabilities/integration-surfaces#mcp-activity-and-limits"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No authorization requirement for `GET /api/v1/units` endpoint. Add a requirement that `GET /api/v1/units` enforces authentication (e.g., bearer token or local-only binding) and that the `serve` command documents its trust boundary and defaults to listening only on localhost unless explicitly configured otherwise."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-65a2a0d0f7b8"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/workspaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "workspaces",
+            "claims": [
+              "capabilities/workspaces#unit-aware-pipelines"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Budget cap is per-process only, enabling cost exhaustion across parallel CI runs. Add a requirement that the documentation (or a runtime warning) explicitly states the per-process scope of the budget cap, and consider adding an optional shared-budget file mechanism (e.g., an atomic counter in `.specguard/`) that multiple processes can read and update to enforce a cross-process cap."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-690777a2a99e"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/platform-foundation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "platform-foundation",
+            "claims": [
+              "capabilities/platform-foundation#llm-budget-cap",
+              "capabilities/platform-foundation#llm-usage-log"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "init --history-hooks writes to personal, uncommitted settings with no integrity check. Add a requirement: on each `init` or `scaffold` run, SpecGuard MUST verify that any previously written hook command matches the currently resolved runner; if it differs, it MUST print a diff and require `--update-hooks` to overwrite, identical to the behaviour specified in `agent-wiring-and-runner`. Additionally, the installed hook script MUST be restricted to the resolved absolute binary path, not a shell alias or PATH lookup."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-6b47af1e2c40"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/integration-surfaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "integration-surfaces",
+            "claims": [
+              "capabilities/integration-surfaces#planned-history-hooks",
+              "capabilities/integration-surfaces#agent-wiring-and-runner"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "No rate-limit or throttle on redaction hook execution. Add a requirement that the redaction hook is called with a per-invocation timeout (configurable, defaulting to a short value), that a hook timeout or exception causes the call to fail with an internal error rather than proceeding with unredacted text, and that the hook result is validated to confirm it is a string no longer than the input."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-6fe4eb4261aa"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/platform-foundation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "platform-foundation",
+            "claims": [
+              "capabilities/platform-foundation#secret-redaction"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "No data-classification requirement for diffs and spec excerpts sent to the LLM. Add a requirement that specguard must apply a mandatory redaction pass before any content is sent to the LLM, with a built-in default ruleset that suppresses credential patterns (API keys, passwords, tokens), and that unconfigured redaction must default to deny-send rather than allow-send."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-71d17db6f6d8"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/traceability-and-drift.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "traceability-and-drift",
+            "claims": [
+              "capabilities/traceability-and-drift#drift-hash-registry",
+              "capabilities/traceability-and-drift#align-prepass-first",
+              "capabilities/traceability-and-drift#drift-chunking"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "SSRF via `import` URL fetching is not mitigated by any requirement. Add a requirement that `import` resolves the target hostname before connecting and refuses to connect to loopback, link-local, or private IP ranges (RFC 1918/4193/3927); also require that any redirect target is subject to the same check before following it."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-78345daf4db3"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/spec-authoring.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "spec-authoring",
+            "claims": [
+              "capabilities/spec-authoring#import-documents"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Inbox size cap is unspecified, leaving denial-of-service and data-retention risks undefined. Specify the inbox cap as a concrete maximum (e.g., 10 MB or 1 000 entries), define the eviction policy (drop oldest entries by session_id+timestamp), and require that a dropped entry is silently discarded rather than causing the hook to fail, consistent with `history-hooks-silent`."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-78ad9bfb1048"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/requirement-history.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "requirement-history",
+            "claims": [
+              "capabilities/requirement-history#history-inbox-capture",
+              "capabilities/requirement-history#history-plan-capture"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "No rate limit on `history add` or MCP `history_add` calls from automated agents. Add a requirement capping the number of history entries that can be created per minute per caller identity (e.g., 10/min for the MCP tool, unlimited for interactive CLI use) and that the MCP tool returns a structured error when the limit is exceeded rather than silently dropping the entry."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-79d3992e5400"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/requirement-history.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "requirement-history",
+            "claims": [
+              "capabilities/requirement-history#history-mcp-tool",
+              "capabilities/requirement-history#history-add"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "No requirement classifying what constitutes a 'secret' or 'credential' subject to redaction. Add a requirement that defines the classification of secret/credential values (e.g., values from named config keys, values matching configurable patterns, or values tagged in spec metadata) and specifies that the redaction mechanism MUST be applied uniformly before any external transmission or file write."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-86e6368e2ed8"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/documentation-api.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "documentation-api",
+            "claims": [
+              "capabilities/documentation-api#docs-no-secrets",
+              "capabilities/documentation-api#served-redaction",
+              "capabilities/documentation-api#docs-strip-internal"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "No rate limit on API endpoints to prevent LLM budget exhaustion or denial-of-service. Add a requirement that the server enforces a per-source or global rate limit on /docs endpoint calls (e.g., requests per second) and returns HTTP 429 when the limit is exceeded, independent of the per-request LLM budget."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-95a99beb5d22"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/documentation-api.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "documentation-api",
+            "claims": [
+              "capabilities/documentation-api#single-flight-budget",
+              "capabilities/documentation-api#fast-tier-on-demand",
+              "capabilities/documentation-api#docs-endpoints"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Credentials embedded in imported documents may be forwarded to the LLM. Add a requirement for `import` analogous to `reverse-safety`: define the secret-detection patterns applied to fetched/local document content, specify that matching content is redacted (not merely warned about) before the model call, and require that the model is instructed not to reproduce any value that was redacted."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-96e1a94dc706"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/spec-authoring.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "spec-authoring",
+            "claims": [
+              "capabilities/spec-authoring#import-documents"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Drift registry and alignment checkpoint files have no integrity protection requirement. Add a requirement that .specguard/ output files must carry an HMAC or be stored under version control with write-protection enforced by CI policy, and that specguard must warn or fail when a registry file has been modified outside a specguard run."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-a531bd62714a"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/traceability-and-drift.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "traceability-and-drift",
+            "claims": [
+              "capabilities/traceability-and-drift#drift-hash-registry",
+              "capabilities/traceability-and-drift#align-score-and-checkpoint",
+              "capabilities/traceability-and-drift#stale-proof-is-drift"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No authentication or authorization requirement for any CLI command or spec mutation. Add a requirement specifying that mutating commands verify the caller has write permission to the target spec directory (e.g., by checking filesystem ACLs or a configurable allowlist) and that CI invocations are authenticated via a scoped token; document what happens when the check fails (exit 1 with an explanatory message)."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-ad0ba986852d"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/spec-authoring.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "spec-authoring",
+            "claims": []
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "MCP server has no rate-limit or authentication requirement. Add a requirement: the MCP server MUST enforce a per-session rate limit on tool calls (e.g., no more than N calls per minute, configurable); calls exceeding the limit MUST return an error result (not throw) and MUST be logged. Additionally, specify that write-effect tools (`write_spec`, `commit`) MUST be disabled or return an error when invoked in a non-interactive context unless explicitly enabled by config."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-af9e4ff44ee1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/integration-surfaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "integration-surfaces",
+            "claims": [
+              "capabilities/integration-surfaces#mcp-tools-parity",
+              "capabilities/integration-surfaces#mcp-activity-and-limits"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Evidence screenshots containing personal data have no defined retention or access-control requirement. Add a requirement that evidence and saved login state files are written with restrictive file-system permissions (e.g., mode 0600), that a configurable retention period causes automatic deletion of evidence older than N days, and that the documentation normatively states these directories must not be stored in shared or world-readable locations."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-b2a24aa89bdb"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/agentic-verification.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "agentic-verification",
+            "claims": [
+              "capabilities/agentic-verification#evidence-and-history",
+              "capabilities/agentic-verification#evidence-gitignored"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "Config extends allows loading arbitrary files by explicit path with no boundary check. Add a requirement that the resolved target of `extends` must lie within the repository root (as determined by the repository boundary used during config discovery), and that an extends path resolving outside this boundary is treated as an invalid-config error."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-b61d2832d923"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/platform-foundation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "platform-foundation",
+            "claims": [
+              "capabilities/platform-foundation#config-discovery",
+              "capabilities/platform-foundation#config-extends"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Shared `.env` file containing secrets has no confidentiality or integrity requirements beyond git-ignore. Add requirements that (1) `init` creates `.specguard/.env` with owner-read-only permissions, (2) no command prints `.env` values in output or logs, (3) secret values are masked in any diagnostic output, and (4) the file's presence and permissions are reported as a configuration health item in `workspace status`."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-c5d4976d327f"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/workspaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "workspaces",
+            "claims": [
+              "capabilities/workspaces#shared-env"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No access-control requirement for the proof ledger itself. Add a requirement that the ledger is written with a computed integrity tag (e.g. HMAC keyed to a value not present in the repo) or that its filesystem permissions are hardened, and that any command reading the ledger verifies the tag before trusting the content."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-cbe130a32b8a"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/conformance-testing.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "conformance-testing",
+            "claims": [
+              "capabilities/conformance-testing#ledger-records-basis",
+              "capabilities/conformance-testing#ledger-verdict-states",
+              "capabilities/conformance-testing#proof-reporting"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "No requirement bounding path traversal via manifest `path` fields or contract block `specPath` values. Add a requirement that all path values in the manifest and all `specPath` values in contract blocks are validated to resolve strictly within the workspace root after symlink resolution; any path that escapes the root must be rejected with an error, not a warning, and no opt-out should permit reads outside the workspace root."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-cfbacb3ecdc9"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/workspaces.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "workspaces",
+            "claims": [
+              "capabilities/workspaces#workspace-manifest",
+              "capabilities/workspaces#contract-graph-model",
+              "capabilities/workspaces#contract-sources"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "Prompt-injection via page content reaching the LLM is not addressed. Add a requirement that page-derived content is presented to the LLM in a structurally separated context that cannot override system instructions, and that the action-classification step is performed deterministically (not LLM-driven) for any action whose target is resolvable in the accessibility tree, with the LLM's output treated as untrusted input subject to a second deterministic safety check before execution."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-d454c2915b84"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/agentic-verification.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "agentic-verification",
+            "claims": [
+              "capabilities/agentic-verification#redact-before-llm",
+              "capabilities/agentic-verification#action-classification",
+              "capabilities/agentic-verification#guardrail-blocking"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-data-classification",
+          "level": "error",
+          "message": {
+            "text": "Replay recordings containing sensitive data have no access-control or encryption requirement. Add a requirement that replay responses are written only after redaction has been applied to the prompt and response text, that the managed ignore block (filesystem-access) does NOT add the replay directory to .gitignore by default (so accidental commit is flagged rather than silently excluded), and that a warning is emitted when recording while the provider is anything other than `none`."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-da3bbe4c39f3"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/platform-foundation.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "platform-foundation",
+            "claims": [
+              "capabilities/platform-foundation#llm-replay-record",
+              "capabilities/platform-foundation#secret-redaction"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "No rate limit or budget cap on LLM calls from `import` when fetching remote URLs. Add a requirement that `import` truncates or rejects any fetched document exceeding a defined character/byte limit (matching or derived from the 20,000-character cap used by `reverse`) before passing content to the LLM, and that the shared LLM layer enforces a per-invocation token budget with a hard exit when exceeded."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-da4ac2d554b5"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/spec-authoring.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "spec-authoring",
+            "claims": [
+              "capabilities/spec-authoring#import-documents",
+              "capabilities/spec-authoring#reverse-safety"
+            ]
+          }
+        },
+        {
+          "ruleId": "unspecified-abuse-case",
+          "level": "error",
+          "message": {
+            "text": "No requirement to sanitise LLM output before writing test files. Add a requirement that generated and healed test file content is statically validated against an allowlist of permitted imports and patterns before being written to disk, and that any output containing disallowed constructs is rejected and logged rather than written."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-daf8c963b087"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/conformance-testing.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "conformance-testing",
+            "claims": [
+              "capabilities/conformance-testing#generate-safe-writes",
+              "capabilities/conformance-testing#heal-classifies-failures",
+              "capabilities/conformance-testing#heal-exit-and-safety"
+            ]
+          }
+        },
+        {
+          "ruleId": "missing-authorization",
+          "level": "error",
+          "message": {
+            "text": "No access control requirement on LLM key environment variables. Add a requirement that LLM API key environment variables must be sourced from a secrets store with least-privilege access, must not be printed to stdout/stderr or logs by any specguard command, and must not be forwarded to sub-processes that do not need them."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-ef9364aa87e6"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/traceability-and-drift.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "traceability-and-drift",
+            "claims": []
+          }
+        },
+        {
+          "ruleId": "missing-rate-limit",
+          "level": "error",
+          "message": {
+            "text": "No rate-limit or budget cap on LLM calls or browser actions per run. Add a requirement specifying maximum LLM calls per run and per spec, a wall-clock timeout per spec and per run, and a hard upper bound on `validate.maxRounds`, with the run failing with exit code 1 when any budget is exceeded."
+          },
+          "partialFingerprints": {
+            "specguard/planItem/v1": "sec-fea65e971201"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "specs/capabilities/agentic-verification.md"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "severity": "high",
+            "status": "open",
+            "capability": "agentic-verification",
+            "claims": [
+              "capabilities/agentic-verification#perceive-plan-act-verify",
+              "capabilities/agentic-verification#verify-walks-journeys",
+              "capabilities/agentic-verification#guardrail-blocking"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

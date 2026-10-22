@@ -38,6 +38,16 @@ export function winQuote(arg: string): string {
   return `"${arg.endsWith('\\') ? `${arg}\\` : arg}"`;
 }
 
+/**
+ * The runtime that runs a `.js`/`.ts` entry point. VS Code launched from the Dock or Spotlight does not see the
+ * shell's PATH (a `node` from nvm, Volta or Homebrew), so a bare `node` fails with ENOENT. The extension host's own
+ * executable always exists and runs as plain Node when ELECTRON_RUN_AS_NODE is set, so use it; outside Electron
+ * (tests, a plain Node host) fall back to `node` on PATH.
+ */
+export function nodeRuntime(): { command: string; env: NodeJS.ProcessEnv } {
+  return process.versions.electron ? { command: process.execPath, env: { ELECTRON_RUN_AS_NODE: '1' } } : { command: 'node', env: {} };
+}
+
 export function planSpawn(cliPath: string, args: string[], o: PlanOptions = {}): SpawnPlan {
   const platform = o.platform ?? process.platform;
   const node = o.node ?? 'node';
