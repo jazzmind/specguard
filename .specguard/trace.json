@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-22T20:19:22.199Z",
+  "generated": "2026-10-22T20:29:43.158Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -10233,6 +10233,10 @@
   },
   "gaps": {
     "intent": [],
-    "docsStale": []
+    "docsStale": [
+      "integration-surfaces",
+      "requirement-history",
+      "team-server"
+    ]
   }
 }
