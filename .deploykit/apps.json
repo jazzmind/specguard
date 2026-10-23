@@ -25,7 +25,9 @@
         "SPECGUARD_GITHUB_REPOS": "",
         "GITHUB_TOKEN": "",
         "HTTPS_PROXY": ""
-      }
+      },
+      "last_deployed_commit": "207e87f277732d4eb7650a901ce459a87a757151",
+      "last_deployed_at": "2026-10-23T14:58:18.438Z"
     }
   ]
 }
