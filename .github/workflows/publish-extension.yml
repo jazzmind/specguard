@@ -1,0 +1,82 @@
+name: Publish extension
+
+# Manual: publish (or retry publishing) the VS Code extension for an existing release tag, without
+# touching npm. Release.yml does this automatically when the repository variable PUBLISH_EXTENSION is
+# "true"; use this when that job was skipped or failed.
+#
+#   gh workflow run publish-extension.yml -f tag=v0.3.0
+#
+# Needs the VSCE_PAT secret. OVSX_PAT is optional (Open VSX). Also attaches the .vsix to the tag's GitHub release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish, e.g. v0.3.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish the VS Code extension at ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - name: The tag must be a release version
+        id: version
+        working-directory: .
+        run: |
+          TAG="${{ inputs.tag }}"
+          case "$TAG" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "::error::'$TAG' is not a release tag like v0.3.0"; exit 1 ;; esac
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          case "$VERSION" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - name: The tag must equal the package.json version
+        working-directory: .
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          [ "$PKG" = "${{ steps.version.outputs.version }}" ] || { echo "::error::${{ inputs.tag }} does not match package.json version $PKG"; exit 1; }
+
+      - run: npm ci
+      - run: npm --prefix webview install
+      - run: node scripts/sync-version.mjs "${{ steps.version.outputs.version }}"
+      - name: Build (the bundled CLI and the host both embed this version)
+        run: npm run build
+      - run: npm test
+      - name: Package
+        run: npx vsce package --no-git-tag-version --no-update-package-json -o specguard-${{ steps.version.outputs.version }}.vsix
+      - name: Publish to the VS Code Marketplace
+        run: |
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then PRE="--pre-release"; else PRE=""; fi
+          npx vsce publish --packagePath specguard-${{ steps.version.outputs.version }}.vsix $PRE
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - name: Publish to Open VSX
+        if: ${{ env.OVSX_PAT != '' }}
+        run: npx ovsx publish specguard-${{ steps.version.outputs.version }}.vsix
+      - name: Attach the .vsix to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" specguard-${{ steps.version.outputs.version }}.vsix --clobber --repo "$GITHUB_REPOSITORY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: extension/specguard-${{ steps.version.outputs.version }}.vsix
