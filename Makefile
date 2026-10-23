@@ -30,7 +30,7 @@ VSIX    := $(EXT)/specguard-$(VERSION).vsix
 SG      := $(NPX) tsx src/cli/index.ts
 
 .PHONY: help install build build-cli build-ext typecheck lint test test-ext ci check prove audit \
-        vsix vsix-install clean bump release-check publish publish-dry
+        vsix vsix-install clean bump release-check publish publish-dry publish-ext
 
 help: ## Show the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -121,3 +121,8 @@ publish: release-check ## Tag vX.Y.Z (from package.json) and push it, which publ
 	git tag -a $(TAG) -m "SpecGuard $(VERSION)"
 	git push origin $(TAG)
 	@echo "pushed $(TAG): watch it with 'gh run watch' or on the repo's Actions tab"
+
+publish-ext: ## Publish only the VS Code extension for an existing tag via Actions: make publish-ext TAG=v0.3.0
+	@test -n "$(filter v%,$(TAG))" || { echo "usage: make publish-ext TAG=v0.3.0"; exit 2; }
+	gh workflow run publish-extension.yml -f tag=$(TAG)
+	@echo "started: watch it with 'gh run watch' or on the repo's Actions tab"
