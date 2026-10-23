@@ -6,7 +6,7 @@ name: Release
 #   npm version 0.2.0 --no-git-tag-version
 #   git commit -am "chore: release 0.2.0" && git tag v0.2.0 && git push --follow-tags
 #
-# Required secrets: NPM_TOKEN, VSCE_PAT. Optional: OVSX_PAT (Open VSX).
+# npm: trusted publishing (OIDC), configured on npmjs.com; no NPM_TOKEN. Extension: VSCE_PAT. Optional: OVSX_PAT (Open VSX).
 # The extension marketplace rejects a lower version than the one it has, so the
 # first combined release must be above the extension's current version.
 
@@ -66,21 +66,26 @@ jobs:
     name: Publish specguard-ai to npm
     needs: verify
     runs-on: ubuntu-latest
+    # npm trusted publishing: the job's OIDC identity (id-token: write, above) is the credential, so there is no
+    # npm token to create, rotate or leak. Set up once on npmjs.com: package specguard-ai > Settings > Trusted
+    # Publisher > GitHub Actions > jazzmind / specguard / release.yml. It needs npm >= 11.5.1 and Node >= 22.14,
+    # a public repo whose URL matches package.json "repository", and a cloud-hosted runner.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+      - name: npm must be new enough for trusted publishing
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
       - run: npm ci
       - run: npm run build
-      - name: Publish
+      - name: Publish (OIDC; provenance is attached automatically)
         run: |
           if [ "${{ needs.verify.outputs.prerelease }}" = "true" ]; then TAGARG="--tag next"; else TAGARG=""; fi
-          npm publish --access public --provenance $TAGARG
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish --access public $TAGARG
 
   publish-extension:
     name: Publish the VS Code extension

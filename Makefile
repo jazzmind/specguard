@@ -113,7 +113,8 @@ publish-dry: ## Show what would be published, without publishing
 
 # Publishing is tag-driven (.github/workflows/release.yml): the pushed tag runs every gate, then publishes
 # specguard-ai to npm, the extension to the Marketplace (only when the repo variable PUBLISH_EXTENSION is "true")
-# and creates the GitHub release. The repo needs the NPM_TOKEN secret, and VSCE_PAT for the extension.
+# and creates the GitHub release. npm publishing uses trusted publishing (OIDC, set up once on npmjs.com for
+# jazzmind/specguard, release.yml): no npm token. The extension needs the VSCE_PAT secret.
 publish: release-check ## Tag vX.Y.Z (from package.json) and push it, which publishes. Asks first; YES=1 skips the prompt
 	@echo; echo "This publishes specguard-ai $(VERSION) to npm. It cannot be undone."
 	@if [ "$(YES)" != 1 ]; then read -r -p "Type $(TAG) to continue: " a; [ "$$a" = "$(TAG)" ] || { echo aborted; exit 1; }; fi
