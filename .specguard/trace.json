@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-23T14:56:48.530Z",
+  "generated": "2026-10-23T18:53:49.342Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -2626,6 +2626,7 @@
         "extension/src/sidebar.ts",
         "extension/src/spec-inventory.test.ts",
         "extension/src/spec-inventory.ts",
+        "extension/src/workspace-panel.test.ts",
         "extension/src/workspace-panel.ts",
         "extension/src/workspace-state.ts",
         "extension/webview/src/App.tsx",
@@ -2695,6 +2696,7 @@
         "extension/src/plugins-model.test.ts",
         "extension/src/safe-spawn.test.ts",
         "extension/src/spec-inventory.test.ts",
+        "extension/src/workspace-panel.test.ts",
         "tests/action/run-gates.test.ts",
         "tests/cli/features.test.ts",
         "tests/cli/plugin-json.test.ts",
@@ -5357,6 +5359,7 @@
         "specs/history/2026-10-22-security-spec-review-findings-containing.md",
         "specs/history/2026-10-22-security-ssrf-via-import-url-fetching-is.md",
         "specs/history/2026-10-22-security-vuln-ignore-json-suppression-fi.md",
+        "specs/history/2026-10-23-workspace-panel-route-clicks-by-data-act.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -9418,6 +9421,7 @@
         "src/pipelines/workspace-publish.ts"
       ],
       "tests": [
+        "extension/src/workspace-panel.test.ts",
         "tests/core/claims.test.ts",
         "tests/core/env.test.ts",
         "tests/core/hardening.test.ts",
@@ -9447,7 +9451,8 @@
         "2026-10-22-security-no-authorization-requirement-fo",
         "2026-10-22-security-shared-env-file-containing-secr",
         "2026-10-22-extension-runs-the-cli-under-the-host-ex",
-        "2026-10-22-extension-manual-initialize-workspace-co"
+        "2026-10-22-extension-manual-initialize-workspace-co",
+        "2026-10-23-workspace-panel-route-clicks-by-data-act"
       ],
       "claims": [
         {
@@ -9492,7 +9497,14 @@
           "ref": "capabilities/workspaces#workspace-status",
           "text": "`workspace status` shows each repo with its role, spec count, incoming and outgoing contract edges and configuration health, plus contract health (verified versus stale edges and a breakdown by edge type), and tells the user to build the graph when none exists",
           "proof": "unproven",
-          "tests": []
+          "tests": [
+            {
+              "file": "extension/src/workspace-panel.test.ts",
+              "line": 8,
+              "title": "the workspace panel page",
+              "origin": "source"
+            }
+          ]
         },
         {
           "id": "monorepo-detection",
@@ -10210,7 +10222,7 @@
         "unexercised": 0,
         "error": 0,
         "unproven": 9,
-        "withTests": 20,
+        "withTests": 21,
         "incomplete": 0
       }
     }
@@ -10225,11 +10237,11 @@
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 250,
+    "withTests": 251,
     "incomplete": 0,
     "capabilities": 11,
-    "ownedFiles": 321,
-    "sourceFiles": 258
+    "ownedFiles": 323,
+    "sourceFiles": 259
   },
   "gaps": {
     "intent": [],

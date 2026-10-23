@@ -170,7 +170,7 @@ async function streamCommand(label: string, args: string[], streamTarget: string
 // HTML / CSS / JS
 // ---------------------------------------------------------------------------
 
-function buildHtml(_webview: vscode.Webview): string {
+export function buildHtml(_webview: vscode.Webview): string {
   const nonce = crypto.randomBytes(16).toString('base64');
   return `<!doctype html>
 <html lang="en">
@@ -328,7 +328,7 @@ function buildHtml(_webview: vscode.Webview): string {
 <div id="tab-drift" class="tab-panel">
   <div class="stream-header">
     <h2>Cross-Repo Drift Detection</h2>
-    <button id="btn-drift" class="btn" onclick="runDrift()">Run Workspace Drift</button>
+    <button id="btn-drift" class="btn" data-act="runDrift">Run Workspace Drift</button>
     <div id="drift-spinner" style="display:none"><div class="spinner"></div></div>
   </div>
   <div id="drift-log" class="stream-log"><span class="stream-placeholder">Click "Run Workspace Drift" to check all repos for spec drift…</span></div>
@@ -390,7 +390,7 @@ function buildHtml(_webview: vscode.Webview): string {
         <div class="stat-card">
           <div class="label">Contracts</div>
           <div class="value" style="font-size:15px;opacity:.5">not built</div>
-          <div class="sub"><a href="#" onclick="runContracts();return false">build now</a></div>
+          <div class="sub"><a href="#" data-act="runContracts">build now</a></div>
         </div>\`}
         <div class="stat-card">
           <div class="label">Ignored</div>
@@ -415,7 +415,7 @@ function buildHtml(_webview: vscode.Webview): string {
         \${staleCount > 0 ? \`<span class="stale">⚠ \${staleCount} unverified &gt;30d</span>\` : ''}
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
-          <button id="btn-contracts" class="btn secondary" onclick="runContracts()">Rebuild Contracts</button>
+          <button id="btn-contracts" class="btn secondary" data-act="runContracts">Rebuild Contracts</button>
         </div>
       </div>
     \` : \`
@@ -423,7 +423,7 @@ function buildHtml(_webview: vscode.Webview): string {
         <div class="c-stat" style="opacity:.6">No contracts graph yet.</div>
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
-          <button id="btn-contracts" class="btn" onclick="runContracts()">Build Contracts</button>
+          <button id="btn-contracts" class="btn" data-act="runContracts">Build Contracts</button>
         </div>
       </div>
     \`;
@@ -432,8 +432,8 @@ function buildHtml(_webview: vscode.Webview): string {
       <div class="contracts-bar">
         <div class="c-stat" style="opacity:.7">\${manifest.rollupAt ? 'Checked ' + new Date(manifest.rollupAt).toLocaleString() : 'Not checked yet'}\${manifest.codeWorkspace ? ' · follows ' + manifest.codeWorkspace.split('/').pop() : ''}</div>
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
-          \${manifest.codeWorkspace ? '<button class="btn secondary" onclick="syncNow()">Sync folders</button>' : ''}
-          <button class="btn" onclick="refreshAll()">Refresh all repos</button>
+          \${manifest.codeWorkspace ? '<button class="btn secondary" data-act="syncNow">Sync folders</button>' : ''}
+          <button class="btn" data-act="refreshAll">Refresh all repos</button>
         </div>
       </div>
     \`;
@@ -453,7 +453,7 @@ function buildHtml(_webview: vscode.Webview): string {
     const activeClass = repo._isActive ? 'active-repo' : '';
     const ignoredClass = ignored ? 'ignored' : '';
     const clickAttr = (!ignored && !repo._isActive)
-      ? \`onclick="switchRepo('\${repo.absPath.replace(/'/g,"\\\\'")}', '\${repo.key.replace(/'/g,"\\\\'")}')"\`
+      ? \`data-act="switch" data-abs="\${attr(repo.absPath)}" data-key="\${attr(repo.key)}"\`
       : '';
     return \`
       <div class="repo-card \${activeClass} \${ignoredClass}" \${clickAttr} title="\${repo.absPath}">
@@ -469,7 +469,7 @@ function buildHtml(_webview: vscode.Webview): string {
         </div>
         <div class="repo-meta">
           \${ignored ? \`<span style="opacity:.6">\${repo.ignoreReason || 'ignored'}</span>\` : '<span></span>'}
-          <a href="#" onclick="event.stopPropagation();setIgnore('\${repo.key.replace(/'/g,"\\\\'")}', \${ignored ? 'false' : 'true'});return false">\${ignored ? 'Include' : 'Ignore'}</a>
+          <a href="#" data-act="ignore" data-key="\${attr(repo.key)}" data-ignore="\${ignored ? 'false' : 'true'}">\${ignored ? 'Include' : 'Ignore'}</a>
         </div>
       </div>
     \`;
@@ -486,6 +486,22 @@ function buildHtml(_webview: vscode.Webview): string {
     const warn = (r.failed ? ' · ' + r.failed + ' failed' : '') + (r.stale ? ' · ' + r.stale + ' stale' : '') + (r.incomplete ? ' · ' + r.incomplete + ' missing a layer' : '');
     return '<div class="repo-meta" title="' + (r.lagging ? 'proofs are newer than this check' : '') + '"><span>' + r.proven + '/' + r.claims + ' proven (' + r.provenPct + '%)' + warn + sec + (r.lagging ? ' ⟳' : '') + '</span></div>';
   }
+
+  // The page's CSP allows only nonce'd scripts, which blocks inline click-handler attributes: clicks are
+  // routed by data-act instead.
+  function attr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    e.preventDefault();
+    const d = el.dataset;
+    if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
+    else if (d.act === 'switch') switchRepo(d.abs, d.key);
+    else if (d.act === 'runDrift') runDrift();
+    else if (d.act === 'runContracts') runContracts();
+    else if (d.act === 'refreshAll') refreshAll();
+    else if (d.act === 'syncNow') syncNow();
+  });
 
   // ── Drift streaming ────────────────────────────────────────────────────────
   function runDrift() { vscode.postMessage({ type: 'runDrift' }); }

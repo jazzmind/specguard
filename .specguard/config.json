@@ -1,7 +1,9 @@
 {
   "plugins": [
     "quality",
-    "git"
+    "git",
+    "feature-catalog",
+    "contract-mappings"
   ],
   "_comment": "SpecGuard configured to build SpecGuard: one app, functional capability specs under specs/",
   "apps": [
