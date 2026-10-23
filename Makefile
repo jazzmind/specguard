@@ -23,6 +23,11 @@ NPM  := env PATH="$(PATH)" npm
 NPX  := env PATH="$(PATH)" npx
 NODE := env PATH="$(PATH)" node
 
+# The repo belongs to the jazzmind GitHub account (git pushes as it through the github.com-jazzmind SSH alias), but `gh`
+# may have another account active. Run gh as the owner, without switching the active account.
+GH_USER ?= jazzmind
+GH      := env GH_TOKEN="$$(gh auth token --user $(GH_USER))" gh
+
 VERSION := $(shell PATH="$(PATH)" node -p "require('./package.json').version" 2>/dev/null)
 TAG     := v$(VERSION)
 EXT     := extension
@@ -30,7 +35,7 @@ VSIX    := $(EXT)/specguard-$(VERSION).vsix
 SG      := $(NPX) tsx src/cli/index.ts
 
 .PHONY: help install build build-cli build-ext typecheck lint test test-ext ci check prove audit \
-        vsix vsix-install clean bump release-check publish publish-dry publish-ext
+        vsix vsix-install clean bump release-check publish publish-dry publish-ext watch
 
 help: ## Show the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -102,7 +107,7 @@ release-check: ## The checks `make publish` makes before it tags
 	[ "$$(npm view specguard-ai@$(VERSION) version 2>/dev/null)" != "$(VERSION)" ] || { echo "specguard-ai@$(VERSION) is already on npm: make bump V=<next>"; exit 1; }; \
 	$(NODE) $(EXT)/scripts/sync-version.mjs --check; \
 	if command -v gh >/dev/null; then \
-	  c=$$(gh run list --branch main --workflow CI --commit "$$(git rev-parse HEAD)" --limit 1 --json conclusion --jq '.[0].conclusion' 2>/dev/null || true); \
+	  c=$$(GH_TOKEN="$$(gh auth token --user $(GH_USER) 2>/dev/null)" gh run list --branch main --workflow CI --commit "$$(git rev-parse HEAD)" --limit 1 --json conclusion --jq '.[0].conclusion' 2>/dev/null || true); \
 	  [ "$$c" = success ] || { echo "CI has not passed on this commit (status: $${c:-none})"; exit 1; }; \
 	fi; \
 	echo "ok to release $(TAG)"
@@ -120,9 +125,12 @@ publish: release-check ## Tag vX.Y.Z (from package.json) and push it, which publ
 	@if [ "$(YES)" != 1 ]; then read -r -p "Type $(TAG) to continue: " a; [ "$$a" = "$(TAG)" ] || { echo aborted; exit 1; }; fi
 	git tag -a $(TAG) -m "SpecGuard $(VERSION)"
 	git push origin $(TAG)
-	@echo "pushed $(TAG): watch it with 'gh run watch' or on the repo's Actions tab"
+	@echo "pushed $(TAG): watch it with 'make watch' or on the repo's Actions tab"
 
 publish-ext: ## Publish only the VS Code extension for an existing tag via Actions: make publish-ext TAG=v0.3.0
 	@test -n "$(filter v%,$(TAG))" || { echo "usage: make publish-ext TAG=v0.3.0"; exit 2; }
-	gh workflow run publish-extension.yml -f tag=$(TAG)
-	@echo "started: watch it with 'gh run watch' or on the repo's Actions tab"
+	$(GH) workflow run publish-extension.yml -f tag=$(TAG)
+	@echo "started: watch it with 'make watch' or on the repo's Actions tab"
+
+watch: ## Follow the latest Release / Publish-extension run
+	$(GH) run watch $$($(GH) run list --limit 1 --json databaseId --jq '.[0].databaseId')
