@@ -114,7 +114,7 @@ export interface SpawnHandle {
  * Spawn the CLI and stream stdout/stderr line-by-line via onLine.
  * Returns a SpawnHandle so callers can cancel the run mid-flight.
  */
-export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (line: string) => void): SpawnHandle {
+export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (line: string) => void, extraEnv: NodeJS.ProcessEnv = {}): SpawnHandle {
   if (!cliPath) {
     // No CLI found — return a fake handle that immediately rejects so the caller
     // can surface an actionable error message to the user.
@@ -134,7 +134,7 @@ export function spawnCli(cliPath: string, args: string[], cwd: string, onLine: (
     return { promise: Promise.reject(err), kill: () => {} };
   }
 
-  const env = { ...buildEnv(cwd), ...nodeRuntime().env };
+  const env = { ...buildEnv(cwd), ...nodeRuntime().env, ...extraEnv };
   // No shell: the command and arguments are planned by `planSpawn`, which quotes for cmd.exe where Windows needs it.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
   const proc = cp.spawn(plan.command, plan.args, { cwd, env, ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}) });

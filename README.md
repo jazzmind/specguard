@@ -40,6 +40,7 @@ specguard spec draft [--yes]            # existing code -> system spec + capabil
 specguard spec consolidate [--yes]      # per-file specs -> capability specs; rekeys tags, proofs and drift state
 specguard spec graph                    # the spec tree, owned files, and rule violations
 specguard spec index                    # refresh the capability map in specs/system.md
+specguard spec tag [--yes] [--index <file>]  # link existing tests (JS/TS, Python, Go, Rust, Java/Kotlin) to requirements; --index records them in a text file instead of editing the tests
 specguard history add|log               # requirement history; `init --history-hooks` records prompts and plans
 specguard check [--gaps|--coverage|--matrix|--drift]   # spec health for the whole system
 specguard test run [--affected]         # run tests, ingest results into the proof ledger
@@ -712,6 +713,20 @@ Add to `.cursor/mcp.json`:
   }
 }
 ```
+
+`config.json` is committed, so it only *names* the environment variable (`apiKeyEnv`); the key itself never goes in it.
+Give SpecGuard the key once, for every workspace on the machine:
+
+```
+specguard key set                    # hidden prompt; or: pbpaste | specguard key set
+specguard key set --scope workspace  # only this workspace (.specguard/.env next to workspace.json)
+specguard key set --scope repo       # only this repo (.specguard/.env)
+specguard key status                 # which files define it (never shows it)
+```
+
+The key is written to a git-ignored `.env` with mode 600 (`~/.config/specguard/.env` for the default user scope).
+Precedence, highest first: the real environment, the repo's `.specguard/.env`, the workspace's, then the user's.
+In VS Code, run **SpecGuard: Set API Key**.
 
 ### LLM Provider Options
 

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { keySetCommand, keyStatusCommand } from './commands/key.js';
 import { loadSpecGuardEnv } from '../core/env.js';
 
 // Load .specguard/.env before any pipeline runs, so secrets are available even when the user
@@ -468,6 +469,27 @@ program
     await logoutCommand(withGlobals(cmd, opts));
   });
 
+// --- key ------------------------------------------------------------------
+const keyCmd = program.command('key').description('give SpecGuard the API key its model calls use (kept in a git-ignored .env, never in config.json)');
+keyCmd
+  .command('set')
+  .description('save the key: typed at a hidden prompt, piped on stdin, or read from another variable; never taken from the command line')
+  .option('--scope <scope>', 'user (every workspace on this machine, default), workspace, or repo')
+  .option('--env-var <name>', 'the variable to set (default: llm.apiKeyEnv from config, else ANTHROPIC_API_KEY)')
+  .option('--from-env <name>', 'read the key from this environment variable instead of prompting')
+  .option('--workspace <path>', 'with --scope workspace: the manifest (a workspace.json, its folder or a .code-workspace file)')
+  .action(async (opts: { scope?: string; envVar?: string; fromEnv?: string; workspace?: string }, cmd: Command) => {
+    await keySetCommand(withGlobals(cmd, opts));
+  });
+keyCmd
+  .command('status')
+  .description('whether the key is available, and which .env files define it (never prints it)')
+  .option('--env-var <name>', 'the variable to check')
+  .option('--workspace <path>', 'the workspace manifest to look in')
+  .action(async (opts: { envVar?: string; workspace?: string }, cmd: Command) => {
+    await keyStatusCommand(withGlobals(cmd, opts));
+  });
+
 // --- publish --------------------------------------------------------------
 program
   .command('publish')
@@ -591,7 +613,8 @@ specCmd
   .option('--spec <id>', 'one capability')
   .option('--yes', 'write the tags')
   .option('--list', 'print every test with the requirements it was tagged with, for review')
-  .action(async (opts: { spec?: string; yes?: boolean; list?: boolean }, cmd: Command) => {
+  .option('--index <file>', 'record matches in this plain-text index (path from the config root) instead of editing test sources; re-runnable')
+  .action(async (opts: { spec?: string; yes?: boolean; list?: boolean; index?: string }, cmd: Command) => {
     await specTagCommand(withGlobals(cmd, opts));
   });
 

@@ -21,10 +21,12 @@ sources:
   - "src/core/workspace-sync.ts"
   - "src/core/workspace-rollup.ts"
   - "src/cli/commands/workspace-check.ts"
+  - "src/cli/commands/key.ts"
   - "src/pipelines/workspace-publish.ts"
 tests:
   - "tests/core/monorepo.test.ts"
   - "tests/core/env.test.ts"
+  - "tests/cli/key.test.ts"
   - "tests/core/workspace-heuristics.test.ts"
   - "tests/core/claims.test.ts"
   - "tests/pipelines/init.test.ts"
@@ -45,6 +47,7 @@ history:
   - 2026-10-22-extension-runs-the-cli-under-the-host-ex
   - 2026-10-22-extension-manual-initialize-workspace-co
   - 2026-10-23-workspace-panel-route-clicks-by-data-act
+  - 2026-10-24-key-set-status-and-a-per-user-env-file
 ---
 
 # Workspaces - Multi-Repo and Monorepo
@@ -91,6 +94,8 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - [ ] A team server keeps named workspaces (a set of projects, each with a key, a role and an ignore flag; file and Postgres storage) defined with `PUT /api/v1/workspaces/<name>` by a maintainer with an unscoped token, readable at `GET /api/v1/workspaces[/<name>]`, and `GET /api/v1/workspaces/<name>/rollup` combines each project's newest snapshot the way the local rollup does (a project with no snapshot shows as `no-trace`, ignored projects are listed and not counted); a token limited to one project may not define a workspace and sees only one made of that project alone <!-- claim: server-workspace -->
 - [ ] `workspace publish [--name n] [--server url]` defines the workspace on the team server from the manifest: each repo is named by the manifest's `server.projects` map, else its own `server.project`, else its folder, ignored repos are flagged, and a missing server or a refusal is reported and fails the command; each repo still publishes its own snapshot <!-- claim: workspace-publish -->
 - [ ] `contracts --with-llm` says before it sends anything that only each spec's Dependencies section goes to the model (and to which provider and model), lists each spec it sends, and stops at `--max-llm-specs` (default 50), naming the specs it did not send <!-- claim: contracts-llm-cap -->
+- [ ] A per-user `~/.config/specguard/.env` (or `$XDG_CONFIG_HOME/specguard/.env`) supplies keys to every workspace and repo on the machine at the lowest precedence, below the repo's and the workspace's file and below real environment variables <!-- claim: user-env -->
+- [ ] `specguard key set` saves the model API key (`llm.apiKeyEnv`, default `ANTHROPIC_API_KEY`) into the user's, the workspace's or the repo's `.env` with mode 600, reading it from a hidden prompt, stdin or `--from-env` and never from an argument, replacing an existing line, refusing a multi-line value, and never printing the key; `key status` says which files define it without showing it; `config.json` only ever names the variable <!-- claim: key-command -->
 - [ ] When `.specguard/.env` (which holds secrets) is readable by other users the CLI warns, names the file and the fix (`chmod 600`), never prints a value, and still loads the file <!-- claim: env-permission-warning -->
 
 ## Scenarios

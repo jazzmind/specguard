@@ -2,12 +2,13 @@
  * Loads `.specguard/.env` into the process environment so secrets are available even when the user has not
  * exported them in their shell.
  *
- * Precedence, highest first: the real environment, the repo's own `.specguard/.env`, then the workspace's.
+ * Precedence, highest first: the real environment, the repo's own `.specguard/.env`, the workspace's, then the
+ * user's own `~/.config/specguard/.env` (one place for a key every workspace should share).
  * Existing variables are never overwritten.
  *
  * Spec: specs/capabilities/workspaces.md
  */
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 /** A warning when `file` holds secrets and other users on the machine can read it. POSIX only; Windows has no such mode. */
@@ -74,5 +75,70 @@ export function loadSpecGuardEnv(dir: string = process.cwd(), env: NodeJS.Proces
     const w = envFilePermissionWarning(workspaceEnv);
     if (w) warnings.push(w);
   }
+  const userEnv = userEnvFile(env);
+  if (userEnv && userEnv !== repoEnv && existsSync(userEnv)) {
+    applyDotEnv(userEnv, env);
+    const w = envFilePermissionWarning(userEnv);
+    if (w) warnings.push(w);
+  }
   return warnings;
+}
+
+export type EnvScope = 'repo' | 'workspace' | 'user';
+
+/**
+ * The per-user env file: `$XDG_CONFIG_HOME/specguard/.env`, else `~/.config/specguard/.env`. Undefined when the
+ * given environment names no home (so a test that passes its own `env` never reads the real one).
+ */
+export function userEnvFile(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const home = env.HOME ?? env.USERPROFILE;
+  const base = env.XDG_CONFIG_HOME || (home ? path.join(home, '.config') : undefined);
+  return base ? path.join(base, 'specguard', '.env') : undefined;
+}
+
+/** The env file for `scope` as seen from `dir`. `workspaceRoot` names the workspace when it is not an ancestor of `dir`. */
+export function envFileFor(scope: EnvScope, dir: string, workspaceRoot?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (scope === 'repo') return path.join(dir, '.specguard', '.env');
+  if (scope === 'user') return userEnvFile(env);
+  return workspaceRoot ? path.join(workspaceRoot, '.specguard', '.env') : (workspaceEnvFile(dir) ?? undefined);
+}
+
+/** Whether `file` defines `name` (never returns the value). */
+export function dotEnvDefines(file: string, name: string): boolean {
+  try {
+    return readFileSync(file, 'utf-8')
+      .split('\n')
+      .some((raw) => {
+        const line = raw.trim();
+        const eq = line.indexOf('=');
+        return !line.startsWith('#') && eq > 0 && line.slice(0, eq).trim() === name && line.slice(eq + 1).trim() !== '';
+      });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Set `name` in the env file `file`, replacing an existing line and keeping the rest. The file is written
+ * atomically with mode 600 (its folder 700 when created), because it holds secrets.
+ * @throws when the name or value could not be read back as one line.
+ */
+export function setDotEnvValue(file: string, name: string, value: string): void {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`"${name}" is not an environment variable name`);
+  if (value === '' || /[\r\n\0]/.test(value)) throw new Error('the value must be one non-empty line');
+  const dir = path.dirname(file);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const existing = existsSync(file) ? readFileSync(file, 'utf-8') : '';
+  const lines = existing === '' ? [] : existing.replace(/\n$/, '').split('\n');
+  const at = lines.findIndex((l) => {
+    const eq = l.indexOf('=');
+    return eq > 0 && !l.trim().startsWith('#') && l.slice(0, eq).trim() === name;
+  });
+  const entry = `${name}=${value}`;
+  if (at === -1) lines.push(entry);
+  else lines[at] = entry;
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${lines.join('\n')}\n`, { mode: 0o600 });
+  chmodSync(tmp, 0o600);
+  renameSync(tmp, file);
 }

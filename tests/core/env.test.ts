@@ -49,3 +49,26 @@ describe('server config [server-config]', () => {
     await expect(loadConfig(makeRepo({ server: { mode: 'sometimes' } }).dir)).rejects.toThrow();
   });
 });
+
+describe('the per-user env file [user-env]', () => {
+  // [claims: capabilities/workspaces#user-env]
+  it('fills in what the repo, the workspace and the shell left unset, and loses to all three', () => {
+    const { root, repo } = workspace();
+    const home = mkdtempSync(path.join(os.tmpdir(), 'sg-home-'));
+    mkdirSync(path.join(home, '.config/specguard'), { recursive: true });
+    writeFileSync(path.join(home, '.config/specguard/.env'), 'ANTHROPIC_API_KEY=user\nSHARED=user\nFROM_SHELL=user\nONLY_WS=user\n');
+    writeFileSync(path.join(root, '.specguard/.env'), 'ONLY_WS=ws\n');
+    writeFileSync(path.join(repo, '.specguard/.env'), 'SHARED=repo\n');
+    const env: NodeJS.ProcessEnv = { HOME: home, FROM_SHELL: 'shell' };
+    loadSpecGuardEnv(repo, env);
+    expect(env).toMatchObject({ ANTHROPIC_API_KEY: 'user', SHARED: 'repo', ONLY_WS: 'ws', FROM_SHELL: 'shell' });
+  });
+
+  // [claims: capabilities/workspaces#user-env]
+  it('reads no user file when the environment names no home or config folder', () => {
+    const { repo } = workspace();
+    const env: NodeJS.ProcessEnv = {};
+    expect(loadSpecGuardEnv(repo, env)).toEqual([]);
+    expect(env).toEqual({});
+  });
+});

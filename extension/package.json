@@ -171,6 +171,11 @@
         "icon": "$(package)"
       },
       {
+        "command": "specguard.setApiKey",
+        "title": "SpecGuard: Set API Key",
+        "icon": "$(key)"
+      },
+      {
         "command": "specguard.initWorkspace",
         "title": "SpecGuard: Initialize Workspace",
         "icon": "$(repo-create)"
