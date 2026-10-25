@@ -46,7 +46,7 @@ async function project(over: { server?: Record<string, unknown> | null; publish?
   repo.write('.gitignore', '.specguard/\n');
   const config = await loadConfig(repo.dir);
   await writePlan(config, { version: 1, id: 'scan-1', createdAt: '2026-10-15T00:00:00Z', tool: { name: 'specguard' }, items: [planItem('sec-a', 'fa'), planItem('sec-b', 'fb')] } as never);
-  const token = await ts.mint({ name: 'dev', role: 'maintainer', project: 'demo', owner: 'dev@plymouthrock.com' });
+  const token = await ts.mint({ name: 'dev', role: 'maintainer', project: 'demo', owner: 'dev@acme.test' });
   if (over.token !== false) process.env.SPECGUARD_TOKEN = token;
   if (over.publish !== false) {
     const res = await runPublish(await loadConfig(repo.dir), { push: true });

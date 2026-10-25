@@ -29,3 +29,7 @@ dist/
 # specguard:generated-state:end
 specs/.DS_Store
 .DS_Store
+
+# Local deploy config and published snapshots (operator-specific, not source)
+.deploykit/
+.specguard/publish/

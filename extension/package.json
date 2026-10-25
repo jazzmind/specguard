@@ -399,7 +399,7 @@
         "specguard.serverUrl": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Address of a SpecGuard team server, for example `http://ae1pocltv03/specguard`. Leave empty to use the project's own `server.url` in `.specguard/config.json`. When no server is set, or it does not answer, SpecGuard reads this workspace locally."
+          "markdownDescription": "Address of a SpecGuard team server, for example `https://specguard.example.com`. Leave empty to use the project's own `server.url` in `.specguard/config.json`. When no server is set, or it does not answer, SpecGuard reads this workspace locally."
         },
         "specguard.serverProject": {
           "type": "string",

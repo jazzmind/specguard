@@ -50,7 +50,7 @@ Wes asked which parts of SpecGuard should run centrally and which locally. The t
 - No persistent volumes. Each app gets its own Postgres through `{{DK_DB_URL}}`.
 - The app must serve under its path prefix, and the health check is prefix-aware.
 - Per-user LiteLLM keys exist (`POST /api/v1/me/litellm-key`), and `http://litellm:4000` is reachable inside the network.
-- GitHub-hosted runners and webhooks cannot reach the sandbox. Outbound access to GitHub is unconfirmed (it may need `https_proxy=http://proxy.plymouthrock.com:8080`).
+- GitHub-hosted runners and webhooks cannot reach the sandbox. Outbound access to GitHub is unconfirmed (it may need `https_proxy=http://proxy.internal:8080`).
 
 **Decisions (Wes):**
 - The server **pulls CI artifacts** from GitHub.

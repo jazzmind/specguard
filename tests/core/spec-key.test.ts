@@ -13,13 +13,13 @@ import {
   resolveDeclaredSources,
 } from '../../src/core/spec-key.js';
 import { parseSpecContent } from '../../src/core/spec-parser.js';
-import { makeHiRockyRepo } from '../helpers/hirocky-fixture.js';
+import { makeMultiAppRepo } from '../helpers/multi-app-fixture.js';
 import { makeRepo } from '../helpers/repo.js';
 
 describe('spec-key', () => {
   // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('canonical key is specs-root relative regardless of the owning app [root-relative-key]', async () => {
-    const fx = makeHiRockyRepo();
+    const fx = makeMultiAppRepo();
     const config = await loadConfig(fx.dir);
     expect(canonicalSpecKey(config, path.join(fx.dir, 'specs/api/services/messaging.md'), path.join(fx.dir, 'specs/api'))).toBe('api/services/messaging');
   });
@@ -33,7 +33,7 @@ describe('spec-key', () => {
 
   // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('loadCanonicalSpecs sets specKey and localKey [load-canonical]', async () => {
-    const fx = makeHiRockyRepo();
+    const fx = makeMultiAppRepo();
     const config = await loadConfig(fx.dir);
     const specs = loadCanonicalSpecs(config, path.join(fx.dir, 'specs/api'));
     const m = specs.find((s) => s.localKey === 'services/messaging');
@@ -50,7 +50,7 @@ describe('spec-key', () => {
 
   // [claims: capabilities/spec-authoring#declared-sources]
   it('resolves app-relative globs and warns once for root-relative ones [sources-root-fallback]', async () => {
-    const fx = makeHiRockyRepo();
+    const fx = makeMultiAppRepo();
     const config = await loadConfig(fx.dir);
     const api = config.apps.find((a) => a.name === 'api');
     resetSourceWarnings();
@@ -67,7 +67,7 @@ describe('spec-key', () => {
 
   // [claims: capabilities/spec-authoring#canonical-spec-key]
   it('migrates legacy registry keys to the canonical key [migrate-registry]', async () => {
-    const fx = makeHiRockyRepo();
+    const fx = makeMultiAppRepo();
     const config = await loadConfig(fx.dir);
     const file = (h: string) => ({ hash: h, lastChecked: 'x', lastVerdict: 'no-drift' as const });
     const registry: DriftRegistry = {
@@ -82,7 +82,7 @@ describe('spec-key', () => {
 
   // [claims: capabilities/spec-authoring#declared-sources]
   it('config globs are repo-relative, with a warned root-relative fallback [sources-relative-to-repo]', async () => {
-    const fx = makeHiRockyRepo();
+    const fx = makeMultiAppRepo();
     const config = await loadConfig(fx.dir);
     const api = config.apps.find((a) => a.name === 'api')!;
     resetSourceWarnings();

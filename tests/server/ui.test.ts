@@ -40,7 +40,7 @@ describe('web UI [ui]', () => {
   // [claims: capabilities/documentation-api#ui-escapes-markdown]
   it('links only http(s), site-relative and anchor URLs [links]', () => {
     const { md } = load();
-    expect(md('[ok](https://example.com/a)')).toContain('<a href="https://example.com/a">ok</a>');
+    expect(md('[ok](https://acme.test/a)')).toContain('<a href="https://acme.test/a">ok</a>');
     expect(md('[rel](/docs)')).toContain('href="/docs"');
     expect(md('[bad](javascript:alert(1))')).not.toContain('<a ');
     expect(md('[bad](data:text/html;base64,AAAA)')).not.toContain('<a ');

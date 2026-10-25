@@ -35,7 +35,7 @@ tests:
   - "tests/pipelines/align.test.ts"
   - "tests/pipelines/drift.test.ts"
   - "tests/pipelines/paths.test.ts"
-  - "tests/regression/hirocky.test.ts"
+  - "tests/regression/multi-app.test.ts"
   - "tests/pipelines/check.test.ts"
   - "tests/pipelines/drift-capability.test.ts"
 docs:

@@ -13,8 +13,8 @@ import { makeV2Repo } from '../helpers/v2-repo.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const BOOTSTRAP = 'bootstrap-secret-for-tests';
-const ADA = { 'x-deploykit-email': 'ada@plymouthrock.com' };
-const BOB = { 'x-deploykit-email': 'bob@plymouthrock.com' };
+const ADA = { 'x-deploykit-email': 'ada@acme.test' };
+const BOB = { 'x-deploykit-email': 'bob@acme.test' };
 
 let server: RunningCentralServer | undefined;
 afterEach(async () => {
@@ -29,7 +29,7 @@ async function start() {
     port: 0,
     host: '127.0.0.1',
     workDir: mkdtempSync(path.join(os.tmpdir(), 'sg-ws-work-')),
-    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@plymouthrock.com'], allowedDomain: 'plymouthrock.com' },
+    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@acme.test'], allowedDomain: 'acme.test' },
   });
   return server.url;
 }

@@ -169,7 +169,7 @@ export function migrateRegistrySpecKeys(config: SpecGuardConfig, registry: Drift
 /**
  * Expand an app's config globs (`sources`, `exclude`, `collapse`) relative to
  * its `repo`. When nothing matches there but the patterns match from the
- * config root (the HiRocky mistake: `apps/api/src/**`), accept them and warn
+ * config root (the common monorepo mistake: `apps/api/src/**`), accept them and warn
  * once per pattern on stderr.
  */
 export async function expandAppGlobs(

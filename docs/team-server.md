@@ -77,7 +77,7 @@ everything administrative, needs a token.
 ## Using a server from a project
 
 ```json
-{ "server": { "url": "http://ae1pocltv03/specguard", "project": "portal", "mode": "auto" } }
+{ "server": { "url": "https://specguard.example.com", "project": "portal", "mode": "auto" } }
 ```
 
 or set `SPECGUARD_SERVER` and `SPECGUARD_TOKEN`. `mode: auto` uses the server when it answers and the local files when it

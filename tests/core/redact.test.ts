@@ -169,6 +169,6 @@ describe('redaction safety [redact-safety]', () => {
       r.text(blob);
       expect(Date.now() - t0).toBeLessThan(1500);
     }
-    expect(r.text('write to wes@plymouthrock.com now')).toBe('write to [EMAIL] now');
+    expect(r.text('write to wes@example.com now')).toBe('write to [EMAIL] now');
   });
 });

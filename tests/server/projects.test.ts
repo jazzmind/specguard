@@ -142,7 +142,7 @@ describe('read routes for clients [client-routes]', () => {
 
 describe('plan item updates [plan-write]', () => {
   const item = (id: string) => ({ id, title: id, severity: 'high', type: 'code', change: 'code', summary: 's', findings: [{ id, detector: 'semgrep', message: 'm' }], claims: [], files: ['src/a.ts'], verify: { scope: 'listed', claims: [] }, status: 'open', statusHistory: [], fingerprint: id });
-  const maintainer: Identity = { user: 'ada@plymouthrock.com', role: 'maintainer' };
+  const maintainer: Identity = { user: 'ada@acme.test', role: 'maintainer' };
 
   async function writable() {
     const repo = makeV2Repo();
@@ -169,7 +169,7 @@ describe('plan item updates [plan-write]', () => {
     expect(res.status).toBe(200);
     expect(JSON.parse(res.body)).toMatchObject({ plan: 'scan-1', was: 'open', version: 1, item: { status: 'in-progress', externalRef: 'SEC-7' } });
     const read = JSON.parse((await api.handle({ method: 'GET', path: '/api/v1/security/plans/scan-1' })).body);
-    expect(read.items[0].statusHistory).toEqual([expect.objectContaining({ status: 'in-progress', by: 'ada@plymouthrock.com', note: 'on it' })]);
+    expect(read.items[0].statusHistory).toEqual([expect.objectContaining({ status: 'in-progress', by: 'ada@acme.test', note: 'on it' })]);
     // The findings list carries the version a client sends back as If-Match.
     const findings = JSON.parse((await api.handle({ method: 'GET', path: '/api/v1/findings' })).body).findings;
     expect(findings.find((f: { id: string }) => f.id === 'a')).toMatchObject({ status: 'in-progress', version: 1 });

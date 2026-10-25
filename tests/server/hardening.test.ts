@@ -19,7 +19,7 @@ afterEach(async () => {
   server = undefined;
 });
 
-const ADA = { 'x-deploykit-email': 'ada@plymouthrock.com' };
+const ADA = { 'x-deploykit-email': 'ada@acme.test' };
 const BOOTSTRAP = 'bootstrap-secret-for-tests';
 
 let lastBackend: ReturnType<typeof fileBackend> | undefined;
@@ -32,7 +32,7 @@ async function start(trustedProxies?: string[], rateLimit?: { perMinute: number;
     host: '127.0.0.1',
     workDir: mkdtempSync(path.join(os.tmpdir(), 'sg-hard-work-')),
     ...(rateLimit ? { rateLimit } : {}),
-    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@plymouthrock.com'], allowedDomain: 'plymouthrock.com', ...(trustedProxies ? { trustedProxies } : {}) },
+    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@acme.test'], allowedDomain: 'acme.test', ...(trustedProxies ? { trustedProxies } : {}) },
   });
   return server.url;
 }
@@ -77,7 +77,7 @@ describe('who may send the sign-in header [trusted-proxies]', () => {
 
   // [claims: capabilities/team-server#trusted-proxies]
   it('reads SPECGUARD_TRUSTED_PROXIES, and warns at startup when it is not set', () => {
-    const base = { SPECGUARD_BOOTSTRAP_TOKEN: 'b', SPECGUARD_ALLOWED_DOMAIN: 'plymouthrock.com' };
+    const base = { SPECGUARD_BOOTSTRAP_TOKEN: 'b', SPECGUARD_ALLOWED_DOMAIN: 'acme.test' };
     expect(settingsFromEnv({ ...base, SPECGUARD_TRUSTED_PROXIES: ' 10.0.0.1, 172.18.0.0/16 ' }).auth.trustedProxies).toEqual(['10.0.0.1', '172.18.0.0/16']);
     expect(settingsFromEnv(base).auth.trustedProxies).toBeUndefined();
     expect(settingsWarnings(settingsFromEnv(base)).join('\n')).toContain('SPECGUARD_TRUSTED_PROXIES is not set');
@@ -108,7 +108,7 @@ describe('what naming a maintainer in the header is worth [header-role]', () => 
     const admin = await fetch(`${base}/api/v1/admin/tokens`, { method: 'POST', headers: xrw, body: JSON.stringify({ name: 'x', role: 'admin' }) });
     expect(admin.status).toBe(403);
     // a person who is not a listed maintainer is a viewer even through the proxy
-    const bob = { 'x-deploykit-email': 'bob@plymouthrock.com', 'x-requested-with': 'specguard', 'content-type': 'application/json' };
+    const bob = { 'x-deploykit-email': 'bob@acme.test', 'x-requested-with': 'specguard', 'content-type': 'application/json' };
     expect((await fetch(`${base}/api/v1/workspaces/y`, { method: 'PUT', headers: bob, body: '{"projects":[]}' })).status).toBe(403);
   });
 });
@@ -189,7 +189,7 @@ describe('how often one caller may ask [rate-limit]', () => {
     expect(Number(over.headers.get('retry-after'))).toBeGreaterThan(0);
     expect(((await over.json()) as { error: string }).error).toMatch(/too many requests/);
     // a different person is not affected
-    expect((await get('/api/v1/projects', { 'x-deploykit-email': 'bob@plymouthrock.com' })).status).toBe(200);
+    expect((await get('/api/v1/projects', { 'x-deploykit-email': 'bob@acme.test' })).status).toBe(200);
     // no credential: 401 twice, then 429
     expect((await get('/api/v1/projects')).status).toBe(401);
     expect((await get('/api/v1/projects')).status).toBe(401);
@@ -225,7 +225,7 @@ describe('the trail a change leaves [audit-trail]', () => {
     expect(trail.map((e) => e.action)).toEqual(['write.refused', 'write.refused', 'workspace.put']);
     expect(trail[0].detail).toContain('needs the maintainer role, has viewer');
     expect(trail[1]).toMatchObject({ actor: 'anonymous' });
-    expect(trail[2]).toMatchObject({ actor: 'ada@plymouthrock.com', detail: 'sandbox: 1 project(s)' });
+    expect(trail[2]).toMatchObject({ actor: 'ada@acme.test', detail: 'sandbox: 1 project(s)' });
   });
 
   // [claims: capabilities/team-server#server-audit-trail]

@@ -29,7 +29,7 @@ export interface AuthConfig {
   bootstrapToken?: string;
   /** Header that carries the signed-in user. Default `x-deploykit-email`. */
   emailHeader?: string;
-  /** Accept the header only for this domain (for example `plymouthrock.com`). */
+  /** Accept the header only for this domain (for example `acme.test`). */
   allowedDomain?: string;
   /** Addresses (IPv4 or IPv6, or IPv4 CIDR ranges) the sign-in header is accepted from. Absent: from anywhere. */
   trustedProxies?: string[];

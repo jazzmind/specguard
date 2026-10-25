@@ -597,7 +597,7 @@ export interface RemediateConfig {
  * it uses the server when it answers and falls back to local files when it does not.
  */
 export interface ServerConfig {
-  /** Base URL of the server, for example `http://ae1pocltv03/specguard`. `SPECGUARD_SERVER` overrides it. */
+  /** Base URL of the server, for example `https://specguard.example.com`. `SPECGUARD_SERVER` overrides it. */
   url?: string;
   /** The project's name on the server. Default: the repository directory name. */
   project?: string;

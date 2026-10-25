@@ -73,7 +73,7 @@ describe.each(makers)('backend contract: %s [backend-contract]', (_name, make) =
     const b = await backend();
     expect(await b.workspaces.list()).toEqual([]);
     expect(await b.workspaces.get('sandbox')).toBeUndefined();
-    const def = (name: string, projects: string[], at = '2026-10-22T10:00:00.000Z') => ({ name, projects: projects.map((project) => ({ project })), updatedAt: at, updatedBy: 'ada@plymouthrock.com' });
+    const def = (name: string, projects: string[], at = '2026-10-22T10:00:00.000Z') => ({ name, projects: projects.map((project) => ({ project })), updatedAt: at, updatedBy: 'ada@acme.test' });
     await b.workspaces.put(def('zeta', ['web']));
     await b.workspaces.put(def('sandbox', ['web', 'api']));
     await b.workspaces.put({ ...def('sandbox', ['web', 'api', 'docs'], '2026-10-22T11:00:00.000Z'), description: 'replaced' });

@@ -73,7 +73,7 @@ export class ApiHub implements vscode.Disposable {
   async signIn(workspaceRoot: string): Promise<void> {
     const configured = resolveServer({ workspaceRoot, settings: this.settings(), resolveCli: async () => '' });
     const url = normalizeUrl(
-      (await vscode.window.showInputBox({ title: 'SpecGuard team server', prompt: 'Address of the team server', value: configured?.url ?? '', placeHolder: 'http://ae1pocltv03/specguard', ignoreFocusOut: true })) ?? '',
+      (await vscode.window.showInputBox({ title: 'SpecGuard team server', prompt: 'Address of the team server', value: configured?.url ?? '', placeHolder: 'https://specguard.example.com', ignoreFocusOut: true })) ?? '',
     );
     if (!url) return;
     const token = await vscode.window.showInputBox({ title: 'SpecGuard token', prompt: `Create one on ${url}/ under Tokens, and paste it here`, password: true, ignoreFocusOut: true });

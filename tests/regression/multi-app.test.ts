@@ -1,5 +1,5 @@
 /**
- * Regression suite for the HiRocky pilot findings (docs/readiness/specguard.md):
+ * Regression suite for the example monorepo pilot findings (docs/readiness/specguard.md):
  * one canonical spec key across ingest, drift registry, matrix, align, status.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -17,20 +17,20 @@ import { runMatrix } from '../../src/pipelines/matrix.js';
 import { walkClaimVerdicts } from '../../src/pipelines/proof.js';
 import { runResultsIngest } from '../../src/pipelines/results.js';
 import { runStatus } from '../../src/pipelines/status.js';
-import { INBOX, JOURNEY, makeHiRockyRepo, MESSAGING, SIGNATURE, type HiRockyFixture } from '../helpers/hirocky-fixture.js';
+import { INBOX, JOURNEY, makeMultiAppRepo, MESSAGING, SIGNATURE, type MultiAppFixture } from '../helpers/multi-app-fixture.js';
 
 const ledger = (dir: string) =>
   JSON.parse(readFileSync(path.join(dir, '.specguard/proofs.json'), 'utf8')).proofs as Record<string, { verdict: string; fileHashes: Record<string, string> }>;
 
-let fx: HiRockyFixture;
+let fx: MultiAppFixture;
 const ALL = () => [fx.reports.api, fx.reports.web, fx.reports.e2e];
 
 beforeEach(() => {
   resetSourceWarnings();
-  fx = makeHiRockyRepo();
+  fx = makeMultiAppRepo();
 });
 
-describe('hirocky-shaped repo', () => {
+describe('multi-app-shaped repo', () => {
   // [claims: capabilities/traceability-and-drift#drift-hash-registry]
   it('ingest records source hashes from declared sources (root- and app-relative)', async () => {
     await runResultsIngest(ALL(), fx.dir, { runId: 'r1' });

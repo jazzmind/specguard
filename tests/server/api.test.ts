@@ -287,7 +287,7 @@ describe('API [api-v1]', () => {
   // [claims: capabilities/documentation-api#docs-no-secrets, capabilities/documentation-api#served-redaction]
   it('never serves a credential that appears in a spec, but keeps ordinary personal data [served-redaction]', async () => {
     const specFile = path.join(repo.dir, 'specs/capabilities/auth.md');
-    writeFileSync(specFile, readFileSync(specFile, 'utf8').replace('Only approved people sign in.', 'Only approved people sign in. Contact ops@example.com. Key sk-abcdefghijklmnopqrstuvwx and Bearer abcdefghijklmnop1234.'));
+    writeFileSync(specFile, readFileSync(specFile, 'utf8').replace('Only approved people sign in.', 'Only approved people sign in. Contact ops@acme.test. Key sk-abcdefghijklmnopqrstuvwx and Bearer abcdefghijklmnop1234.'));
     const a = await api();
     for (const p of ['/api/v1/docs/agent/auth', '/api/v1/docs/user/auth', '/api/v1/docs/dev/auth', '/api/v1/capabilities/auth', '/api/v1/trace']) {
       const body = (await get(a, p)).body;
@@ -296,7 +296,7 @@ describe('API [api-v1]', () => {
     }
     const doc = (await get(a, '/api/v1/docs/user/auth')).json.markdown as string;
     expect(doc).toContain('[KEY]');
-    expect(doc).toContain('ops@example.com');
+    expect(doc).toContain('ops@acme.test');
   });
 
   // [claims: capabilities/documentation-api#audit-endpoints]

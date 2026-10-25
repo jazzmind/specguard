@@ -21,8 +21,8 @@ import { startCentralServer, type RunningCentralServer } from '../../src/server/
 import { makeV2Repo } from '../helpers/v2-repo.js';
 
 const BOOTSTRAP = 'bootstrap-secret-for-tests';
-const ADA = { 'x-deploykit-email': 'ada@plymouthrock.com' };
-const BOB = { 'x-deploykit-email': 'bob@plymouthrock.com' };
+const ADA = { 'x-deploykit-email': 'ada@acme.test' };
+const BOB = { 'x-deploykit-email': 'bob@acme.test' };
 const llm = llmGenerateText as unknown as ReturnType<typeof vi.fn>;
 
 let server: RunningCentralServer | undefined;
@@ -39,7 +39,7 @@ async function start(over: { basePath?: string; maxBodyBytes?: number } = {}) {
     port: 0,
     host: '127.0.0.1',
     workDir: mkdtempSync(path.join(os.tmpdir(), 'sg-central-work-')),
-    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@plymouthrock.com'], allowedDomain: 'plymouthrock.com', trustedProxies: ['127.0.0.1', '::1', '::ffff:127.0.0.1'] },
+    auth: { bootstrapToken: BOOTSTRAP, maintainerEmails: ['ada@acme.test'], allowedDomain: 'acme.test', trustedProxies: ['127.0.0.1', '::1', '::ffff:127.0.0.1'] },
     ...over,
   });
   return { backend, base: server.url };
@@ -170,7 +170,7 @@ describe('team server: tokens [central-tokens]', () => {
   it('reserves administration for an admin token: the header never grants it, and the bootstrap token does [admin]', async () => {
     const { base } = await start();
     expect((await call(base, '/api/v1/admin/tokens', { method: 'POST', headers: { ...ADA, 'x-requested-with': 'specguard' }, body: { name: 'x', role: 'admin' } })).status).toBe(403);
-    const adminToken = await adminMint(base, { name: 'ops', role: 'admin', owner: 'ops@plymouthrock.com' });
+    const adminToken = await adminMint(base, { name: 'ops', role: 'admin', owner: 'ops@acme.test' });
     const ci = await call(base, '/api/v1/admin/tokens', { method: 'POST', headers: bearer(adminToken), body: { name: 'ci', role: 'maintainer', project: 'demo', owner: 'ci:demo' } });
     expect(ci.status).toBe(201);
     expect(ci.json.project).toBe('demo');
@@ -185,8 +185,8 @@ describe('team server: tokens [central-tokens]', () => {
     await call(base, `/api/v1/tokens/${created.json.id}`, { method: 'DELETE', headers: { ...ADA, 'x-requested-with': 'specguard' } });
     const audit = await backend.readAudit();
     expect(audit.map((a) => [a.actor, a.action])).toEqual([
-      ['ada@plymouthrock.com', 'token.create'],
-      ['ada@plymouthrock.com', 'token.revoke'],
+      ['ada@acme.test', 'token.create'],
+      ['ada@acme.test', 'token.revoke'],
     ]);
     expect(JSON.stringify(audit)).not.toContain('sg_');
   });
@@ -233,7 +233,7 @@ describe('team server: publishing [central-publish]', () => {
     const ci = await adminMint(base, { name: 'ci', role: 'maintainer', project: 'demo', owner: 'ci:demo' });
     const first = await snapshotOf('demo', { plan: true });
     await call(base, '/api/v1/projects/demo/snapshots', { method: 'POST', headers: bearer(ci), body: first });
-    const tracker = await adminMint(base, { name: 'tracker', role: 'maintainer', project: 'demo', owner: 'tracker@plymouthrock.com' });
+    const tracker = await adminMint(base, { name: 'tracker', role: 'maintainer', project: 'demo', owner: 'tracker@acme.test' });
     const patched = await call(base, '/api/v1/projects/demo/security/plans/scan-1/items/sec-a', { method: 'PATCH', headers: bearer(tracker), body: { status: 'in-progress', externalRef: 'SEC-12', note: 'assigned' } });
     expect(patched.status, patched.text).toBe(200);
     // CI publishes again; its plan knows nothing of the tracker's change.
@@ -242,7 +242,7 @@ describe('team server: publishing [central-publish]', () => {
     const plan = await call(base, '/api/v1/projects/demo/security/plans/scan-1', { headers: BOB });
     const a = plan.json.items.find((i: { id: string }) => i.id === 'sec-a');
     expect(a).toMatchObject({ status: 'in-progress', externalRef: 'SEC-12' });
-    expect(a.statusHistory.at(-1)).toMatchObject({ by: 'tracker@plymouthrock.com', note: 'assigned' });
+    expect(a.statusHistory.at(-1)).toMatchObject({ by: 'tracker@acme.test', note: 'assigned' });
     expect(plan.json.items.find((i: { id: string }) => i.id === 'sec-b').status).toBe('open');
   });
 
@@ -260,7 +260,7 @@ describe('team server: publishing [central-publish]', () => {
     // The name in the body never overrides the authenticated user.
     const res = await call(base, url, { method: 'PATCH', headers: { ...ADA, 'x-requested-with': 'specguard', 'if-match': '1' }, body: { status: 'fixed', by: 'someone-else' } });
     expect(res.status).toBe(200);
-    expect(res.json.item.statusHistory.at(-1).by).toBe('ada@plymouthrock.com');
+    expect(res.json.item.statusHistory.at(-1).by).toBe('ada@acme.test');
   });
 });
 
@@ -282,7 +282,7 @@ describe('team server: documents [central-docs]', () => {
     expect(second.json).toMatchObject({ markdown: '# Guide', cached: true });
     expect(llm).toHaveBeenCalledTimes(1);
     const usage = await backend.readUsage();
-    expect(usage).toEqual([expect.objectContaining({ user: 'ada@plymouthrock.com', project: 'demo', pipeline: 'docs', model: 'fast', inputTokens: 100 })]);
+    expect(usage).toEqual([expect.objectContaining({ user: 'ada@acme.test', project: 'demo', pipeline: 'docs', model: 'fast', inputTokens: 100 })]);
     // The model was given the requester and the project to send to the gateway.
     expect(llm).toHaveBeenCalledTimes(1);
   });
@@ -296,7 +296,7 @@ describe('team server: MCP endpoint [central-mcp]', () => {
     const { base } = await start();
     const ci = await adminMint(base, { name: 'ci', role: 'maintainer', project: 'demo', owner: 'ci:demo' });
     await call(base, '/api/v1/projects/demo/snapshots', { method: 'POST', headers: bearer(ci), body: await snapshotOf('demo') });
-    const reader = await adminMint(base, { name: 'desktop', role: 'viewer', owner: 'ada@plymouthrock.com' });
+    const reader = await adminMint(base, { name: 'desktop', role: 'viewer', owner: 'ada@acme.test' });
     return { base, reader, ci };
   }
 

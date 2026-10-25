@@ -15,7 +15,7 @@ import { API_VERSION } from '../server/api.js';
 import { normalizeServerUrl, readSavedToken } from './credentials.js';
 
 export interface ServerTarget {
-  /** Base URL, for example `http://ae1pocltv03/specguard`. */
+  /** Base URL, for example `https://specguard.example.com`. */
   url: string;
   project: string;
   token?: string;

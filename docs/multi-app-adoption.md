@@ -1,6 +1,6 @@
-# Adopting SpecGuard in HiRocky
+# Adopting SpecGuard in an npm-workspaces monorepo
 
-HiRocky is an npm-workspaces monorepo: `apps/api` (`@bm/api`, Vitest), `apps/web` (`@bm/web`, Vitest, `--passWithNoTests`), and a root Playwright suite (`e2e/journeys`, config `playwright.config.ts`). This is the exact setup, derived from what SpecGuard does. Replace the placeholders `<...>`.
+The example monorepo is an npm-workspaces monorepo: `apps/api` (`@bm/api`, Vitest), `apps/web` (`@bm/web`, Vitest, `--passWithNoTests`), and a root Playwright suite (`e2e/journeys`, config `playwright.config.ts`). This is the exact setup, derived from what SpecGuard does. Replace the placeholders `<...>`.
 
 ## 1. Install
 
@@ -44,7 +44,7 @@ Without installing, use `npx -p specguard-ai specguard <command>`. Bare `npx spe
   "auth": {
     "profiles": [
       { "name": "admin", "strategy": "storageState", "storageStatePath": ".specguard/auth/admin.json",
-        "loginUrl": "http://localhost:5173/login", "usernameEnvVar": "HIROCKY_ADMIN_EMAIL", "passwordEnvVar": "HIROCKY_ADMIN_PASSWORD",
+        "loginUrl": "http://localhost:5173/login", "usernameEnvVar": "APP_ADMIN_EMAIL", "passwordEnvVar": "APP_ADMIN_PASSWORD",
         "successUrl": "/\\/dashboard/" }
     ]
   },

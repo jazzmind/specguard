@@ -8833,7 +8833,7 @@
         "tests/pipelines/matrix.test.ts",
         "tests/pipelines/paths.test.ts",
         "tests/pipelines/status.test.ts",
-        "tests/regression/hirocky.test.ts"
+        "tests/regression/multi-app.test.ts"
       ],
       "docs": [
         "README.md"
@@ -8917,7 +8917,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 80,
               "title": "status does not report specs with tagged tests as (no test)",
               "origin": "source"
@@ -8941,13 +8941,13 @@
           "proof": "proven",
           "tests": [
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 59,
               "title": "matrix reports claim-level coverage under canonical keys",
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 89,
               "title": "migrates old registry keys (api/api/..., api/...) to the canonical key",
               "origin": "source"
@@ -8994,7 +8994,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 59,
               "title": "matrix reports claim-level coverage under canonical keys",
               "origin": "source"
@@ -9017,7 +9017,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 59,
               "title": "matrix reports claim-level coverage under canonical keys",
               "origin": "source"
@@ -9089,7 +9089,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 71,
               "title": "align covers claims from tags without an LLM call",
               "origin": "source"
@@ -9153,7 +9153,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 34,
               "title": "ingest records source hashes from declared sources (root- and app-relative)",
               "origin": "source"
@@ -9361,7 +9361,7 @@
               "origin": "source"
             },
             {
-              "file": "tests/regression/hirocky.test.ts",
+              "file": "tests/regression/multi-app.test.ts",
               "line": 46,
               "title": "a source edit stales exactly the claims of the specs that declare it",
               "origin": "source"

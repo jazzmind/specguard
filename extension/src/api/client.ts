@@ -4,7 +4,7 @@
  */
 
 export interface ApiTarget {
-  /** Server address including any path prefix, for example `http://ae1pocltv03/specguard`. No trailing slash. */
+  /** Server address including any path prefix, for example `https://specguard.example.com`. No trailing slash. */
   baseUrl: string;
   /** Project name on a team server. Absent for the local server, whose routes are unprefixed. */
   project?: string;

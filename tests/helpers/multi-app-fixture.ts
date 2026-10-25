@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 /**
- * A HiRocky-shaped repo: multi-app, per-app specDirs under one specs root,
+ * A multi-app repo: multi-app, per-app specDirs under one specs root,
  * app `repo` roots, root-relative and repo-relative `sources:` headers,
  * tagged tests, and Vitest + Playwright JSON reports.
  */
@@ -17,7 +17,7 @@ export const SIGNATURE = 'api/sms/signature';
 export const INBOX = 'web/pages/inbox';
 export const JOURNEY = 'journeys/opt-out';
 
-export interface HiRockyFixture {
+export interface MultiAppFixture {
   dir: string;
   write: (rel: string, content: string) => string;
   /** Vitest JSON report paths, relative to dir. */
@@ -43,8 +43,8 @@ function vitestReport(file: string, rows: Array<[string, 'passed' | 'failed' | '
   });
 }
 
-export function makeHiRockyRepo(): HiRockyFixture {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-hirocky-'));
+export function makeMultiAppRepo(): MultiAppFixture {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-multi-app-'));
   const write = (rel: string, content: string): string => {
     const abs = path.join(dir, rel);
     mkdirSync(path.dirname(abs), { recursive: true });
@@ -73,7 +73,7 @@ export function makeHiRockyRepo(): HiRockyFixture {
       llm: { provider: 'none', model: 'none', apiKeyEnv: 'NONE' },
     }),
   );
-  // Root-relative sources header (as HiRocky wrote it) and an app-relative one.
+  // Root-relative sources header (as a typical monorepo writes it) and an app-relative one.
   write('specs/api/services/messaging.md', spec('Messaging', 'apps/api/src/services/messaging.ts, apps/api/src/services/redaction.ts', ['stop-opts-out', 'send-blocked']));
   write('specs/api/sms/signature.md', spec('Signature', 'src/sms/signature.ts', ['valid-signature', 'bad-signature']));
   write('specs/web/pages/inbox.md', spec('Inbox', 'src/pages/inbox.tsx', ['lists-cases']));

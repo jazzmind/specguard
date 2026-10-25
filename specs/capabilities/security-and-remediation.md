@@ -45,7 +45,6 @@ docs:
   - "docs/user/npm-audit.md"
   - "docs/user/docker.md"
   - "docs/ci-remediate.md"
-  - "docs/dogfood-remediate.md"
   - "docs/examples/**"
   - "schemas/remediation-plan.v1.json"
 history:

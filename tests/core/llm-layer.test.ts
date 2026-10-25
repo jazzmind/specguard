@@ -311,15 +311,15 @@ describe('per-request scopes [llm-scope]', () => {
     configure({});
     gt.mockResolvedValue(ok('hi', { inputTokens: 100, outputTokens: 50 }));
     const seen: Array<{ pipeline: string; model: string; inputTokens: number; user?: string }> = [];
-    await runWithLlmScope({ user: 'wes@plymouthrock.com', tags: ['docs', 'portal'], onUsage: (u) => seen.push(u) }, () => call({ pipeline: 'docs' }));
-    expect(seen).toEqual([expect.objectContaining({ pipeline: 'docs', model: 'claude-sonnet-4-6', inputTokens: 100, outputTokens: 50, user: 'wes@plymouthrock.com' })]);
+    await runWithLlmScope({ user: 'wes@example.com', tags: ['docs', 'portal'], onUsage: (u) => seen.push(u) }, () => call({ pipeline: 'docs' }));
+    expect(seen).toEqual([expect.objectContaining({ pipeline: 'docs', model: 'claude-sonnet-4-6', inputTokens: 100, outputTokens: 50, user: 'wes@example.com' })]);
     // Anthropic takes the user in metadata; the gateway-style header is not sent to it.
-    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { anthropic: { metadata: { userId: 'wes@plymouthrock.com' } } } });
+    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { anthropic: { metadata: { userId: 'wes@example.com' } } } });
     expect(gt.mock.calls[0][0].headers).toBeUndefined();
     // An OpenAI-compatible gateway gets the OpenAI user field and the LiteLLM tags header.
     gt.mockClear();
-    await runWithLlmScope({ user: 'wes@plymouthrock.com', tags: ['docs', 'portal'] }, () => call({ provider: 'litellm', model: 'fast', apiKeyEnv: 'NOPE' }));
-    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { openai: { user: 'wes@plymouthrock.com' } }, headers: { 'x-litellm-tags': 'docs,portal' } });
+    await runWithLlmScope({ user: 'wes@example.com', tags: ['docs', 'portal'] }, () => call({ provider: 'litellm', model: 'fast', apiKeyEnv: 'NOPE' }));
+    expect(gt.mock.calls[0][0]).toMatchObject({ providerOptions: { openai: { user: 'wes@example.com' } }, headers: { 'x-litellm-tags': 'docs,portal' } });
     // No scope, no extras.
     gt.mockClear();
     await call();
