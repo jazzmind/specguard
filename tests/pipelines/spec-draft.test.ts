@@ -3,7 +3,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The LLM chokepoint is mocked per pipeline name: summarize, cluster, spec-draft.
-vi.mock('../../src/core/llm.js', () => ({ llmGenerateObject: vi.fn(), llmGenerateText: vi.fn(), resolveTargets: vi.fn(() => [{ model: 'm' }]) }));
+vi.mock('../../src/core/llm.js', () => ({ llmGenerateObject: vi.fn(), llmGenerateText: vi.fn(), resolveTargets: vi.fn(() => [{ model: 'm' }]), usesHostAgent: vi.fn(() => false) }));
 
 import { loadConfig } from '../../src/core/config.js';
 import { llmGenerateObject } from '../../src/core/llm.js';

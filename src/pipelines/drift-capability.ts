@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { assessmentKey, loadAssessments, saveAssessments, type Assessments } from '../core/drift-assessments.js';
 import { getOrCreateSpecEntry, hashFile, hashString, loadRegistry, saveRegistry, updateFileEntry, fromRegistryKey } from '../core/drift-registry.js';
 import { ExitCode } from '../core/exit-codes.js';
+import { AgentWorkPendingError } from '../core/agent-work.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { buildSpecGraph, type SpecNode } from '../core/spec-graph.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
@@ -173,6 +174,7 @@ export async function runCapabilityDrift(config: SpecGuardConfig, opts: Capabili
     const unspecified: string[] = [];
     const reasons: string[] = [];
     let anyDrift = false;
+    let awaitingAgent = false;
     for (const chunk of chunks) {
       let verdict: z.infer<typeof VerdictSchema>;
       try {
@@ -188,7 +190,12 @@ export async function runCapabilityDrift(config: SpecGuardConfig, opts: Capabili
             chunk.map((c) => `### ${c.path}\n${c.diff}`).join('\n\n'),
           schema: VerdictSchema,
         });
-      } catch {
+      } catch (err) {
+        if (err instanceof AgentWorkPendingError) {
+          // Waiting for the host agent: leave this chunk unassessed (its registry entry stays old), never record a guess.
+          awaitingAgent = true;
+          continue;
+        }
         // No usable verdict: treat the change as affecting every claim, as the file-level drift check does.
         verdict = { drifted: true, confidence: 0, reason: 'no verdict available; the change is assumed to matter', affectedClaims: ['*'], unspecifiedBehaviour: [] };
       }
@@ -204,6 +211,12 @@ export async function runCapabilityDrift(config: SpecGuardConfig, opts: Capabili
         forSpec[assessmentKey(c.path, current[c.path])] = { affectedClaims: claims, at: new Date().toISOString(), reason: verdict.reason };
         updateFileEntry(entry, c.path, current[c.path], verdict.drifted ? 'drifted' : 'no-drift');
       }
+    }
+    if (awaitingAgent) {
+      result.skipped += 1;
+      result.items.push({ key: node.id, status: 'skipped', message: 'waiting for the host agent to judge the changes' });
+      log(`[pending] ${node.id}: waiting for the host agent`);
+      continue;
     }
     // Files that did not fit are left unassessed, so their proofs stay stale until someone reviews them.
     for (const f of overflow) updateFileEntry(entry, f, entry.files[f]?.hash ?? '', 'drifted');

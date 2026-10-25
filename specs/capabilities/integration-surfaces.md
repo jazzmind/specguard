@@ -9,6 +9,11 @@ sources:
   - "src/cli/index.ts"
   - "src/cli/commands/helpers.ts"
   - "src/cli/commands/init.ts"
+  - "src/cli/commands/agent.ts"
+  - "src/pipelines/start.ts"
+  - "plugins/**"
+  - ".claude-plugin/**"
+  - ".agents/**"
   - "src/cli/commands/stubs.ts"
   - "src/cli/commands/index.ts"
   - "src/mcp/**"
@@ -37,6 +42,8 @@ tests:
   - "tests/core/extension.test.ts"
   - "tests/cli/features.test.ts"
   - "tests/pipelines/init.test.ts"
+  - "tests/mcp/agent-work-tool.test.ts"
+  - "tests/plugins/plugin-package.test.ts"
   - "tests/pipelines/feature-state.test.ts"
   - "tests/pipelines/feature-state-collect.test.ts"
   - "tests/pipelines/git-ops-changelog.test.ts"
@@ -68,6 +75,8 @@ history:
   - 2026-10-22-security-init-history-hooks-writes-to-pe
   - 2026-10-22-security-mcp-server-has-no-rate-limit-or
   - 2026-10-22-extension-runs-the-cli-under-the-host-ex
+  - 2026-10-25-specguard-proves-intent-not-metrics-thre
+  - 2026-10-25-0-4-the-host-coding-agent-does-the-model
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -88,11 +97,14 @@ This capability is the set of surfaces through which people, agents and systems 
 
 ## Requirements
 - [ ] The `specguard` command routes each subcommand to its pipeline and prints help for every subcommand; `--version` prints the package version and `--version --json` prints one JSON line with name, version and Node version; an unknown subcommand exits non-zero with a usage hint; global options `--config <path>` (a file, a directory, or a path containing `/.specguard/`), `--json` (machine-readable result with the exit code, human output suppressed) and `--record` reach every command <!-- claim: cli-routing-and-flags -->
-- [ ] Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, and a refused LLM call for budget forces exit 8; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables <!-- claim: exit-codes-and-env -->
-- [ ] `init` creates `.specguard/config.json`, `specs/README.md` and a `.specguard/.env` containing only a placeholder key, detects the language and test framework (Playwright forced by `--with-playwright`), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files <!-- claim: init-bootstrap -->
-- [ ] `init` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved <!-- claim: harness-files -->
+- [ ] Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded, 12 waiting for the host agent); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, a refused LLM call for budget forces exit 8, and model requests still waiting for the host agent force exit 12 and print what is waiting and how to answer it, even when the command went on to print its own summary; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables, a placeholder key value an older init wrote being ignored <!-- claim: exit-codes-and-env -->
+- [ ] `init` creates only `.specguard/config.json` (no `llm` block) and `specs/README.md`, asks for no API key and writes no key file, detects the language and test framework (Playwright forced by `--with-playwright`), matches code kept at the repo root when there is no `src/` folder (every code file except tests, type declarations and tool configs), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files; agent files are written only when `--harness` names a harness <!-- claim: init-bootstrap -->
+- [ ] `init --harness` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands, and for Claude the MCP server in `.mcp.json` where Claude Code reads it; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved <!-- claim: harness-files -->
 - [ ] Setup merges an MCP server entry and a post-edit status hook into the agent's settings without removing unrelated keys (malformed existing JSON is reported and left unchanged); the generated commands use a resolved runner (`--runner node|npx|path`, otherwise `SPECGUARD_CLI`, a local binary, a global binary, then `npx -p specguard-ai specguard`); an entry written in an older broken form is repaired, and any other differing existing entry is never rewritten silently: a diff is printed and the file left alone unless `--update-hooks` is given <!-- claim: agent-wiring-and-runner -->
 - [ ] The MCP server runs over stdio, registers one tool per core command plus `read_spec` and `write_spec` (the pre-0.2 names only with `SPECGUARD_MCP_LEGACY=1`), calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport <!-- claim: mcp-tools-parity -->
+- [ ] `specguard agent pending` lists the model requests waiting for the host coding agent (exit 12 when there are any) and `specguard agent answer <hash>` records an answer from a file or stdin (a unique hash prefix of 8 or more characters is enough, a JSON answer may sit in a markdown code fence), refusing an unknown request and an answer of the wrong shape; the `specguard_agent_work` MCP tool does the same (`list` returns each request in full, `answer` records one), is one of the default tools and is not offered by a read-only server <!-- claim: agent-work-tools -->
+- [ ] `specguard start` carries a project from nothing to a first report in one resumable command: it sets the project up when there is no config, drafts the specs unless `specs/system.md` exists, links tests to requirements, runs the tests (unless `--skip-tests`) and prints where things stand; when a step waits for the host agent it stops with exit 12 saying to run it again, and the rerun continues from that step <!-- claim: start-command -->
+- [ ] The repository is a Claude Code plugin marketplace and a Codex plugin marketplace whose one plugin, `specguard`, installs with one line, needs no API key inside the agent and writes nothing into the project: it ships the skills (the working rules, and how to answer model requests), the `start` and `check` commands, a `specguard` executable on the agent's PATH that runs the CLI of the same minor version with the host agent doing the model work (`SPECGUARD_CLI` runs a local build), the MCP server configured the same way, and a session-start hook that prints a short status only in a project that uses SpecGuard; both manifests carry the package's version <!-- claim: plugin-distribution -->
 - [ ] Every MCP tool call appends a running entry and then a pass, fail or error entry with duration to `.specguard/activity-log.json`, which is bounded to the latest 200 entries once it exceeds 1 MB, recovers from invalid JSON and never throws; `read_spec` needs a spec key or path; MCP tools never perform effects outside the machine (remediate is scan-only and dry-run only, commit stages only SpecGuard-generated files) <!-- claim: mcp-activity-and-limits -->
 - [ ] The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, check, test, verify, scan; `deps` is an alias of `scan`), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state <!-- claim: action-gates -->
 - [ ] `fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, proof-incomplete (claims missing a required test layer), align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job <!-- claim: action-fail-on -->

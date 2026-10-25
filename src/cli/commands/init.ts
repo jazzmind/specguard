@@ -1,6 +1,6 @@
 /**
- * `specguard init` — scaffold a SpecGuard config, specs directory, and the
- * agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
+ * `specguard init` — scaffold a SpecGuard config and specs directory, and with
+ * `--harness` the agent files (CLAUDE.md, skills, MCP wiring, /goal command).
  *
  * Thin wrapper over `runInit` in `src/pipelines/init.ts` — all logic (language
  * detection, config template, scaffolding) lives there so the CLI and MCP share
@@ -68,8 +68,9 @@ export async function initCommand(opts: InitOpts): Promise<void> {
 
   process.stdout.write('\nNext steps:\n');
   process.stdout.write('  1. Review .specguard/config.json and adjust app sources/globs\n');
-  process.stdout.write('  2. Add your Anthropic API key to .specguard/.env (it is git-ignored)\n');
-  process.stdout.write('  3. Run `specguard gap-analysis` to plan the build, then `/goal` to start it\n');
+  process.stdout.write('  2. `specguard spec draft --yes` writes specs from your code. Inside Claude Code or Codex the agent does the model work and needs no key;\n');
+  process.stdout.write('     elsewhere run `specguard key set` once to store an API key.\n');
+  process.stdout.write('  3. `specguard check` shows where specs, tests and code agree\n');
 
   process.exit(result.exitCode);
 }

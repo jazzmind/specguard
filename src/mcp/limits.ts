@@ -13,6 +13,7 @@
 export const WRITE_TOOLS: ReadonlySet<string> = new Set([
   'specguard_write_spec',
   'specguard_history_add',
+  'specguard_agent_work',
   'specguard_init',
   'specguard_scaffold',
   'specguard_generate',

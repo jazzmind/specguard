@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 
-import { llmGenerateObject, resolveTargets } from '../core/llm.js';
+import { AgentWorkPendingError, pendingThisRun } from '../core/agent-work.js';
+import { llmGenerateObject, resolveTargets, usesHostAgent } from '../core/llm.js';
 import { fileExists, readFile } from '../core/reader.js';
 import { expandAppGlobs } from '../core/spec-key.js';
 import type { CapabilityPlanT } from '../core/spec-map.js';
@@ -66,10 +67,20 @@ async function readCapped(abs: string, cap = MAX_FILE_CHARS): Promise<string> {
   return text.length > cap ? `${text.slice(0, cap)}\n... (truncated)` : text;
 }
 
+const SummaryText = z.string().describe('One or two sentences, at most 240 characters: what user-visible or business functionality this file provides.');
+
 const hashOf = (s: string): string => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
+/** Host agent batches: how many files and how many characters of source one request carries. */
+const HOST_BATCH_FILES = 25;
+const HOST_BATCH_CHARS = 120_000;
+
+const BatchSummarySchema = z.object({
+  summaries: z.array(z.object({ path: z.string().describe('The file path exactly as given.'), summary: SummaryText })),
+});
+
 const SummarySchema = z.object({
-  summary: z.string().describe('One or two sentences, at most 240 characters: what user-visible or business functionality this file provides.'),
+  summary: SummaryText,
 });
 
 /** Bump when SUMMARY_SYSTEM changes, so cached summaries are rewritten. */
@@ -102,7 +113,64 @@ export async function summarizeFiles(
   const queue = [...files];
   let fresh = 0;
   // A summary is only reusable for the same file content, prompt and model: a better model or prompt must not be served stale text.
-  const stamp = `${SUMMARY_PROMPT_VERSION}|${resolveTargets({ provider: config.llm.provider, model: config.llm.model, apiKeyEnv: config.llm.apiKeyEnv, pipeline: 'summarize' })[0]?.model ?? config.llm.model}`;
+  const summaryTarget = resolveTargets({ provider: config.llm.provider, model: config.llm.model, apiKeyEnv: config.llm.apiKeyEnv, pipeline: 'summarize' })[0];
+  const stamp = `${SUMMARY_PROMPT_VERSION}|${summaryTarget?.model ?? config.llm.model}`;
+
+  if (summaryTarget && usesHostAgent(summaryTarget)) {
+    // The host agent answers whole batches: a request per file would be hundreds of tiny tasks.
+    const todo: Array<{ file: SourceFile; text: string; hash: string }> = [];
+    for (const file of files) {
+      const text = await readCapped(file.abs);
+      const hash = hashOf(`${stamp}\n${text}`);
+      const hit = cache[file.rel];
+      if (hit?.hash === hash) out[file.rel] = hit.summary;
+      else todo.push({ file, text, hash });
+    }
+    let waiting = false;
+    for (let at = 0; at < todo.length; ) {
+      const batch: typeof todo = [];
+      let chars = 0;
+      while (at < todo.length && batch.length < HOST_BATCH_FILES && (batch.length === 0 || chars + todo[at].text.length <= HOST_BATCH_CHARS)) {
+        batch.push(todo[at]);
+        chars += todo[at].text.length;
+        at += 1;
+      }
+      try {
+        const res = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          pipeline: 'summarize',
+          system: SUMMARY_SYSTEM,
+          prompt:
+            `Summarise each of the ${batch.length} files below. Answer with one entry per file, using the exact path shown.\n\n` +
+            batch.map((b) => `=== FILE: ${b.file.rel}\n${b.text}\n=== END FILE`).join('\n\n'),
+          schema: BatchSummarySchema,
+        });
+        const byPath = new Map(res.summaries.map((e) => [e.path, e.summary]));
+        for (const b of batch) {
+          const summary = byPath.get(b.file.rel);
+          if (!summary) continue;
+          cache[b.file.rel] = { hash: b.hash, summary };
+          out[b.file.rel] = summary;
+          fresh += 1;
+        }
+      } catch (err) {
+        if (err instanceof AgentWorkPendingError) {
+          waiting = true;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (fresh > 0) {
+      await writeFile(cacheFile, JSON.stringify(cache, null, 2) + '\n');
+      opts.onLog?.(`[info] summarised ${fresh} file(s), ${files.length - fresh} from cache`);
+    }
+    if (waiting) throw new AgentWorkPendingError(pendingThisRun());
+    return out;
+  }
+
   const worker = async (): Promise<void> => {
     for (let file = queue.shift(); file; file = queue.shift()) {
       const text = await readCapped(file.abs);

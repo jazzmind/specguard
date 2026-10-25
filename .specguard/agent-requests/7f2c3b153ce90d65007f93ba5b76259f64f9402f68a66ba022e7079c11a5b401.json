@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hash": "7f2c3b153ce90d65007f93ba5b76259f64f9402f68a66ba022e7079c11a5b401",
+  "kind": "text",
+  "pipeline": "unknown",
+  "prompt": "hello",
+  "createdAt": "2026-10-25T23:19:04.902Z",
+  "answerFile": ".specguard/replay/7f2c3b153ce90d65007f93ba5b76259f64f9402f68a66ba022e7079c11a5b401.json",
+  "instructions": "Produce the text the prompt asks for, following system. Submit it with `specguard agent answer <hash> --file <answer.txt>` (or the specguard_agent_work tool), then rerun the command that asked."
+}

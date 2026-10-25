@@ -89,6 +89,7 @@ export async function proposeAffects(config: SpecGuardConfig, text: string): Pro
       model: config.llm.model,
       apiKeyEnv: config.llm.apiKeyEnv,
       pipeline: 'history',
+      hostAgent: false, // runs from hooks: with no key it returns [], it never leaves a request for the agent
       system: 'You decide which capabilities of a system a requirements change affects. Choose only from the listed ids.',
       prompt: `Capabilities:\n${caps.map((c) => `- ${c.id}: ${c.spec.meta.value ?? c.spec.title}`).join('\n')}\n\nChange:\n${text.slice(0, 12_000)}${workingTreeSummary(rootOf(config)) ? `\n\nUncommitted changes:\n${workingTreeSummary(rootOf(config))}` : ''}`,
       schema: AffectsSchema,

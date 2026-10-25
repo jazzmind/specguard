@@ -125,6 +125,15 @@ The \`specguard\` CLI and MCP server run every QA pipeline. Prefer the MCP tools
 (\`specguard_*\`) when available; otherwise use \`npx -p specguard-ai specguard <command>\`
 (or just \`specguard <command>\` when the CLI is installed with \`npm install -g specguard-ai\`).
 
+## When a command exits with code 12
+
+SpecGuard needs model output (drafting specs, linking tests, judging drift) and, with no API key,
+asks you instead: it writes requests to \`.specguard/agent-requests/\` and exits with 12, which means
+"waiting for the agent", not failure. List them with \`specguard agent pending\`, write each answer
+(JSON for object requests, matching the request's \`jsonSchema\`), submit it with
+\`specguard agent answer <hash> --file <answer>\`, then run the same command again. Repeat until
+it finishes. Do not invent an answer to get past a step.
+
 ## When to Run
 
 - After implementing or changing a module (check coverage + drift).
@@ -342,13 +351,20 @@ function withoutRunnerComment(command: string): string {
   return command.replace(/^: "specguard runner: [^"]*"; /, '');
 }
 
-/** Merge the specguard-mcp server + run-alongside hook into Claude settings. */
+/**
+ * Merge the run-alongside hook into Claude settings. Claude Code reads project MCP servers from
+ * `.mcp.json`, not settings.json, so the server is added there (`mergeMcpJson`); an entry an older
+ * version wrote into settings.json is still repaired or updated in place.
+ */
 export function mergeClaudeSettings(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
   const next: JsonObject = { ...existing };
 
-  const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  wireMcp(mcpServers, '.claude/settings.json', ctx);
-  next.mcpServers = mcpServers;
+  const legacy = next.mcpServers as JsonObject | undefined;
+  if (legacy && 'specguard-mcp' in legacy) {
+    const mcpServers = { ...legacy };
+    wireMcp(mcpServers, '.claude/settings.json', ctx);
+    next.mcpServers = mcpServers;
+  }
 
   // PostToolUse hook: read-only `specguard status` after edits. The script
   // itself skips spec/test/.specguard paths.
@@ -430,13 +446,18 @@ belong to one capability spec.
 }
 
 
-/** Merge the specguard-mcp server into a Cursor mcp.json. */
-export function mergeCursorMcpJson(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
+/** Merge the specguard-mcp server into an MCP config file (`.mcp.json` for Claude Code, `.cursor/mcp.json` for Cursor). */
+export function mergeMcpJson(existing: JsonObject, ctx: WireContext = defaultWire(), where = '.mcp.json'): JsonObject {
   const next: JsonObject = { ...existing };
   const mcpServers = { ...(next.mcpServers as JsonObject | undefined) };
-  wireMcp(mcpServers, '.cursor/mcp.json', ctx);
+  wireMcp(mcpServers, where, ctx);
   next.mcpServers = mcpServers;
   return next;
+}
+
+/** Merge the specguard-mcp server into a Cursor mcp.json. */
+export function mergeCursorMcpJson(existing: JsonObject, ctx: WireContext = defaultWire()): JsonObject {
+  return mergeMcpJson(existing, ctx, '.cursor/mcp.json');
 }
 
 // ---------------------------------------------------------------------------
@@ -565,6 +586,7 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
       result,
       cwd,
     );
+    await mergeJsonFile(path.join(cwd, '.mcp.json'), (existing) => mergeMcpJson(existing, wire), result, cwd);
     if (opts.historyHooks) {
       // Personal settings: history capture is each person's choice, and the file is not committed by default.
       await mergeJsonFile(

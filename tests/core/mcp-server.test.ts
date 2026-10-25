@@ -244,7 +244,7 @@ describe("MCP Server", () => {
     mocks.registerTool.mockClear();
     buildServer({ legacy: false });
     const core = mocks.registerTool.mock.calls.map((c: unknown[]) => c[0] as string);
-    expect(core.length).toBeLessThanOrEqual(16);
+    expect(core.length).toBeLessThanOrEqual(17); // the 16 core tools plus specguard_agent_work
     expect(core).toEqual(expect.arrayContaining(["specguard_check", "specguard_verify", "specguard_security_scan", "specguard_history_add", "specguard_test_run"]));
     for (const legacyName of ["specguard_status", "specguard_reverse", "specguard_validate", "specguard_gap_analysis", "specguard_remediate"]) {
       expect(core).not.toContain(legacyName);

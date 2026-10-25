@@ -14,12 +14,23 @@
  * Spec: specs/capabilities/platform-foundation.md
  */
 
-import { generateText, generateObject, type LanguageModel } from 'ai';
+import { asSchema, generateText, generateObject, type LanguageModel } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import path from 'node:path';
 import type { ZodType } from 'zod';
 
+import {
+  AgentWorkPendingError,
+  detectHostAgent,
+  notePending,
+  readAgentRequest,
+  recordedAnswer,
+  refOfRequest,
+  rejectAnswer,
+  removeAgentRequest,
+  writeAgentRequest,
+} from './agent-work.js';
 import { SpecGuardError } from './errors.js';
 import { createSecretRedactor } from './redact.js';
 import { ExitCode } from './exit-codes.js';
@@ -67,6 +78,11 @@ export interface LlmTextOpts {
   images?: Buffer[];
   /** Pipeline name for overrides and the usage log. Default: the running command. */
   pipeline?: string;
+  /**
+   * `false`: never hand this call to the host coding agent. For calls a hook makes on its own, which must not leave
+   * request files behind: with no key they fail as they always did. Default: true.
+   */
+  hostAgent?: boolean;
 }
 
 /** Options for schema-validated structured generation. */
@@ -121,6 +137,9 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
   if (provider === 'replay') {
     throw new SpecGuardError('The replay provider serves recordings and has no model.', ExitCode.InternalError);
   }
+  if (provider === 'host') {
+    throw new SpecGuardError('The host provider hands requests to the coding agent and has no model.', ExitCode.InternalError);
+  }
 
   // LiteLLM is a local server — API key may not be required.
   if (provider !== 'litellm' && !apiKey) {
@@ -148,7 +167,7 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
     }
     default:
       throw new SpecGuardError(
-        `Unknown LLM provider: \`${provider}\`. Supported: anthropic, openai, litellm, replay, none.`,
+        `Unknown LLM provider: \`${provider}\`. Supported: anthropic, openai, litellm, host, replay, none.`,
         ExitCode.InternalError,
       );
   }
@@ -301,12 +320,80 @@ function replayDir(): string {
   return path.isAbsolute(dir) ? dir : path.resolve(rt?.rootDir ?? process.cwd(), dir);
 }
 
-/** The shared call path: replay, none, budget, retries, fallback, usage, recording. */
+/**
+ * Whether a call goes to the host coding agent: `llm.provider: "host"`, or a keyed provider whose key is not
+ * set while running inside an agent (an agent with no API key is the whole point of the host provider).
+ */
+export function usesHostAgent(target: LlmTarget, opts?: Pick<LlmTextOpts, 'hostAgent'>): boolean {
+  if (opts?.hostAgent === false) return false;
+  if (target.provider === 'host') return true;
+  if (target.provider === 'none' || target.provider === 'replay' || target.provider === 'litellm') return false;
+  return !process.env[target.apiKeyEnv ?? ''] && detectHostAgent();
+}
+
+/**
+ * Serve a call from the host agent: a recorded answer that passes the pipeline's schema is returned; a missing one
+ * writes a request file and raises `AgentWorkPendingError`; an answer that fails the schema is set aside with the
+ * reason, and the request is asked again.
+ */
+async function hostCall<T>(
+  kind: ReplayKind,
+  opts: LlmTextOpts,
+  hash: string,
+  pipeline: string,
+  fromReplay: (recorded: unknown) => T,
+  schema?: ZodType<unknown>,
+): Promise<T> {
+  if (opts.images && opts.images.length > 0) {
+    throw new SpecGuardError(
+      'This step sends images, which the host agent cannot be handed through a request file. Set an API key (and llm.provider) for it, or skip it.',
+      ExitCode.InternalError,
+    );
+  }
+  const rt = getLlmRuntime();
+  const rootDir = rt?.rootDir ?? process.cwd();
+  const dir = replayDir();
+  const recorded = recordedAnswer(dir, hash);
+  let rejection: string | undefined;
+  if (recorded !== null) {
+    try {
+      const value = fromReplay(recorded);
+      removeAgentRequest(rootDir, hash);
+      if (rt) recordUsage(rt.rootDir, pipeline, 'host', { replayedCalls: 1 });
+      return value;
+    } catch (err) {
+      rejection = err instanceof Error ? err.message : String(err);
+      rejectAnswer(rootDir, dir, hash, rejection);
+    }
+  }
+  const existing = readAgentRequest(rootDir, hash);
+  if (existing && !rejection) {
+    // Still waiting: keep the request as it was (and any earlier refusal) rather than rewriting it.
+    const ref = refOfRequest(rootDir, existing);
+    notePending(ref);
+    throw new AgentWorkPendingError([ref]);
+  }
+  const jsonSchema = kind === 'object' && schema ? await asSchema(schema).jsonSchema : undefined;
+  const ref = writeAgentRequest(rootDir, dir, {
+    hash,
+    kind,
+    pipeline,
+    ...(opts.system !== undefined ? { system: opts.system } : {}),
+    prompt: opts.prompt,
+    ...(jsonSchema !== undefined ? { jsonSchema } : {}),
+    ...(rejection ? { rejection } : {}),
+  });
+  notePending(ref);
+  throw new AgentWorkPendingError([ref]);
+}
+
+/** The shared call path: replay, host, none, budget, retries, fallback, usage, recording. */
 async function invoke<T>(
   kind: ReplayKind,
   opts: LlmTextOpts,
   exec: (model: LanguageModel, signal: AbortSignal, target: LlmTarget) => Promise<CallResult<T>>,
   fromReplay: (recorded: unknown) => T,
+  schema?: ZodType<unknown>,
 ): Promise<T> {
   const pipeline = opts.pipeline ?? currentPipeline();
   const rt = getLlmRuntime();
@@ -324,6 +411,8 @@ async function invoke<T>(
 
   const hash = replayKey(kind, opts.system, opts.prompt, opts.images);
 
+  if (usesHostAgent(primary, opts)) return hostCall(kind, opts, hash, pipeline, fromReplay, schema);
+
   if (primary.provider === 'replay') {
     const dir = replayDir();
     const record = loadReplay(dir, hash);
@@ -336,7 +425,7 @@ async function invoke<T>(
   let lastError: unknown;
   const errors: string[] = [];
   for (const target of targets) {
-    if (target.provider === 'none' || target.provider === 'replay') continue;
+    if (target.provider === 'none' || target.provider === 'replay' || target.provider === 'host') continue;
     try {
       const { result } = await attemptTarget(target, pipeline, projectedInput, exec);
       account(target, pipeline, result.inputTokens, result.outputTokens);
@@ -362,7 +451,7 @@ async function invoke<T>(
   if (targets.length > 1 && errors.length > 1) {
     throw new SpecGuardError(`All LLM targets failed. ${errors.join(' | ')}`, ExitCode.InternalError, lastError);
   }
-  throw lastError;
+  throw lastError ?? new SpecGuardError('No LLM target is usable for this call (host-agent calls are off here, and the provider is "host").', ExitCode.InternalError);
 }
 
 /**
@@ -461,5 +550,6 @@ export async function llmGenerateObject<T>(raw: LlmObjectOpts<T>): Promise<T> {
       return { value: res.object as T, ...usageOf((res as { usage?: unknown }).usage) };
     },
     (recorded) => opts.schema.parse(recorded),
+    opts.schema as ZodType<unknown>,
   );
 }

@@ -32,3 +32,8 @@ export async function specTagCommand(opts: GlobalOpts & SpecTagOpts): Promise<vo
   const config = await loadCliConfig(opts);
   outputResult(await runSpecTag(config, opts), opts);
 }
+
+export async function startCommand(opts: GlobalOpts & { skipTests?: boolean }): Promise<void> {
+  const { runStart } = await import('../../pipelines/start.js');
+  outputResult(await runStart({ skipTests: opts.skipTests }), opts);
+}

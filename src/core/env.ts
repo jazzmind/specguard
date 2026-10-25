@@ -23,6 +23,9 @@ export function envFilePermissionWarning(file: string): string | undefined {
 }
 
 /** Set the variables in `file` that are not already set. Best effort: an unreadable file is ignored. */
+/** The value older versions of `init` put in `.specguard/.env`. */
+const PLACEHOLDER_KEY = 'your-key-here';
+
 function applyDotEnv(file: string, env: NodeJS.ProcessEnv): void {
   try {
     for (const raw of readFileSync(file, 'utf-8').split('\n')) {
@@ -32,6 +35,8 @@ function applyDotEnv(file: string, env: NodeJS.ProcessEnv): void {
       if (eq < 1) continue;
       const key = line.slice(0, eq).trim();
       const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+      // The placeholder an older `init` wrote is not a key: loading it would shadow the real one and fail with a 401.
+      if (val === PLACEHOLDER_KEY) continue;
       if (key && !(key in env)) env[key] = val;
     }
   } catch {

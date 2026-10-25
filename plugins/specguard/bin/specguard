@@ -1,0 +1,9 @@
+#!/bin/sh
+# Runs the SpecGuard CLI for the plugin, with the host agent doing the model work (no API key needed).
+# SPECGUARD_CLI=/path/to/dist/cli/index.js runs a local build instead (development).
+SPECGUARD_HOST_AGENT="${SPECGUARD_HOST_AGENT:-1}"
+export SPECGUARD_HOST_AGENT
+if [ -n "$SPECGUARD_CLI" ]; then
+  exec node "$SPECGUARD_CLI" "$@"
+fi
+exec npx -y -p "specguard-ai@${SPECGUARD_VERSION:-0.4}" specguard "$@"

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-24T17:42:44.839Z",
+  "generated": "2026-10-25T23:30:54.547Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -2581,6 +2581,8 @@
       "parent": "system",
       "unit": ".",
       "ownedFiles": [
+        ".agents/plugins/marketplace.json",
+        ".claude-plugin/marketplace.json",
         "action.yml",
         "action/run-gates.mjs",
         "extension/src/api/adapters.test.ts",
@@ -2646,6 +2648,14 @@
         "extension/webview/src/views/SpecsView.tsx",
         "extension/webview/src/views/flow.css",
         "extension/webview/src/vscode.ts",
+        "plugins/specguard/bin/specguard",
+        "plugins/specguard/commands/check.md",
+        "plugins/specguard/commands/start.md",
+        "plugins/specguard/hooks/hooks.json",
+        "plugins/specguard/scripts/session-status.sh",
+        "plugins/specguard/skills/specguard-agent-work/SKILL.md",
+        "plugins/specguard/skills/specguard/SKILL.md",
+        "src/cli/commands/agent.ts",
         "src/cli/commands/helpers.ts",
         "src/cli/commands/index.ts",
         "src/cli/commands/init.ts",
@@ -2662,6 +2672,7 @@
         "src/mcp/server.ts",
         "src/pipelines/init.ts",
         "src/pipelines/plugin-manage.ts",
+        "src/pipelines/start.ts",
         "src/plugins/catalog.ts",
         "src/plugins/commands.ts",
         "src/plugins/contract-mappings/index.ts",
@@ -2711,6 +2722,7 @@
         "tests/core/runner.test.ts",
         "tests/core/scaffold.test.ts",
         "tests/core/version.test.ts",
+        "tests/mcp/agent-work-tool.test.ts",
         "tests/mcp/functional-tools.test.ts",
         "tests/mcp/ingest-tools.test.ts",
         "tests/mcp/limits.test.ts",
@@ -2720,6 +2732,7 @@
         "tests/pipelines/feature-state.test.ts",
         "tests/pipelines/git-ops-changelog.test.ts",
         "tests/pipelines/git-ops-scope.test.ts",
+        "tests/pipelines/host-agent-flow.test.ts",
         "tests/pipelines/init.test.ts",
         "tests/pipelines/plugin-manage.test.ts",
         "tests/pipelines/security-scan.test.ts",
@@ -2727,6 +2740,7 @@
         "tests/plugins/commands.test.ts",
         "tests/plugins/discoverers.test.ts",
         "tests/plugins/npm-plugins.test.ts",
+        "tests/plugins/plugin-package.test.ts",
         "tests/plugins/quality-fix.test.ts",
         "tests/server/api.test.ts"
       ],
@@ -2755,7 +2769,9 @@
         "2026-10-22-header-role-fix-and-spec-level-security",
         "2026-10-22-security-init-history-hooks-writes-to-pe",
         "2026-10-22-security-mcp-server-has-no-rate-limit-or",
-        "2026-10-22-extension-runs-the-cli-under-the-host-ex"
+        "2026-10-22-extension-runs-the-cli-under-the-host-ex",
+        "2026-10-25-specguard-proves-intent-not-metrics-thre",
+        "2026-10-25-0-4-the-host-coding-agent-does-the-model"
       ],
       "claims": [
         {
@@ -2802,7 +2818,7 @@
         {
           "id": "exit-codes-and-env",
           "ref": "capabilities/integration-surfaces#exit-codes-and-env",
-          "text": "Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, and a refused LLM call for budget forces exit 8; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables",
+          "text": "Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded, 12 waiting for the host agent); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, a refused LLM call for budget forces exit 8, and model requests still waiting for the host agent force exit 12 and print what is waiting and how to answer it, even when the command went on to print its own summary; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables, a placeholder key value an older init wrote being ignored",
           "proof": "proven",
           "tests": [
             {
@@ -2819,25 +2835,25 @@
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 17,
+              "line": 18,
               "title": "Obtaining a label for each defined exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 29,
+              "line": 31,
               "title": "Obtaining a label for an unknown exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 36,
+              "line": 38,
               "title": "Verifying no duplicate numeric values exist",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 44,
+              "line": 46,
               "title": "Type safety prevents arbitrary number assignment",
               "origin": "source"
             }
@@ -2849,7 +2865,7 @@
         {
           "id": "init-bootstrap",
           "ref": "capabilities/integration-surfaces#init-bootstrap",
-          "text": "`init` creates `.specguard/config.json`, `specs/README.md` and a `.specguard/.env` containing only a placeholder key, detects the language and test framework (Playwright forced by `--with-playwright`), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files",
+          "text": "`init` creates only `.specguard/config.json` (no `llm` block) and `specs/README.md`, asks for no API key and writes no key file, detects the language and test framework (Playwright forced by `--with-playwright`), matches code kept at the repo root when there is no `src/` folder (every code file except tests, type declarations and tool configs), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files; agent files are written only when `--harness` names a harness",
           "proof": "proven",
           "tests": [
             {
@@ -2881,6 +2897,24 @@
               "line": 46,
               "title": "prints the untrack command for generated files git already tracks",
               "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/init.test.ts",
+              "line": 59,
+              "title": "writes a config and a specs README only: no key file, no llm block, no agent files unless asked",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/init.test.ts",
+              "line": 72,
+              "title": "a harness is written only when named, and Claude Code gets its MCP server in .mcp.json",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/init.test.ts",
+              "line": 82,
+              "title": "matches code kept at the repo root, where the src/-anchored globs would find nothing",
+              "origin": "source"
             }
           ],
           "layers": {
@@ -2890,7 +2924,7 @@
         {
           "id": "harness-files",
           "ref": "capabilities/integration-surfaces#harness-files",
-          "text": "`init` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved",
+          "text": "`init --harness` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands, and for Claude the MCP server in `.mcp.json` where Claude Code reads it; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved",
           "proof": "proven",
           "tests": [
             {
@@ -2901,25 +2935,25 @@
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 48,
+              "line": 50,
               "title": "does not generate Cursor files for harness: claude",
               "origin": "source"
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 55,
+              "line": 57,
               "title": "is idempotent and preserves user content",
               "origin": "source"
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 76,
+              "line": 78,
               "title": "skips a user-authored AGENTS.md lacking the managed marker",
               "origin": "source"
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 97,
+              "line": 99,
               "title": "writes the package-qualified npx commands",
               "origin": "source"
             }
@@ -2984,13 +3018,13 @@
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 85,
+              "line": 87,
               "title": "leaves malformed JSON config unchanged",
               "origin": "source"
             },
             {
               "file": "tests/core/scaffold.test.ts",
-              "line": 107,
+              "line": 110,
               "title": "repairs the broken form written by older versions and leaves customised entries alone",
               "origin": "source"
             }
@@ -3093,6 +3127,93 @@
               "file": "tests/mcp/server.test.ts",
               "line": 40,
               "title": "errorResult marks isError and includes the message",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "agent-work-tools",
+          "ref": "capabilities/integration-surfaces#agent-work-tools",
+          "text": "`specguard agent pending` lists the model requests waiting for the host coding agent (exit 12 when there are any) and `specguard agent answer <hash>` records an answer from a file or stdin (a unique hash prefix of 8 or more characters is enough, a JSON answer may sit in a markdown code fence), refusing an unknown request and an answer of the wrong shape; the `specguard_agent_work` MCP tool does the same (`list` returns each request in full, `answer` records one), is one of the default tools and is not offered by a read-only server",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/mcp/agent-work-tool.test.ts",
+              "line": 29,
+              "title": "is one of the default tools, lists requests in full and records an answer by hash prefix",
+              "origin": "source"
+            },
+            {
+              "file": "tests/mcp/agent-work-tool.test.ts",
+              "line": 45,
+              "title": "refuses an unknown request, a missing answer, and answers in read-only mode",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "start-command",
+          "ref": "capabilities/integration-surfaces#start-command",
+          "text": "`specguard start` carries a project from nothing to a first report in one resumable command: it sets the project up when there is no config, drafts the specs unless `specs/system.md` exists, links tests to requirements, runs the tests (unless `--skip-tests`) and prints where things stand; when a step waits for the host agent it stops with exit 12 saying to run it again, and the rerun continues from that step",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 158,
+              "title": "start carries a project from nothing to a first report, resuming after each round of agent answers",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 183,
+              "title": "start sets a bare project up first: a config and specs README, no key file, then waits for the agent",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "plugin-distribution",
+          "ref": "capabilities/integration-surfaces#plugin-distribution",
+          "text": "The repository is a Claude Code plugin marketplace and a Codex plugin marketplace whose one plugin, `specguard`, installs with one line, needs no API key inside the agent and writes nothing into the project: it ships the skills (the working rules, and how to answer model requests), the `start` and `check` commands, a `specguard` executable on the agent's PATH that runs the CLI of the same minor version with the host agent doing the model work (`SPECGUARD_CLI` runs a local build), the MCP server configured the same way, and a session-start hook that prints a short status only in a project that uses SpecGuard; both manifests carry the package's version",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/plugins/plugin-package.test.ts",
+              "line": 21,
+              "title": "is listed by both marketplaces and both manifests carry the package version",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/plugin-package.test.ts",
+              "line": 31,
+              "title": "runs the package of the same minor version, never the unrelated `specguard` package",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/plugin-package.test.ts",
+              "line": 41,
+              "title": "ships skills and commands that are well-formed and name only things that exist",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/plugin-package.test.ts",
+              "line": 60,
+              "title": "the specguard executable hands the host agent the model work and can run a local build",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/plugin-package.test.ts",
+              "line": 72,
+              "title": "prints a status at session start only in a project that uses SpecGuard, and never fails the session",
               "origin": "source"
             }
           ],
@@ -4254,14 +4375,14 @@
         }
       ],
       "counts": {
-        "claims": 37,
-        "proven": 34,
+        "claims": 40,
+        "proven": 37,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 35,
+        "withTests": 38,
         "incomplete": 0
       }
     },
@@ -4275,6 +4396,7 @@
       "parent": "system",
       "unit": ".",
       "ownedFiles": [
+        "src/core/agent-work.ts",
         "src/core/config.ts",
         "src/core/errors.ts",
         "src/core/exit-codes.ts",
@@ -4292,6 +4414,7 @@
         "src/core/writer.ts"
       ],
       "tests": [
+        "tests/core/agent-work.test.ts",
         "tests/core/config.test.ts",
         "tests/core/errors.test.ts",
         "tests/core/exit-codes.test.ts",
@@ -4304,7 +4427,9 @@
         "tests/core/redact.test.ts",
         "tests/core/version.test.ts",
         "tests/core/writer.test.ts",
-        "tests/pipelines/git-ops-scope.test.ts"
+        "tests/pipelines/git-ops-scope.test.ts",
+        "tests/pipelines/host-agent-flow.test.ts",
+        "tests/regression/no-private-names.test.ts"
       ],
       "docs": [
         "README.md",
@@ -4322,7 +4447,9 @@
         "2026-10-22-header-role-fix-and-spec-level-security",
         "2026-10-22-security-plugin-and-hook-modules-are-loa",
         "2026-10-22-security-no-rate-limit-or-throttle-on-re",
-        "2026-10-22-security-replay-recordings-containing-se"
+        "2026-10-22-security-replay-recordings-containing-se",
+        "2026-10-25-specguard-proves-intent-not-metrics-thre",
+        "2026-10-25-0-4-the-host-coding-agent-does-the-model"
       ],
       "claims": [
         {
@@ -4409,13 +4536,25 @@
         {
           "id": "config-apps-and-defaults",
           "ref": "capabilities/platform-foundation#config-apps-and-defaults",
-          "text": "Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language",
+          "text": "Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
               "line": 173,
               "title": "accepts paths, stripPrefix, entryPoints, plugins and featureState",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config.test.ts",
+              "line": 200,
+              "title": "defaults to Anthropic with ANTHROPIC_API_KEY when there is no llm block",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config.test.ts",
+              "line": 206,
+              "title": "fills in a partial llm block, with the key variable that goes with the provider",
               "origin": "source"
             }
           ],
@@ -4804,6 +4943,117 @@
           }
         },
         {
+          "id": "host-agent-provider",
+          "ref": "capabilities/platform-foundation#host-agent-provider",
+          "text": "With `llm.provider: \"host\"`, or a keyed provider whose key is not set while running inside a coding agent (Claude Code is recognised on its own, other agents through `SPECGUARD_HOST_AGENT=1`, which `=0` turns off), a model call with no recorded answer writes a request file (system text, credential-masked prompt and, for structured output, the JSON Schema of the answer) under `.specguard/agent-requests/`, records it as pending and raises a typed error whose exit code is 12, without calling any model; the agent records its answer in the replay store, the next run validates it with the caller's schema and serves it, and an answer that fails the schema is set aside with the reason written on the request so it is asked again",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 62,
+              "title": "writes a request with the answer schema and raises AgentWorkPendingError instead of calling a model",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 78,
+              "title": "serves the answer the agent recorded, validated by the pipeline schema, and clears the request",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 89,
+              "title": "sets an answer that fails the schema aside, records why on the request, and asks again",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 108,
+              "title": "handles text requests, and masks credentials in the request it writes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 120,
+              "title": "is chosen on its own for a keyed provider with no key inside an agent, and never when a key exists or it is switched off",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 145,
+              "title": "leaves calls that opt out (hooks) alone, and refuses image calls it cannot hand over",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 161,
+              "title": "detects an agent: Claude Code on its own, others by SPECGUARD_HOST_AGENT, either way switch-off-able",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/agent-work.test.ts",
+              "line": 169,
+              "title": "accepts answers by unique hash prefix, tolerates a code fence, and rejects a malformed answer",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "host-agent-batching",
+          "ref": "capabilities/platform-foundation#host-agent-batching",
+          "text": "Host-agent calls never leave a mess: a step that makes many requests (file summaries, one spec per capability, test tagging) asks for all of them in one round (summaries in batches of up to 25 files), applies nothing and writes no system spec until every answer is in, never records a guessed verdict (a drift judgement still waiting for the agent leaves the change unassessed instead of recording \"every requirement affected\"), and a call a hook makes on its own opts out so a hook never leaves a request behind",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 79,
+              "title": "drafts a spec tree in batched rounds, with every capability asked for in one round",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 104,
+              "title": "reports a half-answered draft as waiting, not failed, and writes no system spec yet",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 120,
+              "title": "tags tests from the agent answer, keeping only high-confidence links, after one round",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/host-agent-flow.test.ts",
+              "line": 141,
+              "title": "never records a guessed drift verdict while the agent has not judged a change",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "no-private-names",
+          "ref": "capabilities/platform-foundation#no-private-names",
+          "text": "No tracked file of the repository contains the name of a private project, an employer or an internal host: a test compares every word of every tracked file with a list kept as SHA-256 hashes, so the list names no one, and fails with the offending file",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/regression/no-private-names.test.ts",
+              "line": 34,
+              "title": "contains no denied word token",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
           "id": "secret-redaction",
           "ref": "capabilities/platform-foundation#secret-redaction",
           "text": "The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as \"basic requirements\"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing",
@@ -5079,7 +5329,7 @@
         {
           "id": "errors-and-exit-codes",
           "ref": "capabilities/platform-foundation#errors-and-exit-codes",
-          "text": "Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, with remediation-specific codes 8 to 11 scoped to that command",
+          "text": "Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, 12 waiting for the host agent (not a failure), with remediation-specific codes 8 to 11 scoped to that command",
           "proof": "proven",
           "tests": [
             {
@@ -5120,25 +5370,25 @@
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 17,
+              "line": 18,
               "title": "Obtaining a label for each defined exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 29,
+              "line": 31,
               "title": "Obtaining a label for an unknown exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 36,
+              "line": 38,
               "title": "Verifying no duplicate numeric values exist",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 44,
+              "line": 46,
               "title": "Type safety prevents arbitrary number assignment",
               "origin": "source"
             },
@@ -5293,14 +5543,14 @@
         }
       ],
       "counts": {
-        "claims": 24,
-        "proven": 24,
+        "claims": 27,
+        "proven": 27,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 24,
+        "withTests": 27,
         "incomplete": 0
       }
     },
@@ -5362,6 +5612,8 @@
         "specs/history/2026-10-23-spec-tag-java-kotlin-tests-and-index-mod.md",
         "specs/history/2026-10-23-workspace-panel-route-clicks-by-data-act.md",
         "specs/history/2026-10-24-key-set-status-and-a-per-user-env-file.md",
+        "specs/history/2026-10-25-0-4-the-host-coding-agent-does-the-model.md",
+        "specs/history/2026-10-25-specguard-proves-intent-not-metrics-thre.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -5851,7 +6103,6 @@
       "docs": [
         "README.md",
         "docs/ci-remediate.md",
-        "docs/dogfood-remediate.md",
         "docs/examples/feature-catalog.config.json",
         "docs/examples/specguard-remediate.yml",
         "docs/user/docker.md",
@@ -10364,34 +10615,48 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 286,
-    "proven": 253,
+    "claims": 292,
+    "proven": 259,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 255,
+    "withTests": 261,
     "incomplete": 0,
     "capabilities": 11,
-    "ownedFiles": 326,
-    "sourceFiles": 260
+    "ownedFiles": 340,
+    "sourceFiles": 263
   },
   "gaps": {
     "intent": [
       {
-        "id": "integration-surfaces",
-        "codeDate": "2026-10-24",
+        "id": "documentation-api",
+        "codeDate": "2026-10-25",
         "intentDate": "2026-10-22"
       },
       {
         "id": "requirement-history",
-        "codeDate": "2026-10-24",
+        "codeDate": "2026-10-25",
+        "intentDate": "2026-10-22"
+      },
+      {
+        "id": "spec-authoring",
+        "codeDate": "2026-10-25",
+        "intentDate": "2026-10-25"
+      },
+      {
+        "id": "team-server",
+        "codeDate": "2026-10-25",
         "intentDate": "2026-10-22"
       }
     ],
     "docsStale": [
-      "team-server"
+      "documentation-api",
+      "integration-surfaces",
+      "platform-foundation",
+      "requirement-history",
+      "spec-authoring"
     ]
   }
 }

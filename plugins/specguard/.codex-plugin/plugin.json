@@ -1,0 +1,16 @@
+{
+  "name": "specguard",
+  "version": "0.4.0",
+  "description": "Keep specs as the source of truth: draft them from your code, link tests to requirements, and see what is proven. The agent does the model work, so no API key is needed.",
+  "author": "jazzmind",
+  "license": "MIT",
+  "keywords": ["specs", "testing", "traceability", "qa", "spec-driven-development", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "SpecGuard",
+    "shortDescription": "Prove your code still delivers what its specs say",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"]
+  }
+}

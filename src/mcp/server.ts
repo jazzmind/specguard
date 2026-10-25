@@ -59,6 +59,7 @@ import { appendProofCoverage, runProofIngest } from '../pipelines/proof.js';
 import { isResultFormat, runResultsIngest } from '../pipelines/results.js';
 
 import { runWithPipeline } from '../core/llm-runtime.js';
+import { answerAgentRequest, listAgentRequests, readAgentRequest, resolveRequestHash } from '../core/agent-work.js';
 import { cliVersion } from '../core/version.js';
 import { enabledPluginCommands } from '../plugins/commands.js';
 import { errorResult, textResult, toolResult, type ToolResult } from './format.js';
@@ -174,6 +175,7 @@ export const CORE_TOOLS: ReadonlySet<string> = new Set([
   'specguard_write_spec',
   'specguard_history_add',
   'specguard_history_log',
+  'specguard_agent_work',
   'specguard_test_run',
   'specguard_verify',
   'specguard_security_scan',
@@ -965,6 +967,38 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
       withActivityLog('history-log', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
         return toolResult(await runHistoryLog(config, { capability }));
+      }).catch(errorResult),
+  );
+
+  server.registerTool(
+    'specguard_agent_work',
+    {
+      description:
+        'Model requests waiting for you, the host coding agent (llm.provider "host", or no API key while running inside an agent). ' +
+        'action "list" returns each request in full (system, prompt, and for JSON requests the schema the answer must satisfy); ' +
+        'action "answer" records your answer to one request by hash (JSON for object requests, text otherwise). ' +
+        'Afterwards rerun the command that asked; exit code 12 means "waiting for the agent", not failure (CLI: specguard agent pending|answer).',
+      inputSchema: {
+        action: z.enum(['list', 'answer']),
+        hash: z.string().optional().describe('answer: the request hash, or a unique prefix of 8 or more characters.'),
+        answer: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional().describe('answer: the answer.'),
+        cwd: z.string().optional(),
+      },
+    },
+    ({ action, hash, answer, cwd }): Promise<ToolResult> =>
+      withActivityLog('agent-work', resolveCwd(cwd), async () => {
+        const config = await loadConfig(resolveCwd(cwd));
+        const root = config.rootDir ?? resolveCwd(cwd);
+        if (action === 'list') {
+          const requests = listAgentRequests(root);
+          return textResult(requests.length === 0 ? 'No model requests are waiting.' : JSON.stringify(requests, null, 2));
+        }
+        const full = hash ? resolveRequestHash(root, hash) : null;
+        if (!full || !readAgentRequest(root, full)) return errorResult(new Error(`No single pending request matches "${hash ?? ''}". Use action "list".`));
+        if (answer === undefined) return errorResult(new Error('answer is required with action "answer".'));
+        const dir = config.llm.replay?.dir ?? path.join('.specguard', 'replay');
+        answerAgentRequest(root, path.isAbsolute(dir) ? dir : path.resolve(root, dir), full, answer);
+        return textResult(`Recorded the answer to ${full.slice(0, 12)}. Rerun the command that asked.`);
       }).catch(errorResult),
   );
 

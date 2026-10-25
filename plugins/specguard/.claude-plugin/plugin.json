@@ -1,0 +1,11 @@
+{
+  "name": "specguard",
+  "displayName": "SpecGuard",
+  "version": "0.4.0",
+  "description": "Keep specs as the source of truth: draft them from your code, link tests to requirements, and see what is proven. Claude does the model work, so no API key is needed.",
+  "author": { "name": "jazzmind", "url": "https://github.com/jazzmind/specguard" },
+  "homepage": "https://github.com/jazzmind/specguard",
+  "repository": "https://github.com/jazzmind/specguard",
+  "license": "MIT",
+  "keywords": ["specs", "testing", "traceability", "qa", "spec-driven-development", "mcp"]
+}

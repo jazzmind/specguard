@@ -19,6 +19,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { ExitCode } from '../core/exit-codes.js';
+import { AgentWorkPendingError, pendingThisRun } from '../core/agent-work.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
 import { buildSpecGraph } from '../core/spec-graph.js';
@@ -136,6 +137,7 @@ export async function runSpecTag(config: SpecGuardConfig, opts: SpecTagOpts = {}
     }
   }
   const planned = new Map<string, Planned>();
+  let awaitingAgent = false;
 
   for (const node of caps) {
     const claims = node.spec.claims.filter((c) => c.id);
@@ -163,17 +165,27 @@ export async function runSpecTag(config: SpecGuardConfig, opts: SpecTagOpts = {}
     let tagged = 0;
     for (let start = 0; start < tests.length; start += chunk) {
       const batch = tests.slice(start, start + chunk);
-      const answer = await llmGenerateObject({
-        provider: config.llm.provider,
-        model: config.llm.model,
-        apiKeyEnv: config.llm.apiKeyEnv,
-        pipeline: 'tag',
-        system: SYSTEM,
-        prompt:
-          `Capability: ${node.spec.title || node.id}\n\nRequirements:\n${claims.map((c) => `- ${c.id}: ${c.text}`).join('\n')}\n\n` +
-          `Tests:\n${batch.map((t, i) => `${i}. ${t.file} — ${t.title}`).join('\n')}`,
-        schema: MatchSchema,
-      });
+      let answer: z.infer<typeof MatchSchema>;
+      try {
+        answer = await llmGenerateObject({
+          provider: config.llm.provider,
+          model: config.llm.model,
+          apiKeyEnv: config.llm.apiKeyEnv,
+          pipeline: 'tag',
+          system: SYSTEM,
+          prompt:
+            `Capability: ${node.spec.title || node.id}\n\nRequirements:\n${claims.map((c) => `- ${c.id}: ${c.text}`).join('\n')}\n\n` +
+            `Tests:\n${batch.map((t, i) => `${i}. ${t.file} — ${t.title}`).join('\n')}`,
+          schema: MatchSchema,
+        });
+      } catch (err) {
+        // Waiting for the host agent: keep collecting requests for the other capabilities, and apply nothing yet.
+        if (err instanceof AgentWorkPendingError) {
+          awaitingAgent = true;
+          continue;
+        }
+        throw err;
+      }
       for (const m of answer.matches) {
         const test = batch[m.test];
         // Only links the model is sure of: a medium link would overstate what the test proves.
@@ -193,6 +205,8 @@ export async function runSpecTag(config: SpecGuardConfig, opts: SpecTagOpts = {}
     log(`${node.id}: ${tagged} of ${tests.length} untagged test(s) matched; ${covered.size} of ${known.size} requirement(s) now cited${uncovered.length ? `; no test found for: ${uncovered.join(', ')}` : ''}`);
     result.items.push({ key: node.id, status: tagged > 0 ? 'ok' : 'skipped', message: `${tagged} tests, ${uncovered.length} requirements uncovered` });
   }
+
+  if (awaitingAgent) throw new AgentWorkPendingError(pendingThisRun());
 
   if (indexPath) {
     const fresh = [...planned.values()].map((p) => ({ file: p.file, line: p.line, title: p.title, refs: [...p.refs].sort() }));

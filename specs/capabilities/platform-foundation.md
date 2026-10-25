@@ -11,6 +11,7 @@ sources:
   - "src/core/llm-runtime.ts"
   - "src/core/llm-usage.ts"
   - "src/core/llm-replay.ts"
+  - "src/core/agent-work.ts"
   - "src/core/redact.ts"
   - "src/core/reader.ts"
   - "src/core/writer.ts"
@@ -31,6 +32,9 @@ tests:
   - "tests/core/writer.test.ts"
   - "tests/core/errors.test.ts"
   - "tests/core/exit-codes.test.ts"
+  - "tests/core/agent-work.test.ts"
+  - "tests/pipelines/host-agent-flow.test.ts"
+  - "tests/regression/no-private-names.test.ts"
   - "tests/core/language-profiles.test.ts"
   - "tests/core/version.test.ts"
 docs:
@@ -49,6 +53,8 @@ history:
   - 2026-10-22-security-plugin-and-hook-modules-are-loa
   - 2026-10-22-security-no-rate-limit-or-throttle-on-re
   - 2026-10-22-security-replay-recordings-containing-se
+  - 2026-10-25-specguard-proves-intent-not-metrics-thre
+  - 2026-10-25-0-4-the-host-coding-agent-does-the-model
 ---
 
 # Platform Foundation
@@ -71,7 +77,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config yields a not-found error that names the search start and suggests `specguard init` <!-- claim: config-discovery -->
 - [ ] Configuration is validated against one schema: invalid JSON or an invalid field fails with a readable invalid-config error, unknown keys and `_comment` are tolerated, and the directory that holds `.specguard/` is exposed to every pipeline as the root <!-- claim: config-validation -->
 - [ ] A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error <!-- claim: config-extends -->
-- [ ] Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language <!-- claim: config-apps-and-defaults -->
+- [ ] Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start <!-- claim: config-apps-and-defaults -->
 - [ ] Glob expansion never descends into dependency, build or VCS directories (node_modules, dist, build, coverage, .next, .git) even when a pattern would reach them, returns only sorted, de-duplicated absolute file paths, and skips dot-files <!-- claim: default-glob-excludes -->
 - [ ] Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema <!-- claim: llm-provider-layer -->
 - [ ] Each model attempt has a timeout; retryable failures (timeouts, rate limits, server errors, network resets) are retried with exponential backoff and jitter a configurable number of times, while authentication, validation and missing-key failures are never retried <!-- claim: llm-timeout-retry -->
@@ -82,10 +88,13 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Every real call adds tokens, call count and estimated cost to a usage log, in total and per pipeline and model, using a built-in price table that config can override <!-- claim: llm-usage-log -->
 - [ ] A replay provider serves recorded responses keyed by a hash of the prompt, system text and image bytes with no network call; a miss names the hash and how to record, and `--record` or config writes every real response so a later run reproduces it <!-- claim: llm-replay-record -->
 - [ ] Setting the provider to `none` makes every model call fail with a disabled error without touching the network so deterministic-only runs work, and disallowing images rejects any call that carries them <!-- claim: llm-disabled-and-images -->
+- [ ] With `llm.provider: "host"`, or a keyed provider whose key is not set while running inside a coding agent (Claude Code is recognised on its own, other agents through `SPECGUARD_HOST_AGENT=1`, which `=0` turns off), a model call with no recorded answer writes a request file (system text, credential-masked prompt and, for structured output, the JSON Schema of the answer) under `.specguard/agent-requests/`, records it as pending and raises a typed error whose exit code is 12, without calling any model; the agent records its answer in the replay store, the next run validates it with the caller's schema and serves it, and an answer that fails the schema is set aside with the reason written on the request so it is asked again <!-- claim: host-agent-provider -->
+- [ ] Host-agent calls never leave a mess: a step that makes many requests (file summaries, one spec per capability, test tagging) asks for all of them in one round (summaries in batches of up to 25 files), applies nothing and writes no system spec until every answer is in, never records a guessed verdict (a drift judgement still waiting for the agent leaves the change unassessed instead of recording "every requirement affected"), and a call a hook makes on its own opts out so a hook never leaves a request behind <!-- claim: host-agent-batching -->
+- [ ] No tracked file of the repository contains the name of a private project, an employer or an internal host: a test compares every word of every tracked file with a list kept as SHA-256 hashes, so the list names no one, and fails with the offending file <!-- claim: no-private-names -->
 - [ ] The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as "basic requirements"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing <!-- claim: secret-redaction -->
 - [ ] File access goes through small reader and writer helpers: reads return UTF-8 text and reject on a missing file, existence checks return false instead of throwing, and writes create intermediate directories and replace the file atomically (a temp file renamed over it, so a reader never sees half a write); sentinel-delimited regions let SpecGuard own part of a hand-written file without touching the rest, and generated run state is kept out of version control through a managed ignore block <!-- claim: filesystem-access -->
 - [ ] Language and framework profiles describe source globs, test file naming, test command and result parsing for TypeScript, Python, Go, Rust and Java, detect the language from marker files with a fixed tie-break, and honour per-app prefix stripping when deriving feature names <!-- claim: language-profiles -->
-- [ ] Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, with remediation-specific codes 8 to 11 scoped to that command <!-- claim: errors-and-exit-codes -->
+- [ ] Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, 12 waiting for the host agent (not a failure), with remediation-specific codes 8 to 11 scoped to that command <!-- claim: errors-and-exit-codes -->
 - [ ] One build version is reported everywhere: `--version` prints it, `--version --json` prints name, version and Node version on one line, and the MCP server and extension report the same value <!-- claim: single-version-source -->
 - [ ] A glob names a path literally where it can: a parenthesised segment such as the Next.js route group `app/(authenticated)/page.tsx` matches the folder `(authenticated)` instead of being read as a glob group, while extglob forms (`!(a|b)`, `@(a|b)`) and already-escaped characters keep their meaning <!-- claim: glob-literal-parens -->
 - [ ] What SpecGuard writes down for people to read later is passed through the secret redactor first: activity-log messages (a failure can quote a command line or a response that held a credential) and the prompt preview in an LLM replay recording, which is committed <!-- claim: log-redaction -->

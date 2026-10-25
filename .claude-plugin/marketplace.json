@@ -1,0 +1,12 @@
+{
+  "name": "specguard",
+  "description": "SpecGuard: prove that your code still delivers what its specs say",
+  "owner": { "name": "jazzmind", "url": "https://github.com/jazzmind/specguard" },
+  "plugins": [
+    {
+      "name": "specguard",
+      "source": "./plugins/specguard",
+      "description": "Keep specs as the source of truth: draft them from your code, link tests to requirements, and see what is proven. No API key needed inside Claude Code."
+    }
+  ]
+}

@@ -58,9 +58,11 @@ import { serveCommand } from './commands/serve.js';
 import { serverCommand } from './commands/server.js';
 import { testRunCommand } from './commands/test.js';
 import { historyAddCommand, historyCaptureCommand, historyInboxCommand, historyLogCommand } from './commands/history.js';
-import { specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand } from './commands/spec.js';
+import { specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand, startCommand } from './commands/spec.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
+import { AgentWorkPendingError, pendingMessage, pendingThisRun } from '../core/agent-work.js';
+import { agentAnswerCommand, agentPendingCommand } from './commands/agent.js';
 import { resultsIngestCommand } from './commands/results.js';
 import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
 import { cliVersion, versionInfo } from '../core/version.js';
@@ -103,10 +105,45 @@ process.on('exit', (code) => {
   if (message) {
     process.stderr.write(`${message}\n`);
     process.exitCode = ExitCode.BudgetExceeded;
+    return;
+  }
+  // Model requests are waiting for the host agent: say so once, and exit 12 (not a failure) even when the
+  // pipeline went on to print a summary of its own.
+  const waiting = pendingThisRun();
+  if (waiting.length > 0) {
+    process.stderr.write(`${pendingMessage(waiting)}\n`);
+    process.exitCode = ExitCode.AgentWorkPending;
   } else {
     void code;
   }
 });
+
+// --- start ----------------------------------------------------------------------
+program
+  .command('start')
+  .description('set up if needed, draft specs from the code, link tests, run them and report; resumable (rerun after the host agent answers: exit 12)')
+  .option('--skip-tests', 'do not run the project tests')
+  .action(async (opts: { skipTests?: boolean }, cmd: Command) => {
+    await startCommand(withGlobals(cmd, opts));
+  });
+
+// --- agent (host coding agent answers model requests) --------------------------
+const agentCmd = program.command('agent').description('model requests the host coding agent answers (llm.provider "host", or no API key inside an agent)');
+agentCmd
+  .command('pending')
+  .description('list the model requests waiting for an answer (exit 12 when there are any)')
+  .option('--full', 'with --json: include each request in full')
+  .action(async (opts: { full?: boolean }, cmd: Command) => {
+    await agentPendingCommand(withGlobals(cmd, opts));
+  });
+agentCmd
+  .command('answer <hash>')
+  .description('record the answer to a pending request (JSON for object requests, text otherwise); a unique 8+ character hash prefix is enough')
+  .option('--file <path>', 'read the answer from this file')
+  .option('--stdin', 'read the answer from standard input')
+  .action(async (hash: string, opts: { file?: string; stdin?: boolean }, cmd: Command) => {
+    await agentAnswerCommand(hash, withGlobals(cmd, opts));
+  });
 
 // --- init -----------------------------------------------------------------
 program
@@ -114,7 +151,7 @@ program
   .description('scaffold .specguard/config.json, specs, and agent-harness files')
   .option('--with-playwright', 'configure Playwright as the test framework')
   .option('--language <id>', 'target language (typescript|python|go|rust|java); auto-detected when omitted')
-  .option('--harness <which>', 'agent harness files to generate (claude|cursor|both)', 'both')
+  .option('--harness <which>', 'also write agent files for claude, cursor or both (default: none; the Claude Code and Codex plugins make them unnecessary)')
   .option('--single', 'treat the repo as one app even when a pnpm/Yarn/npm/Nx/Turbo workspace is detected')
   .option('--runner <kind>', 'how generated MCP/hook commands run specguard: node|npx|path (default: local binary, else npx)')
   .option('--runner-path <file>', 'specguard CLI entry for --runner path')
@@ -940,6 +977,9 @@ export async function main(): Promise<void> {
     // usage errors (exitCode 1). Honor its code.
     if (err instanceof CommanderError) {
       process.exit(err.exitCode);
+    }
+    if (err instanceof AgentWorkPendingError) {
+      process.exit(err.exitCode); // the exit hook prints what is waiting
     }
     if (err instanceof SpecGuardError) {
       process.stderr.write(`${err.message}\n`);

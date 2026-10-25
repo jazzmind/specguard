@@ -39,7 +39,9 @@ describe('scaffoldHarnessFiles', () => {
     expect(skill).toContain('pytest');
 
     const settings = JSON.parse(readFileSync(path.join(cwd, '.claude/settings.json'), 'utf8'));
-    expect(settings.mcpServers['specguard-mcp']).toBeTruthy();
+    expect(settings.mcpServers).toBeUndefined(); // Claude Code reads project MCP servers from .mcp.json
+    const mcp = JSON.parse(readFileSync(path.join(cwd, '.mcp.json'), 'utf8'));
+    expect(mcp.mcpServers['specguard-mcp']).toBeTruthy();
     expect(JSON.stringify(settings.hooks.PostToolUse)).toContain('specguard status');
 
     expect(res.created.length).toBeGreaterThan(0);
@@ -69,7 +71,7 @@ describe('scaffoldHarnessFiles', () => {
 
     const after = JSON.parse(readFileSync(settingsPath, 'utf8'));
     expect(after.userKey).toBe('keep-me');
-    expect(after.mcpServers['specguard-mcp']).toBeTruthy();
+    expect(JSON.parse(readFileSync(path.join(cwd, '.mcp.json'), 'utf8')).mcpServers['specguard-mcp']).toBeTruthy();
     expect(readFileSync(claudePath, 'utf8')).toContain('## My own notes');
   });
 
@@ -96,9 +98,10 @@ describe('scaffoldHarnessFiles', () => {
 describe('npx forms', () => {
   // [claims: capabilities/integration-surfaces#harness-files]
   it('writes the package-qualified npx commands', async () => {
-    const { mergeClaudeSettings, mergeCursorMcpJson, NPX_CLI, mcpServerEntry } = await import('../../src/core/scaffold.js');
-    const claude = mergeClaudeSettings({}) as { mcpServers: Record<string, { command: string; args: string[] }>; hooks: unknown };
-    expect(claude.mcpServers['specguard-mcp']).toEqual({ command: 'npx', args: ['-y', '-p', 'specguard-ai', 'specguard-mcp'] });
+    const { mergeClaudeSettings, mergeCursorMcpJson, mergeMcpJson, NPX_CLI, mcpServerEntry } = await import('../../src/core/scaffold.js');
+    const claude = mergeClaudeSettings({}) as { mcpServers?: unknown; hooks: unknown };
+    expect(claude.mcpServers).toBeUndefined();
+    expect(mergeMcpJson({}).mcpServers).toEqual({ 'specguard-mcp': { command: 'npx', args: ['-y', '-p', 'specguard-ai', 'specguard-mcp'] } });
     expect(JSON.stringify(claude.hooks)).toContain(`${NPX_CLI} status`);
     expect(NPX_CLI).toBe('npx -p specguard-ai specguard');
     expect(mergeCursorMcpJson({}).mcpServers).toEqual({ 'specguard-mcp': mcpServerEntry() });

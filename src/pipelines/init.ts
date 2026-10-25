@@ -1,9 +1,11 @@
 /**
  * Init pipeline.
  *
- * Scaffolds `.specguard/config.json`, `specs/README.md`, and `.specguard/.env`
- * in the target directory when they are missing, and git-ignores generated run
- * state. Never overwrites existing files. Returns a `PipelineResult`
+ * Scaffolds `.specguard/config.json` and `specs/README.md` in the target
+ * directory when they are missing, and git-ignores generated run state. It asks
+ * for no API key (inside a coding agent the agent does the model work; elsewhere
+ * `specguard key set` stores one) and writes agent-harness files only when a
+ * `harness` is named. Never overwrites existing files. Returns a `PipelineResult`
  * describing what was created and what was skipped.
  *
  * This is the pure-logic counterpart to `cli/commands/init.ts`, which wraps
@@ -35,7 +37,7 @@ export interface InitOpts {
   framework?: string;
   /** Target language; auto-detected from the project when not set. */
   language?: LanguageId;
-  /** Which agent harness files to generate (default: both). */
+  /** Which agent harness files to generate (claude|cursor|both). Default: none; the plugins make them unnecessary. */
   harness?: Harness;
   /** Override the target directory (default: process.cwd()). */
   cwd?: string;
@@ -105,8 +107,24 @@ function monorepoManifest(cwd: string, info: MonorepoInfo): string {
   return `${JSON.stringify({ version: '2', name: path.basename(cwd), repos: {}, units: unitsFromMonorepo(info, (pkg) => testCommandFor(info, pkg)) }, null, 2)}\n`;
 }
 
+/**
+ * TypeScript/JavaScript profiles assume `src/`. A project that keeps its code at the repo root (or under another
+ * folder) would match nothing and `spec draft` would find no source files, so without a `src/` folder every
+ * code file counts except tests, type declarations and tool configs.
+ */
+const ROOT_JS_SOURCES: LanguageProfile['sourceGlobs'] = {
+  routes: ['**/*.{ts,tsx,js,jsx,mjs,cjs}', '!**/*.{test,spec}.*', '!**/__tests__/**', '!tests/**', '!**/*.d.ts', '!**/*.config.*', '!**/build/**'],
+  api: ['**/api/**/*.{ts,js}'],
+  tests: ['**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}', 'tests/**/*.{ts,js}'],
+};
+
+function sourcesFor(profile: LanguageProfile, cwd: string): LanguageProfile['sourceGlobs'] {
+  const rooted = profile.id === 'typescript' && !existsSync(path.join(cwd, 'src'));
+  return rooted ? ROOT_JS_SOURCES : profile.sourceGlobs;
+}
+
 /** Build a config template from the resolved language profile. */
-function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: MonorepoInfo | null): string {
+function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: MonorepoInfo | null, sources: LanguageProfile['sourceGlobs'] = profile.sourceGlobs): string {
   const apps =
     monorepo && monorepo.packages.length > 0
       ? monorepoApps(monorepo, profile)
@@ -116,11 +134,7 @@ function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: M
             repo: '.',
             language: profile.id,
             specDir: 'specs',
-            sources: {
-              routes: profile.sourceGlobs.routes,
-              api: profile.sourceGlobs.api,
-              tests: profile.sourceGlobs.tests,
-            },
+            sources: { routes: sources.routes, api: sources.api, tests: sources.tests },
             framework,
             testOutput: profile.testOutput,
             security: { enabled: false },
@@ -136,11 +150,6 @@ function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: M
       semgrep: 'auto',
       testRunner: 'local',
     },
-    llm: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
-      apiKeyEnv: 'ANTHROPIC_API_KEY',
-    },
     heal: {
       maxRetries: 2,
       testCommand: profile.testCommand,
@@ -153,51 +162,28 @@ function defaultConfig(profile: LanguageProfile, framework: string, monorepo?: M
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 
-const SPECS_README = `# Living Specifications
+const SPECS_README = `# Specs
 
-This directory holds SpecGuard's Living Specifications — the source of truth
-for each module's behavior. One spec file per module, mirroring your source
-layout.
+These files are the source of truth for what the system is for. Code is fluid; specs, and the
+tests that prove the code conforms to them, are what lasts.
 
-## Format
+- \`system.md\` — the problem, the users and the value, with a map of the capabilities.
+- \`capabilities/<id>.md\` — one piece of functionality that delivers user or business value (about 10-15 per
+  system). It lists the code, tests and docs behind it, and its requirements, one per bullet with a
+  \`<!-- claim: id -->\` marker.
+- \`history/\` — the prompts, approved plans and decisions that shaped the requirements.
 
-Each spec is Markdown with a metadata comment block and these sections:
+## Working with them
 
-\`\`\`markdown
-# <Module Title>
-
-<!--
-  module: src/path/to/module.ts
-  type: core | pipeline | adapter | cli
-  status: draft | stable
--->
-
-## Overview
-## Acceptance Criteria
-## Scenarios
-## Security Notes
-## Dependencies
+\`\`\`bash
+specguard spec draft --yes     # write the system and capability specs from existing code
+specguard spec tag --yes       # link existing tests to requirements
+specguard test run             # run the tests and record what each requirement is proven by
+specguard check                # where specs, tests and code agree, and where they do not
 \`\`\`
 
-## Workflow
-
-- \`specguard reverse --app <name>\` — generate specs from existing source
-- \`specguard generate --all\` — generate tests from specs
-- \`specguard validate --all\` — run specs against the running app
-- \`specguard status\` — report spec coverage
-`;
-
-const DOT_ENV_TEMPLATE = `# SpecGuard environment variables — git-ignored.
-# Uncomment and fill in the key for your chosen LLM provider.
-
-# Anthropic (default)
-ANTHROPIC_API_KEY=your-key-here
-
-# OpenAI
-# OPENAI_API_KEY=your-key-here
-
-# LiteLLM (local — default base URL: http://localhost:4000)
-# LITELLM_BASE_URL=http://localhost:4000
+Tag a test with the requirement it proves: \`// [claims: capabilities/<id>#<claim-id>]\`.
+Do not write one spec per file; several files that deliver one piece of functionality belong in one capability.
 `;
 
 /** Generated-state files that git already tracks (so ignoring them is not enough). */
@@ -230,7 +216,6 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
 
   const configPath = path.join(cwd, '.specguard', 'config.json');
   const specsReadmePath = path.join(cwd, 'specs', 'README.md');
-  const dotEnvPath = path.join(cwd, '.specguard', '.env');
   const gitignorePath = path.join(cwd, '.gitignore');
 
   const tryCreate = async (filePath: string, content: string): Promise<void> => {
@@ -254,9 +239,8 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     );
     await tryCreate(path.join(cwd, '.specguard', 'workspace.json'), monorepoManifest(cwd, monorepo));
   }
-  await tryCreate(configPath, defaultConfig(profile, framework, monorepo));
+  await tryCreate(configPath, defaultConfig(profile, framework, monorepo, sourcesFor(profile, cwd)));
   await tryCreate(specsReadmePath, SPECS_README);
-  await tryCreate(dotEnvPath, DOT_ENV_TEMPLATE);
 
   // Best-effort: keep generated run state (and the .env secrets file) out of version control.
   try {
@@ -275,22 +259,27 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     }
   } catch { /* best-effort */ }
 
-  // Generate agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command).
-  const scaffold = await scaffoldHarnessFiles({
-    cwd,
-    profile,
-    harness: opts.harness,
-    runner: opts.runner,
-    runnerPath: opts.runnerPath,
-    updateHooks: opts.updateHooks,
-    historyHooks: opts.historyHooks,
-  });
-  result.createdFiles.push(...scaffold.created);
-  result.skippedFiles.push(...scaffold.skipped);
-  result.created += scaffold.created.length;
-  result.updated += scaffold.updated.length;
-  result.skipped += scaffold.skipped.length;
-  result.messages.push(...scaffold.messages);
+  // Agent-harness files (CLAUDE.md, skills, MCP wiring, /goal command) only when asked for: the Claude Code and Codex
+  // plugins bring the same skills and MCP server without writing into the project.
+  if (opts.harness) {
+    const scaffold = await scaffoldHarnessFiles({
+      cwd,
+      profile,
+      harness: opts.harness,
+      runner: opts.runner,
+      runnerPath: opts.runnerPath,
+      updateHooks: opts.updateHooks,
+      historyHooks: opts.historyHooks,
+    });
+    result.createdFiles.push(...scaffold.created);
+    result.skippedFiles.push(...scaffold.skipped);
+    result.created += scaffold.created.length;
+    result.updated += scaffold.updated.length;
+    result.skipped += scaffold.skipped.length;
+    result.messages.push(...scaffold.messages);
+  } else if (opts.historyHooks) {
+    result.messages.push('  note     --history-hooks needs --harness claude (the hooks go in .claude/settings.local.json)');
+  }
 
   if (opts.ci === 'github') {
     const has = (f: string): boolean => existsSync(path.join(cwd, f));
@@ -314,7 +303,7 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   }
 
   result.messages.unshift(
-    `specguard init (language: ${profile.id}, framework: ${framework}, harness: ${opts.harness ?? 'both'})`,
+    `specguard init (language: ${profile.id}, framework: ${framework}${opts.harness ? `, harness: ${opts.harness}` : ''})`,
   );
   result.exitCode = ExitCode.Success;
   return result;

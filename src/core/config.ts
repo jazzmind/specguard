@@ -98,11 +98,18 @@ const llmTargetSchema = z
   })
   .passthrough();
 
-const llmSchema = z
+/** Key variable for a provider when the config does not name one. */
+const DEFAULT_KEY_ENV: Record<string, string> = { anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', litellm: 'LITELLM_API_KEY' };
+
+/**
+ * The whole `llm` block is optional. Without it a project uses Anthropic with `ANTHROPIC_API_KEY`, and inside a
+ * coding agent with no key set the host agent does the model work (provider `host`, see core/agent-work.ts).
+ */
+const llmObjectSchema = z
   .object({
-    provider: z.string(),
-    model: z.string(),
-    apiKeyEnv: z.string(),
+    provider: z.string().default('anthropic'),
+    model: z.string().default('claude-sonnet-4-6'),
+    apiKeyEnv: z.string().optional(),
     baseUrl: z.string().optional(),
     models: z.object({ fast: llmTargetSchema.optional(), frontier: llmTargetSchema.optional() }).optional(),
     pipelines: z
@@ -138,6 +145,10 @@ const llmSchema = z
     replay: z.object({ dir: z.string().optional(), record: z.boolean().optional() }).passthrough().optional(),
   })
   .passthrough();
+
+const llmSchema = llmObjectSchema
+  .transform((l) => ({ ...l, apiKeyEnv: l.apiKeyEnv ?? DEFAULT_KEY_ENV[l.provider] ?? 'ANTHROPIC_API_KEY' }))
+  .default({});
 
 const triggersSchema = z
   .object({

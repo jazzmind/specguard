@@ -11,6 +11,7 @@
 import path from 'node:path';
 
 import { ExitCode } from '../core/exit-codes.js';
+import { AgentWorkPendingError } from '../core/agent-work.js';
 import { llmGenerateObject } from '../core/llm.js';
 import { mergeClaims } from '../core/claim-migration.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
@@ -55,6 +56,16 @@ export interface SpecDraftOpts {
 }
 
 export const DEFAULT_TARGET: [number, number] = [8, 15];
+
+/**
+ * How many capabilities to ask for. A system of about 60 files or more gets the default 8-15; a smaller one
+ * gets fewer, or a three-file project would be split into eight "capabilities" that are one function each.
+ */
+export function scaledTarget(fileCount: number): [number, number] {
+  const lo = Math.min(DEFAULT_TARGET[0], Math.max(1, Math.round(fileCount / 8)));
+  const hi = Math.min(DEFAULT_TARGET[1], Math.max(lo, Math.ceil(fileCount / 2)));
+  return [lo, hi];
+}
 
 const CLUSTER_SYSTEM =
   'You are a software architect. Group a codebase into functional capabilities that each deliver user or business value, ' +
@@ -111,9 +122,9 @@ export async function runSpecDraft(config: SpecGuardConfig, opts: SpecDraftOpts 
   const result = emptyResult('spec-draft');
   const log = (line: string): void => (opts.onLog ? opts.onLog(line) : void result.messages.push(line));
   const root = rootOf(config);
-  const target = config.granularity?.target ?? DEFAULT_TARGET;
 
   const files = await collectSourceFiles(config);
+  const target = config.granularity?.target ?? scaledTarget(files.length);
   if (files.length === 0) {
     result.failed = 1;
     result.exitCode = ExitCode.ValidationFailed;
@@ -167,6 +178,7 @@ export async function runSpecDraft(config: SpecGuardConfig, opts: SpecDraftOpts 
   const fileSummaries = Object.keys(summaries).length > 0 ? summaries : await summarizeFiles(config, files, { onLog: log });
   const capsDir = path.join(specsRootDir(config), 'capabilities');
   const history = opts.history ?? [];
+  let awaitingAgent = false;
 
   for (const plan of check.map.capabilities) {
     const target = path.join(capsDir, `${plan.id}.md`);
@@ -215,12 +227,24 @@ export async function runSpecDraft(config: SpecGuardConfig, opts: SpecDraftOpts 
         result.items.push({ key: comp.id, status: 'created', path: compFile });
       }
     } catch (err) {
+      if (err instanceof AgentWorkPendingError) {
+        // The host agent has not answered for this capability yet: not a failure, carry on to request the rest.
+        awaitingAgent = true;
+        result.skipped += 1;
+        result.items.push({ key: plan.id, status: 'skipped', message: 'waiting for the host agent' });
+        continue;
+      }
       result.failed += 1;
       result.items.push({ key: plan.id, status: 'failed', message: err instanceof Error ? err.message : String(err) });
       log(`[fail] ${plan.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
+  if (awaitingAgent) {
+    log('[pending] some capability specs wait for the host agent; the system spec is written once all are drafted');
+    result.exitCode = ExitCode.AgentWorkPending;
+    return result;
+  }
   await writeSystemSpec(config, check.map, { force: opts.force, history, log });
   if (result.failed > 0) result.exitCode = ExitCode.ValidationFailed;
   return result;

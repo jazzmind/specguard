@@ -31,6 +31,7 @@ function trackedFiles(): string[] {
 }
 
 describe('no private names in tracked files [platform-foundation]', () => {
+  // [claims: capabilities/platform-foundation#no-private-names]
   it('contains no denied word token', () => {
     const hits: string[] = [];
     for (const rel of trackedFiles()) {

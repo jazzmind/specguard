@@ -187,3 +187,26 @@ describe('loadConfig repo boundary and extends', () => {
   });
 });
 
+
+describe('the llm block is optional [platform-foundation]', () => {
+  const app = { name: 'a', repo: '.', specDir: 'specs', sources: { routes: ['src/**/*.ts'] }, framework: 'vitest', testOutput: 'tests/' };
+  const configIn = (llm?: unknown): string => {
+    const root = makeTempDir();
+    mkdirSync(path.join(root, '.specguard'), { recursive: true });
+    writeFileSync(path.join(root, '.specguard/config.json'), JSON.stringify({ apps: [app], ...(llm === undefined ? {} : { llm }) }));
+    return root;
+  };
+
+  // [claims: capabilities/platform-foundation#config-apps-and-defaults]
+  it('defaults to Anthropic with ANTHROPIC_API_KEY when there is no llm block', async () => {
+    const config = await loadConfig(configIn());
+    expect(config.llm).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKeyEnv: 'ANTHROPIC_API_KEY' });
+  });
+
+  // [claims: capabilities/platform-foundation#config-apps-and-defaults]
+  it('fills in a partial llm block, with the key variable that goes with the provider', async () => {
+    expect((await loadConfig(configIn({ provider: 'openai', model: 'gpt-x' }))).llm.apiKeyEnv).toBe('OPENAI_API_KEY');
+    expect((await loadConfig(configIn({ provider: 'host' }))).llm).toMatchObject({ provider: 'host', model: 'claude-sonnet-4-6' });
+    expect((await loadConfig(configIn({ provider: 'anthropic', apiKeyEnv: 'MY_KEY' }))).llm.apiKeyEnv).toBe('MY_KEY');
+  });
+});

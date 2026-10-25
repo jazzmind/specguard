@@ -22,6 +22,11 @@ export const ExitCode = {
   HealFailed: 7,
   /** The LLM spend cap (`llm.budget`) was reached. */
   BudgetExceeded: 8,
+  /**
+   * Model requests are waiting for the host coding agent (`llm.provider: "host"`): answer them
+   * (`specguard agent pending`, `specguard agent answer`) and rerun. Not a failure. Codes 9-11 belong to `remediate`.
+   */
+  AgentWorkPending: 12,
 } as const;
 
 /**
@@ -77,6 +82,8 @@ export function exitCodeLabel(code: number): string {
       return 'heal failed';
     case ExitCode.BudgetExceeded:
       return 'llm budget exceeded';
+    case ExitCode.AgentWorkPending:
+      return 'waiting for the host agent';
     default:
       return `unknown (${code})`;
   }

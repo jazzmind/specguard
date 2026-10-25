@@ -54,3 +54,51 @@ describe('generated state ignore', () => {
     expect(result.messages.join('\n')).toContain('git rm --cached .specguard/gaps.json');
   });
 });
+
+describe('minimal init [integration-surfaces]', () => {
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
+  it('writes a config and a specs README only: no key file, no llm block, no agent files unless asked', async () => {
+    const dir = tmp();
+    writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}');
+    const result = await runInit({ cwd: dir });
+    expect(result.exitCode).toBe(0);
+    for (const rel of ['.specguard/config.json', 'specs/README.md', '.gitignore']) expect(existsSync(path.join(dir, rel))).toBe(true);
+    for (const rel of ['.specguard/.env', 'CLAUDE.md', 'AGENTS.md', '.claude', '.cursor', '.mcp.json']) expect(existsSync(path.join(dir, rel))).toBe(false);
+    const config = JSON.parse(readFileSync(path.join(dir, '.specguard/config.json'), 'utf8'));
+    expect(config.llm).toBeUndefined();
+    expect(readFileSync(path.join(dir, 'specs/README.md'), 'utf8')).toContain('capabilities/<id>.md');
+  });
+
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
+  it('a harness is written only when named, and Claude Code gets its MCP server in .mcp.json', async () => {
+    const dir = tmp();
+    writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}');
+    await runInit({ cwd: dir, harness: 'claude' });
+    expect(existsSync(path.join(dir, '.claude/skills/specguard/SKILL.md'))).toBe(true);
+    expect(JSON.parse(readFileSync(path.join(dir, '.mcp.json'), 'utf8')).mcpServers['specguard-mcp']).toBeTruthy();
+    expect(existsSync(path.join(dir, '.cursor'))).toBe(false);
+  });
+
+  // [claims: capabilities/integration-surfaces#init-bootstrap]
+  it('matches code kept at the repo root, where the src/-anchored globs would find nothing', async () => {
+    const dir = tmp();
+    writeFileSync(path.join(dir, 'package.json'), '{"name":"x"}');
+    writeFileSync(path.join(dir, 'cart.ts'), 'export const total = 1;\n');
+    writeFileSync(path.join(dir, 'cart.test.ts'), 'export {};\n');
+    mkdirSync(path.join(dir, 'lib'), { recursive: true });
+    writeFileSync(path.join(dir, 'lib', 'util.ts'), 'export const u = 1;\n');
+    await runInit({ cwd: dir });
+    const { expandGlobs } = await import('../../src/core/reader.js');
+    const sources = JSON.parse(readFileSync(path.join(dir, '.specguard/config.json'), 'utf8')).apps[0].sources;
+    const rel = async (globs: string[]) => (await expandGlobs(globs, dir)).map((f) => path.relative(dir, f)).sort();
+    expect(await rel(sources.routes)).toEqual(['cart.ts', 'lib/util.ts']);
+    expect(await rel(sources.tests)).toContain('cart.test.ts');
+
+    // With a src/ folder the usual globs stay.
+    const withSrc = tmp();
+    mkdirSync(path.join(withSrc, 'src'));
+    writeFileSync(path.join(withSrc, 'package.json'), '{"name":"x"}');
+    await runInit({ cwd: withSrc });
+    expect(JSON.parse(readFileSync(path.join(withSrc, '.specguard/config.json'), 'utf8')).apps[0].sources.routes).toEqual(['src/**/*.{ts,tsx,js,jsx}']);
+  });
+});

@@ -6,6 +6,36 @@ Inspired by [PrintingPress](https://printingpress.dev)'s approach of a slim skil
 
 ---
 
+## Quick start
+
+SpecGuard keeps your specs as the source of truth and shows, per requirement, whether tests prove the code still delivers it. Start inside your coding agent: it does the model work, so **no API key is needed**.
+
+**Claude Code**
+
+```
+/plugin marketplace add jazzmind/specguard
+/plugin install specguard@specguard
+/specguard:start
+```
+
+**Codex**
+
+```
+codex plugin marketplace add jazzmind/specguard
+```
+
+then install `specguard` from `/plugins` and ask it to run `specguard start`. Codex does not announce itself, so set `SPECGUARD_HOST_AGENT=1` for any `specguard` command you run in its shell (the plugin's MCP server and skills already do).
+
+**Any terminal** (with an API key set once by `specguard key set`, or inside any agent with `SPECGUARD_HOST_AGENT=1`)
+
+```bash
+npx -y -p specguard-ai specguard start
+```
+
+`start` sets the project up if needed (one config file and a specs README, nothing else), drafts specs from your code, links your existing tests to the requirements they prove, runs them and tells you where things stand. When a step needs a model it writes a request under `.specguard/agent-requests/` and exits with code 12 ("waiting for the agent", not a failure); the agent answers (`specguard agent pending`, `specguard agent answer <hash> --file ...`, or the `specguard_agent_work` MCP tool) and you run the same command again. The package is `specguard-ai`; `npx specguard` is a different, unrelated package.
+
+The drafted specs describe what the code does today. They are drafts for you to read and correct, not yet statements of what the system should do.
+
 ## The Problem
 
 Coding agents write code fast. Specifications, tests, security analysis, and documentation lag behind — or never exist at all. When they do exist, they're written once and immediately go stale. The gap between what the code does and what it's supposed to do grows with every PR.
