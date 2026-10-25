@@ -3,7 +3,8 @@
  * `spec tag` inserts above one.
  *
  * Only leaf tests (`it`/`test`, a Python `def test_`, a Go `func Test`, a Rust
- * `fn` after `#[test]`) are found, never `describe` blocks: a claim is proven
+ * `fn` after `#[test]`, a Java/Kotlin method carrying a JUnit 4/5 or TestNG
+ * test annotation) are found, never `describe` blocks: a claim is proven
  * by a test, not by a suite. Spec: specs/capabilities/spec-authoring.md
  */
 import { extractClaimRefs } from './claim-tags.js';
@@ -12,8 +13,13 @@ export interface TestDeclaration {
   /** 1-based line of the declaration. */
   line: number;
   title: string;
-  /** Leading whitespace of the declaration line. */
+  /** Leading whitespace of the declaration line (for annotated tests, of the first annotation). */
   indent: string;
+  /**
+   * 1-based line a claim comment goes above, when it is not `line`: a Java/Kotlin
+   * test's first annotation, which sits above the method signature.
+   */
+  anchor?: number;
   /** True when a claim tag is already on the declaration line or the line above it. */
   tagged: boolean;
 }
@@ -25,7 +31,122 @@ const PY_TEST = /^(\s*)(?:async\s+)?def\s+(test\w*)/;
 const GO_TEST = /^(\s*)func\s+(Test\w*)/;
 const RUST_TEST = /^(\s*)(?:async\s+)?fn\s+(\w+)/;
 
+const JAVA_FILE = /\.(?:java|kt)$/;
+const JAVA_TEST_ANNOTATION = /^(?:[\w.]*\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)$/;
+
+/** Replace comments with spaces (newlines kept) so line numbers survive; strings and char literals are left intact. */
+function blankJavaComments(source: string): string {
+  let out = '';
+  let i = 0;
+  const n = source.length;
+  while (i < n) {
+    const c = source[i];
+    const next = source[i + 1];
+    if (c === '/' && next === '/') {
+      while (i < n && source[i] !== '\n') {
+        out += ' ';
+        i += 1;
+      }
+    } else if (c === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2);
+      const stop = end < 0 ? n : end + 2;
+      for (; i < stop; i += 1) out += source[i] === '\n' || source[i] === '\r' ? source[i] : ' ';
+    } else if (c === '"' && source.startsWith('"""', i)) {
+      const end = source.indexOf('"""', i + 3);
+      const stop = end < 0 ? n : end + 3;
+      out += source.slice(i, stop);
+      i = stop;
+    } else if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < n && source[j] !== c && source[j] !== '\n') j += source[j] === '\\' ? 2 : 1;
+      out += source.slice(i, j + 1);
+      i = j + 1;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** Consume annotations at the start of `line`; `depth` is the paren depth carried in from an annotation argument list that spans lines. */
+function consumeAnnotations(line: string, depth: number, annotations: string[]): { depth: number; rest: string } {
+  let i = 0;
+  while (i < line.length) {
+    const c = line[i];
+    if (depth > 0) {
+      if (c === '"' || c === "'") {
+        let j = i + 1;
+        while (j < line.length && line[j] !== c) j += line[j] === '\\' ? 2 : 1;
+        i = j + 1;
+        continue;
+      }
+      if (c === '(') depth += 1;
+      else if (c === ')') depth -= 1;
+      i += 1;
+      continue;
+    }
+    if (/\s/.test(c)) {
+      i += 1;
+    } else if (c === '@') {
+      const name = /^@\s*(?:\w+\s*:\s*)?([\w.]+)/.exec(line.slice(i));
+      if (!name) return { depth, rest: line.slice(i) };
+      annotations.push(name[1]);
+      i += name[0].length;
+      const open = /^\s*\(/.exec(line.slice(i));
+      if (open) {
+        depth = 1;
+        i += open[0].length;
+      }
+    } else {
+      return { depth, rest: line.slice(i) };
+    }
+  }
+  return { depth, rest: '' };
+}
+
+/** JUnit 5 / JUnit 4 / TestNG tests (Java and Kotlin): a method after a test annotation, any other annotations and comments in between. */
+function scanJavaTests(source: string, file: string): TestDeclaration[] {
+  const kotlin = /\.kt$/.test(file);
+  const original = source.split(/\r?\n/);
+  const cleaned = blankJavaComments(source).split(/\r?\n/);
+  const out: TestDeclaration[] = [];
+  let block: { start: number; text: string; annotations: string[]; depth: number } | null = null;
+  cleaned.forEach((text, i) => {
+    const trimmed = text.trim();
+    if (!block) {
+      if (!trimmed.startsWith('@') || /^@\s*interface\b/.test(trimmed)) return;
+      block = { start: i, text: '', annotations: [], depth: 0 };
+    } else if (block.depth === 0 && !trimmed) {
+      return;
+    }
+    block.text += `${text}\n`;
+    const { depth, rest } = consumeAnnotations(text, block.depth, block.annotations);
+    block.depth = depth;
+    if (depth > 0 || !rest.trim()) return;
+    const done = block;
+    block = null;
+    if (!done.annotations.some((a) => JAVA_TEST_ANNOTATION.test(a))) return;
+    const method = kotlin
+      ? /\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?(`[^`]+`|\w+)\s*\(/.exec(rest)
+      : /(\w+)\s*\(/.exec(rest);
+    if (!method) return;
+    const display = /@\s*DisplayName\s*\(\s*(?:value\s*=\s*)?"((?:\\.|[^"\\])*)"/.exec(done.text.replace(/\r/g, ''));
+    const title = display ? display[1].replace(/\\(.)/g, '$1') : method[1].replace(/^`|`$/g, '');
+    const anchor = done.start + 1;
+    const indent = /^\s*/.exec(original[done.start])?.[0] ?? '';
+    // A tag counts when it sits in the annotation block or on a comment line of its own just above it.
+    const above = (original[done.start - 1] ?? '').trim();
+    const aboveIsComment = /^(?:\/\/|\/\*|\*)/.test(above);
+    const inBlock = original.slice(done.start, i + 1).some((l) => extractClaimRefs(l).length > 0);
+    const tagged = inBlock || (aboveIsComment && extractClaimRefs(above).length > 0);
+    out.push({ line: i + 1, title, indent, tagged, ...(anchor === i + 1 ? {} : { anchor }) });
+  });
+  return out;
+}
+
 export function scanTestDeclarations(source: string, file: string): TestDeclaration[] {
+  if (JAVA_FILE.test(file)) return scanJavaTests(source, file);
   const lines = source.split(/\r?\n/);
   const rust = /\.rs$/.test(file);
   const out: TestDeclaration[] = [];
@@ -72,7 +193,7 @@ export function insertClaimTags(source: string, file: string, edits: Map<number,
     const decl = declarations.get(line);
     const refs = edits.get(line) ?? [];
     if (!decl || decl.tagged || refs.length === 0) continue;
-    lines.splice(line - 1, 0, `${decl.indent}${prefix} [claims: ${[...new Set(refs)].join(', ')}]`);
+    lines.splice((decl.anchor ?? line) - 1, 0, `${decl.indent}${prefix} [claims: ${[...new Set(refs)].join(', ')}]`);
     added += 1;
   }
   return { text: lines.join('\n'), added };

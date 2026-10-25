@@ -60,3 +60,98 @@ describe('what counts as a test [test-declarations-edges]', () => {
     expect(scanTestDeclarations(src, 'a.test.ts').map((d) => [d.title, d.tagged])).toEqual([['a', true], ['b', false], ['c', true]]);
   });
 });
+
+const JAVA = [
+  'package a;',
+  '',
+  'import org.junit.Test;',
+  'import org.junit.jupiter.api.Test;',
+  '',
+  '/* @Test in a block comment',
+  '   @Test',
+  '   void ghost() {} */',
+  'class LoginTest {',
+  '    @Test',
+  '    void plain() {}',
+  '',
+  '    @DisplayName("Signs in \\"fast\\"")',
+  '    @Test',
+  '    void withDisplay() {}',
+  '',
+  '    @ParameterizedTest',
+  '    @MethodSource("codes")',
+  '    void table(String code) {}',
+  '',
+  '    @Test(groups = {"REGRESSION"})',
+  '    public void testng() {}',
+  '',
+  '    @Test(expected = IllegalStateException.class)',
+  '    @Disabled("later")',
+  '    // why: flaky',
+  '',
+  '    /* more */',
+  '    @Override',
+  '    public void gap() {}',
+  '',
+  '    @RepeatedTest(3) void inline() {}',
+  '',
+  '    @TestFactory',
+  '    Stream<DynamicTest> factory() { return null; }',
+  '',
+  '    @TestInstance(Lifecycle.PER_CLASS)',
+  '    void notATest() {}',
+  '',
+  '    @Test',
+  '    @DisplayName(',
+  '        "Multi line")',
+  '    void multi() {}',
+  '',
+  '    // [claims: x/y#done]',
+  '    @Test',
+  '    void alreadyTagged() {}',
+  '}',
+  '',
+].join('\n');
+
+describe('Java and Kotlin tests [java-declarations]', () => {
+  // [claims: capabilities/spec-authoring#spec-tag-java-tests]
+  it('finds JUnit 5, JUnit 4 and TestNG tests with their title and signature line, and ignores imports, comments and non-test annotations [java-scan]', () => {
+    const found = scanTestDeclarations(JAVA, 'LoginTest.java');
+    expect(found.map((d) => [d.title, d.line, d.anchor ?? d.line, d.tagged])).toEqual([
+      ['plain', 11, 10, false],
+      ['Signs in "fast"', 15, 13, false],
+      ['table', 19, 17, false],
+      ['testng', 22, 21, false],
+      ['gap', 30, 24, false],
+      ['inline', 32, 32, false],
+      ['factory', 35, 34, false],
+      ['Multi line', 43, 40, false],
+      ['alreadyTagged', 47, 46, true],
+    ]);
+    expect(found[0].indent).toBe('    ');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-java-tests]
+  it('places the claim comment above the first annotation of the test, never between annotation and method [java-insert]', () => {
+    const src = JAVA;
+    const { text, added } = insertClaimTags(src, 'LoginTest.java', new Map([[15, ['x/y#one']], [30, ['x/y#two']], [32, ['x/y#three']], [47, ['x/y#nope']]]));
+    expect(added).toBe(3);
+    expect(text).toContain('    // [claims: x/y#one]\n    @DisplayName("Signs in \\"fast\\"")\n    @Test\n    void withDisplay');
+    expect(text).toContain('    // [claims: x/y#two]\n    @Test(expected = IllegalStateException.class)\n    @Disabled("later")');
+    expect(text).toContain('    // [claims: x/y#three]\n    @RepeatedTest(3) void inline()');
+    expect(text).not.toContain('nope');
+    // Re-scanning sees the tests as tagged, and the tag is read back by the claim scanner.
+    expect(scanTestDeclarations(text, 'LoginTest.java').filter((d) => d.tagged).map((d) => d.title)).toEqual(['Signs in "fast"', 'gap', 'inline', 'alreadyTagged']);
+    expect(commentPrefix('A.java')).toBe('//');
+    expect(commentPrefix('A.kt')).toBe('//');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-java-tests]
+  it('reads Kotlin tests, including backtick names [kotlin-scan]', () => {
+    const kt = '@Test\nfun `signs in`() {}\n\n@Test fun plain() {}\n\n@Ignore\nfun helper() {}\n';
+    expect(scanTestDeclarations(kt, 'A.kt').map((d) => [d.title, d.line, d.anchor ?? d.line])).toEqual([
+      ['signs in', 2, 1],
+      ['plain', 4, 4],
+    ]);
+  });
+});

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-23T18:53:49.342Z",
+  "generated": "2026-10-24T17:42:44.839Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -5359,7 +5359,9 @@
         "specs/history/2026-10-22-security-spec-review-findings-containing.md",
         "specs/history/2026-10-22-security-ssrf-via-import-url-fetching-is.md",
         "specs/history/2026-10-22-security-vuln-ignore-json-suppression-fi.md",
+        "specs/history/2026-10-23-spec-tag-java-kotlin-tests-and-index-mod.md",
         "specs/history/2026-10-23-workspace-panel-route-clicks-by-data-act.md",
+        "specs/history/2026-10-24-key-set-status-and-a-per-user-env-file.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -7059,7 +7061,8 @@
         "2026-10-22-security-hardening-from-audit-sast-and-p",
         "2026-10-22-header-role-fix-and-spec-level-security",
         "2026-10-22-security-credentials-embedded-in-importe",
-        "2026-10-22-security-no-rate-limit-or-budget-cap-on"
+        "2026-10-22-security-no-rate-limit-or-budget-cap-on",
+        "2026-10-23-spec-tag-java-kotlin-tests-and-index-mod"
       ],
       "claims": [
         {
@@ -7954,6 +7957,82 @@
           }
         },
         {
+          "id": "spec-tag-java-tests",
+          "ref": "capabilities/spec-authoring#spec-tag-java-tests",
+          "text": "`spec tag` finds Java and Kotlin tests (`.java`, `.kt`): a method after a JUnit 5, JUnit 4 or TestNG test annotation (`@Test` with or without arguments, `@ParameterizedTest`, `@RepeatedTest`, `@TestFactory`, `@TestTemplate`), with other annotations, blank lines and comments between the annotation and the method; its title is the `@DisplayName` value when there is one, otherwise the method name; imports, annotations in comments and other `@Test...` annotations such as `@TestInstance` are not tests; the claim comment goes above the first annotation of the test (not between annotation and method), and a tag in that position counts as already tagged",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/test-declarations.test.ts",
+              "line": 117,
+              "title": "finds JUnit 5, JUnit 4 and TestNG tests with their title and signature line, and ignores imports, comments and non-test annotations [java-scan]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/test-declarations.test.ts",
+              "line": 134,
+              "title": "places the claim comment above the first annotation of the test, never between annotation and method [java-insert]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/test-declarations.test.ts",
+              "line": 149,
+              "title": "reads Kotlin tests, including backtick names [kotlin-scan]",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "spec-tag-index-mode",
+          "ref": "capabilities/spec-authoring#spec-tag-index-mode",
+          "text": "`spec tag --index <file>` never modifies test sources (so tests in another repo can be linked from a specs-only overlay): with `--yes` it writes or merges a plain-text index at a path relative to the config root, one line per matched test, `<test-file>:<line> :: <title>  [claims: <ref>, <ref>]`, where the test path is relative to the config root (it may start with `../`); a line for the same `file:line :: title` is replaced, other lines are kept, the entries are sorted, and a test the index already lists (by `file:line` or by file and title, so a moved test is still known) is not offered to the model again; listing the index in `tests:` or `extraTestSources` makes the check count its claims as tested",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 158,
+              "title": "writes the index and leaves test sources untouched [index-write]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 167,
+              "title": "is a dry run without --yes and writes no index [index-dry-run]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 174,
+              "title": "the check counts an indexed test as proving the claim when the index is a listed test file [index-check]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 184,
+              "title": "re-runs without duplicating: indexed tests are skipped, new ones are merged in sorted order, other lines stay [index-merge]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 210,
+              "title": "still skips an indexed test after its line moved, by file and title [index-drift]",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/spec-tag.test.ts",
+              "line": 220,
+              "title": "indexes Java tests in a sibling repo, with a ../ path, using the display name [index-java-sibling]",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
           "id": "import-ssrf",
           "ref": "capabilities/spec-authoring#import-ssrf",
           "text": "`import <url>` reaches only public addresses: the host is resolved by SpecGuard, every loopback, private, link-local (including the cloud metadata address), carrier-grade, multicast, unique-local and IPv4-mapped or translated address is refused (also when only one of several answers is private), the connection goes to the address that was checked, each redirect is checked the same way, at most five redirects are followed, an https to http redirect, credentials in the URL and an answer over 5 MB are refused, and `--allow-private` is the only way to import from your own network",
@@ -8019,14 +8098,14 @@
         }
       ],
       "counts": {
-        "claims": 23,
-        "proven": 23,
+        "claims": 25,
+        "proven": 25,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 23,
+        "withTests": 25,
         "incomplete": 0
       }
     },
@@ -9405,6 +9484,7 @@
       "ownedFiles": [
         "src/cli/commands/contracts.ts",
         "src/cli/commands/impact.ts",
+        "src/cli/commands/key.ts",
         "src/cli/commands/workspace-check.ts",
         "src/cli/commands/workspace.ts",
         "src/core/contracts.ts",
@@ -9422,6 +9502,7 @@
       ],
       "tests": [
         "extension/src/workspace-panel.test.ts",
+        "tests/cli/key.test.ts",
         "tests/core/claims.test.ts",
         "tests/core/env.test.ts",
         "tests/core/hardening.test.ts",
@@ -9452,7 +9533,8 @@
         "2026-10-22-security-shared-env-file-containing-secr",
         "2026-10-22-extension-runs-the-cli-under-the-host-ex",
         "2026-10-22-extension-manual-initialize-workspace-co",
-        "2026-10-23-workspace-panel-route-clicks-by-data-act"
+        "2026-10-23-workspace-panel-route-clicks-by-data-act",
+        "2026-10-24-key-set-status-and-a-per-user-env-file"
       ],
       "claims": [
         {
@@ -10197,6 +10279,58 @@
           }
         },
         {
+          "id": "user-env",
+          "ref": "capabilities/workspaces#user-env",
+          "text": "A per-user `~/.config/specguard/.env` (or `$XDG_CONFIG_HOME/specguard/.env`) supplies keys to every workspace and repo on the machine at the lowest precedence, below the repo's and the workspace's file and below real environment variables",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/env.test.ts",
+              "line": 54,
+              "title": "fills in what the repo, the workspace and the shell left unset, and loses to all three",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/env.test.ts",
+              "line": 67,
+              "title": "reads no user file when the environment names no home or config folder",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "key-command",
+          "ref": "capabilities/workspaces#key-command",
+          "text": "`specguard key set` saves the model API key (`llm.apiKeyEnv`, default `ANTHROPIC_API_KEY`) into the user's, the workspace's or the repo's `.env` with mode 600, reading it from a hidden prompt, stdin or `--from-env` and never from an argument, replacing an existing line, refusing a multi-line value, and never printing the key; `key status` says which files define it without showing it; `config.json` only ever names the variable",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/key.test.ts",
+              "line": 20,
+              "title": "saves a key piped on stdin to the user file with mode 600, replaces it later, and never prints it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/key.test.ts",
+              "line": 35,
+              "title": "reports where the key is set without showing it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/key.test.ts",
+              "line": 47,
+              "title": "writes the repo scope into the repo and leaves other lines alone, and refuses a multi-line value",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
           "id": "env-permission-warning",
           "ref": "capabilities/workspaces#env-permission-warning",
           "text": "When `.specguard/.env` (which holds secrets) is readable by other users the CLI warns, names the file and the fix (`chmod 600`), never prints a value, and still loads the file",
@@ -10215,14 +10349,14 @@
         }
       ],
       "counts": {
-        "claims": 29,
-        "proven": 20,
+        "claims": 31,
+        "proven": 22,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 9,
-        "withTests": 21,
+        "withTests": 23,
         "incomplete": 0
       }
     }
@@ -10230,24 +10364,33 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 282,
-    "proven": 249,
+    "claims": 286,
+    "proven": 253,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 251,
+    "withTests": 255,
     "incomplete": 0,
     "capabilities": 11,
-    "ownedFiles": 323,
-    "sourceFiles": 259
+    "ownedFiles": 326,
+    "sourceFiles": 260
   },
   "gaps": {
-    "intent": [],
+    "intent": [
+      {
+        "id": "integration-surfaces",
+        "codeDate": "2026-10-24",
+        "intentDate": "2026-10-22"
+      },
+      {
+        "id": "requirement-history",
+        "codeDate": "2026-10-24",
+        "intentDate": "2026-10-22"
+      }
+    ],
     "docsStale": [
-      "integration-surfaces",
-      "requirement-history",
       "team-server"
     ]
   }

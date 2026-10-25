@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -150,3 +150,86 @@ describe('spec tag [spec-tag]', () => {
     expect(r.messages.join('\n')).toContain('[skip] shop: no tests listed');
   });
 });
+
+describe('spec tag --index [spec-tag-index]', () => {
+  const INDEX = 'specs/tag-index.md';
+  const exists = (rel: string) => existsSync(path.join(repo.dir, rel));
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('writes the index and leaves test sources untouched [index-write]', async () => {
+    const r = await run({ yes: true, index: INDEX });
+    expect(r.created).toBe(1);
+    expect(read('tests/auth.test.ts')).toBe(TESTS);
+    expect(read(INDEX)).toBe('tests/auth.test.ts:2 :: signs in with a valid code  [claims: capabilities/auth#login-valid-code]\n');
+    expect(r.messages.join('\n')).toContain('indexed 1 test(s) in specs/tag-index.md; test sources untouched');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('is a dry run without --yes and writes no index [index-dry-run]', async () => {
+    const r = await run({ index: INDEX });
+    expect(r.messages.join('\n')).toContain('would index 1 test(s) in specs/tag-index.md; rerun with --yes to write');
+    expect(exists(INDEX)).toBe(false);
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('the check counts an indexed test as proving the claim when the index is a listed test file [index-check]', async () => {
+    repo.write('specs/capabilities/auth.md', read('specs/capabilities/auth.md').replace('  - "tests/auth.test.ts"\n', '  - "tests/auth.test.ts"\n  - "specs/tag-index.md"\n'));
+    await run({ yes: true, index: INDEX });
+    const gaps = await runCheck(await loadConfig(repo.dir), { view: 'gaps' });
+    const text = gaps.messages.join('\n');
+    expect(text).not.toContain('[untested-claim] capabilities/auth#login-valid-code');
+    expect(text).toContain('[untested-claim] capabilities/auth#logout-clears-session');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('re-runs without duplicating: indexed tests are skipped, new ones are merged in sorted order, other lines stay [index-merge]', async () => {
+    await run({ yes: true, index: INDEX });
+    repo.write(INDEX, `# hand-written note\nzzz/other.java:3 :: kept  [claims: a/b#c]\n${read(INDEX)}`);
+    mocked.mockClear();
+    mocked.mockResolvedValue({ matches: [hi(0, 'logout-clears-session')] });
+    const again = await run({ yes: true, index: INDEX });
+    // The already indexed test is not offered again; "rejects a wrong code" is the first one left.
+    const prompt = mocked.mock.calls[0][0].prompt;
+    expect(prompt).not.toContain('signs in with a valid code');
+    expect(prompt).toContain('0. tests/auth.test.ts — rejects a wrong code');
+    expect(again.created).toBe(1);
+    expect(read(INDEX)).toBe(
+      '# hand-written note\n' +
+        'tests/auth.test.ts:2 :: signs in with a valid code  [claims: capabilities/auth#login-valid-code]\n' +
+        'tests/auth.test.ts:3 :: rejects a wrong code  [claims: capabilities/auth#logout-clears-session]\n' +
+        'zzz/other.java:3 :: kept  [claims: a/b#c]\n',
+    );
+    expect(read('tests/auth.test.ts')).toBe(TESTS);
+    // A third run finds nothing new and leaves the file as it is.
+    const before = read(INDEX);
+    mocked.mockResolvedValue({ matches: [] });
+    expect((await run({ yes: true, index: INDEX })).created).toBe(0);
+    expect(read(INDEX)).toBe(before);
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('still skips an indexed test after its line moved, by file and title [index-drift]', async () => {
+    await run({ yes: true, index: INDEX });
+    repo.write('tests/auth.test.ts', `// header\n// more\n${TESTS}`);
+    mocked.mockClear();
+    mocked.mockResolvedValue({ matches: [] });
+    await run({ yes: true, index: INDEX });
+    expect(mocked.mock.calls[0][0].prompt).not.toContain('signs in with a valid code');
+  });
+
+  // [claims: capabilities/spec-authoring#spec-tag-index-mode]
+  it('indexes Java tests in a sibling repo, with a ../ path, using the display name [index-java-sibling]', async () => {
+    const other = makeV2Repo();
+    {
+      other.write('svc/src/test/java/LoginTest.java', 'class LoginTest {\n    @Test\n    @DisplayName("Login works")\n    void login() {}\n}\n');
+      const rel = path.relative(repo.dir, path.join(other.dir, 'svc/src/test/java/LoginTest.java')).split(path.sep).join('/');
+      expect(rel.startsWith('../')).toBe(true);
+      repo.write('specs/capabilities/auth.md', read('specs/capabilities/auth.md').replace('  - "tests/auth.test.ts"\n', `  - "${rel}"\n`));
+      mocked.mockResolvedValue({ matches: [hi(0, 'login-valid-code')] });
+      await run({ yes: true, index: INDEX });
+      expect(read(INDEX)).toBe(`${rel}:4 :: Login works  [claims: capabilities/auth#login-valid-code]\n`);
+      expect(readFileSync(path.join(other.dir, 'svc/src/test/java/LoginTest.java'), 'utf8')).not.toContain('claims');
+    }
+  });
+});
+
