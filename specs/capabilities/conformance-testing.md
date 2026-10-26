@@ -49,6 +49,7 @@ history:
   - 2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer
   - 2026-10-22-header-role-fix-and-spec-level-security
   - 2026-10-22-security-evidence-path-traversal-not-con
+  - 2026-10-26-example-rows-reach-the-proof-ledger-and
 ---
 
 # Conformance Testing
@@ -100,6 +101,11 @@ Conformance testing turns specs into tests, runs the project's own test suite th
 - [ ] When layers are required, `check` and `proof status` list `[proof-incomplete] <claim> (missing: <layers>)` for each claim not proven in every required layer, print a `LAYERS:` line with proven over required per layer, leave the `PROOFS:` line unchanged, and `proof.enforceLayers: fail` makes `proof status` fail on them (`warn` is the default, `off` hides them); the trace carries `required`, `layers` and `missing` per claim and `layerCounts` per capability and in total <!-- claim: layer-reports -->
 - [ ] An app's `test.suites` lists suites that each have a command, a report and a layer (for example vitest for `unit` and Playwright for `e2e`); `test run` runs every suite in place of the app's single command, a failing suite fails only the layer it covers, and the report of each suite is ingested with its layer <!-- claim: layer-suites -->
 - [ ] An evidence path is recorded only when it stays inside the repository, normalised and relative; an absolute path, one that climbs out or a symlink that leaves is dropped with a message and the verdict itself is kept <!-- claim: evidence-path-inside-repo -->
+- [ ] Agentic and manual evidence can only prove the `functional` layer: ingesting an `agentic` or `manual` verdict for any other layer fails that row with a clear message and stores nothing, a verdict with that evidence and no layer is recorded as `functional`, and a required non-functional layer whose only proof came from such evidence stays missing <!-- claim: nonautomated-evidence-functional-only -->
+- [ ] A deterministic walk (`deterministic: true` on the proof options) judges every proof by hashes alone: it never consults the LLM drift assessments, so any changed owned file stales the proof, while the default walk still lets an assessment of "unaffected" keep a proof fresh <!-- claim: deterministic-walk -->
+- [ ] A claim with an examples table has a proof per row, stored under `specKey#claim/row` with the row hash in `claimHash`: ingest resolves a row ref against the claim's table and fails a row that is not in it, the proof walk visits each row after its claim and judges it against the row hash so editing a row cell stales only that row's proof, and a spec with no tables is walked exactly as before <!-- claim: row-proofs -->
+- [ ] A result tagged `cap#claim/row` counts for the row and also, once, for the parent claim, and a parameterized test tagged `cap#claim` whose title names exactly one row id of that claim is also attributed to that row <!-- claim: row-aggregation -->
+- [ ] A parameterized test whose title names more than one row id of its claim is attributed to no row, and `results ingest` warns `EXAMPLE_TITLE_AMBIGUOUS` without failing <!-- claim: example-title-ambiguity-warning -->
 
 ## Scenarios
 ### Scenario 1: Spec to tagged tests

@@ -11,6 +11,7 @@ sources:
 docs: []
 history:
   - 2026-10-26-intent-approvals-are-history-entries-bou
+  - 2026-10-26-example-rows-reach-the-proof-ledger-and
 tests:
   - "tests/core/approvals.test.ts"
   - "tests/pipelines/approve.test.ts"
@@ -43,6 +44,8 @@ Intent approval adds the missing human step. A person approves a requirement at 
 - [ ] Approving only adds approval for claims that are not yet approved at their current wording: an approved claim is left alone, and a second identical run writes nothing <!-- claim: approved-untouched -->
 - [ ] Approval is available only through the CLI: the MCP server offers no tool that approves, so an agent cannot certify intent <!-- claim: approve-cli-only -->
 - [ ] `spec approvals` reports, per capability, how many claims are approved out of how many, and lists the unapproved claim refs; `--json` prints the same data as JSON <!-- claim: approvals-report -->
+- [ ] An approval may name an example row (`specKey#claimId/rowId@<first 16 hex of the row hash>`): a claim and each of its rows are approved separately, so approving a claim never approves its rows and the other way round, `spec approve cap#claim` approves the claim and all its current rows in one entry, `cap#claim/row` approves only that row, and a claim without an examples table has no row entries <!-- claim: approval-rows -->
+- [ ] The approval index offers `latest(ref)`, the newest approval of a ref at any hash, so a claim approved earlier and changed since can be told apart from one never approved <!-- claim: approval-latest -->
 
 ## Scenarios
 ### Scenario 1: Approve a capability

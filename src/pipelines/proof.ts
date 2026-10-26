@@ -24,9 +24,11 @@ import { HASH_VERSION, claimHashOf } from '../core/claim-hash.js';
 import { detectProvenance, type Provenance } from '../core/provenance.js';
 import { fileLedgerStore, type LedgerStore } from '../core/state/ledger-store.js';
 import { fileChangeResolver, loadAssessments } from '../core/drift-assessments.js';
+import type { ExampleTable } from '../core/examples.js';
 import {
   effectiveClaimProof,
   effectiveVerdict,
+  isNonAutomatedEvidence,
   mergeLayerRecord,
   type ClaimProof,
   type ProofLedger,
@@ -58,9 +60,9 @@ const VerdictFileSchema = z.object({
       exercised: z.number().int().nonnegative().optional(),
       counterexamples: z.number().int().nonnegative().optional(),
       evidencePath: z.string().optional(),
-      /** What produced the verdict: a test run (default) or the agentic browser run. */
-      evidence: z.enum(['test', 'agentic']).optional(),
-      /** The test layer this evidence belongs to. Default: `functional` for the browser run, else unclassified. */
+      /** What produced the verdict: a test run (default), the agentic browser run, or a person. The last two can only prove the `functional` layer. */
+      evidence: z.enum(['test', 'agentic', 'manual']).optional(),
+      /** The test layer this evidence belongs to. Default: `functional` for agentic or manual evidence, else unclassified. */
       layer: z.enum([...TEST_LAYERS, 'unclassified']).optional(),
     }),
   ),
@@ -75,6 +77,11 @@ export interface ProofOpts {
   store?: LedgerStore;
   /** Where these proofs were earned. Default: detected from the environment (GitHub Actions, other CI, or local). */
   provenance?: Partial<Provenance>;
+  /**
+   * Judge staleness by hashes alone. The LLM drift assessments are not consulted, so any changed owned file
+   * stales a proof. Default false: an assessment of "unaffected" keeps a proof fresh.
+   */
+  deterministic?: boolean;
 }
 
 export function ledgerPath(rootDir: string, override?: string): string {
@@ -200,6 +207,35 @@ function claimHashInContent(content: string, file: string, claimId: string): str
   } catch {
     return undefined;
   }
+}
+
+/** The parsed claim of `claimId` in a spec given as raw content; undefined for unparsable files and unknown ids. */
+function claimInContent(content: string, file: string, claimId: string) {
+  try {
+    return parseSpecContent(content, file, path.dirname(file)).claims.find((c) => c.id?.toLowerCase() === claimId.toLowerCase());
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The examples table of each claim ref in `refs` (`specKey#claimId`, `repo:` prefix allowed), for the refs whose spec
+ * declares one. Row refs and refs that do not resolve are skipped. Used to attribute parameterized tests to rows.
+ */
+export async function exampleTablesFor(cwd: string, refs: Iterable<string>): Promise<Map<string, ExampleTable>> {
+  const tables = new Map<string, ExampleTable>();
+  const specs = new Map<string, LocatedSpec | null>();
+  for (const claim of new Set(refs)) {
+    const ref = parseClaimRef(claim);
+    if (!ref || ref.exampleId) continue;
+    const specRef = formatClaimRef(ref.repo, ref.specKey, ref.claimId);
+    const key = specRef.slice(0, specRef.lastIndexOf('#'));
+    if (!specs.has(key)) specs.set(key, await locateSpec(cwd, specRef));
+    const located = specs.get(key);
+    const table = located ? claimInContent(located.content, located.abs, ref.claimId)?.examples : undefined;
+    if (table && table.rows.length > 0) tables.set(claim, table);
+  }
+  return tables;
 }
 
 /** The units of the workspace manifest at `cwd` itself, when there is one. */
@@ -378,13 +414,32 @@ export async function ingestVerdicts(
         result.messages.push(`${row.claim}: claim id not found in spec`);
         continue;
       }
+      // A row ref names a row of the claim's examples table, and its proof is judged against the row hash.
+      let claimHash = ref ? claimHashInContent(located.content, located.abs, ref.claimId) : undefined;
+      if (ref?.exampleId) {
+        const example = claimInContent(located.content, located.abs, ref.claimId)?.examples?.rows.find((r) => r.id === ref.exampleId);
+        if (!example) {
+          result.failed += 1;
+          result.items.push({ key: row.claim, status: 'failed', message: 'example row is not in the claim table' });
+          result.messages.push(`${row.claim}: example row not found in the table of claim ${ref.claimId}`);
+          continue;
+        }
+        claimHash = example.hash;
+      }
+      // Agentic and manual evidence can only prove the functional layer; it never stands in for an automated one.
+      if (isNonAutomatedEvidence(row.evidence) && row.layer !== undefined && row.layer !== 'functional') {
+        result.failed += 1;
+        result.items.push({ key: row.claim, status: 'failed', message: `${row.evidence} evidence cannot prove the ${row.layer} layer` });
+        result.messages.push(`${row.claim}: ${row.evidence} evidence can only prove the functional layer, not ${row.layer}; nothing stored`);
+        continue;
+      }
       const repoSha = (ref?.repo && body.repoShas?.[ref.repo]) || gitHead(located.repoDir);
       const record: ProofRecord = {
         claim: row.claim,
         verdict: row.verdict,
         runId: body.runId,
         specHash: hashString(located.content),
-        claimHash: ref ? claimHashInContent(located.content, located.abs, ref.claimId) : undefined,
+        claimHash,
         repoSha,
         fileHashes: await recordedFileHashes(located, ref?.specKey ?? '', appNames, result),
         dependencyFingerprint: dependencyFingerprint(located.repoDir),
@@ -400,7 +455,7 @@ export async function ingestVerdicts(
         ingestedAt: new Date().toISOString(),
       };
       // Evidence is kept per layer, so a browser failure and a passing unit test do not overwrite each other.
-      const layer: EvidenceLayer = row.layer ?? (row.evidence === 'agentic' ? 'functional' : 'unclassified');
+      const layer: EvidenceLayer = row.layer ?? (isNonAutomatedEvidence(row.evidence) ? 'functional' : 'unclassified');
       const previous = ledger.proofs[row.claim];
       // An unclassified `unexercised` row is a sweep marker for a claim no test cited: it replaces the row, layers and all.
       const replacesRow = layer === 'unclassified' && (!previous?.layers || row.verdict === 'unexercised');
@@ -512,22 +567,30 @@ async function walkClaims(
         const ref = formatClaimRef(repoKey, spec.specKey, claim.id);
         const record = ledger.proofs[ref] ?? ledger.proofs[formatClaimRef(undefined, spec.specKey, claim.id)];
         const required = requiredLayersFor(claim.id, spec.meta.layers, config.proof?.requiredLayers);
-        const claimHash = claimHashOf(spec, claim.id);
-        const fileChange = fileChangeResolver(assessments, spec.specKey, claim.id);
-        const proof = effectiveClaimProof(
-          record,
-          (_layer, layerProof) => ({
-            specHash,
-            claimHash,
-            fileChange,
-            fileHashes: currentFileHashes(cwd, layerProof.fileHashes),
-            dependencyFingerprint: fingerprint,
-          }),
-          required,
-        );
-        counts[proof.verdict] += 1;
-        if (required.length > 0 && !proof.complete && proof.verdict !== 'unproven') counts.incomplete += 1;
-        onVerdict(ref, proof.verdict, { ...proof, required });
+        // Deterministic mode never lets an LLM drift assessment keep a proof fresh.
+        const fileChange = opts.deterministic ? undefined : fileChangeResolver(assessments, spec.specKey, claim.id);
+        const visit = (visitRef: string, visitRecord: ProofRecord | undefined, hash: string | undefined): void => {
+          const proof = effectiveClaimProof(
+            visitRecord,
+            (_layer, layerProof) => ({
+              specHash,
+              claimHash: hash,
+              fileChange,
+              fileHashes: currentFileHashes(cwd, layerProof.fileHashes),
+              dependencyFingerprint: fingerprint,
+            }),
+            required,
+          );
+          counts[proof.verdict] += 1;
+          if (required.length > 0 && !proof.complete && proof.verdict !== 'unproven') counts.incomplete += 1;
+          onVerdict(visitRef, proof.verdict, { ...proof, required });
+        };
+        visit(ref, record, claimHashOf(spec, claim.id));
+        // Each example row is a further visit, judged against its own row hash. Specs without tables add none.
+        for (const row of claim.examples?.rows ?? []) {
+          const rowRef = formatClaimRef(repoKey, spec.specKey, claim.id, row.id);
+          visit(rowRef, ledger.proofs[rowRef] ?? ledger.proofs[formatClaimRef(undefined, spec.specKey, claim.id, row.id)], row.hash);
+        }
       }
     }
   }
@@ -548,7 +611,7 @@ export async function appendProofCoverage(
       for (const layer of detail.required) {
         const t = tally.get(layer) ?? { required: 0, proven: 0 };
         t.required += 1;
-        if (detail.layers[layer] === 'proven') t.proven += 1;
+        if (detail.layers[layer] === 'proven' && !detail.missing.includes(layer)) t.proven += 1;
         tally.set(layer, t);
       }
       if (!detail.complete && enforce !== 'off') log(`  [proof-incomplete] ${ref} (missing: ${detail.missing.join(', ')})`);

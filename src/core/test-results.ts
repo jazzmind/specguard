@@ -457,11 +457,20 @@ export interface ClaimAggregate {
   tests: Array<{ file: string; title: string; status: TestStatus }>;
 }
 
-/** Fold test results into one verdict per claim ref. */
+/**
+ * Fold test results into one verdict per claim ref. A result tagged `cap#claim/row` counts for the row and also for
+ * the claim itself, once even when the result names both.
+ */
 export function aggregateClaims(results: TestCaseResult[]): ClaimAggregate[] {
   const byClaim = new Map<string, ClaimAggregate>();
   for (const result of results) {
+    const refs = new Set<string>();
     for (const claim of result.claims) {
+      refs.add(claim);
+      const slash = claim.lastIndexOf('/');
+      if (slash > claim.lastIndexOf('#')) refs.add(claim.slice(0, slash));
+    }
+    for (const claim of refs) {
       const agg =
         byClaim.get(claim) ??
         ({ claim, verdict: 'unexercised', exercised: 0, counterexamples: 0, failures: [], tests: [] } as ClaimAggregate);

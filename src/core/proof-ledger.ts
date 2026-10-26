@@ -15,6 +15,14 @@ export type StoredVerdict = 'proven' | 'failed' | 'unexercised' | 'error';
 
 export type EffectiveVerdict = StoredVerdict | 'stale' | 'unproven';
 
+/** What produced a verdict: a test run, the agentic browser run, or a person. */
+export type ProofEvidence = 'test' | 'agentic' | 'manual';
+
+/** True for evidence that is not an automated test run. Such evidence can only prove the `functional` layer. */
+export function isNonAutomatedEvidence(evidence: ProofEvidence | undefined): boolean {
+  return evidence === 'agentic' || evidence === 'manual';
+}
+
 export interface ProofRecord {
   claim: string;
   verdict: StoredVerdict;
@@ -37,8 +45,8 @@ export interface ProofRecord {
   exercised: number;
   counterexamples: number;
   evidencePath?: string;
-  /** What produced the verdict. Absent means a test run. */
-  evidence?: 'test' | 'agentic';
+  /** What produced the verdict. Absent means a test run. `agentic` and `manual` evidence can only prove the `functional` layer. */
+  evidence?: ProofEvidence;
   /**
    * Where the proof was earned: `ci` (a pushed commit), `local` (a working tree) or `server` (a server-side run).
    * Absent on rows written before provenance was recorded, which are treated as `local`.
@@ -74,7 +82,7 @@ export interface LayerProof {
   counterexamples: number;
   evidencePath?: string;
   /** What produced it, as on the row. */
-  evidence?: 'test' | 'agentic';
+  evidence?: ProofEvidence;
   origin?: 'local' | 'ci' | 'server';
   repo?: string;
   branch?: string;
@@ -162,7 +170,7 @@ export function layerProofOf(record: ProofRecord): LayerProof {
  */
 export function layersOf(record: ProofRecord): Partial<Record<EvidenceLayer, LayerProof>> {
   if (record.layers && Object.keys(record.layers).length > 0) return record.layers;
-  return { [record.evidence === 'agentic' ? 'functional' : 'unclassified']: layerProofOf(record) };
+  return { [isNonAutomatedEvidence(record.evidence) ? 'functional' : 'unclassified']: layerProofOf(record) };
 }
 
 /** Which of a claim's layers decides the combined row: a failure or error first (newest), else the newest proof, else the newest. */
@@ -218,7 +226,9 @@ export function effectiveClaimProof(
     layers[layer] = effectiveVerdict({ claim: record.claim, ...proof }, stateFor(layer, proof));
   }
   const values = Object.values(layers) as EffectiveVerdict[];
-  const missing = required.filter((l) => layers[l] !== 'proven');
+  // Agentic or manual evidence recorded under an automated layer (an older or hand-edited ledger) never satisfies it.
+  const recorded = layersOf(record);
+  const missing = required.filter((l) => layers[l] !== 'proven' || (l !== 'functional' && isNonAutomatedEvidence(recorded[l]?.evidence)));
 
   let verdict: EffectiveVerdict;
   if (values.some((v) => v === 'failed' || v === 'error')) verdict = values.includes('failed') ? 'failed' : 'error';

@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { parseClaimRef } from './claims.js';
+import { formatClaimRef, parseClaimRef } from './claims.js';
 import { appNameFor, type MonorepoInfo, type WorkspacePackage } from './monorepo.js';
 import { unitOfFile, type WorkspaceManifest, type WorkspaceUnit } from './workspace.js';
 
@@ -163,5 +163,5 @@ export function unitsToTest(deps: UnitDependency[], changed: string[]): string[]
 export function canonicalClaimRef(ref: string, units: Record<string, { kind: string }> | undefined): string {
   const parsed = parseClaimRef(ref);
   if (!parsed?.repo || units?.[parsed.repo]?.kind !== 'package') return ref;
-  return `${parsed.specKey}#${parsed.claimId}`;
+  return formatClaimRef(undefined, parsed.specKey, parsed.claimId, parsed.exampleId);
 }

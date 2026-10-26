@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { runResultsIngest } from '../../src/pipelines/results.js';
 import { makeRepo } from '../helpers/repo.js';
+import { SHOP_SPEC_WITH_ROWS, makeV2Repo } from '../helpers/v2-repo.js';
 
 const fx = (name: string) => path.join(__dirname, '..', 'fixtures', 'results', name);
 
@@ -152,5 +153,49 @@ describe('results ingest with tags written in source comments [results-source-ta
     const r = await runResultsIngest(['report.json'], repo.dir, { format: 'vitest' });
     expect(r.exitCode).toBe(2);
     expect(ledger(repo.dir)['core/awards#no-dupes']).toMatchObject({ verdict: 'failed', counterexamples: 1 });
+  });
+});
+
+describe('example rows in results ingest [row-aggregation]', () => {
+  const CART = 'capabilities/shop#cart-totals';
+  const junit = (...names: string[]): string => `<testsuite name="s">${names.map((n) => `<testcase classname="c" name="${n}"/>`).join('')}</testsuite>`;
+
+  // [claims: capabilities/conformance-testing#row-aggregation]
+  it('attributes a parameterized test to the one row its title names, and counts it once for the claim', async () => {
+    const repo = makeV2Repo();
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS);
+    repo.write('r.xml', junit(`fee for ny-small @claim:${CART}`, `other total @claim:${CART}`));
+    const r = await runResultsIngest(['r.xml'], repo.dir, { format: 'junit' });
+    expect(r.exitCode).toBe(0);
+    const proofs = ledger(repo.dir);
+    expect(proofs[`${CART}/ny-small`]).toMatchObject({ verdict: 'proven', exercised: 1 });
+    expect(proofs[`${CART}/ny-free`]).toBeUndefined();
+    expect(proofs[CART]).toMatchObject({ verdict: 'proven', exercised: 2 });
+    expect(r.messages.join('\n')).not.toContain('EXAMPLE_TITLE_AMBIGUOUS');
+  });
+
+  // [claims: capabilities/conformance-testing#example-title-ambiguity-warning]
+  it('warns EXAMPLE_TITLE_AMBIGUOUS and attributes to no row when a title names two rows, without failing', async () => {
+    const repo = makeV2Repo();
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS);
+    repo.write('r.xml', junit(`ny-small and ny-free together @claim:${CART}`));
+    const r = await runResultsIngest(['r.xml'], repo.dir, { format: 'junit' });
+    expect(r.exitCode).toBe(0);
+    expect(r.failed).toBe(0);
+    expect(r.messages.join('\n')).toContain('EXAMPLE_TITLE_AMBIGUOUS');
+    expect(Object.keys(ledger(repo.dir))).toEqual([CART]);
+  });
+
+  // [claims: capabilities/conformance-testing#row-aggregation]
+  it('records a row named in the tag itself, and fails one that is not in the table', async () => {
+    const repo = makeV2Repo();
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS);
+    repo.write('r.xml', junit(`free shipping @claim:${CART}/ny-free`, `ghost @claim:${CART}/ghost`));
+    const r = await runResultsIngest(['r.xml'], repo.dir, { format: 'junit' });
+    const proofs = ledger(repo.dir);
+    expect(proofs[`${CART}/ny-free`]).toMatchObject({ verdict: 'proven' });
+    expect(proofs[CART]).toMatchObject({ verdict: 'proven', exercised: 2 });
+    expect(proofs[`${CART}/ghost`]).toBeUndefined();
+    expect(r.failed).toBe(1);
   });
 });

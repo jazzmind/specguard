@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   aggregateClaims,
+  type TestCaseResult,
   detectResultFormat,
   parseResults,
   ResultParseError,
@@ -84,5 +85,30 @@ describe('test results', () => {
     expect(agg['core/awards#no-dupes'].failures).toEqual(['awards no duplicates [claim: core/awards#no-dupes]']);
     expect(agg['core/awards#deferred']).toMatchObject({ verdict: 'unexercised', exercised: 0 });
     expect(agg['web/checkout#skipped-one'].verdict).toBe('unexercised');
+  });
+});
+
+describe('row aggregation [row-aggregation]', () => {
+  const result = (title: string, status: 'pass' | 'fail', claims: string[]): TestCaseResult => ({ file: 'f.test.ts', title, fullTitle: title, status, durationMs: 1, tags: [], claims, externalIds: [] });
+
+  // [claims: capabilities/conformance-testing#row-aggregation]
+  it('a row-tagged result counts for the row and for the parent claim, once even when it names both', () => {
+    const agg = Object.fromEntries(
+      aggregateClaims([
+        result('row one', 'pass', ['cap#c/one']),
+        result('claim only', 'pass', ['cap#c']),
+        result('row two fails', 'fail', ['cap#c', 'cap#c/two']),
+      ]).map((a) => [a.claim, a]),
+    );
+    expect(agg['cap#c/one']).toMatchObject({ verdict: 'proven', exercised: 1, counterexamples: 0 });
+    expect(agg['cap#c/two']).toMatchObject({ verdict: 'failed', exercised: 0, counterexamples: 1 });
+    expect(agg['cap#c']).toMatchObject({ verdict: 'failed', exercised: 2, counterexamples: 1 });
+    expect(agg['cap#c'].tests).toHaveLength(3);
+  });
+
+  // [claims: capabilities/conformance-testing#row-aggregation]
+  it('keeps the parent of a repo-prefixed row ref under the same prefix', () => {
+    const agg = aggregateClaims([result('t', 'pass', ['web:cap#c/one'])]).map((a) => a.claim);
+    expect(agg).toEqual(['web:cap#c', 'web:cap#c/one']);
   });
 });

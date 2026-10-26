@@ -2,11 +2,11 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { approvalsFrom } from '../../src/core/approvals.js';
+import { approvalsFrom, indexApprovals } from '../../src/core/approvals.js';
 import { loadConfig } from '../../src/core/config.js';
 import { listHistory } from '../../src/core/history.js';
 import { approvalStatus, enumerateClaims, runSpecApprovals, runSpecApprove, type SpecApproveOpts } from '../../src/pipelines/approve.js';
-import { makeV2Repo } from '../helpers/v2-repo.js';
+import { SHOP_SPEC_WITH_ROWS, makeV2Repo } from '../helpers/v2-repo.js';
 import type { TmpRepo } from '../helpers/repo.js';
 
 const PERSON = { agent: false, tty: true };
@@ -186,5 +186,79 @@ describe('spec approvals [intent-approval]', () => {
     expect(text).toContain('unapproved: capabilities/auth#logout-clears-session');
     expect(text).toMatch(/shop\s+0\/1 approved/);
     expect(text).toContain('1/3 claim(s) approved');
+  });
+});
+
+describe('example rows [intent-approval]', () => {
+  const CART = 'capabilities/shop#cart-totals';
+
+  beforeEach(() => {
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS);
+  });
+
+  // [claims: capabilities/intent-approval#approval-rows]
+  it('lists each row of a claim with a table as its own entry, with the row hash, and none for claims without one', async () => {
+    const claims = await enumerateClaims(await loadConfig(repo.dir));
+    expect(claims.map((c) => c.ref).filter((r) => r.startsWith('capabilities/shop'))).toEqual([CART, `${CART}/ny-small`, `${CART}/ny-free`]);
+    const [claim, row] = claims.filter((c) => c.claimId === 'cart-totals');
+    expect(row).toMatchObject({ exampleId: 'ny-small', claimId: 'cart-totals' });
+    expect(row.claimHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(row.claimHash).not.toBe(claim.claimHash);
+    expect(claims.filter((c) => c.capabilityId === 'auth').every((c) => c.exampleId === undefined)).toBe(true);
+  });
+
+  // [claims: capabilities/intent-approval#approval-rows]
+  it('approving a claim approves it and all its current rows in one entry', async () => {
+    const r = await approve({ targets: ['shop#cart-totals'], yes: true });
+    expect(r.created).toBe(1);
+    const config = await loadConfig(repo.dir);
+    const [e] = listHistory(config).filter((x) => x.kind === 'approval');
+    expect(e.approves).toHaveLength(3);
+    const status = await approvalStatus(config);
+    expect(status.claims.filter((c) => c.capabilityId === 'shop').every((c) => c.approval)).toBe(true);
+    expect(status.byCapability.shop).toEqual({ total: 3, approved: 3, unapproved: [] });
+  });
+
+  // [claims: capabilities/intent-approval#approval-rows]
+  it('approving one row leaves its claim and the other row unapproved, and the reverse', async () => {
+    await approve({ targets: [`shop#cart-totals/ny-small`], yes: true });
+    const config = await loadConfig(repo.dir);
+    expect((await approvalStatus(config)).byCapability.shop.unapproved).toEqual([CART, `${CART}/ny-free`]);
+    const [e] = listHistory(config).filter((x) => x.kind === 'approval');
+    expect(e.approves).toHaveLength(1);
+
+    // An approved claim does not approve rows that were not approved with it.
+    const other = makeV2Repo();
+    other.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS);
+    repo = other;
+    await approve({ targets: ['shop#cart-totals'], yes: true });
+    const after = await loadConfig(repo.dir);
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS.replace('| 5.00  |', '| 6.00  |'));
+    const status = await approvalStatus(after);
+    expect(status.byCapability.shop.unapproved).toEqual([`${CART}/ny-small`]);
+    expect(status.claims.find((c) => c.ref === CART)?.approval).toBeDefined();
+  });
+
+  // [claims: capabilities/intent-approval#approval-rows, capabilities/intent-approval#approval-latest]
+  it('an edited row lapses on its own; its earlier approval is still the latest', async () => {
+    await approve({ all: true, yes: true });
+    repo.write('specs/capabilities/shop.md', SHOP_SPEC_WITH_ROWS.replace('| 5.00  |', '| 6.00  |'));
+    const config = await loadConfig(repo.dir);
+    const index = indexApprovals(approvalsFrom(listHistory(config)));
+    const row = (await enumerateClaims(config)).find((c) => c.ref === `${CART}/ny-small`)!;
+    expect(index.find(row.ref, row.claimHash)).toBeUndefined();
+    expect(index.latest(row.ref)?.by).toBe('Ada');
+    const r = await approve({ targets: ['shop'], yes: true });
+    expect(r.skipped).toBe(2);
+    const second = listHistory(config).filter((x) => x.kind === 'approval' && x.approves?.length === 1);
+    expect(second).toHaveLength(1);
+    expect(second[0].approves![0]).toContain(`${CART}/ny-small@`);
+  });
+
+  // [claims: capabilities/intent-approval#approve-targets]
+  it('an unknown row target fails and writes nothing', async () => {
+    const r = await approve({ targets: ['shop#cart-totals/ghost'], yes: true });
+    expect(r.exitCode).toBe(2);
+    expect(historyFiles()).toEqual([]);
   });
 });

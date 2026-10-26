@@ -92,3 +92,40 @@ describe('indexApprovals [intent-approval]', () => {
     expect(idx.find(REF, other)?.entry).toBe('2026-10-25-reworded');
   });
 });
+
+describe('approvals of example rows [intent-approval]', () => {
+  const ROW = `${REF}/ny-small`;
+
+  // [claims: capabilities/intent-approval#approval-rows]
+  it('keeps the row through format, parse and approvalsFrom', () => {
+    const s = formatApproved(ROW, HASH);
+    expect(s).toBe(`${ROW}@${HASH.slice(0, 16)}`);
+    expect(parseApproved(s)).toEqual({ ref: ROW, hash: HASH.slice(0, 16) });
+    expect(parseApproved(`repo:${ROW}@${HASH.slice(0, 16)}`)).toBeNull();
+    const list = approvalsFrom([entry({ id: 'a', approves: [formatApproved(REF, HASH), s] })]);
+    expect(list.map((a) => a.claim)).toEqual([REF, ROW]);
+  });
+
+  // [claims: capabilities/intent-approval#approval-rows]
+  it('approves a claim and its row independently', () => {
+    const rowHash = 'cd'.repeat(32);
+    const idx = indexApprovals(approvalsFrom([entry({ id: 'a', approves: [formatApproved(REF, HASH)] })]));
+    expect(idx.find(REF, HASH)?.entry).toBe('a');
+    expect(idx.find(ROW, rowHash)).toBeUndefined();
+    const rowOnly = indexApprovals(approvalsFrom([entry({ id: 'b', approves: [formatApproved(ROW, rowHash)] })]));
+    expect(rowOnly.find(ROW, rowHash)?.entry).toBe('b');
+    expect(rowOnly.find(REF, HASH)).toBeUndefined();
+  });
+
+  // [claims: capabilities/intent-approval#approval-latest]
+  it('latest returns the newest approval at any hash, and undefined when never approved', () => {
+    const mk = (entryId: string, date: string, hash: string): Approval => ({ claim: REF, hash: shortHash(hash), method: 'command', by: 'Ada', date, entry: entryId });
+    const other = 'cd'.repeat(32);
+    const idx = indexApprovals([mk('2026-10-18-a', '2026-10-18', HASH), mk('2026-10-20-b', '2026-10-20', other), mk('2026-10-20-a', '2026-10-20', HASH)]);
+    expect(idx.latest(REF)?.entry).toBe('2026-10-20-b');
+    expect(idx.latest(REF)?.hash).toBe(shortHash(other));
+    expect(idx.find(REF, 'ff'.repeat(32))).toBeUndefined();
+    expect(idx.latest(REF)).toBeDefined();
+    expect(idx.latest('capabilities/cart#never')).toBeUndefined();
+  });
+});

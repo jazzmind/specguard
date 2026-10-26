@@ -14,6 +14,7 @@ import { attachSourceClaimTags } from '../core/claim-tags.js';
 import { formatClaimRef } from '../core/claims.js';
 import { loadConfig } from '../core/config.js';
 import { aliasRef, loadClaimMigration } from '../core/claim-migration.js';
+import { attachExampleRows, type AmbiguousExampleMatch } from '../core/examples.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
 import { loadCanonicalSpecs } from '../core/spec-key.js';
@@ -30,7 +31,7 @@ import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/
 import { classifyTest, layerGlobIndex, readFileLayer, type EvidenceLayer, type TestLayer } from '../core/test-layers.js';
 import { loadWorkspace } from '../core/workspace.js';
 import { canonicalClaimRef } from '../core/workspace-units.js';
-import { ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
+import { exampleTablesFor, ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
 
 export interface ResultsIngestOpts extends ProofOpts {
   format?: ResultFormat | 'auto';
@@ -215,6 +216,7 @@ export async function runResultsIngest(
   const all: TestCaseResult[] = [];
   const rowFormats = new Map<TestCaseResult, string>();
   const perFile = new Map<string, ClaimAggregate[]>();
+  const ambiguous: AmbiguousExampleMatch[] = [];
   let parseFailures = 0;
   for (const abs of files) {
     const rel = relPosix(cwd, abs);
@@ -232,6 +234,9 @@ export async function runResultsIngest(
           row.claims = [...new Set(row.claims.map((ref) => canonicalClaimRef(migration ? (aliasRef(ref, migration, [path.basename(cwd)]) ?? ref) : ref, packageUnits)))];
         }
       }
+      // A parameterized test whose title names one example row of its claim is also a test of that row.
+      const tables = await exampleTablesFor(cwd, rows.flatMap((row) => row.claims));
+      if (tables.size > 0) ambiguous.push(...attachExampleRows(rows, tables).ambiguous);
       all.push(...rows);
       perFile.set(rel, aggregateClaims(rows));
       result.messages.push(`${rel}: ${rows.length} test(s), ${rows.filter((r) => r.claims.length > 0).length} tagged`);
@@ -297,6 +302,9 @@ export async function runResultsIngest(
   ingest.items = [...result.items];
   ingest.messages = [...result.messages];
   await ingestVerdicts({ runId, verdicts }, cwd, { ledger: opts.ledger }, ingest);
+  for (const m of ambiguous) {
+    ingest.messages.push(`[warn] EXAMPLE_TITLE_AMBIGUOUS: "${m.title}" (${m.file}) names several rows of ${m.claim} (${m.ids.join(', ')}); it counts for the claim only`);
+  }
   for (const agg of aggregates.filter((a) => a.verdict === 'failed')) {
     ingest.messages.push(`  counterexamples for ${agg.claim}: ${agg.failures.join(' | ')}`);
   }

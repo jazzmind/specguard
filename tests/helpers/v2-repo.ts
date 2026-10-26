@@ -47,3 +47,9 @@ export function gitInit(dir: string, date?: string): void {
   git('config', 'user.name', 't');
   gitCommit(dir, 'base', date);
 }
+
+/** The shop capability with an examples table under its one claim (rows `ny-small` and `ny-free`). */
+export const SHOP_SPEC_WITH_ROWS = SHOP_SPEC.replace(
+  '<!-- claim: cart-totals -->\n',
+  '<!-- claim: cart-totals -->\n\n  | id       | state | total |\n  |----------|-------|-------|\n  | ny-small | NY    | 5.00  |\n  | ny-free  | NY    | 0.00  |\n',
+);

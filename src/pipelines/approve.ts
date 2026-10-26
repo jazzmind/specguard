@@ -29,15 +29,20 @@ import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { writeHistory } from './history.js';
 
-/** One claim with an id in a v2 capability or component spec, at its current wording. */
+/**
+ * One claim with an id in a v2 capability or component spec, at its current wording. A claim with an examples table
+ * also has one entry per row, with `exampleId` set, the row's ref and the row hash.
+ */
 export interface ClaimState {
-  /** Local claim ref, `specKey#claimId`. */
+  /** Local ref, `specKey#claimId`, or `specKey#claimId/rowId` for an example row. */
   ref: string;
   specKey: string;
   capabilityId: string;
   claimId: string;
+  /** Set for an example row of the claim. */
+  exampleId?: string;
   text: string;
-  /** Full hash of the claim as it reads now. */
+  /** Full hash of the claim (for a row, of the row) as it reads now. */
   claimHash: string;
   /** Number of source files the owning spec declares and that exist. */
   ownedSources: number;
@@ -63,7 +68,10 @@ export interface SpecApproveOpts {
   actor?: { agent: boolean; tty: boolean };
 }
 
-/** Every claim with an id in every v2 capability and component spec. v1 specs have no claim hash and are skipped. */
+/**
+ * Every claim with an id in every v2 capability and component spec, each followed by its example rows when it has a
+ * table. v1 specs have no claim hash and are skipped.
+ */
 export async function enumerateClaims(config: SpecGuardConfig): Promise<ClaimState[]> {
   const graph = await buildSpecGraph(config);
   const out: ClaimState[] = [];
@@ -82,6 +90,18 @@ export async function enumerateClaims(config: SpecGuardConfig): Promise<ClaimSta
         claimHash,
         ownedSources: node.ownedFiles.length,
       });
+      for (const row of claim.examples?.rows ?? []) {
+        out.push({
+          ref: formatClaimRef(undefined, node.specKey, claim.id, row.id),
+          specKey: node.specKey,
+          capabilityId: node.id,
+          claimId: claim.id,
+          exampleId: row.id,
+          text: claim.text,
+          claimHash: row.hash,
+          ownedSources: node.ownedFiles.length,
+        });
+      }
     }
   }
   return out;
@@ -119,19 +139,26 @@ function fail(result: PipelineResult, code: number, message: string): PipelineRe
   return result;
 }
 
-/** Claims a target names: a capability id, a claim ref (`cap#claim` or `specKey#claim`) or a bare claim id. Null when none match or a bare id is ambiguous. */
+/**
+ * Claims a target names: a capability id, a claim ref (`cap#claim` or `specKey#claim`) or a bare claim id. Naming a
+ * claim also names its example rows; `cap#claim/row` names just that row. Empty hits with an error when none match or a bare id is ambiguous.
+ */
 function resolveTarget(claims: ClaimState[], target: string): { hits: ClaimState[]; error?: string } {
   const at = target.lastIndexOf('#');
   if (at > 0) {
-    const [left, id] = [target.slice(0, at), target.slice(at + 1)];
-    const hits = claims.filter((c) => c.claimId === id && (c.specKey === left || c.capabilityId === left));
+    const left = target.slice(0, at);
+    const [id, rowId] = target.slice(at + 1).split('/');
+    const hits = claims.filter(
+      (c) => c.claimId === id && (rowId === undefined || c.exampleId === rowId) && (c.specKey === left || c.capabilityId === left),
+    );
     return hits.length > 0 ? { hits } : { hits, error: `no claim ${target}` };
   }
   const caps = claims.filter((c) => c.capabilityId === target || c.specKey === target);
   if (caps.length > 0) return { hits: caps };
   const byId = claims.filter((c) => c.claimId === target);
-  if (byId.length === 1) return { hits: byId };
-  if (byId.length > 1) return { hits: [], error: `claim id ${target} is in several capabilities (${byId.map((c) => c.capabilityId).join(', ')}); use capability#claim` };
+  const owners = [...new Set(byId.map((c) => c.specKey))];
+  if (owners.length === 1) return { hits: byId };
+  if (owners.length > 1) return { hits: [], error: `claim id ${target} is in several capabilities (${[...new Set(byId.map((c) => c.capabilityId))].join(', ')}); use capability#claim` };
   return { hits: [], error: `no capability or claim ${target}` };
 }
 

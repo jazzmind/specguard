@@ -9,7 +9,7 @@
  *
  * Spec: specs/capabilities/intent-approval.md
  */
-import { parseClaimRef } from './claims.js';
+import { formatClaimRef, parseClaimRef } from './claims.js';
 import type { HistoryEntry } from './history.js';
 
 /** How an approval was given: `command` (`spec approve`), `as-built` (accepting what exists), `pr` (a pull request review) or `plan` (an approved plan). */
@@ -19,9 +19,9 @@ export const APPROVAL_METHODS: readonly ApprovalMethod[] = ['command', 'as-built
 
 /** One claim approved at one wording, by one person, in one history entry. */
 export interface Approval {
-  /** Local claim ref, `specKey#claimId`. */
+  /** Local ref, `specKey#claimId` or, for an example row, `specKey#claimId/rowId`. */
   claim: string;
-  /** First 16 hex characters of the claim hash the approver saw. */
+  /** First 16 hex characters of the claim hash (for a row, the row hash) the approver saw. */
   hash: string;
   method: ApprovalMethod;
   by: string;
@@ -38,7 +38,7 @@ export function shortHash(full: string): string {
   return full.slice(0, SHORT_HASH);
 }
 
-/** `ref@<16 hex>`: the form an approval takes in an entry's `approves` list. */
+/** `ref@<16 hex>`: the form an approval takes in an entry's `approves` list. `ref` may name an example row (`specKey#claim/row`). */
 export function formatApproved(ref: string, claimHash: string): string {
   return `${ref}@${shortHash(claimHash)}`;
 }
@@ -51,7 +51,7 @@ export function parseApproved(s: string): { ref: string; hash: string } | null {
   const hash = s.slice(at + 1).trim().toLowerCase();
   const parsed = parseClaimRef(ref);
   if (!parsed || parsed.repo || !/^[0-9a-f]{16}$/.test(hash)) return null;
-  return { ref: `${parsed.specKey}#${parsed.claimId}`, hash };
+  return { ref: formatClaimRef(undefined, parsed.specKey, parsed.claimId, parsed.exampleId), hash };
 }
 
 /** Every approval recorded by `kind: approval` entries. Malformed refs and unknown methods are skipped. */
@@ -75,6 +75,8 @@ const newer = (a: Approval, b: Approval): boolean => (a.date === b.date ? a.entr
 export interface ApprovalIndex {
   /** The newest approval of `ref` at the current claim hash; undefined when none matches, which includes any claim edited since it was approved. */
   find(ref: string, claimHash: string): Approval | undefined;
+  /** The newest approval of `ref` at any hash; undefined when it was never approved. Tells "edited since approval" from "never approved". */
+  latest(ref: string): Approval | undefined;
 }
 
 export function indexApprovals(approvals: Approval[]): ApprovalIndex {
@@ -86,6 +88,13 @@ export function indexApprovals(approvals: Approval[]): ApprovalIndex {
       let best: Approval | undefined;
       for (const a of byRef.get(ref) ?? []) {
         if (a.hash === want && (!best || newer(a, best))) best = a;
+      }
+      return best;
+    },
+    latest(ref) {
+      let best: Approval | undefined;
+      for (const a of byRef.get(ref) ?? []) {
+        if (!best || newer(a, best)) best = a;
       }
       return best;
     },
