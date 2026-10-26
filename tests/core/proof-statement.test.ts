@@ -354,7 +354,7 @@ describe('proof statement: aligned pillar [traceability-and-drift]', () => {
   // [claims: capabilities/traceability-and-drift#statement-four-pillars]
   it('no coverage -> NO_COVERAGE_EVIDENCE unknown, blocking only with requireAlignment', () => {
     const s = statementFor({ coverage: undefined });
-    expect(find(s, 'NO_COVERAGE_EVIDENCE')).toMatchObject({ outcome: 'unknown', blocking: false, fix: 'specguard test run --coverage --per-capability' });
+    expect(find(s, 'NO_COVERAGE_EVIDENCE')).toMatchObject({ outcome: 'unknown', blocking: false, fix: 'run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>' });
     expect(s.pillars.aligned.status).toBe('unknown');
     expect(s.level).toBe('not-certified');
     expect(statementFor({ coverage: undefined }, policyWith({ requireAlignment: true })).blocking.map((r) => r.code)).toEqual(['NO_COVERAGE_EVIDENCE']);
@@ -732,7 +732,7 @@ describe('proof statement: output [traceability-and-drift]', () => {
     expect(lines).toContain('     fix: specguard spec approve cart#total');
     expect(lines.some((l) => l.startsWith('  2. CLAIM_FAILED cart#total'))).toBe(true);
     expect(lines).toContain('Advisory:');
-    expect(lines).toContain('  - NO_COVERAGE_EVIDENCE: no coverage ingested for this capability; fix: specguard test run --coverage --per-capability');
+    expect(lines).toContain('  - NO_COVERAGE_EVIDENCE: no coverage ingested for this capability; fix: run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>');
     expect(lines.some((l) => l.startsWith('  - LINT_WARNING cart#tax: T-COMPOUND'))).toBe(true);
     expect(lines.at(-1)).toBe('Limits: mutation attribution first-kill (survivor counts per claim are lower bounds)');
     // a certified capability explains itself without a blocking section

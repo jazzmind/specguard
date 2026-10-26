@@ -458,7 +458,7 @@ function approvedReasons(cap: CapabilityInput, mk: MakeReason): Reason[] {
   const out: Reason[] = [];
   if (!cap.approvalsInUse) {
     out.push(mk('APPROVALS_NOT_IN_USE', 'approved', 'fail', 'requireApproval', 'no requirement in this repository has been approved by a person', {
-      fix: `specguard spec approve ${cap.id}  (or: specguard baseline --as-built)`,
+      fix: `specguard spec approve ${cap.id}  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)`,
     }));
     return out;
   }
@@ -526,14 +526,14 @@ function alignedReasons(cap: CapabilityInput, policy: ProofPolicy, mk: MakeReaso
   const cov = cap.coverage;
   const gate = 'requireAlignment';
   if (!cov) {
-    out.push(mk('NO_COVERAGE_EVIDENCE', 'aligned', 'unknown', gate, 'no coverage ingested for this capability', { fix: 'specguard test run --coverage --per-capability' }));
+    out.push(mk('NO_COVERAGE_EVIDENCE', 'aligned', 'unknown', gate, 'no coverage ingested for this capability', { fix: 'run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>' }));
   } else if (cov.testsStale) {
-    out.push(mk('COVERAGE_STALE', 'aligned', 'unknown', gate, 'the tests tagged to this capability changed since the coverage run', { fix: 'specguard test run --coverage --per-capability' }));
+    out.push(mk('COVERAGE_STALE', 'aligned', 'unknown', gate, 'the tests tagged to this capability changed since the coverage run', { fix: 'run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>' }));
   } else if (cov.reported === 0 && cov.stale.length > 0) {
-    out.push(mk('COVERAGE_STALE', 'aligned', 'unknown', gate, `coverage is out of date for all ${cov.stale.length} owned file(s)`, { fix: 'specguard test run --coverage --per-capability', data: { stale: cov.stale.slice(0, 20) } }));
+    out.push(mk('COVERAGE_STALE', 'aligned', 'unknown', gate, `coverage is out of date for all ${cov.stale.length} owned file(s)`, { fix: 'run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>', data: { stale: cov.stale.slice(0, 20) } }));
   } else {
     const diffLow = (d: NonNullable<CoverageInput['diff']>): boolean => d.pct !== null && d.pct < policy.minDiffCoverage;
-    const fix = 'specguard test run --coverage --per-capability';
+    const fix = 'run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>';
     if (cov.source === 'capability' && cov.selection === 'tests') {
       if (cov.lines.executable > 0 && cov.lines.hit === 0) {
         out.push(mk('CLAIM_TESTS_REACH_NO_OWNED_CODE', 'aligned', 'fail', gate, 'the tests tagged to this capability execute none of its owned code'));
