@@ -155,3 +155,52 @@ describe('Java and Kotlin tests [java-declarations]', () => {
     ]);
   });
 });
+
+describe('skipped, focused and property test declarations', () => {
+  // [claims: capabilities/test-strength#declarations-markers]
+  it('finds xit, xtest, xspecify, fit and ftest tests so skips and focus stay visible', () => {
+    const src = "xit('skipped one', () => {});\nxtest('skipped two', () => {});\nfit('focused', () => {});\nftest('focused two', () => {});\nxspecify('s', () => {});\nfunction fit(a) {}\n";
+    expect(scanTestDeclarations(src, 'a.test.ts').map((d) => d.title)).toEqual(['skipped one', 'skipped two', 'focused', 'focused two', 's']);
+  });
+
+  // [claims: capabilities/test-strength#declarations-markers]
+  it('finds jqwik @Property and @Example methods', () => {
+    const src = ['class P {', '  @Property', '  void always(@ForAll int x) {}', '', '  @Example', '  boolean one() { return true; }', '}', ''].join('\n');
+    expect(scanTestDeclarations(src, 'P.java').map((d) => [d.title, d.annotations])).toEqual([
+      ['always', ['Property']],
+      ['one', ['Example']],
+    ]);
+  });
+
+  // [claims: capabilities/test-strength#declarations-markers]
+  it('exposes JVM annotation names, argument text and the method name', () => {
+    const src = [
+      '@Test(enabled = false)',
+      '@DisplayName("Nice name")',
+      '@Disabled("flaky",',
+      '          reason = "x")',
+      'void realMethod() {}',
+      '',
+      '@Test(expected = IllegalStateException.class) public void other() {}',
+      '',
+    ].join('\n');
+    const [a, b] = scanTestDeclarations(src, 'T.java');
+    expect(a?.title).toBe('Nice name');
+    expect(a?.method).toBe('realMethod');
+    expect(a?.annotations).toEqual(['Test', 'DisplayName', 'Disabled']);
+    expect(a?.annotationArgs?.Test).toBe('enabled = false');
+    expect(a?.annotationArgs?.DisplayName).toBe('"Nice name"');
+    expect(a?.annotationArgs?.Disabled).toBe('"flaky", reason = "x"');
+    expect(b?.annotationArgs?.Test).toBe('expected = IllegalStateException.class');
+  });
+});
+
+describe('declarations behind modifiers and attributes', () => {
+  // [claims: capabilities/test-strength#declarations-markers]
+  it('finds it.skipIf(cond)(title) and Rust tests with attributes between #[test] and fn', () => {
+    const js = "it.skipIf(process.platform === 'win32')('posix only', () => {});\nit.runIf(ok)('gated', () => {});\n";
+    expect(scanTestDeclarations(js, 'a.test.ts').map((d) => d.title)).toEqual(['posix only', 'gated']);
+    const rs = '#[test]\n#[ignore]\nfn slow() {}\n\n#[test]\n// note\n#[should_panic]\nfn boom() {}\n\nfn helper() {}\n';
+    expect(scanTestDeclarations(rs, 'lib.rs').map((d) => d.title)).toEqual(['slow', 'boom']);
+  });
+});

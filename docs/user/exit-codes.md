@@ -24,6 +24,7 @@ SpecGuard uses a fixed set of **seven named exit codes** as a stable contract be
 | `MissingSpecs` | `4` | Required specs could not be found. |
 | `SecurityIssues` | `5` | Security issues were identified during the pipeline run. |
 | `HealFailed` | `7` | An attempted auto-heal operation did not succeed. |
+| `NotCertified` | `13` | `specguard check` found a blocking reason in a proof statement. Returned only when a `proof` gate flag is on (for example `proof.requireApproval`), and only after exit codes 2, 3 and 4 in precedence. `specguard check --explain <capability>` lists the reasons. 6 is not a valid code and 9 to 11 belong to `specguard remediate`. |
 
 > **Note:** No two constants share the same numeric value. You can safely use these values in `switch` statements, shell conditionals, or CI step outcome checks without ambiguity.
 

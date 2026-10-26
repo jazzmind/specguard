@@ -22,17 +22,23 @@ export interface TestDeclaration {
   anchor?: number;
   /** True when a claim tag is already on the declaration line or the line above it. */
   tagged: boolean;
+  /** Java/Kotlin only: annotation names as written on the method, `@DisplayName` and the test annotation included. */
+  annotations?: string[];
+  /** Java/Kotlin only: the raw argument text (without the parentheses) of each annotation that had one, by annotation name. */
+  annotationArgs?: Record<string, string>;
+  /** Java/Kotlin only: the method name, which differs from `title` when `@DisplayName` is used (mutation reports use it). */
+  method?: string;
 }
 
 // `test.describe`, `test.step`, hooks and the like share the `test.` prefix but are not tests.
 const NOT_A_TEST = '(?:describe|step|beforeEach|afterEach|beforeAll|afterAll|use|configure|extend|serial|parallel)';
-const JS_TEST = new RegExp(String.raw`^(\s*)(?:it|test|specify)(?:\.(?!${NOT_A_TEST}\b)\w+)*\s*\(\s*(['"`+'`'+String.raw`])((?:\\.|(?!\2).)*)\2`);
+const JS_TEST = new RegExp(String.raw`^(\s*)(?:[xf]?(?:it|test|specify))(?:\.(?!${NOT_A_TEST}\b)(?:(?:skipIf|runIf)\((?:[^()]|\([^()]*\))*\)|\w+))*\s*\(\s*(['"`+'`'+String.raw`])((?:\\.|(?!\2).)*)\2`);
 const PY_TEST = /^(\s*)(?:async\s+)?def\s+(test\w*)/;
 const GO_TEST = /^(\s*)func\s+(Test\w*)/;
 const RUST_TEST = /^(\s*)(?:async\s+)?fn\s+(\w+)/;
 
 const JAVA_FILE = /\.(?:java|kt)$/;
-const JAVA_TEST_ANNOTATION = /^(?:[\w.]*\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)$/;
+const JAVA_TEST_ANNOTATION = /^(?:[\w.]*\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate|Property|Example)$/;
 
 /** Replace comments with spaces (newlines kept) so line numbers survive; strings and char literals are left intact. */
 function blankJavaComments(source: string): string {
@@ -70,19 +76,28 @@ function blankJavaComments(source: string): string {
 }
 
 /** Consume annotations at the start of `line`; `depth` is the paren depth carried in from an annotation argument list that spans lines. */
-function consumeAnnotations(line: string, depth: number, annotations: string[]): { depth: number; rest: string } {
+function consumeAnnotations(
+  line: string,
+  depth: number,
+  annotations: string[],
+  args: Record<string, string>,
+): { depth: number; rest: string } {
   let i = 0;
+  const open = annotations[annotations.length - 1];
+  if (depth > 0 && open !== undefined) args[open] = `${args[open] ?? ''} `;
   while (i < line.length) {
     const c = line[i];
     if (depth > 0) {
       if (c === '"' || c === "'") {
         let j = i + 1;
         while (j < line.length && line[j] !== c) j += line[j] === '\\' ? 2 : 1;
+        if (open !== undefined) args[open] = (args[open] ?? '') + line.slice(i, j + 1);
         i = j + 1;
         continue;
       }
       if (c === '(') depth += 1;
       else if (c === ')') depth -= 1;
+      if (open !== undefined && depth > 0) args[open] = (args[open] ?? '') + c;
       i += 1;
       continue;
     }
@@ -93,10 +108,12 @@ function consumeAnnotations(line: string, depth: number, annotations: string[]):
       if (!name) return { depth, rest: line.slice(i) };
       annotations.push(name[1]);
       i += name[0].length;
-      const open = /^\s*\(/.exec(line.slice(i));
-      if (open) {
+      const paren = /^\s*\(/.exec(line.slice(i));
+      if (paren) {
         depth = 1;
-        i += open[0].length;
+        i += paren[0].length;
+        args[name[1]] = '';
+        return consumeAnnotations(line.slice(i), depth, annotations, args);
       }
     } else {
       return { depth, rest: line.slice(i) };
@@ -111,17 +128,17 @@ function scanJavaTests(source: string, file: string): TestDeclaration[] {
   const original = source.split(/\r?\n/);
   const cleaned = blankJavaComments(source).split(/\r?\n/);
   const out: TestDeclaration[] = [];
-  let block: { start: number; text: string; annotations: string[]; depth: number } | null = null;
+  let block: { start: number; text: string; annotations: string[]; args: Record<string, string>; depth: number } | null = null;
   cleaned.forEach((text, i) => {
     const trimmed = text.trim();
     if (!block) {
       if (!trimmed.startsWith('@') || /^@\s*interface\b/.test(trimmed)) return;
-      block = { start: i, text: '', annotations: [], depth: 0 };
+      block = { start: i, text: '', annotations: [], args: {}, depth: 0 };
     } else if (block.depth === 0 && !trimmed) {
       return;
     }
     block.text += `${text}\n`;
-    const { depth, rest } = consumeAnnotations(text, block.depth, block.annotations);
+    const { depth, rest } = consumeAnnotations(text, block.depth, block.annotations, block.args);
     block.depth = depth;
     if (depth > 0 || !rest.trim()) return;
     const done = block;
@@ -140,9 +157,30 @@ function scanJavaTests(source: string, file: string): TestDeclaration[] {
     const aboveIsComment = /^(?:\/\/|\/\*|\*)/.test(above);
     const inBlock = original.slice(done.start, i + 1).some((l) => extractClaimRefs(l).length > 0);
     const tagged = inBlock || (aboveIsComment && extractClaimRefs(above).length > 0);
-    out.push({ line: i + 1, title, indent, tagged, ...(anchor === i + 1 ? {} : { anchor }) });
+    const annotationArgs: Record<string, string> = {};
+    for (const [name, text] of Object.entries(done.args)) annotationArgs[name] = text.replace(/\s+/g, ' ').trim();
+    out.push({
+      line: i + 1,
+      title,
+      indent,
+      tagged,
+      annotations: done.annotations,
+      annotationArgs,
+      method: method[1].replace(/^`|`$/g, ''),
+      ...(anchor === i + 1 ? {} : { anchor }),
+    });
   });
   return out;
+}
+
+/** A Rust `fn` at `index` is a test when `#[test]` (or tokio/quickcheck) sits among the attribute lines directly above it. */
+function rustTestAttribute(lines: string[], index: number): boolean {
+  for (let k = index - 1; k >= 0 && k >= index - 8; k -= 1) {
+    const t = (lines[k] ?? '').trim();
+    if (/^#\[\s*(?:tokio::|async_std::)?test\b|^#\[\s*quickcheck\s*\]/.test(t)) return true;
+    if (!t.startsWith('#[') && !t.startsWith('//')) return false;
+  }
+  return false;
 }
 
 export function scanTestDeclarations(source: string, file: string): TestDeclaration[] {
@@ -159,7 +197,7 @@ export function scanTestDeclarations(source: string, file: string): TestDeclarat
       indent = m?.[1];
       title = m?.[2];
     }
-    if (!m && rust && /#\[(?:tokio::)?test/.test(lines[i - 1] ?? '')) {
+    if (!m && rust && rustTestAttribute(lines, i)) {
       m = text.match(RUST_TEST);
       indent = m?.[1];
       title = m?.[2];

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assignClaimIds,
   danglingClaimRefs,
+  formatClaimRef,
   parseClaimRef,
   parseClaims,
   parseInvariants,
@@ -252,5 +253,37 @@ describe('wrapped claims [claims-wrapped]', () => {
   it('joins an indented continuation line into the claim and reads an anchor placed on it', () => {
     const claims = parseClaims('- [ ] First line of the rule\n  continues here <!-- claim: wrapped -->\n- [ ] Next <!-- claim: next -->\n');
     expect(claims).toEqual([{ text: 'First line of the rule continues here', id: 'wrapped', checked: false }, { text: 'Next', id: 'next', checked: false }]);
+  });
+});
+
+describe('claim refs with example rows [claim-row-refs]', () => {
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('parseClaimRef reads the optional /row after the claim id, with or without a repo', () => {
+    expect(parseClaimRef('cap#shipping-fee/ny-small')).toEqual({ specKey: 'cap', claimId: 'shipping-fee', exampleId: 'ny-small' });
+    expect(parseClaimRef('web:capabilities/ship#Shipping-Fee/NY-Small')).toEqual({
+      repo: 'web',
+      specKey: 'capabilities/ship',
+      claimId: 'shipping-fee',
+      exampleId: 'ny-small',
+    });
+    expect(parseClaimRef('cap#claim')).toEqual({ specKey: 'cap', claimId: 'claim' });
+    expect(parseClaimRef('cap#claim')).not.toHaveProperty('exampleId');
+  });
+
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('parseClaimRef rejects a bad row id or a second slash after the claim id', () => {
+    expect(parseClaimRef('cap#claim/')).toBeNull();
+    expect(parseClaimRef('cap#claim/Bad_Id')).toBeNull();
+    expect(parseClaimRef('cap#claim/a/b')).toBeNull();
+  });
+
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('formatClaimRef round-trips, and a plain ref is formatted as before', () => {
+    expect(formatClaimRef(undefined, 'cap', 'claim')).toBe('cap#claim');
+    expect(formatClaimRef('web', 'cap', 'claim')).toBe('web:cap#claim');
+    for (const ref of ['cap#claim/row', 'web:a/b#claim/row']) {
+      const parsed = parseClaimRef(ref);
+      expect(formatClaimRef(parsed?.repo, parsed?.specKey ?? '', parsed?.claimId ?? '', parsed?.exampleId)).toBe(ref);
+    }
   });
 });

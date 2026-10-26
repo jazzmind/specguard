@@ -13,6 +13,7 @@ describe("Exit Codes", () => {
     expect(ExitCode.HealFailed).toBe(7);
     expect(ExitCode.BudgetExceeded).toBe(8);
     expect(ExitCode.AgentWorkPending).toBe(12);
+    expect(ExitCode.NotCertified).toBe(13);
   });
 
   // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
@@ -26,6 +27,7 @@ describe("Exit Codes", () => {
     expect(exitCodeLabel(7)).toBe("heal failed");
     expect(exitCodeLabel(8)).toBe("llm budget exceeded");
     expect(exitCodeLabel(12)).toBe("waiting for the host agent");
+    expect(exitCodeLabel(13)).toBe("not certified");
   });
 
   // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]
@@ -39,8 +41,8 @@ describe("Exit Codes", () => {
   it("Verifying no duplicate numeric values exist", () => {
     const values = Object.values(ExitCode);
     const uniqueValues = new Set(values);
-    expect(values).toHaveLength(9);
-    expect(uniqueValues.size).toBe(9);
+    expect(values).toHaveLength(10);
+    expect(uniqueValues.size).toBe(10);
   });
 
   // [claims: capabilities/integration-surfaces#exit-codes-and-env, capabilities/platform-foundation#errors-and-exit-codes]

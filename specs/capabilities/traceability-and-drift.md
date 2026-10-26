@@ -26,6 +26,7 @@ sources:
   - "src/pipelines/check.ts"
   - "src/pipelines/drift-capability.ts"
   - "src/cli/commands/check.ts"
+  - "src/core/proof-statement.ts"
 tests:
   - "tests/core/drift-registry.test.ts"
   - "tests/core/claim-hash.test.ts"
@@ -38,6 +39,7 @@ tests:
   - "tests/regression/multi-app.test.ts"
   - "tests/pipelines/check.test.ts"
   - "tests/pipelines/drift-capability.test.ts"
+  - "tests/core/proof-statement.test.ts"
 docs:
   - "README.md"
 history:
@@ -46,6 +48,7 @@ history:
   - 2026-10-22-0-3-phase-3-test-layers-and-ci
   - 2026-10-22-security-no-data-classification-requirem
   - 2026-10-22-security-no-access-control-requirement-o
+  - 2026-10-26-proof-statement-is-a-pure-composition-wi
 ---
 
 # Traceability and Drift
@@ -86,6 +89,15 @@ This capability computes that answer on demand and without opinion. It links spe
 - [ ] A v2 proof goes stale for a changed owned file only when no drift assessment covers that exact file version, or the assessment names the claim; a changed file nobody assessed stales every claim of its capability <!-- claim: claim-scoped-file-staleness -->
 - [ ] Capability drift baselines a capability on its first run, afterwards assesses only files whose content changed, records an assessment per file version, skips lockfiles and build output without a model call, treats a missing verdict as affecting every claim, and reports changed files no capability owns <!-- claim: capability-drift-assessments -->
 - [ ] Large capability diffs are filtered, ranked with interface-like files first, packed into chunks of about 40k characters (an oversized file reduced to headers and declarations), and capped per capability with the remainder reported for manual review <!-- claim: drift-chunking -->
+- [ ] The proof statement judges each capability on four pillars, each `ok`, `fail` or `unknown`: Approved (a person approved each claim and example row at its current wording), Testable (the claims pass the testability lint and the capability has anchored claims), Aligned (coverage evidence shows the owned code is reached by the claims' tests, and for a changed claim that the change is specified) and Conforms (the proof ledger, required layers, example rows, test strength, mutation sensitivity and assurance level hold); every reason is listed with a code, a message and a command that fixes it, and a planned capability is evaluated on Approved and Testable only <!-- claim: statement-four-pillars -->
+- [ ] The statement keeps approval in its own pillar and takes the raw proof-ledger verdict with no drift-assessment opinion: an unapproved claim with a passing proof is still proven, and approval never turns a proof stale or failed <!-- claim: statement-approval-own-pillar -->
+- [ ] A capability is certified at a commit only when all four pillars are `ok`, every piece of evidence it used was earned in CI, the commit is known and none of the capability's input files has uncommitted changes; the same pillars with local or server evidence or a dirty input are provisional, anything else is not certified, a planned capability is planned, and the system is certified only when every non-planned capability is certified and no source file is unowned <!-- claim: statement-certified-rule -->
+- [ ] Pillar status never depends on policy: the `proof.require*` gate flags (approval, testable, strength, sensitivity, conforms, alignment, ci) and `proof.strict` decide only which reasons are marked blocking, with every flag off by default and `strict` turning all on with `enforceLayers` at `fail`; a reason whose gate is `never` (a capability that owns no files, an intent gap) never blocks <!-- claim: statement-policy-only-blocks -->
+- [ ] A repository that uses none of the new features keeps its `check` lines and exit codes: its statement reads not certified with the exact reasons (no approvals recorded, no coverage evidence, strength not analysed), no reason blocks, and the statement exit code is 0 <!-- claim: statement-degradation -->
+- [ ] The statement's exit code is 13 (not certified) only when at least one reason is blocking under a gate flag that is on, and 0 otherwise; the existing codes 2, 3 and 4 keep their precedence over it <!-- claim: statement-exit-code-not-certified -->
+- [ ] Blocking reasons are ordered by pillar (Approved, Testable, Aligned, Conforms), failures before unknowns, capability-level reasons before claim-level ones, then spec order, and the capability headline names the count and the first two <!-- claim: statement-blocking-precedence -->
+- [ ] The statement serialises to a stable JSON shape (version, policy, level, counts, exit code and per capability the pillars with their reasons, blocking reasons, claims, metrics and evidence), renders one `STATEMENT:` line per capability and a system line, and `--explain` text lists the pillars, each blocking reason with its fix, the advisory reasons and the stated limits of the evidence <!-- claim: statement-json-and-explain -->
+- [ ] Composing the statement is pure and deterministic: the same input gives a deep-equal output, the input is not changed, and the module reads no file, runs no process and calls no model <!-- claim: statement-is-pure -->
 
 ## Scenarios
 ### Scenario 1: A new file has no spec
@@ -157,7 +169,7 @@ These pipelines read source, specs and tests and write only JSON, CSV and Markdo
 - CLI: `specguard status`, `specguard gap-analysis [--spec <key>] [--all] [--no-plan]`, `specguard matrix [--out <path>] [--format json|csv] [--app <name>]`, `specguard align [--app] [--spec] [--all] [--concurrency <n>] [--fresh] [--extra-tests <globs...>]`, `specguard drift [--since <ref>] [--spec <key>] [--force] [--mtime]`.
 - MCP tools: `specguard_status`, `specguard_drift`, `specguard_matrix`, `specguard_gap_analysis`, `specguard_check`.
 - Files under `.specguard/`: `drift-registry.json`, `gaps.json`, `plans/<feature>.md`, `plans/gap-analysis-<timestamp>.md`, `alignment.json`, `traceability.json` (path configurable through `matrix.output`).
-- Exit codes: 0 success, 3 drift detected, 4 missing specs or gaps present, 1 internal error.
+- Exit codes: 0 success, 3 drift detected, 4 missing specs or gaps present, 1 internal error, 13 not certified (a blocking proof-statement reason under an enabled `proof` gate).
 - `specguard check` with the legacy commands as aliases.
 
 ## Out of Scope

@@ -14,9 +14,21 @@ import * as path from 'node:path';
 
 import { parse as parseYaml } from 'yaml';
 
+import { claimHashOf, isV2Spec } from './claim-hash.js';
 import { parseClaims, parseJourney } from './claims.js';
 import { SpecFrontmatterError } from './errors.js';
-import { SPEC_KINDS, type ParsedSpec, type SpecKind, type SpecMeta, type SpecScenario } from './types.js';
+import { parseExampleTables } from './examples.js';
+import {
+  ASSURANCE_LEVELS,
+  SPEC_KINDS,
+  type Assurance,
+  type AssuranceRequirements,
+  type EvidenceDeclaration,
+  type ParsedSpec,
+  type SpecKind,
+  type SpecMeta,
+  type SpecScenario,
+} from './types.js';
 
 /** Metadata keys that map to typed fields on `SpecMeta`. */
 const KNOWN_META_KEYS = new Set([
@@ -87,6 +99,55 @@ function stringList(value: unknown, key: string, file: string): string[] {
   });
 }
 
+const isAssurance = (v: unknown): v is Assurance => typeof v === 'string' && (ASSURANCE_LEVELS as readonly string[]).includes(v);
+
+/**
+ * Read a capability's `assurance:` frontmatter: a level (the default for every claim) or
+ * `{ default: <level>, claims: { <claim-id>: <level> } }`. Values off the ladder are returned in `unknown`.
+ */
+export function parseAssurance(raw: unknown): AssuranceRequirements {
+  const out: AssuranceRequirements = { claims: {}, unknown: [] };
+  const take = (v: unknown): Assurance | undefined => {
+    if (v === null || v === undefined) return undefined;
+    if (isAssurance(v)) return v;
+    out.unknown.push(String(v));
+    return undefined;
+  };
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const o = raw as { default?: unknown; claims?: Record<string, unknown> };
+    const level = take(o.default);
+    if (level) out.default = level;
+    for (const [id, v] of Object.entries(o.claims ?? {})) {
+      const claimLevel = take(v);
+      if (claimLevel) out.claims[id] = claimLevel;
+    }
+  } else {
+    const level = take(raw);
+    if (level) out.default = level;
+  }
+  return out;
+}
+
+/**
+ * Read a capability's `evidence:` frontmatter: `{ <claim-id>: { kind: agentic | manual, verifier: "..." } }`.
+ * A missing verifier is kept as an empty string so the testability lint can report it.
+ */
+export function parseEvidence(raw: unknown, file = '(spec)'): Record<string, EvidenceDeclaration> {
+  if (typeof raw !== 'object' || Array.isArray(raw) || raw === null) {
+    throw new SpecFrontmatterError(file, "'evidence' must be a mapping of claim id to { kind, verifier }");
+  }
+  const out: Record<string, EvidenceDeclaration> = {};
+  for (const [id, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const e = (typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? entry : {}) as { kind?: unknown; verifier?: unknown };
+    if (e.kind !== 'agentic' && e.kind !== 'manual') {
+      throw new SpecFrontmatterError(file, `'evidence.${id}.kind' must be agentic or manual`);
+    }
+    const verifier = typeof e.verifier === 'string' || typeof e.verifier === 'number' ? String(e.verifier).trim() : '';
+    out[id] = { kind: e.kind, verifier };
+  }
+  return out;
+}
+
 /**
  * Split a v2 spec into its YAML frontmatter metadata and the markdown body.
  * Returns null when the content does not start with a frontmatter block, so v1
@@ -115,6 +176,10 @@ export function parseFrontmatter(content: string, file = '(spec)'): { meta: Spec
       (meta as unknown as Record<string, string[]>)[key] = stringList(value, key, file);
     } else if (key === 'layers') {
       meta.layers = parseLayerRequirements(value);
+    } else if (key === 'assurance') {
+      meta.assurance = parseAssurance(value);
+    } else if (key === 'evidence') {
+      meta.evidence = parseEvidence(value, file);
     } else if (key === 'kind') {
       if (typeof value !== 'string' || !(SPEC_KINDS as readonly string[]).includes(value)) {
         throw new SpecFrontmatterError(file, `'kind' must be one of ${SPEC_KINDS.join(', ')}`);
@@ -243,6 +308,20 @@ function extractList(bodyLines: string[], label: string): string[] {
   return items;
 }
 
+/** 1-based line (within `content`) of the first non-blank line under an `## <sectionName>` heading, or 0 when there is none. */
+function sectionBodyLine(content: string, sectionName: string): number {
+  const lines = content.split(/\r?\n/);
+  const target = sectionName.trim().toLowerCase();
+  const heading = lines.findIndex((line) => {
+    const h2 = line.match(/^##\s+(.+?)\s*$/);
+    return h2 !== null && h2[1].trim().toLowerCase() === target;
+  });
+  if (heading === -1) return 0;
+  let i = heading + 1;
+  while (i < lines.length && !lines[i].trim() && !/^##\s+/.test(lines[i])) i += 1;
+  return i + 1;
+}
+
 /** Parse the H1 title (`# Title`) from spec content. */
 function parseTitle(content: string): string {
   for (const line of content.split(/\r?\n/)) {
@@ -289,12 +368,14 @@ export function parseSpecContent(
 ): ParsedSpec {
   const front = parseFrontmatter(content, filePath);
   const body = front ? front.body : content;
+  // Lines taken by the frontmatter, so example rows can report their line in the file.
+  const bodyOffset = front ? content.slice(0, content.length - body.length).split('\n').length - 1 : 0;
   content = body;
   const meta = front ? front.meta : parseMetaComment(content);
   // v2 names first-class; the v1 names stay readable.
   const acceptanceCriteria = extractSection(content, 'Requirements') || extractSection(content, 'Acceptance Criteria');
   const sections = parseAllSections(content);
-  return {
+  const spec: ParsedSpec = {
     title: parseTitle(content) || meta.extra.title || '',
     specKey: computeSpecKey(filePath, specsRoot),
     filePath,
@@ -302,6 +383,7 @@ export function parseSpecContent(
     overview: extractSection(content, 'Overview') || extractSection(content, 'Problem & Value'),
     acceptanceCriteria,
     claims: parseClaims(acceptanceCriteria),
+    exampleIssues: [],
     journey: parseJourney(meta, sections),
     scenarios: parseScenarios(content),
     securityNotes: extractSection(content, 'Security Notes') || extractSection(content, 'Security & Data Considerations'),
@@ -311,6 +393,17 @@ export function parseSpecContent(
     uxGuidelines: extractSection(content, 'UX Guidelines'),
     sections,
   };
+  // Example tables are v2 only: a v1 spec has no claim hash for a row to build on.
+  if (isV2Spec(spec) && acceptanceCriteria) {
+    const heading = extractSection(content, 'Requirements') ? 'Requirements' : 'Acceptance Criteria';
+    const parsed = parseExampleTables(acceptanceCriteria, bodyOffset + sectionBodyLine(content, heading), (id) => claimHashOf(spec, id));
+    spec.exampleIssues = parsed.issues;
+    for (const claim of spec.claims) {
+      const table = claim.id ? parsed.tables.get(claim.id) : undefined;
+      if (table) claim.examples = table;
+    }
+  }
+  return spec;
 }
 
 /** Top-level directories of a specs root that hold something other than specs. */

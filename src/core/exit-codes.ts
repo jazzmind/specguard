@@ -27,6 +27,12 @@ export const ExitCode = {
    * (`specguard agent pending`, `specguard agent answer`) and rerun. Not a failure. Codes 9-11 belong to `remediate`.
    */
   AgentWorkPending: 12,
+  /**
+   * `check` found a blocking reason in a capability's proof statement (a pillar the project's `proof` gates make
+   * required is not satisfied). Only returned when a gate flag is on, after codes 2, 3 and 4 in precedence. 6 is
+   * invalid and 9-11 are `remediate`-scoped, hence 13.
+   */
+  NotCertified: 13,
 } as const;
 
 /**
@@ -84,6 +90,8 @@ export function exitCodeLabel(code: number): string {
       return 'llm budget exceeded';
     case ExitCode.AgentWorkPending:
       return 'waiting for the host agent';
+    case ExitCode.NotCertified:
+      return 'not certified';
     default:
       return `unknown (${code})`;
   }

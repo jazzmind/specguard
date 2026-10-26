@@ -13,11 +13,25 @@ import type { SpecGuardConfig } from './types.js';
 import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
 import { configureLlm } from './llm-runtime.js';
+import { isTestabilityRuleId } from './testability.js';
 
 // ---------------------------------------------------------------------------
 // Zod schema — mirrors the types in ./types.ts, permissive on unknown keys so
 // the real config (and forward-compatible additions) validate cleanly.
 // ---------------------------------------------------------------------------
+
+/** A string that must compile as a regular expression (test-strength gate patterns). */
+const regexSource = z.string().refine(
+  (v) => {
+    try {
+      new RegExp(v);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'not a valid regular expression' },
+);
 
 const appSourcesSchema = z
   .object({
@@ -59,6 +73,7 @@ const appConfigSchema = z
         image: z.string().optional(),
         passEnv: z.array(z.string()).optional(),
         layers: z.record(z.enum(TEST_LAYERS), z.array(z.string())).optional(),
+        conditional: z.array(regexSource).optional(),
         suites: z
           .array(
             z
@@ -308,6 +323,44 @@ const granularitySchema = z
   })
   .passthrough();
 
+const testStrengthSchema = z
+  .object({
+    conditional: z.array(regexSource).optional(),
+    assertHelpers: z.array(z.string().min(1)).optional(),
+    snapshotIsWeak: z.boolean().optional(),
+  })
+  .passthrough();
+
+const ruleSeverity = z.enum(['off', 'warn', 'error']);
+const testabilityRuleId = z.string().refine(isTestabilityRuleId, { message: 'not a testability rule id' });
+
+const testabilitySchema = z
+  .object({
+    rules: z.record(testabilityRuleId, ruleSeverity).optional(),
+    allow: z.array(z.string().min(1)).optional(),
+    deny: z.array(z.string().min(1)).optional(),
+    maxClauses: z.number().int().min(1).optional(),
+    maxWords: z.number().int().min(1).optional(),
+    waive: z.record(z.string(), z.array(testabilityRuleId)).optional(),
+  })
+  .passthrough();
+
+const coverageSchema = z
+  .object({
+    pathPrefixes: z.array(z.string().min(1)).optional(),
+    sourceRoots: z.array(z.string().min(1)).optional(),
+  })
+  .passthrough();
+
+const mutationSchema = z
+  .object({
+    minScore: z.number().min(0).max(100).optional(),
+    minKilled: z.number().int().min(0).optional(),
+    timeoutAsKilled: z.boolean().optional(),
+    attribution: z.enum(['full', 'first-kill']).optional(),
+  })
+  .passthrough();
+
 const configSchema = z
   .object({
     granularity: granularitySchema.optional(),
@@ -334,9 +387,25 @@ const configSchema = z
     plugins: z.array(z.union([z.string(), z.object({ name: z.string(), package: z.string() })])).optional(),
     disabledPlugins: z.array(z.string()).optional(),
     proof: z
-      .object({ requiredLayers: z.array(z.enum(TEST_LAYERS)).optional(), enforceLayers: z.enum(['off', 'warn', 'fail']).optional(), requireApproval: z.boolean().optional() })
+      .object({
+        requiredLayers: z.array(z.enum(TEST_LAYERS)).optional(),
+        enforceLayers: z.enum(['off', 'warn', 'fail']).optional(),
+        requireApproval: z.boolean().optional(),
+        requireTestable: z.boolean().optional(),
+        requireStrength: z.boolean().optional(),
+        requireSensitivity: z.boolean().optional(),
+        requireConforms: z.boolean().optional(),
+        requireAlignment: z.boolean().optional(),
+        requireCi: z.boolean().optional(),
+        strict: z.boolean().optional(),
+        minDiffCoverage: z.number().min(0).max(100).optional(),
+      })
       .passthrough()
       .optional(),
+    testStrength: testStrengthSchema.optional(),
+    testability: testabilitySchema.optional(),
+    coverage: coverageSchema.optional(),
+    mutation: mutationSchema.optional(),
     featureState: featureStateSchema.optional(),
     auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
     validate: validateSchema.optional(),

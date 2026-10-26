@@ -9,6 +9,8 @@ sources:
   - "src/core/spec-parser.ts"
   - "src/core/spec-key.ts"
   - "src/core/claims.ts"
+  - "src/core/examples.ts"
+  - "src/core/testability.ts"
   - "src/core/spec-graph.ts"
   - "src/pipelines/reverse-generate.ts"
   - "src/pipelines/import.ts"
@@ -36,6 +38,10 @@ tests:
   - "tests/core/spec-frontmatter.test.ts"
   - "tests/core/spec-key.test.ts"
   - "tests/core/claims.test.ts"
+  - "tests/core/claim-tags.test.ts"
+  - "tests/core/claim-hash-stability.test.ts"
+  - "tests/core/examples.test.ts"
+  - "tests/core/testability.test.ts"
   - "tests/core/spec-graph.test.ts"
   - "tests/core/claim-migration.test.ts"
   - "tests/core/test-declarations.test.ts"
@@ -56,6 +62,7 @@ history:
   - 2026-10-22-security-credentials-embedded-in-importe
   - 2026-10-22-security-no-rate-limit-or-budget-cap-on
   - 2026-10-23-spec-tag-java-kotlin-tests-and-index-mod
+  - 2026-10-26-example-tables-row-refs-assurance-and-ev
 ---
 
 # Spec Authoring
@@ -100,6 +107,15 @@ Spec Authoring gives every other SpecGuard capability something solid to stand o
 - [ ] `spec tag --index <file>` never modifies test sources (so tests in another repo can be linked from a specs-only overlay): with `--yes` it writes or merges a plain-text index at a path relative to the config root, one line per matched test, `<test-file>:<line> :: <title>  [claims: <ref>, <ref>]`, where the test path is relative to the config root (it may start with `../`); a line for the same `file:line :: title` is replaced, other lines are kept, the entries are sorted, and a test the index already lists (by `file:line` or by file and title, so a moved test is still known) is not offered to the model again; listing the index in `tests:` or `extraTestSources` makes the check count its claims as tested <!-- claim: spec-tag-index-mode -->
 - [ ] `import <url>` reaches only public addresses: the host is resolved by SpecGuard, every loopback, private, link-local (including the cloud metadata address), carrier-grade, multicast, unique-local and IPv4-mapped or translated address is refused (also when only one of several answers is private), the connection goes to the address that was checked, each redirect is checked the same way, at most five redirects are followed, an https to http redirect, credentials in the URL and an answer over 5 MB are refused, and `--allow-private` is the only way to import from your own network <!-- claim: import-ssrf -->
 - [ ] When `import` is called through the MCP server a file source must be inside the project (symlinks resolved first) and a URL may not reach a private address, so an agent cannot read `~/.ssh/id_rsa` or an internal URL into a spec <!-- claim: import-project-files -->
+- [ ] A markdown table directly under a claim bullet (indented or at column 0, with only blank lines or the bullet's continuation lines between them) gives that claim example rows: it needs a header row and a separator row, takes each row's id from the column headed `id` (any case) or else the first column, requires an id of lower-case words joined by hyphens and unique within the claim, treats `\|` as a literal pipe, allows one table per claim, and is ignored in v1 specs <!-- claim: example-tables -->
+- [ ] A table line never becomes part of the claim text, so adding, removing or editing an examples table leaves the claim hash unchanged, and the hash of every claim in this repository's specs is the same as before tables existed <!-- claim: claim-hash-unchanged-by-tables -->
+- [ ] Each example row has a hash built from the claim hash and its sorted `header=cell` pairs: it ignores whitespace and column order, and changes when a cell changes or when the claim text changes <!-- claim: example-row-hashes -->
+- [ ] A malformed examples table is reported with its line number: `EX-NO-SEPARATOR`, `EX-NO-ID-COLUMN`, `EX-BAD-ID`, `EX-DUP-ID`, `EX-CELL-COUNT`, `EX-MULTIPLE-TABLES` and `EX-CLAIM-NO-ID` are errors, while `EX-EMPTY` and `EX-ORPHAN-TABLE` (a table after prose or before the first claim) are warnings; a bad row is skipped and the readable rows are kept <!-- claim: example-table-issues -->
+- [ ] A claim ref may end in `/<row id>` (`specKey#claimId/rowId`, with or without a `repo:` prefix): `parseClaimRef`, `formatClaimRef` and every claim tag form (`@claim:`, `[claim: ]`, `[claims: ]`) read and write the row, a ref with an invalid row id is rejected, and refs without a row behave as before <!-- claim: claim-row-refs -->
+- [ ] A parameterized test whose title contains exactly one row id of its claim (a whole token, so `ny` never matches inside `ny-small`) is attributed to that row as well as to the claim; a title with two or more row ids attributes nothing and is reported as ambiguous <!-- claim: example-title-matching -->
+- [ ] `assurance:` frontmatter takes a level or a default plus per-claim levels from `tested`, `property`, `bounded`, `proved-model`, `proved-code`, and `evidence:` maps a claim id to `kind` (`agentic` or `manual`) and `verifier`; values off the ladder are kept in `unknown` and a missing verifier is kept as an empty string so the lint reports it, an evidence kind other than the two fails with the file name, and neither key changes a claim hash <!-- claim: assurance-evidence-frontmatter -->
+- [ ] The testability lint reports, per claim and rule, errors for a missing claim id, fewer than three words, placeholders (`TBD`, `TODO`, `FIXME`, `XXX`, `??`, `lorem ipsum`), outcome words with no test oracle (`properly`, `should work`, `as expected`), open-ended lists (`etc`, `and/or`), malformed example tables, evidence without a verifier or at a layer that must be automated, and unknown assurance or layer names, and warnings for hedges, subjective terms without a number, passive handling verbs, a claim with no observable outcome, more than three clauses, more than 80 words and varying behaviour with no examples table; it matches whole tokens only after removing code spans, quoted literals and URLs, is deterministic, and never calls a model <!-- claim: testability-lint -->
+- [ ] The top-level `testability` config block overrides a rule's severity (`off`, `warn`, `error`), adds `allow` phrases that are never flagged and `deny` terms that are errors, sets `maxClauses` and `maxWords`, and lists `waive` rules per claim ref that downgrade an error to a warning marked waived for that claim only; an unknown rule id or a non-positive limit is rejected when the config loads <!-- claim: testability-config -->
 
 ## Scenarios
 ### Scenario 1: Adopt specs on an existing codebase

@@ -31,7 +31,26 @@ export const SPEC_KINDS: readonly SpecKind[] = ['system', 'capability', 'compone
  * Parsed `<!-- key: value -->` metadata block from a spec file.
  * Known keys are typed; anything else lands in `extra`.
  */
+import type { ExampleIssue, ExampleTable } from './examples.js';
 import type { LayerRequirements, TestLayer } from './test-layers.js';
+import type { SystemStatement } from './proof-statement.js';
+
+/** How strongly a claim is assured, weakest first. */
+export const ASSURANCE_LEVELS = ['tested', 'property', 'bounded', 'proved-model', 'proved-code'] as const;
+export type Assurance = (typeof ASSURANCE_LEVELS)[number];
+
+/** A capability's `assurance:` frontmatter. Values off the ladder are returned in `unknown`, not dropped. */
+export interface AssuranceRequirements {
+  default?: Assurance;
+  claims: Record<string, Assurance>;
+  unknown: string[];
+}
+
+/** A claim proven by a person or an agentic check instead of an automated layer. An empty `verifier` is kept so the lint can report it. */
+export interface EvidenceDeclaration {
+  kind: 'agentic' | 'manual';
+  verifier: string;
+}
 
 export interface SpecMeta {
   module?: string;
@@ -62,6 +81,10 @@ export interface SpecMeta {
   history?: string[];
   /** v2 frontmatter: the test layers the claims need as proof (`layers: [unit, e2e]` or a default plus per-claim lists). */
   layers?: LayerRequirements;
+  /** v2 frontmatter: the assurance level the claims need (`assurance: tested` or a default plus per-claim levels). Not part of any claim hash. */
+  assurance?: AssuranceRequirements;
+  /** v2 frontmatter: claims that cannot be automated, each with the kind of evidence and who or what verifies it. Not part of any claim hash. */
+  evidence?: Record<string, EvidenceDeclaration>;
   /** Any metadata key not in the known set, preserved verbatim. */
   extra: Record<string, string>;
 }
@@ -77,6 +100,8 @@ export interface SpecClaim {
   text: string;
   /** Set when the bullet uses a `- [ ]` / `- [x]` checkbox. */
   checked?: boolean;
+  /** The examples table under the bullet (v2 specs only). It never enters `text`, so it never changes the claim hash. */
+  examples?: ExampleTable;
 }
 
 /** One invariant inside a `type: journey` spec. */
@@ -125,6 +150,8 @@ export interface ParsedSpec {
   acceptanceCriteria: string;
   /** Acceptance-criteria bullets, with claim anchors when present. */
   claims: SpecClaim[];
+  /** Problems found in the examples tables of a v2 spec. Empty for v1 specs and specs without tables. */
+  exampleIssues: ExampleIssue[];
   /**
    * Populated when `meta.type` is `journey` or the spec has an Invariants section.
    * Absent for ordinary module specs.
@@ -266,6 +293,8 @@ export interface AppTestConfig {
   passEnv?: string[];
   /** Globs (relative to the config root) that put test files in a layer. Beats the path conventions. */
   layers?: Partial<Record<TestLayer, string[]>>;
+  /** Regexes (source text) marking this app's tests as flag- or environment-gated; added to `testStrength.conditional` for its files. */
+  conditional?: string[];
   /**
    * Several suites for one app, each with its own command and layer (for example vitest for unit and Playwright
    * for e2e). When set they replace the app's single `command`; a suite inherits `cwd`, `reporter` and
@@ -285,14 +314,98 @@ export interface TestSuiteConfig {
   timeoutMs?: number;
 }
 
+export type TestabilityRuleId =
+  | 'T-NO-ANCHOR'
+  | 'T-EMPTY'
+  | 'T-PLACEHOLDER'
+  | 'T-VAGUE'
+  | 'T-OPEN-LIST'
+  | 'T-DENY'
+  | 'T-HEDGE'
+  | 'T-SUBJECTIVE'
+  | 'T-PASSIVE'
+  | 'T-NO-OUTCOME'
+  | 'T-COMPOUND'
+  | 'T-LONG'
+  | 'T-VARIES-NO-EXAMPLES'
+  | 'T-SUCH-AS'
+  | 'T-EVIDENCE-VERIFIER'
+  | 'T-EVIDENCE-LAYER-CONFLICT'
+  | 'T-ASSURANCE-UNKNOWN'
+  | 'T-LAYER-UNKNOWN'
+  | `T-EX-${string}`;
+export type RuleSeverity = 'off' | 'warn' | 'error';
+
+/** The top-level `testability` config block. Config is code, so every change to it is reviewed. */
+export interface TestabilityConfig {
+  /** Per-rule severity override. */
+  rules?: Partial<Record<TestabilityRuleId, RuleSeverity>>;
+  /** Terms or phrases never flagged by any word-list rule (case-insensitive, whole tokens), such as "fast tier". */
+  allow?: string[];
+  /** Extra terms flagged as T-DENY (error). */
+  deny?: string[];
+  /** Clauses a claim may have before T-COMPOUND fires. Default 3. */
+  maxClauses?: number;
+  /** Words a claim may have before T-LONG fires. Default 80. */
+  maxWords?: number;
+  /** Claim ref -> rules downgraded from error to warn for that claim only, never to off. */
+  waive?: Record<string, TestabilityRuleId[]>;
+}
+
+/** The top-level `coverage` config block: how report paths map onto repo files. */
+export interface CoverageConfig {
+  /** Checkout prefixes to strip from report paths, e.g. `/home/runner/work/app/app/` or `C:/a/app/`. */
+  pathPrefixes?: string[];
+  /** JaCoCo and PIT source roots tried under a package path. Default `src/main/java`, `src/main/kotlin`, `src/main/scala`. */
+  sourceRoots?: string[];
+}
+
+/** The top-level `mutation` config block: when mutation evidence counts. */
+export interface MutationConfig {
+  /** Percentage of detected mutants a claim (or, without per-test coverage, a capability) needs. Default 70. */
+  minScore?: number;
+  /** Mutants a claim's tests must kill at least. Default 1. */
+  minKilled?: number;
+  /** Count a timed-out mutant as killed. Default true. */
+  timeoutAsKilled?: boolean;
+  /** `full` when the tool lists every killing test (Stryker `disableBail`, PIT full matrix). Default: detected from the report. */
+  attribution?: 'full' | 'first-kill';
+}
+
 /** How layers of evidence are required and enforced. */
 export interface ProofConfig {
   /** Layers every claim needs unless its capability says otherwise. Default: none. */
   requiredLayers?: TestLayer[];
   /** `warn` (default) reports claims missing a required layer; `fail` makes `proof status` fail on them; `off` does not report. */
   enforceLayers?: 'off' | 'warn' | 'fail';
-  /** When true, a claim counts as proven only while a person has approved its current wording. Default: false. */
+  /** When true, a claim whose current wording a person has not approved blocks `check` (exit 13). Approval stays its own pillar of the proof statement and never changes a claim's proof verdict. Default: false. */
   requireApproval?: boolean;
+  /** When true, a claim or spec that fails the testability lint (the Testable pillar) blocks `check`. Default: false. */
+  requireTestable?: boolean;
+  /** When true, tests that cannot fail (skipped, conditional or weak) block `check`. Default: false. */
+  requireStrength?: boolean;
+  /** When true, a changed claim with no evidence that its tests detect a change (mutation or red-green) blocks `check`. Default: false. */
+  requireSensitivity?: boolean;
+  /** When true, a claim whose proof is failed, stale, unproven or missing a required layer blocks `check`. Default: false. */
+  requireConforms?: boolean;
+  /** When true, coverage evidence that shows the code is not the specified behaviour (the Aligned pillar) blocks `check`. Default: false. */
+  requireAlignment?: boolean;
+  /** When true, proof earned on a local or server run does not count for Conforms; only CI evidence does. Default: false. */
+  requireCi?: boolean;
+  /** Turns every `require*` gate on and `enforceLayers` to `fail`, whatever else is set. Default: false. */
+  strict?: boolean;
+  /** Minimum percentage of changed executable lines that tests must reach. Default: 80. */
+  minDiffCoverage?: number;
+}
+
+/** How test sources are judged for strength (skipped, conditional, weak). All fields optional; see `resolveStrengthConfig`. */
+export interface TestStrengthSettings {
+  /** Regexes (source text) marking a test as flag/env-gated. List exactly the gates normal CI does not open. */
+  conditional?: string[];
+  /** Function names (exact, or ending in `*` as a prefix wildcard) that assert; their calls count as strong. */
+  assertHelpers?: string[];
+  /** Default true: a test whose only assertions are snapshots is weak. */
+  snapshotIsWeak?: boolean;
 }
 
 /** Runner placement: where each external tool executes. */
@@ -641,6 +754,14 @@ export interface SpecGuardConfig {
   paths?: PathsConfig;
   /** Required test layers and how strictly they are enforced. */
   proof?: ProofConfig;
+  /** How strongly tests must assert; see {@link TestStrengthSettings}. */
+  testStrength?: TestStrengthSettings;
+  /** How strictly claims are linted for testability; see {@link TestabilityConfig}. */
+  testability?: TestabilityConfig;
+  /** How coverage report paths are mapped onto repo files; see {@link CoverageConfig}. */
+  coverage?: CoverageConfig;
+  /** When mutation evidence counts; see {@link MutationConfig}. */
+  mutation?: MutationConfig;
   granularity?: GranularityConfig;
   /** Requirement-history settings. */
   history?: { failOnIntentGap?: boolean };
@@ -707,6 +828,8 @@ export interface PipelineResult {
   exitCode: number;
   /** Free-form human-readable summary lines. */
   messages: string[];
+  /** The proof statement, set by `check` (see `src/core/proof-statement.ts`). */
+  statement?: SystemStatement;
 }
 
 /** Create an empty PipelineResult for a named pipeline. */

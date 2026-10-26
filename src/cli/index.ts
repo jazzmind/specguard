@@ -64,6 +64,8 @@ import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../cor
 import { AgentWorkPendingError, pendingMessage, pendingThisRun } from '../core/agent-work.js';
 import { agentAnswerCommand, agentPendingCommand } from './commands/agent.js';
 import { resultsIngestCommand } from './commands/results.js';
+import { coverageIngestCommand } from './commands/coverage.js';
+import { mutationIngestCommand } from './commands/mutation.js';
 import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
 import { cliVersion, versionInfo } from '../core/version.js';
 
@@ -775,6 +777,39 @@ resultsCmd
       await resultsIngestCommand(files, withGlobals(cmd, opts));
     },
   );
+
+// --- coverage and mutation evidence -----------------------------------------
+const coverageCmd = program
+  .command('coverage')
+  .description('ingest coverage reports as evidence of which lines tests execute');
+
+coverageCmd
+  .command('ingest')
+  .description('normalize lcov, JaCoCo, Cobertura or Go coverage reports into .specguard/coverage/')
+  .argument('<files...>', 'coverage report files (globs allowed): lcov.info, JaCoCo XML, Cobertura XML, Go coverprofile')
+  .option('--format <fmt>', 'auto|lcov|jacoco|cobertura|go', 'auto')
+  .option('--capability <id>', 'store the evidence for one capability\'s tests instead of the whole suite')
+  .option('--selection <kind>', 'tests|files: what ran for --capability (default tests)')
+  .option('--run-id <id>', 'evidence run id (default: timestamped)')
+  .option('--origin <origin>', 'local|ci|server (default: ci when CI is set, else local)')
+  .action(async (files: string[], opts: { format?: string; capability?: string; selection?: string; runId?: string; origin?: string }, cmd: Command) => {
+    await coverageIngestCommand(files, withGlobals(cmd, opts));
+  });
+
+const mutationCmd = program
+  .command('mutation')
+  .description('ingest mutation-testing reports as evidence that tests detect changes');
+
+mutationCmd
+  .command('ingest')
+  .description('normalize a Stryker report or PIT mutations.xml into .specguard/mutation/')
+  .argument('<files...>', 'mutation report files (globs allowed): Stryker mutation.json, PIT mutations.xml')
+  .option('--format <fmt>', 'auto|stryker|pit', 'auto')
+  .option('--run-id <id>', 'evidence run id (default: timestamped)')
+  .option('--origin <origin>', 'local|ci|server (default: ci when CI is set, else local)')
+  .action(async (files: string[], opts: { format?: string; runId?: string; origin?: string }, cmd: Command) => {
+    await mutationIngestCommand(files, withGlobals(cmd, opts));
+  });
 
 // --- remediate --------------------------------------------------------------
 program

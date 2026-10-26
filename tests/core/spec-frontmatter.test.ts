@@ -147,3 +147,41 @@ describe('capability map rendering [capability-map-escape]', () => {
     expect(row).toBe('| [Auth \\| Access](capabilities/a.md) | Sign in \\| out | active | 2 |');
   });
 });
+
+describe('assurance and evidence frontmatter [assurance-evidence]', () => {
+  const spec = (front: string) => `---\nid: x\nkind: capability\n${front}\n---\n# X\n\n## Problem & Value\n\nV.\n\n## Requirements\n- [ ] A claim <!-- claim: a-claim -->\n`;
+
+  // [claims: capabilities/spec-authoring#assurance-evidence-frontmatter]
+  it('assurance is a level or a default plus per-claim levels; values off the ladder go to unknown', () => {
+    expect(parseFrontmatter(spec('assurance: property'))?.meta.assurance).toEqual({ default: 'property', claims: {}, unknown: [] });
+    expect(parseFrontmatter(spec('assurance:\n  default: tested\n  claims:\n    a-claim: bounded\n    b: magic'))?.meta.assurance).toEqual({
+      default: 'tested',
+      claims: { 'a-claim': 'bounded' },
+      unknown: ['magic'],
+    });
+    expect(parseFrontmatter(spec('assurance: certain'))?.meta.assurance).toEqual({ claims: {}, unknown: ['certain'] });
+  });
+
+  // [claims: capabilities/spec-authoring#assurance-evidence-frontmatter]
+  it('evidence maps a claim id to its kind and verifier, keeping a missing verifier as an empty string', () => {
+    const meta = parseFrontmatter(spec('evidence:\n  copy: { kind: manual, verifier: "Content lead" }\n  map: { kind: agentic }'))?.meta;
+    expect(meta?.evidence).toEqual({ copy: { kind: 'manual', verifier: 'Content lead' }, map: { kind: 'agentic', verifier: '' } });
+  });
+
+  // [claims: capabilities/spec-authoring#assurance-evidence-frontmatter]
+  it('an evidence entry with a kind other than agentic or manual fails with the file name', () => {
+    expect(() => parseFrontmatter(spec('evidence:\n  copy: { kind: vibes }'), 'specs/x.md')).toThrow(SpecFrontmatterError);
+    expect(() => parseFrontmatter(spec('evidence: nope'), 'specs/x.md')).toThrow(/specs\/x\.md/);
+  });
+
+  // [claims: capabilities/spec-authoring#assurance-evidence-frontmatter]
+  // [claims: capabilities/spec-authoring#claim-hash-unchanged-by-tables]
+  it('neither key enters the claim hash', async () => {
+    const { claimHashOf } = await import('../../src/core/claim-hash.js');
+    const hash = (front: string) => {
+      const parsed = parseSpecContent(spec(front), '/r/specs/x.md', '/r/specs');
+      return claimHashOf(parsed, 'a-claim');
+    };
+    expect(hash('assurance: property\nevidence:\n  a-claim: { kind: manual, verifier: "Lead" }')).toBe(hash('status: active'));
+  });
+});

@@ -7,9 +7,11 @@
  * The full reference used by journey specs and the proof ledger is
  * `repo:specKey#claimId` (repo key from workspace.json). `specKey#claimId`
  * is accepted when the spec lives in the repo currently being checked.
+ * A row of the claim's examples table is `specKey#claimId/exampleId`.
  *
  * Spec: specs/capabilities/spec-authoring.md
  */
+import { isTableLine } from './examples.js';
 import type { JourneyInvariant, JourneySpec, SpecClaim, SpecMeta } from './types.js';
 
 const CLAIM_ANCHOR = /<!--\s*claim:\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*-->/i;
@@ -24,6 +26,8 @@ export function parseClaims(acceptanceCriteria: string): SpecClaim[] {
   for (const line of acceptanceCriteria.split(/\r?\n/)) {
     const bullet = line.match(BULLET);
     if (!bullet) {
+      // A table line is never part of the claim text, so an examples table cannot change the claim hash.
+      if (isTableLine(line)) continue;
       // An indented line under a bullet continues it: its text is part of the claim, and an anchor may sit on it.
       const last = claims[claims.length - 1];
       if (last && /^\s{2,}\S/.test(line)) {
@@ -142,30 +146,36 @@ export function assignClaimIds(content: string): { content: string; assigned: As
   return { content: out.join('\n'), assigned };
 }
 
-/** `repo:specKey#claimId` or `specKey#claimId`. */
+/** `repo:specKey#claimId` or `specKey#claimId`, each with an optional `/exampleId` row suffix. */
 export interface ClaimRef {
   repo?: string;
   specKey: string;
   claimId: string;
+  /** The row of the claim's examples table, when the ref names one. */
+  exampleId?: string;
 }
 
-export function formatClaimRef(repo: string | undefined, specKey: string, claimId: string): string {
-  return repo ? `${repo}:${specKey}#${claimId}` : `${specKey}#${claimId}`;
+export function formatClaimRef(repo: string | undefined, specKey: string, claimId: string, exampleId?: string): string {
+  const base = repo ? `${repo}:${specKey}#${claimId}` : `${specKey}#${claimId}`;
+  return exampleId ? `${base}/${exampleId}` : base;
 }
 
 export function parseClaimRef(ref: string): ClaimRef | null {
   const hash = ref.lastIndexOf('#');
   if (hash <= 0 || hash === ref.length - 1) return null;
-  const claimId = ref.slice(hash + 1).trim().toLowerCase();
+  const tail = ref.slice(hash + 1).trim().toLowerCase();
   const left = ref.slice(0, hash).trim();
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(claimId) || !left) return null;
+  const [claimId, exampleId, ...rest] = tail.split('/');
+  const slug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  if (rest.length > 0 || !slug.test(claimId) || (exampleId !== undefined && !slug.test(exampleId)) || !left) return null;
+  const withRow = <T extends ClaimRef>(parsed: T): T => (exampleId === undefined ? parsed : { ...parsed, exampleId });
   const colon = left.indexOf(':');
-  if (colon === -1) return { specKey: left, claimId };
+  if (colon === -1) return withRow({ specKey: left, claimId });
   const repo = left.slice(0, colon).trim();
   const specKey = left.slice(colon + 1).trim();
   if (!repo || !specKey) return null;
   if (!/^[a-z0-9][a-z0-9-]*$/i.test(repo)) return null;
-  return { repo, specKey, claimId };
+  return withRow({ repo, specKey, claimId });
 }
 
 /** Parse `### id` blocks and their `verifies:` lines from an Invariants section. */

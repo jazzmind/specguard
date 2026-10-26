@@ -8,6 +8,7 @@ import {
   buildClaimTestIndex,
   claimTag,
   extractClaimRefs,
+  rewriteClaimRefs,
   scanSourceForClaimTags,
 } from '../../src/core/claim-tags.js';
 
@@ -91,5 +92,26 @@ describe('tags in comments reach the results [source-tags-in-results]', () => {
     expect(attachSourceClaimTags(rows, path.dirname(file))).toBe(1);
     expect(rows[0].claims).toEqual(['x/y#one']);
     expect(rows[1].claims).toEqual([]);
+  });
+});
+
+describe('claim tags with example rows [claim-row-refs]', () => {
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('extractClaimRefs accepts cap#claim/row in all three tag forms and keeps plain refs unchanged', () => {
+    const refs = extractClaimRefs('@claim:core/ship#fee/ny-small [claim: web:core/ship#fee/ak-any] [claims: core/ship#fee, core/ship#fee/ny-free.]');
+    expect(refs).toEqual(['core/ship#fee/ny-small', 'web:core/ship#fee/ak-any', 'core/ship#fee', 'core/ship#fee/ny-free']);
+  });
+
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('a tag round-trips through claimTag and a scanned source line', () => {
+    expect(extractClaimRefs(claimTag('a/b#c/d-e'))).toEqual(['a/b#c/d-e']);
+    const hits = scanSourceForClaimTags("it('fee ny-small @claim:a/b#fee/ny-small', () => {});", 'x.test.ts');
+    expect(hits).toMatchObject([{ ref: 'a/b#fee/ny-small', line: 1 }]);
+  });
+
+  // [claims: capabilities/spec-authoring#claim-row-refs]
+  it('rewriteClaimRefs keeps the row when it maps a ref', () => {
+    const out = rewriteClaimRefs('// [claims: old/x#fee/ny-small]', (ref) => (ref === 'old/x#fee/ny-small' ? 'new/x#fee/ny-small' : undefined));
+    expect(out).toEqual({ text: '// [claims: new/x#fee/ny-small]', changed: 1 });
   });
 });

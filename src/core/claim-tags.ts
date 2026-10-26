@@ -5,6 +5,7 @@
  *   @claim:core/awards#award-once
  *   [claim: core/awards#award-once]
  *   [claims: core/awards#award-once, core/awards#no-dupes]
+ *   [claims: core/awards#shipping-fee/ny-small]      (a row of the claim's examples table)
  *
  * Spec: specs/capabilities/conformance-testing.md
  */
@@ -13,7 +14,7 @@ import path from 'node:path';
 
 import { parseClaimRef } from './claims.js';
 
-const REF_BODY = String.raw`(?:[A-Za-z0-9_-]+:)?[A-Za-z0-9_./-]*[A-Za-z0-9_]#[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*`;
+const REF_BODY = String.raw`(?:[A-Za-z0-9_-]+:)?[A-Za-z0-9_./-]*[A-Za-z0-9_]#[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*(?:/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?`;
 const AT_TAG = new RegExp(String.raw`@claim:(${REF_BODY})`, 'g');
 const BRACKET = new RegExp(String.raw`\[claims?:\s*([^\]]+)\]`, 'gi');
 const REF_ONLY = new RegExp(`^${REF_BODY}$`);
@@ -29,7 +30,7 @@ function normalize(ref: string): string | null {
   const parsed = parseClaimRef(trimmed);
   if (!parsed) return null;
   const left = parsed.repo ? `${parsed.repo}:${parsed.specKey}` : parsed.specKey;
-  return `${left}#${parsed.claimId}`;
+  return `${left}#${parsed.claimId}${parsed.exampleId ? `/${parsed.exampleId}` : ''}`;
 }
 
 /**

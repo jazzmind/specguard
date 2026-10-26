@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-26T00:15:16.369Z",
+  "generated": "2026-10-26T00:41:23.696Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -928,7 +928,7 @@
           "id": "generate-per-scenario",
           "ref": "capabilities/conformance-testing#generate-per-scenario",
           "text": "Generation turns every scenario of a spec into one test block titled with the scenario name, importing the module the spec declares, for a single spec or all specs and optionally limited to one app.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/forward-generate.test.ts",
@@ -944,7 +944,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -958,7 +958,7 @@
           "id": "generate-claim-tags",
           "ref": "capabilities/conformance-testing#generate-claim-tags",
           "text": "When a spec has claims, the generation prompt lists each claim with its exact tag and requires it in the verifying test's title, and generation warns about every claim whose tag is missing from the output while still writing the file.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/forward-generate.test.ts",
@@ -974,14 +974,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "generate-safe-writes",
           "ref": "capabilities/conformance-testing#generate-safe-writes",
           "text": "Generation never overwrites an existing test file unless forced, strips stray Markdown fences from LLM output, and records an LLM failure for one spec without stopping the others.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/forward-generate.test.ts",
@@ -1009,55 +1009,55 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "claim-tag-forms",
           "ref": "capabilities/conformance-testing#claim-tag-forms",
           "text": "A claim tag is recognised in the forms `@claim:<spec>#<id>`, `[claim: <spec>#<id>]` and `[claims: a#b, c#d]`, in titles, tags and annotations, with an optional repository prefix, and all consumers read tags through the same logic.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claim-tags.test.ts",
-              "line": 15,
+              "line": 16,
               "title": "extracts the three forms",
               "origin": "source"
             },
             {
               "file": "tests/core/claim-tags.test.ts",
-              "line": 21,
+              "line": 22,
               "title": "keeps slashes and repo prefix, drops trailing period, lowercases the claim id",
               "origin": "source"
             },
             {
               "file": "tests/core/claim-tags.test.ts",
-              "line": 27,
+              "line": 28,
               "title": "round-trips claimTag",
               "origin": "source"
             },
             {
               "file": "tests/core/claim-tags.test.ts",
-              "line": 32,
+              "line": 33,
               "title": "scans source lines with titles",
               "origin": "source"
             },
             {
               "file": "tests/core/claim-tags.test.ts",
-              "line": 48,
+              "line": 49,
               "title": "merges sources and results into one index",
               "origin": "source"
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "runner-adapters",
           "ref": "capabilities/conformance-testing#runner-adapters",
           "text": "Tests are run through a runner adapter for vitest, jest, playwright, pytest, any JUnit-producing runner, go and cargo, and results are always read from the reporter's output file, never scraped from stdout.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/adapters/test-runners.test.ts",
@@ -1091,14 +1091,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "runner-invocation",
           "ref": "capabilities/conformance-testing#runner-invocation",
           "text": "Adapters inject the reporter flags the runner needs (with a single separator for npm scripts), run the command verbatim when a results file is configured, pass a test selection as file arguments, merge a results glob, kill a run that exceeds its timeout, and can run inside a Docker sandbox with the repository mounted, where a missing Docker or image is a clear failure that never falls back to the host.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/adapters/test-runners.test.ts",
@@ -1162,14 +1162,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "normalised-results",
           "ref": "capabilities/conformance-testing#normalised-results",
           "text": "Reporter output of every supported format is normalised into one result shape covering passes, failures and skips, the format can be auto-detected, and unparseable input is a named error rather than an empty list.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/adapters/test-runners.test.ts",
@@ -1221,7 +1221,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -1242,7 +1242,7 @@
           "id": "stale-rule",
           "ref": "capabilities/conformance-testing#stale-rule",
           "text": "A proof is stale when the spec (or, for v2 specs, the claim) hash changed, when a source file recorded at ingest changed on disk, or when the repository's dependency fingerprint changed; a file that vanished from the registry alone does not make it stale.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/proof.test.ts",
@@ -1270,14 +1270,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "ledger-records-basis",
           "ref": "capabilities/conformance-testing#ledger-records-basis",
           "text": "Each stored row records the claim hash, the source file hashes taken from the spec's declared sources, the dependency fingerprint, the run id, the git revision and the evidence path, so editing one source file stales exactly the claims of the specs that declare it.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/proof.test.ts",
@@ -1293,14 +1293,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "ingest-validation",
           "ref": "capabilities/conformance-testing#ingest-validation",
           "text": "Ingesting verdicts rejects a file without a run id or verdicts, fails and does not store a verdict for an unparseable reference, missing spec or unknown claim, and lets a later ingest replace an earlier row.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/proof.test.ts",
@@ -1316,14 +1316,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "results-ingest",
           "ref": "capabilities/conformance-testing#results-ingest",
           "text": "`results ingest` merges several report files before aggregating, detects or accepts an explicit format, accepts a run id, records a repo-relative evidence path, and exits 2 when any claim failed or a file could not be parsed.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/ingest-tools.test.ts",
@@ -1351,14 +1351,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "partial-and-sweep",
           "ref": "capabilities/conformance-testing#partial-and-sweep",
           "text": "A partial ingest only writes verdicts for claims present in the results, while the sweep option stores unexercised for absent claims only on a declared full run and never downgrades a still-matching proven claim.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/results.test.ts",
@@ -1386,14 +1386,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "shared-ingest-and-ledger-path",
           "ref": "capabilities/conformance-testing#shared-ingest-and-ledger-path",
           "text": "`proof ingest` and `results ingest` share one code path, write identical rows for identical verdicts, and use a ledger path from `--ledger`, then `paths.proofLedger`, then `.specguard/proofs.json`, kept portable with repo-relative keys.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/ingest-tools.test.ts",
@@ -1433,14 +1433,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "proof-provenance",
           "ref": "capabilities/conformance-testing#proof-provenance",
           "text": "Each proof row records its provenance: `origin` (`ci` on a GitHub Actions or other CI run, `local` otherwise, `server` for a server-side run), repository, branch, CI actor (never a developer's git identity) and the claim-hash version in force; ledger writes go through one store interface (a file by default) that serialises concurrent updates so none is lost, and a ledger written by a newer SpecGuard is refused rather than read as empty and overwritten",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/state-stores.test.ts",
@@ -1486,7 +1486,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -1500,7 +1500,7 @@
           "id": "heal-classifies-failures",
           "ref": "capabilities/conformance-testing#heal-classifies-failures",
           "text": "Healing runs one job per distinct test command, classifies each failing test as a test bug or an application bug, rewrites only test code and re-runs up to the retry budget, and never modifies application source.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/heal.test.ts",
@@ -1534,14 +1534,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "heal-exit-and-safety",
           "ref": "capabilities/conformance-testing#heal-exit-and-safety",
           "text": "Healing treats a missing or unparseable report as a failure even when the runner exited 0 unless told to be lenient, exits 7 while any test remains broken including application bugs, and with classify-only never writes or re-runs.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/heal.test.ts",
@@ -1581,14 +1581,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "framework-profiles",
           "ref": "capabilities/conformance-testing#framework-profiles",
           "text": "Framework detection recognises common web, API and CLI frameworks from the repository's manifests, falls back to a generic profile and honours an explicit entry-point override.",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/framework-profiles.test.ts",
@@ -1610,14 +1610,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "test-run-ingests",
           "ref": "capabilities/conformance-testing#test-run-ingests",
           "text": "`test run` runs each configured app's tests through its runner adapter, reads the report from the file the runner writes, and ingests the verdicts into the proof ledger in one step, so tests run locally and results produced by CI land in the same ledger",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/test-run.test.ts",
@@ -1627,14 +1627,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "test-run-fails-honestly",
           "ref": "capabilities/conformance-testing#test-run-fails-honestly",
           "text": "`test run` exits non-zero when a suite fails, when a runner produces no readable report, or when a tagged claim fails, even if no failing test carries a claim tag",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/test-run.test.ts",
@@ -1656,7 +1656,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -1684,7 +1684,7 @@
           "id": "layered-proofs",
           "ref": "capabilities/conformance-testing#layered-proofs",
           "text": "Evidence is kept per test layer (`unit`, `integration`, `e2e`, `security`, `functional`): each claim's ledger row holds one entry per layer with its own staleness inputs, and the row's combined fields come from the layer that decides it (a failure in any layer, else the newest proof), so a failing browser check is not overwritten by the next passing unit run and the other way round; a row written before layers existed reads as one layer (`functional` when the browser check wrote it, else `unclassified`) and a project that requires no layers sees exactly the old verdicts",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/test-layers.test.ts",
@@ -1718,14 +1718,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "layer-classification",
           "ref": "capabilities/conformance-testing#layer-classification",
           "text": "A test's layer is the first of: an `@layer:` tag on the test or a `[layer: x]` comment in the first lines of its file; the app's `test.layers` globs; the suite that ran it; `results ingest --layer`; Playwright means `e2e`; path conventions (`e2e`, `integration`, `security` folders and `.e2e.`/`.int.` file names); otherwise `unit`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/test-layers.test.ts",
@@ -1771,14 +1771,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "layer-requirements",
           "ref": "capabilities/conformance-testing#layer-requirements",
           "text": "A capability's `layers:` frontmatter (a list for every claim, or a default plus per-claim lists) and the project's `proof.requiredLayers` say which layers a claim needs, the claim's own list first, then the capability's default, then the project's; an unknown layer name is reported, not ignored",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/test-layers.test.ts",
@@ -1794,14 +1794,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "layer-ingest",
           "ref": "capabilities/conformance-testing#layer-ingest",
           "text": "`results ingest` writes one verdict per claim and layer, an unclassified `unexercised` sweep row replaces the whole row, classified evidence replaces unclassified evidence of the same tests so an old failure cannot outlive its fix, and `test run` ingests each suite's report with the suite's layer",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/layers.test.ts",
@@ -1823,14 +1823,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "layer-reports",
           "ref": "capabilities/conformance-testing#layer-reports",
           "text": "When layers are required, `check` and `proof status` list `[proof-incomplete] <claim> (missing: <layers>)` for each claim not proven in every required layer, print a `LAYERS:` line with proven over required per layer, leave the `PROOFS:` line unchanged, and `proof.enforceLayers: fail` makes `proof status` fail on them (`warn` is the default, `off` hides them); the trace carries `required`, `layers` and `missing` per claim and `layerCounts` per capability and in total",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/layers.test.ts",
@@ -1852,14 +1852,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "layer-suites",
           "ref": "capabilities/conformance-testing#layer-suites",
           "text": "An app's `test.suites` lists suites that each have a command, a report and a layer (for example vitest for `unit` and Playwright for `e2e`); `test run` runs every suite in place of the app's single command, a failing suite fails only the layer it covers, and the report of each suite is ingested with its layer",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/layers.test.ts",
@@ -1875,14 +1875,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "evidence-path-inside-repo",
           "ref": "capabilities/conformance-testing#evidence-path-inside-repo",
           "text": "An evidence path is recorded only when it stays inside the repository, normalised and relative; an absolute path, one that climbs out or a symlink that leaves is dropped with a message and the verdict itself is kept",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/layers.test.ts",
@@ -1892,19 +1892,480 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         }
       ],
       "counts": {
         "claims": 33,
-        "proven": 26,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 26,
         "unexercised": 0,
         "error": 0,
         "unproven": 7,
         "withTests": 26,
+        "incomplete": 0
+      }
+    },
+    {
+      "id": "coverage-and-mutation",
+      "specKey": "capabilities/coverage-and-mutation",
+      "kind": "capability",
+      "title": "Coverage and Mutation Evidence",
+      "status": "active",
+      "value": "A reviewer can see which owned code the tests execute and whether a claim's tests would notice the code changing, with every number carrying what it cannot prove and a mark when the code has moved on since it was measured.",
+      "parent": "system",
+      "unit": ".",
+      "ownedFiles": [
+        "src/cli/commands/coverage.ts",
+        "src/cli/commands/mutation.ts",
+        "src/core/coverage.ts",
+        "src/core/mutation.ts",
+        "src/pipelines/coverage-ingest.ts",
+        "src/pipelines/mutation-ingest.ts"
+      ],
+      "tests": [
+        "tests/core/coverage.test.ts",
+        "tests/core/mutation.test.ts",
+        "tests/pipelines/coverage-ingest.test.ts",
+        "tests/pipelines/mutation-ingest.test.ts"
+      ],
+      "docs": [],
+      "history": [
+        "2026-10-26-coverage-and-mutation-evidence-is-attrib"
+      ],
+      "claims": [
+        {
+          "id": "coverage-formats-parsed",
+          "ref": "capabilities/coverage-and-mutation#coverage-formats-parsed",
+          "text": "Each coverage report format is parsed into per-file executable lines with hit counts and per-line branch totals: lcov (`SF`, `DA`, `BRDA`), JaCoCo XML (`package`/`sourcefile`/`line` with `mi`, `ci`, `mb`, `cb`), Cobertura XML (`class`, `line`, `condition-coverage`, repeated classes merged) and Go coverprofiles (`mode:` line, multi-line blocks, duplicate blocks taking the highest count); the format is detected from the content, a DOCTYPE entity is never expanded, and unparseable input fails with a typed error naming the format",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 86,
+              "title": "lcov: DA and BRDA (with \"-\" taken), several SF records, checksum field, missing end_of_record",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 98,
+              "title": "jacoco: package/sourcefile path, mi/ci executable and hit, mb/cb branches",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 109,
+              "title": "jacoco: a DOCTYPE entity is not expanded",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 116,
+              "title": "cobertura: multiple sources, condition-coverage parsing, repeated class for one file merged",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 127,
+              "title": "go: mode line, multi-line blocks, max count for duplicate blocks, numStmt 0 ignored",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 137,
+              "title": "detectCoverageFormat recognises each format and returns null for junk; parse errors are CoverageParseError",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "mutation-formats-parsed",
+          "ref": "capabilities/coverage-and-mutation#mutation-formats-parsed",
+          "text": "A Stryker mutation report and a PIT `mutations.xml` are parsed into mutants with a file, line range, mutator and one of seven statuses (killed, survived, no-coverage, timeout, invalid, ignored, pending), the tests that killed each mutant, the tests that covered it when the tool recorded that, whether the report lists every killer or only the first, and the hash of each mutated file where the tool embeds its source",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 84,
+              "title": "every status mapped; killedBy resolved via testFiles; unmapped paths listed",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 104,
+              "title": "legacy reports without testFiles use the killedBy strings as test names",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 111,
+              "title": "coveredBy presence -> per-test; more than one killer -> full; config full; source hashes recorded",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 121,
+              "title": "rejects non-reports with MutationParseError and detects the format",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 134,
+              "title": "statuses mapped; killingTest JUnit 5 and JUnit 4 names; unmapped class listed",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 149,
+              "title": "killingTests and succeedingTests (full matrix) -> full attribution and per-test coverage",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 158,
+              "title": "mutatedClass + sourceFile mapped to the repo file, inner classes included; test templates give the method",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 169,
+              "title": "merging reports prefixes ids so two packages do not collide, and refuses mixed tools",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 89,
+              "title": "config mutation.attribution \"full\" is honoured for a Stryker report",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "paths-normalized",
+          "ref": "capabilities/coverage-and-mutation#paths-normalized",
+          "text": "Report paths are mapped onto repository files by stripping `file://`, converting backslashes, removing the checkout root or a configured `coverage.pathPrefixes` entry, applying Go module prefixes and JaCoCo or PIT source roots (`coverage.sourceRoots`), and then matching a unique file-name suffix; a path that is outside the root, matches nothing or matches several files is reported as unmapped with its reason and is never dropped silently",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 156,
+              "title": "absolute under root, Windows backslashes and drive letter, file:// URI",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 165,
+              "title": "CI checkout prefix stripped, Go module prefix (nested modules), JaCoCo source roots",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 176,
+              "title": "unique suffix, ambiguous suffix, outside root, not found",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 188,
+              "title": "normalizeCoverage merges reports per file and records unmapped with a 50-entry sample",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 211,
+              "title": "tries a Cobertura source-joined path before the bare filename",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 218,
+              "title": "ranges round-trip; enforceSizeCap drops branches, then line data (granularity summary)",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 48,
+              "title": "maps absolute paths and configured checkout prefixes, and reports what it could not map",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "attributed-by-ownership",
+          "ref": "capabilities/coverage-and-mutation#attributed-by-ownership",
+          "text": "Coverage is credited to a capability through the files it owns: line coverage is computed over the owned source files that the evidence reports and that are unchanged since ingest, owned files absent from the report are listed, and lines in reported files that no test hit are reported as unreached, which for a whole-suite report is a sound lower bound on code no claim test reaches",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 272,
+              "title": "line pct is over fresh reported owned files; unreported listed; stale excluded; documents not counted",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 291,
+              "title": "pct is null when no owned file has executable lines",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "diff-coverage",
+          "ref": "capabilities/coverage-and-mutation#diff-coverage",
+          "text": "Diff coverage takes the added lines of each changed owned file, keeps only the lines the evidence marks executable, and reports how many were hit with the missed ranges per file; a changed owned file with no fresh coverage is listed as unknown and never counted as covered",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 297,
+              "title": "diff pct ignores non-executable changed lines; a changed file without fresh coverage goes to unknownFiles",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 321,
+              "title": "diff pct is null when no changed line is executable; summary granularity cannot judge changed lines",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "suite-report-limit",
+          "ref": "capabilities/coverage-and-mutation#suite-report-limit",
+          "text": "A whole-suite report, and a capability report scoped to test files, can show only that some test executed a line, so neither is marked able to prove that a claim's tests reach the code or that executed lines are specified behaviour; only a report scoped to the capability's tagged tests, while the set of tagged tests is unchanged, is marked able to prove both",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 331,
+              "title": "claimable flags: suite and files selections prove neither reach nor unspecified; tests selection proves both",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 372,
+              "title": "selectCapabilityTests is order-independent and deterministic",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 103,
+              "title": "capability scope records the tests it ran and a hash of that selection under cap/<id>.json",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "tests-mapped-to-claims",
+          "ref": "capabilities/coverage-and-mutation#tests-mapped-to-claims",
+          "text": "A test that killed or covered a mutant is matched to a test declaration by file and title (a describe-prefixed name, a JVM method name and a parameterized `[param]` or `(param)` suffix are accepted), and through its tag to a claim; a test that matches no declaration, or more than one, is listed as unmatched and never guessed",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 193,
+              "title": "file + title, describe-prefixed names, JVM method, parameterized suffix",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 206,
+              "title": "unmatched and ambiguous tests are listed and never guessed",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "mutation-score-per-claim",
+          "ref": "capabilities/coverage-and-mutation#mutation-score-per-claim",
+          "text": "A claim's mutation score is the mutants its tests killed divided by those mutants plus the ones its tests covered and nobody killed, and it is computed only when the report records coverage per test",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 274,
+              "title": "per-test coverage claim score: killed over killed plus survived among mutants the claim tests cover",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 283,
+              "title": "full attribution: a mutant the claim tests covered and only others killed is a survivor for that claim",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 289,
+              "title": "without per-test coverage the claim score is null and only its own kills are counted",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 297,
+              "title": "scope: owned files without a diff, only mutants whose line range meets an added line with one",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 366,
+              "title": "output ordering is deterministic whatever order the mutants and claims arrive in",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "mutation-edge-statuses",
+          "ref": "capabilities/coverage-and-mutation#mutation-edge-statuses",
+          "text": "Mutants that were ignored, invalid or pending are counted but left out of every score, no-coverage mutants count against the capability score but not against a claim's score, timeouts count as killed when `mutation.timeoutAsKilled` is true and are left out of the score when it is false, and when the tool lists only the first killing test the mutants killed by another test are reported as unattributed instead of as survivors",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 312,
+              "title": "timeoutAsKilled on and off; ignored, invalid and pending are excluded from scores but counted",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 322,
+              "title": "no-coverage counts against the capability score and is left out of every claim score",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "mutation-min-score",
+          "ref": "capabilities/coverage-and-mutation#mutation-min-score",
+          "text": "A claim meets the mutation policy only when its tests killed at least `mutation.minKilled` mutants (default 1) and, when a per-claim score exists, that score is at least `mutation.minScore` (default 70); the config rejects a `minScore` outside 0 to 100, and the failing reasons are reported as not killed, score low or stale",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 346,
+              "title": "meetsMutationPolicy: NOT_KILLED, SCORE_LOW, STALE, and ok",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 360,
+              "title": "resolveMutationPolicy defaults to 70, 1 and timeouts as killed",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 97,
+              "title": "config accepts mutation.minScore, minKilled and timeoutAsKilled and rejects a score above 100",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "evidence-staleness",
+          "ref": "capabilities/coverage-and-mutation#evidence-staleness",
+          "text": "Stored evidence records the content hash of every file it describes, so a file whose current hash differs is excluded from every coverage and mutation figure and listed as stale, a claim whose mutants touch such a file is marked stale, and capability coverage is marked stale when the set of tests tagged to the capability's claims has changed since ingest",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 342,
+              "title": "testsHash mismatch marks testsStale and withdraws the claims",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/coverage.test.ts",
+              "line": 350,
+              "title": "a file whose content hash changed is excluded from every metric and listed as stale",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/mutation.test.ts",
+              "line": 329,
+              "title": "a stale file is excluded and the claims whose tests touch it are stale",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 48,
+              "title": "hashes the files of a PIT report at ingest, since PIT does not embed source",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "ingest-commands",
+          "ref": "capabilities/coverage-and-mutation#ingest-commands",
+          "text": "`specguard coverage ingest <files...>` and `specguard mutation ingest <files...>` read the report files, write the normalized evidence under `.specguard/coverage/` (`suite.json`, or `cap/<id>.json` with `--capability`) and `.specguard/mutation/report.json` keeping only the latest per scope, and exit 2 without writing when no file matches, no file parses or no path maps onto the repository; those directories are in the generated-state ignore list",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 19,
+              "title": "writes suite evidence with the content hash of each mapped file, and a note that a suite report is not per claim",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 34,
+              "title": "a second ingest replaces the first, and records the repo commit when the repo is under git",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 63,
+              "title": "exits 2 and writes nothing when no report path maps, or the input is unparseable or missing",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 79,
+              "title": "ingests the good files and exits 2 when another file fails to parse; --format overrides detection",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 92,
+              "title": "parses a Go coverprofile through the module path of go.mod",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/coverage-ingest.test.ts",
+              "line": 121,
+              "title": "refuses an unknown capability, a capability with no tagged tests, and --selection without --capability",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 32,
+              "title": "writes the normalized Stryker report with the embedded source hashes and the run metadata",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 61,
+              "title": "merges several reports of one tool, and refuses to mix tools",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/mutation-ingest.test.ts",
+              "line": 76,
+              "title": "exits 2 and writes nothing for unparseable input, no matching file, or nothing that maps to the repo",
+              "origin": "source"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "claims": 12,
+        "proven": 0,
+        "failed": 0,
+        "stale": 0,
+        "unexercised": 0,
+        "error": 0,
+        "unproven": 12,
+        "withTests": 12,
         "incomplete": 0
       }
     },
@@ -2779,7 +3240,7 @@
           "id": "cli-routing-and-flags",
           "ref": "capabilities/integration-surfaces#cli-routing-and-flags",
           "text": "The `specguard` command routes each subcommand to its pipeline and prints help for every subcommand; `--version` prints the package version and `--version --json` prints one JSON line with name, version and Node version; an unknown subcommand exits non-zero with a usage hint; global options `--config <path>` (a file, a directory, or a path containing `/.specguard/`), `--json` (machine-readable result with the exit code, human output suppressed) and `--record` reach every command",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "extension/src/cli-version.test.ts",
@@ -2813,14 +3274,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "exit-codes-and-env",
           "ref": "capabilities/integration-surfaces#exit-codes-and-env",
           "text": "Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded, 12 waiting for the host agent); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, a refused LLM call for budget forces exit 8, and model requests still waiting for the host agent force exit 12 and print what is waiting and how to answer it, even when the command went on to print its own summary; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables, a placeholder key value an older init wrote being ignored",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/cli.test.ts",
@@ -2836,38 +3297,38 @@
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 18,
+              "line": 19,
               "title": "Obtaining a label for each defined exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 31,
+              "line": 33,
               "title": "Obtaining a label for an unknown exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 38,
+              "line": 40,
               "title": "Verifying no duplicate numeric values exist",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 46,
+              "line": 48,
               "title": "Type safety prevents arbitrary number assignment",
               "origin": "source"
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "init-bootstrap",
           "ref": "capabilities/integration-surfaces#init-bootstrap",
           "text": "`init` creates only `.specguard/config.json` (no `llm` block) and `specs/README.md`, asks for no API key and writes no key file, detects the language and test framework (Playwright forced by `--with-playwright`), matches code kept at the repo root when there is no `src/` folder (every code file except tests, type declarations and tool configs), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files; agent files are written only when `--harness` names a harness",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/cli.test.ts",
@@ -2919,14 +3380,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "harness-files",
           "ref": "capabilities/integration-surfaces#harness-files",
           "text": "`init --harness` and `scaffold` generate agent-harness files for Claude, Cursor or both: a CLAUDE.md with managed sections, per-harness skill files, a goal command and AGENTS.md, all marked as SpecGuard-managed and using language-specific commands, and for Claude the MCP server in `.mcp.json` where Claude Code reads it; a marked file is refreshed, an unmarked hand-written file is left alone, and content outside managed sections is preserved",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/scaffold.test.ts",
@@ -2960,14 +3421,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "agent-wiring-and-runner",
           "ref": "capabilities/integration-surfaces#agent-wiring-and-runner",
           "text": "Setup merges an MCP server entry and a post-edit status hook into the agent's settings without removing unrelated keys (malformed existing JSON is reported and left unchanged); the generated commands use a resolved runner (`--runner node|npx|path`, otherwise `SPECGUARD_CLI`, a local binary, a global binary, then `npx -p specguard-ai specguard`); an entry written in an older broken form is repaired, and any other differing existing entry is never rewritten silently: a diff is printed and the file left alone unless `--update-hooks` is given",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/runner.test.ts",
@@ -3031,14 +3492,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "mcp-tools-parity",
           "ref": "capabilities/integration-surfaces#mcp-tools-parity",
           "text": "The MCP server runs over stdio, registers one tool per core command plus `read_spec` and `write_spec` (the pre-0.2 names only with `SPECGUARD_MCP_LEGACY=1`), calls the same pipeline functions as the CLI with an optional `cwd`, returns a text summary (counts, messages, items, raw result) and returns an error result instead of throwing; importing the module does not start the transport",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/mcp-server.test.ts",
@@ -3132,14 +3593,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "agent-work-tools",
           "ref": "capabilities/integration-surfaces#agent-work-tools",
           "text": "`specguard agent pending` lists the model requests waiting for the host coding agent (exit 12 when there are any) and `specguard agent answer <hash>` records an answer from a file or stdin (a unique hash prefix of 8 or more characters is enough, a JSON answer may sit in a markdown code fence), refusing an unknown request and an answer of the wrong shape; the `specguard_agent_work` MCP tool does the same (`list` returns each request in full, `answer` records one), is one of the default tools and is not offered by a read-only server",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/agent-work-tool.test.ts",
@@ -3155,14 +3616,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "start-command",
           "ref": "capabilities/integration-surfaces#start-command",
           "text": "`specguard start` carries a project from nothing to a first report in one resumable command: it sets the project up when there is no config, drafts the specs unless `specs/system.md` exists, links tests to requirements, runs the tests (unless `--skip-tests`) and prints where things stand; when a step waits for the host agent it stops with exit 12 saying to run it again, and the rerun continues from that step",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/host-agent-flow.test.ts",
@@ -3178,14 +3639,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-distribution",
           "ref": "capabilities/integration-surfaces#plugin-distribution",
           "text": "The repository is a Claude Code plugin marketplace and a Codex plugin marketplace whose one plugin, `specguard`, installs with one line, needs no API key inside the agent and writes nothing into the project: it ships the skills (the working rules, and how to answer model requests), the `start` and `check` commands, a `specguard` executable on the agent's PATH that runs the CLI of the same minor version with the host agent doing the model work (`SPECGUARD_CLI` runs a local build), the MCP server configured the same way, and a session-start hook that prints a short status only in a project that uses SpecGuard; both manifests carry the package's version",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/plugin-package.test.ts",
@@ -3219,14 +3680,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "mcp-activity-and-limits",
           "ref": "capabilities/integration-surfaces#mcp-activity-and-limits",
           "text": "Every MCP tool call appends a running entry and then a pass, fail or error entry with duration to `.specguard/activity-log.json`, which is bounded to the latest 200 entries once it exceeds 1 MB, recovers from invalid JSON and never throws; `read_spec` needs a spec key or path; MCP tools never perform effects outside the machine (remediate is scan-only and dry-run only, commit stages only SpecGuard-generated files)",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/ingest-tools.test.ts",
@@ -3236,14 +3697,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-gates",
           "ref": "capabilities/integration-surfaces#action-gates",
           "text": "The GitHub Action installs the requested SpecGuard version, runs the chosen gates in a fixed order (status, drift, proof, align, results, validate, security, check, test, verify, scan; `deps` is an alias of `scan`), rejects an unknown gate before running anything, writes a job summary and per-gate JSON, and uploads `.specguard/` as evidence excluding secrets and auth state",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3277,14 +3738,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-fail-on",
           "ref": "capabilities/integration-surfaces#action-fail-on",
           "text": "`fail-on` thresholds (missing-specs, drift, proof-failed, proof-stale, proof-unexercised, proof-unproven, proof-incomplete (claims missing a required test layer), align-below:<n>, results, validate, security, check, test, verify, scan, deps, none) fail the job from the gates' exit codes; a gate that did not run, or a missing proof ledger, never fails the job",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3336,14 +3797,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-affected-since",
           "ref": "capabilities/integration-surfaces#action-affected-since",
           "text": "With `affected: true` the `test` gate measures changed workspace units against `affected-since`, else the pull request's base commit, else the working tree against HEAD, so a clean checkout of a pull request tests what the pull request changed instead of nothing",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3353,14 +3814,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-pr-comment",
           "ref": "capabilities/integration-surfaces#action-pr-comment",
           "text": "On a pull request the Action posts one comment (found again by a marker, and updated on later runs) with the failed thresholds, the numbers `check`, `proof` and `scan` printed (specs, tests, claims proven, failed, stale and missing a layer, findings) and how each moved since the previous run on that pull request; a run that cannot comment (no token, a fork, an API error) says so and does not fail",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3376,14 +3837,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-sarif",
           "ref": "capabilities/integration-surfaces#action-sarif",
           "text": "With `sarif: true` the `scan` gate also writes `.specguard/security/scan.sarif` and the Action uploads it to GitHub code scanning",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3393,14 +3854,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "init-ci",
           "ref": "capabilities/integration-surfaces#init-ci",
           "text": "`init --ci github` writes `.github/workflows/specguard.yml` (a pull request and main-branch gate: full-history checkout, the project's own install step, gates `check,test,scan,proof,publish`, `fail-on` of missing specs, failed or stale proofs and tests plus `proof-incomplete` when layers are required, changed-units testing only for a workspace with packages, the comment, SARIF, and an optional manual browser `verify` run) and `.github/workflows/specguard-remediate.yml` (weekday remediation pull requests, with auto-merge and the bot token it needs only when `--auto-merge` is given); it never overwrites a workflow that exists and writes none unless asked",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/ci-workflow.test.ts",
@@ -3446,14 +3907,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "action-remediate-and-release",
           "ref": "capabilities/integration-surfaces#action-remediate-and-release",
           "text": "`mode: remediate` runs `specguard remediate` instead of the gates, adds `--pr` when asked, exposes the exit code, fails only on exit 1 or 11, and never merges; a release tag must equal the package version with the CLI published before the extension",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/action/run-gates.test.ts",
@@ -3463,14 +3924,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "vscode-dashboard",
           "ref": "capabilities/integration-surfaces#vscode-dashboard",
           "text": "The VS Code extension adds an activity-bar sidebar and a singleton dashboard panel that run the CLI (resolved from a setting, a local binary or npx) and read `.specguard` files for coverage, pipeline status, drift, traceability and agent activity; commands needing a workspace report when none is open, the project can be switched, and no secrets are passed through. A capability project shows source coverage as a percentage of source files and counts capabilities separately from those files; archived v1 specs are not counted as current specs; `trace.json` is preferred over an older `traceability.json`; a contract edge with no `lastVerified` or one older than 30 days is described as unverified",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "extension/src/cli-version.test.ts",
@@ -3660,14 +4121,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-contract",
           "ref": "capabilities/integration-surfaces#plugin-contract",
           "text": "Optional behaviour is added through plugins named in `config.plugins`: a plugin may supply commands, catalog providers, implementation discoverers, external-id adapters, result sources, feature-state tuning, module stems and contract importers; an unknown or malformed plugin name is a configuration error where a pipeline loads it, and core never imports a plugin by name",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/feature-state-collect.test.ts",
@@ -3683,14 +4144,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "feature-catalog",
           "ref": "capabilities/integration-surfaces#feature-catalog",
           "text": "The feature catalog (the `feature-catalog` plugin) is a directory of YAML parsed with a real YAML parser and validated against a schema (an unversioned or malformed file or a duplicate feature id is an error naming the file; `catalogFormat: list` reads bare lists; `catalogExclude` skips file names that match its globs before they are parsed); built-in GraphQL, REST and tRPC discoverers and the generic, Zephyr and Jira external-id adapters need no other plugin, and `specguard features` lists each spec's feature back-references",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/cli/features.test.ts",
@@ -3748,14 +4209,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "feature-state",
           "ref": "capabilities/integration-surfaces#feature-state",
           "text": "`features --state` reports per feature a summary, required channels and a state for UI, API and MCP (no, stub, built, broken, passing, proven) from specs, discovered implementations and test results matched by feature id, tag or external id, plus an agent gate that opens only on a latest passing unit or integration test; with no catalog it prints `[]` with a note and does not fail",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/feature-state-collect.test.ts",
@@ -3843,14 +4304,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "code-quality",
           "ref": "capabilities/integration-surfaces#code-quality",
           "text": "`quality` runs ESLint and Knip (and Ruff for Python) for every app or one app, can auto-fix lint issues, normalises findings into `.specguard/code-quality.json` with error and warning totals, exits 2 only when lint errors exist, treats an unavailable tool as a warning, and rejects an unknown app name with the list of known ones",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/quality-fix.test.ts",
@@ -3860,14 +4321,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "git-helpers",
           "ref": "capabilities/integration-surfaces#git-helpers",
           "text": "`commit` stages and commits only SpecGuard-generated paths (tests, docs, specs, `.specguard/` and the directories the config writes to), supports `--dry-run`, a custom message and an originating pipeline, reports a clean tree or nothing to commit with success, fails with exit 1 when git is missing or git add or commit fails, and appends each commit to `.specguard/changelog.md`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/git-ops-changelog.test.ts",
@@ -3889,14 +4350,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "planned-reduced-surface",
           "ref": "capabilities/integration-surfaces#planned-reduced-surface",
           "text": "The surface is small: `analyze`, `plan-fix` and `deps` are gone (`check`, `security scan` and the remediation plan replace them, and the Action's `deps` gate is an alias of `scan`), and the MCP server registers about 16 core tools (`check`, `spec_graph`, `read_spec`, `write_spec`, `history_add`, `history_log`, `test_run`, `verify`, `security_scan`, `security_plan`, `proof_status`, `results_ingest`, `impact`, `contracts`, `workspace_status`, `init`) while the pre-0.2 tool names register only when `SPECGUARD_MCP_LEGACY=1`; plugin tools always register",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/env.test.ts",
@@ -3906,14 +4367,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-commands",
           "ref": "capabilities/integration-surfaces#plugin-commands",
           "text": "Plugin commands are registered on the CLI as `specguard <name>` and on the MCP server as `specguard_<name>` (with typed inputs when the command declares them), only while the plugin is enabled; config is read before commands are parsed, core commands and tools win a name clash, and a plugin that cannot be loaded is reported once and skipped so `init` still works with a broken config",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/functional-tools.test.ts",
@@ -3965,14 +4426,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "planned-plugin-extensions",
           "ref": "capabilities/integration-surfaces#planned-plugin-extensions",
           "text": "Plugins can add `detectors` (their findings become `code` items in the remediation plan under the owning capability, reported but never auto-patched, and closed only when the detector ran without warnings) and `docRenderers` (the docs API tries them before the model; a renderer that declines or fails falls through), and npm plugins load only from an explicit `{name, package}` allowlist in config, resolved from the project's own `node_modules`, because importing a package runs its code",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/security-scan.test.ts",
@@ -4018,7 +4479,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -4032,7 +4493,7 @@
           "id": "catalog-layout-config",
           "ref": "capabilities/integration-surfaces#catalog-layout-config",
           "text": "The feature catalog's layout is entirely `featureState` config (catalog directory and format, file-name globs to leave out, results directories, id rules, placeholder and MCP patterns, repo channels, module stems, and where agent tools are declared and which of them do not count); no platform's layout is built in, and a test fails if a customer platform is named anywhere in code, docs or specs",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/neutral.test.ts",
@@ -4090,14 +4551,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "contract-mappings-importer",
           "ref": "capabilities/integration-surfaces#contract-mappings-importer",
           "text": "The `contract-mappings` plugin adds contract edges from a JSON file of spec-to-provider mappings whose location and key names are `contractMappings` config, with plain defaults, and yields nothing for a missing or malformed file",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/commands.test.ts",
@@ -4113,14 +4574,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "core-plugin-boundary",
           "ref": "capabilities/integration-surfaces#core-plugin-boundary",
           "text": "Core reaches optional functionality only through enabled plugins: `quality` exists only when a plugin provides it, and core commands never run code quality themselves",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/commands.test.ts",
@@ -4130,14 +4591,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-catalog",
           "ref": "capabilities/integration-surfaces#plugin-catalog",
           "text": "Built-in plugins are described in a catalog (id, title, description, the parts of the plugin interface each provides, its config key and whether `init` turns it on); the catalog lists exactly the directories under `src/plugins/` and each plugin exports the id it is listed under; an npm plugin may describe itself with `meta`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/plugin-manage.test.ts",
@@ -4147,14 +4608,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-manage",
           "ref": "capabilities/integration-surfaces#plugin-manage",
           "text": "`specguard plugin list [--json]` shows every built-in and every configured npm plugin with whether it is on, whether it is inherited through `extends` or turned off here, the commands it adds and any load error; `plugin enable|disable <id>` edit only the repo's own raw config (keeping every other key), a repo with no list of its own writes one that restates what it inherits, and a plugin enabled only by an extended config is turned off with `disabledPlugins`; a disabled npm plugin keeps its package so it can be re-enabled by id",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/cli/plugin-json.test.ts",
@@ -4212,7 +4673,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -4226,7 +4687,7 @@
           "id": "plugin-surfaces",
           "ref": "capabilities/integration-surfaces#plugin-surfaces",
           "text": "The plugin list is also served at `GET /api/v1/plugins` (read-only, empty for a project with no working tree) and by the `specguard_plugin_list` MCP tool, which is part of the extra tool set (`SPECGUARD_MCP_LEGACY=1`) because the default MCP tool list is capped at 16",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/plugin-manage.test.ts",
@@ -4242,7 +4703,7 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
@@ -4263,7 +4724,7 @@
           "id": "mcp-spec-paths",
           "ref": "capabilities/integration-surfaces#mcp-spec-paths",
           "text": "Through the MCP server an agent may read and write only Markdown files inside the project's spec directories (the specs root and each app's spec directory, or `<cwd>/specs` with no config): `..`, absolute paths elsewhere, other file types and symlinks that leave the project are refused, so a spec tool cannot write a git hook, a shell profile or an agent settings file",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/hardening.test.ts",
@@ -4285,14 +4746,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "commit-never-secrets",
           "ref": "capabilities/integration-surfaces#commit-never-secrets",
           "text": "The `commit` command never stages a file that holds secrets or personal data, even inside a safe root: environment files (templates such as `.env.example` excepted), private keys and certificates, credentials files, `.npmrc`, saved login state under `.specguard/auth` and browser evidence under `.specguard/evidence`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/hardening.test.ts",
@@ -4302,14 +4763,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "plugin-package-names",
           "ref": "capabilities/integration-surfaces#plugin-package-names",
           "text": "An npm plugin is named only by a valid npm package name: a path, a URL, an uppercase or spaced name is refused before anything is imported, a package that is not installed or that exports another id is refused, and a bare string never names a package",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/plugins/npm-plugins.test.ts",
@@ -4319,14 +4780,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "mcp-limits",
           "ref": "capabilities/integration-surfaces#mcp-limits",
           "text": "The MCP server limits what an agent can do in one process: at most 300 tool calls a minute (`SPECGUARD_MCP_RATE_PER_MIN`) and 20 history entries a minute (`SPECGUARD_MCP_HISTORY_PER_MIN`), a call over the limit gets an error result naming the setting, not a thrown error, and is logged",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/limits.test.ts",
@@ -4348,14 +4809,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "mcp-readonly",
           "ref": "capabilities/integration-surfaces#mcp-readonly",
           "text": "With `SPECGUARD_MCP_READONLY=1` the MCP server offers no tool that creates or changes files (spec writes, history entries, init, generation, test runs, verification, scans, ingest, contracts) and no plugin tool, leaving the tools that read",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/mcp/limits.test.ts",
@@ -4371,15 +4832,15 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         }
       ],
       "counts": {
         "claims": 40,
-        "proven": 37,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 37,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
@@ -4760,7 +5221,7 @@
           "id": "config-discovery",
           "ref": "capabilities/platform-foundation#config-discovery",
           "text": "Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config yields a not-found error that names the search start and suggests `specguard init`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -4788,14 +5249,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "config-validation",
           "ref": "capabilities/platform-foundation#config-validation",
           "text": "Configuration is validated against one schema: invalid JSON or an invalid field fails with a readable invalid-config error, unknown keys and `_comment` are tolerated, and the directory that holds `.specguard/` is exposed to every pipeline as the root",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -4811,14 +5272,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "config-extends",
           "ref": "capabilities/platform-foundation#config-extends",
           "text": "A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -4834,14 +5295,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "config-apps-and-defaults",
           "ref": "capabilities/platform-foundation#config-apps-and-defaults",
           "text": "Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -4863,14 +5324,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "default-glob-excludes",
           "ref": "capabilities/platform-foundation#default-glob-excludes",
           "text": "Glob expansion never descends into dependency, build or VCS directories (node_modules, dist, build, coverage, .next, .git) even when a pattern would reach them, returns only sorted, de-duplicated absolute file paths, and skips dot-files",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -4910,14 +5371,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-provider-layer",
           "ref": "capabilities/platform-foundation#llm-provider-layer",
           "text": "Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm.test.ts",
@@ -4987,14 +5448,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-timeout-retry",
           "ref": "capabilities/platform-foundation#llm-timeout-retry",
           "text": "Each model attempt has a timeout; retryable failures (timeouts, rate limits, server errors, network resets) are retried with exponential backoff and jitter a configurable number of times, while authentication, validation and missing-key failures are never retried",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5028,14 +5489,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-fallback-chain",
           "ref": "capabilities/platform-foundation#llm-fallback-chain",
           "text": "After a target exhausts its attempts, an ordered fallback chain (global or per pipeline) is tried; a budget or disabled-model error never triggers fallback",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5057,14 +5518,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-model-tiers",
           "ref": "capabilities/platform-foundation#llm-model-tiers",
           "text": "Named model tiers `fast` and `frontier` can be configured; pipelines that summarise, document or propose history use `fast` and those that cluster or review specs use `frontier`, a pipeline's own override wins over its tier, and the tier wins over the global default",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-tiers.test.ts",
@@ -5086,14 +5547,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-pipeline-overrides",
           "ref": "capabilities/platform-foundation#llm-pipeline-overrides",
           "text": "A per-pipeline override can set provider, model, key variable, tier and fallback for one named pipeline, where the pipeline name comes from the running CLI command or MCP tool",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5109,14 +5570,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-budget-cap",
           "ref": "capabilities/platform-foundation#llm-budget-cap",
           "text": "A hard spend cap on tokens, calls or estimated dollars applies per process run, or per request scope in a server (each scope has its own count, budget, config and user, so concurrent requests cannot spend or reset one another's): once reached or projected to be crossed, every later call in that run or scope fails with a budget error and the CLI exits 8 and says why; a scope's user and labels are sent to the provider, and its usage is reported to its callback",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5168,14 +5629,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-usage-log",
           "ref": "capabilities/platform-foundation#llm-usage-log",
           "text": "Every real call adds tokens, call count and estimated cost to a usage log, in total and per pipeline and model, using a built-in price table that config can override",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5191,14 +5652,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-replay-record",
           "ref": "capabilities/platform-foundation#llm-replay-record",
           "text": "A replay provider serves recorded responses keyed by a hash of the prompt, system text and image bytes with no network call; a miss names the hash and how to record, and `--record` or config writes every real response so a later run reproduces it",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5220,14 +5681,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "llm-disabled-and-images",
           "ref": "capabilities/platform-foundation#llm-disabled-and-images",
           "text": "Setting the provider to `none` makes every model call fail with a disabled error without touching the network so deterministic-only runs work, and disallowing images rejects any call that carries them",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5243,14 +5704,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "host-agent-provider",
           "ref": "capabilities/platform-foundation#host-agent-provider",
           "text": "With `llm.provider: \"host\"`, or a keyed provider whose key is not set while running inside a coding agent (Claude Code is recognised on its own, other agents through `SPECGUARD_HOST_AGENT=1`, which `=0` turns off), a model call with no recorded answer writes a request file (system text, credential-masked prompt and, for structured output, the JSON Schema of the answer) under `.specguard/agent-requests/`, records it as pending and raises a typed error whose exit code is 12, without calling any model; the agent records its answer in the replay store, the next run validates it with the caller's schema and serves it, and an answer that fails the schema is set aside with the reason written on the request so it is asked again",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/agent-work.test.ts",
@@ -5302,14 +5763,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "host-agent-batching",
           "ref": "capabilities/platform-foundation#host-agent-batching",
           "text": "Host-agent calls never leave a mess: a step that makes many requests (file summaries, one spec per capability, test tagging) asks for all of them in one round (summaries in batches of up to 25 files), applies nothing and writes no system spec until every answer is in, never records a guessed verdict (a drift judgement still waiting for the agent leaves the change unassessed instead of recording \"every requirement affected\"), and a call a hook makes on its own opts out so a hook never leaves a request behind",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/host-agent-flow.test.ts",
@@ -5337,14 +5798,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "no-private-names",
           "ref": "capabilities/platform-foundation#no-private-names",
           "text": "No tracked file of the repository contains the name of a private project, an employer or an internal host: a test compares every word of every tracked file with a list kept as SHA-256 hashes, so the list names no one, and fails with the offending file",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/regression/no-private-names.test.ts",
@@ -5354,14 +5815,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "secret-redaction",
           "ref": "capabilities/platform-foundation#secret-redaction",
           "text": "The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as \"basic requirements\"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/redact.test.ts",
@@ -5431,14 +5892,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "filesystem-access",
           "ref": "capabilities/platform-foundation#filesystem-access",
           "text": "File access goes through small reader and writer helpers: reads return UTF-8 text and reject on a missing file, existence checks return false instead of throwing, and writes create intermediate directories and replace the file atomically (a temp file renamed over it, so a reader never sees half a write); sentinel-delimited regions let SpecGuard own part of a hand-written file without touching the rest, and generated run state is kept out of version control through a managed ignore block",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/config.test.ts",
@@ -5508,14 +5969,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "language-profiles",
           "ref": "capabilities/platform-foundation#language-profiles",
           "text": "Language and framework profiles describe source globs, test file naming, test command and result parsing for TypeScript, Python, Go, Rust and Java, detect the language from marker files with a fixed tie-break, and honour per-app prefix stripping when deriving feature names",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/language-profiles.test.ts",
@@ -5627,14 +6088,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "errors-and-exit-codes",
           "ref": "capabilities/platform-foundation#errors-and-exit-codes",
           "text": "Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, 12 waiting for the host agent (not a failure), with remediation-specific codes 8 to 11 scoped to that command",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/errors.test.ts",
@@ -5674,25 +6135,25 @@
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 18,
+              "line": 19,
               "title": "Obtaining a label for each defined exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 31,
+              "line": 33,
               "title": "Obtaining a label for an unknown exit code",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 38,
+              "line": 40,
               "title": "Verifying no duplicate numeric values exist",
               "origin": "source"
             },
             {
               "file": "tests/core/exit-codes.test.ts",
-              "line": 46,
+              "line": 48,
               "title": "Type safety prevents arbitrary number assignment",
               "origin": "source"
             },
@@ -5704,14 +6165,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "single-version-source",
           "ref": "capabilities/platform-foundation#single-version-source",
           "text": "One build version is reported everywhere: `--version` prints it, `--version --json` prints name, version and Node version on one line, and the MCP server and extension report the same value",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/version.test.ts",
@@ -5727,14 +6188,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "glob-literal-parens",
           "ref": "capabilities/platform-foundation#glob-literal-parens",
           "text": "A glob names a path literally where it can: a parenthesised segment such as the Next.js route group `app/(authenticated)/page.tsx` matches the folder `(authenticated)` instead of being read as a glob group, while extglob forms (`!(a|b)`, `@(a|b)`) and already-escaped characters keep their meaning",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/reader.test.ts",
@@ -5750,14 +6211,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "log-redaction",
           "ref": "capabilities/platform-foundation#log-redaction",
           "text": "What SpecGuard writes down for people to read later is passed through the secret redactor first: activity-log messages (a failure can quote a command line or a response that held a credential) and the prompt preview in an LLM replay recording, which is committed",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/hardening.test.ts",
@@ -5767,14 +6228,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "prompt-redaction",
           "ref": "capabilities/platform-foundation#prompt-redaction",
           "text": "Every model call, from every pipeline, has credentials masked in its prompt and system message before it leaves the machine (JWTs, bearer and basic tokens, provider API keys, private keys, `password=` and `secret=` values; a prompt with nothing sensitive is unchanged byte for byte, so replay recordings still match); `llm.redactPatterns` adds the project's own patterns, a pattern that is not a regular expression is skipped, and `llm.redactPrompts: false` is the only way to turn it off",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/llm-layer.test.ts",
@@ -5802,14 +6263,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "redaction-hook-fails-closed",
           "ref": "capabilities/platform-foundation#redaction-hook-fails-closed",
           "text": "A redaction hook fails closed: it must be a synchronous function returning a string of at most 2,000,000 characters, and a throw, a promise or any other result raises an error instead of letting text through that the project's own rules never saw",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/redact.test.ts",
@@ -5825,14 +6286,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "hook-path-inside-project",
           "ref": "capabilities/platform-foundation#hook-path-inside-project",
           "text": "A redaction hook module is a file inside the project: a URL, an absolute path elsewhere, `..` and a symlink that leaves the project are refused before it is imported",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/redact.test.ts",
@@ -5842,15 +6303,15 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         }
       ],
       "counts": {
         "claims": 27,
-        "proven": 27,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 27,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
@@ -5918,7 +6379,9 @@
         "specs/history/2026-10-24-key-set-status-and-a-per-user-env-file.md",
         "specs/history/2026-10-25-0-4-the-host-coding-agent-does-the-model.md",
         "specs/history/2026-10-25-specguard-proves-intent-not-metrics-thre.md",
+        "specs/history/2026-10-26-coverage-and-mutation-evidence-is-attrib.md",
         "specs/history/2026-10-26-intent-approvals-are-history-entries-bou.md",
+        "specs/history/2026-10-26-proof-statement-is-a-pure-composition-wi.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -7625,7 +8088,7 @@
           "id": "frontmatter-v2-metadata",
           "ref": "capabilities/spec-authoring#frontmatter-v2-metadata",
           "text": "A spec may declare its metadata in YAML frontmatter (id, kind, title, parent, value, status, sources, tests, docs, history); frontmatter is read first, and specs that use the older HTML-comment metadata block still parse unchanged",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-frontmatter.test.ts",
@@ -7659,14 +8122,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "frontmatter-errors",
           "ref": "capabilities/spec-authoring#frontmatter-errors",
           "text": "Invalid frontmatter (bad YAML, a kind other than system, capability, component or journey, a non-string where a string is required, a list of non-strings) fails with an error that names the file and explains that lists must be block lists with quoted globs",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-frontmatter.test.ts",
@@ -7688,14 +8151,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "sections-and-scenarios",
           "ref": "capabilities/spec-authoring#sections-and-scenarios",
           "text": "A spec parses into a title, named sections, scenarios (name, numbered steps, expected-result bullets) and claims; missing sections yield empty values rather than errors, unknown metadata keys are preserved, and `Requirements` is accepted as the preferred name for `Acceptance Criteria`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-parser.test.ts",
@@ -7741,14 +8204,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-discovery",
           "ref": "capabilities/spec-authoring#spec-discovery",
           "text": "Spec discovery walks the specs tree recursively for markdown files, ignoring `README.md` files, the requirement-history folder and archived v1 specs, and parsing itself never touches the network or the filesystem beyond reading files",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-frontmatter.test.ts",
@@ -7764,14 +8227,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "canonical-spec-key",
           "ref": "capabilities/spec-authoring#canonical-spec-key",
           "text": "Every spec has one canonical key: its path relative to the specs root without the extension (or the owning app's spec directory when there is no specs root), used identically by claims, proofs, drift, the matrix and status",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-key.test.ts",
@@ -7805,14 +8268,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "declared-sources",
           "ref": "capabilities/spec-authoring#declared-sources",
           "text": "A spec's declared `sources` globs are resolved relative to the owning app's repo; a pattern that matches nothing there but matches from the config root is accepted with a one-time warning per pattern",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-frontmatter.test.ts",
@@ -7840,59 +8303,59 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "claim-anchors",
           "ref": "capabilities/spec-authoring#claim-anchors",
           "text": "A requirement bullet carries its stable id in a trailing claim comment; bullets without one remain visible as unanchored, and reordering bullets never changes what an id refers to",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claims.test.ts",
-              "line": 36,
+              "line": 37,
               "title": "reads anchors, checkboxes, and unanchored bullets",
               "origin": "source"
             },
             {
               "file": "tests/core/claims.test.ts",
-              "line": 47,
+              "line": 48,
               "title": "adds one id and leaves an existing anchor unchanged on a second pass",
               "origin": "source"
             },
             {
               "file": "tests/core/claims.test.ts",
-              "line": 251,
+              "line": 252,
               "title": "joins an indented continuation line into the claim and reads an anchor placed on it",
               "origin": "source"
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "claims-assign",
           "ref": "capabilities/spec-authoring#claims-assign",
           "text": "`claims assign` adds an id to every requirement bullet that lacks one, never rewrites an existing id, generates lowercase unique slugs of at most six words and 48 characters, is idempotent, and with `--dry-run` reports the ids without writing",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claims.test.ts",
-              "line": 47,
+              "line": 48,
               "title": "adds one id and leaves an existing anchor unchanged on a second pass",
               "origin": "source"
             },
             {
               "file": "tests/core/claims.test.ts",
-              "line": 58,
+              "line": 59,
               "title": "suffixes a slug that would collide",
               "origin": "source"
             },
             {
               "file": "tests/core/claims.test.ts",
-              "line": 134,
+              "line": 135,
               "title": "writes anchors into a spec directory and list fails on a dangling journey ref",
               "origin": "source"
             },
@@ -7904,54 +8367,54 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "claims-list-gate",
           "ref": "capabilities/spec-authoring#claims-list-gate",
           "text": "`claims list` prints the claim catalog (optionally across every repo in the workspace) and exits 2 when a journey cites a claim that does not exist or a spec repeats a claim id",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claims.test.ts",
-              "line": 87,
+              "line": 88,
               "title": "reports a verifies ref that is missing from the catalog",
               "origin": "source"
             },
             {
               "file": "tests/core/claims.test.ts",
-              "line": 134,
+              "line": 135,
               "title": "writes anchors into a spec directory and list fails on a dangling journey ref",
               "origin": "source"
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "journey-specs",
           "ref": "capabilities/spec-authoring#journey-specs",
           "text": "A journey spec declares its world, actors and goals, invariants and budget, and each invariant lists the claim references it verifies, written as `specKey#claimId` or `repo:specKey#claimId`",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claims.test.ts",
-              "line": 74,
+              "line": 75,
               "title": "accepts a repo-qualified ref and a bare ref, and rejects a string with no hash",
               "origin": "source"
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "graph-tree",
           "ref": "capabilities/spec-authoring#graph-tree",
           "text": "The spec graph arranges every spec as a tree (system, capability, component), attaches a capability with no parent to the system, keeps v1 specs as untyped nodes, and `spec graph` prints each node with its kind, owned-file count and claim count",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-graph.test.ts",
@@ -7961,14 +8424,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "graph-file-ownership",
           "ref": "capabilities/spec-authoring#graph-file-ownership",
           "text": "The graph answers which specs own a given file (zero, one or several) and which files are unowned, based only on declared sources, and ignores dependency and build directories",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-graph.test.ts",
@@ -7978,14 +8441,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "graph-validation",
           "ref": "capabilities/spec-authoring#graph-validation",
           "text": "`spec graph` reports as errors a missing or multiple system spec, a missing id, an id that differs from the file name, a duplicate id, an unknown parent, a parent cycle, a wrong parent kind, a duplicate claim id and a missing Problem & Value section, and exits 2 on any error; it reports as warnings a spec whose sources match no files and a capability count above the configured maximum",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-graph.test.ts",
@@ -8013,14 +8476,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "reverse-per-source",
           "ref": "capabilities/spec-authoring#reverse-per-source",
           "text": "`reverse` requires either `--app <name>` or `--all` (exit 1 with a message otherwise), generates specs from the app's discovered source files, skips existing specs unless `--force`, supports `--file` for one source file, and ends with a created/updated/skipped/failed summary",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/reverse-generate.test.ts",
@@ -8054,14 +8517,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "reverse-safety",
           "ref": "capabilities/spec-authoring#reverse-safety",
           "text": "`reverse` keeps going when one spec or app fails, exits with the last non-zero code, caps each file sent to the model at 20,000 characters, never walks dependency or build directories, and warns about source files that look like they contain secrets while instructing the model not to reproduce them",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/reverse-generate.test.ts",
@@ -8089,14 +8552,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "import-documents",
           "ref": "capabilities/spec-authoring#import-documents",
           "text": "`import` converts a local markdown or text file, or an http(s) URL, into spec files: a multi-section document is decomposed into a set of focused specs unless `--single` or `--out` is given, existing specs are skipped unless `--force`, and the result summary and exit code reflect created, skipped and failed items",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/import-capability.test.ts",
@@ -8166,14 +8629,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "index-generation",
           "ref": "capabilities/spec-authoring#index-generation",
           "text": "`index` writes an architecture index at the root of the specs tree listing routes or endpoints grouped by area plus a spec directory map, finds the routing source through the app's entry points or detected framework, leaves an existing index alone unless `--force`, and writes a skeleton index instead of failing when the model call fails",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/spec-frontmatter.test.ts",
@@ -8183,14 +8646,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-draft-proposes-map",
           "ref": "capabilities/spec-authoring#spec-draft-proposes-map",
           "text": "`spec draft` inventories the code, summarises each file with the fast model (cached by content hash), clusters it into about 8 to 15 functional capabilities (honouring `granularity.target` and any `--guidance` the maintainers give, retrying once when the count misses it without losing the guidance), writes a reviewable capability map to `.specguard/spec-map.json` and `.md` outside `plans/`, and stops there unless `--yes` is given; `--from-map` continues from the edited map and writes one spec per capability plus the system spec",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/spec-consolidate.test.ts",
@@ -8254,14 +8717,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-index-refreshes-map",
           "ref": "capabilities/spec-authoring#spec-index-refreshes-map",
           "text": "`spec index` regenerates only the marked Capability Map region of the system spec from the spec graph and leaves the rest of the file untouched; `import <file> --capability <id>` adds only the requirements a document states that the capability does not already cover (a dry run unless `--yes`), appends them with unique claim anchors, and records a history entry for what it changed",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/spec-draft.test.ts",
@@ -8271,14 +8734,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-consolidate-migrates-state",
           "ref": "capabilities/spec-authoring#spec-consolidate-migrates-state",
           "text": "`spec consolidate` clusters existing per-file specs into capability specs, assigns every old spec to exactly one capability (otherwise it stops and lists the unassigned ones), merges their requirements with unique claim ids that never use numeric suffixes, carries over every old claim with an id that the model did not absorb (a bullet that never had an id has no reference to preserve and is superseded by the model's functional requirements), then rewrites claim tags in tests, rekeys the proof ledger and drift registry, archives the old specs under `_archive/v1`, and writes `.specguard/claim-migration.json` so results carrying old tags are still accepted on ingest",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/claim-migration.test.ts",
@@ -8396,14 +8859,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-tag-links-tests",
           "ref": "capabilities/spec-authoring#spec-tag-links-tests",
           "text": "`spec tag` links existing tests to requirements: for each capability the model is shown its requirements and the leaf tests in the files its `tests:` globs name, and says which requirements each test clearly exercises; only real requirement ids and test numbers survive, a `[claims: ...]` comment is written above the test in the file's comment style (a test already tagged is never touched, and two capabilities citing one test are merged into one comment), the run is a dry run unless `--yes`, and it reports which requirements no test covers",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/test-declarations.test.ts",
@@ -8509,14 +8972,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-tag-java-tests",
           "ref": "capabilities/spec-authoring#spec-tag-java-tests",
           "text": "`spec tag` finds Java and Kotlin tests (`.java`, `.kt`): a method after a JUnit 5, JUnit 4 or TestNG test annotation (`@Test` with or without arguments, `@ParameterizedTest`, `@RepeatedTest`, `@TestFactory`, `@TestTemplate`), with other annotations, blank lines and comments between the annotation and the method; its title is the `@DisplayName` value when there is one, otherwise the method name; imports, annotations in comments and other `@Test...` annotations such as `@TestInstance` are not tests; the claim comment goes above the first annotation of the test (not between annotation and method), and a tag in that position counts as already tagged",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/test-declarations.test.ts",
@@ -8538,14 +9001,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "spec-tag-index-mode",
           "ref": "capabilities/spec-authoring#spec-tag-index-mode",
           "text": "`spec tag --index <file>` never modifies test sources (so tests in another repo can be linked from a specs-only overlay): with `--yes` it writes or merges a plain-text index at a path relative to the config root, one line per matched test, `<test-file>:<line> :: <title>  [claims: <ref>, <ref>]`, where the test path is relative to the config root (it may start with `../`); a line for the same `file:line :: title` is replaced, other lines are kept, the entries are sorted, and a test the index already lists (by `file:line` or by file and title, so a moved test is still known) is not offered to the model again; listing the index in `tests:` or `extraTestSources` makes the check count its claims as tested",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/pipelines/spec-tag.test.ts",
@@ -8585,14 +9048,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "import-ssrf",
           "ref": "capabilities/spec-authoring#import-ssrf",
           "text": "`import <url>` reaches only public addresses: the host is resolved by SpecGuard, every loopback, private, link-local (including the cloud metadata address), carrier-grade, multicast, unique-local and IPv4-mapped or translated address is refused (also when only one of several answers is private), the connection goes to the address that was checked, each redirect is checked the same way, at most five redirects are followed, an https to http redirect, credentials in the URL and an answer over 5 MB are refused, and `--allow-private` is the only way to import from your own network",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/hardening.test.ts",
@@ -8632,14 +9095,14 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         },
         {
           "id": "import-project-files",
           "ref": "capabilities/spec-authoring#import-project-files",
           "text": "When `import` is called through the MCP server a file source must be inside the project (symlinks resolved first) and a URL may not reach a private address, so an agent cannot read `~/.ssh/id_rsa` or an internal URL into a spec",
-          "proof": "proven",
+          "proof": "stale",
           "tests": [
             {
               "file": "tests/core/hardening.test.ts",
@@ -8649,15 +9112,15 @@
             }
           ],
           "layers": {
-            "unit": "proven"
+            "unit": "stale"
           }
         }
       ],
       "counts": {
         "claims": 25,
-        "proven": 25,
+        "proven": 0,
         "failed": 0,
-        "stale": 0,
+        "stale": 25,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
@@ -9368,6 +9831,7 @@
         "src/core/drift-assessments.ts",
         "src/core/drift-registry.ts",
         "src/core/intent-gap.ts",
+        "src/core/proof-statement.ts",
         "src/core/status.ts",
         "src/core/trace.ts",
         "src/pipelines/align.ts",
@@ -9382,6 +9846,7 @@
         "tests/core/claim-hash.test.ts",
         "tests/core/claim-prepass.test.ts",
         "tests/core/drift-registry.test.ts",
+        "tests/core/proof-statement.test.ts",
         "tests/pipelines/align.test.ts",
         "tests/pipelines/check.test.ts",
         "tests/pipelines/drift-capability.test.ts",
@@ -9399,7 +9864,8 @@
         "2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co",
         "2026-10-22-0-3-phase-3-test-layers-and-ci",
         "2026-10-22-security-no-data-classification-requirem",
-        "2026-10-22-security-no-access-control-requirement-o"
+        "2026-10-22-security-no-access-control-requirement-o",
+        "2026-10-26-proof-statement-is-a-pure-composition-wi"
       ],
       "claims": [
         {
@@ -10014,17 +10480,425 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "statement-four-pillars",
+          "ref": "capabilities/traceability-and-drift#statement-four-pillars",
+          "text": "The proof statement judges each capability on four pillars, each `ok`, `fail` or `unknown`: Approved (a person approved each claim and example row at its current wording), Testable (the claims pass the testability lint and the capability has anchored claims), Aligned (coverage evidence shows the owned code is reached by the claims' tests, and for a changed claim that the change is specified) and Conforms (the proof ledger, required layers, example rows, test strength, mutation sensitivity and assurance level hold); every reason is listed with a code, a message and a command that fixes it, and a planned capability is evaluated on Approved and Testable only",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 219,
+              "title": "an unapproved claim fails Approved, and blocks only with requireApproval",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 241,
+              "title": "an approval at an older hash -> APPROVAL_STALE",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 248,
+              "title": "no approval entries in the repo -> a single APPROVALS_NOT_IN_USE instead of per-claim noise",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 256,
+              "title": "an as-built approval is ok and reported as APPROVED_AS_BUILT",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 264,
+              "title": "example rows need their own approval and proof",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 282,
+              "title": "a lint error fails Testable; warnings and waived findings are notes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 300,
+              "title": "capability-level findings and unanchored bullets count, and T-NO-ANCHOR points at spec tag",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 312,
+              "title": "a capability without anchored claims -> NO_CLAIMS",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 320,
+              "title": "a claim with no required layer gets a NO_LAYERS_DECLARED note",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 329,
+              "title": "a planned capability is level planned; aligned and conforms are PLANNED notes; approved and testable are evaluated",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 346,
+              "title": "no owned files -> NO_OWNED_FILES, whose gate is never",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 354,
+              "title": "no coverage -> NO_COVERAGE_EVIDENCE unknown, blocking only with requireAlignment",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 363,
+              "title": "suite-only coverage outside change mode -> SUITE_ONLY_COVERAGE unknown",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 372,
+              "title": "a suite diff below the minimum -> DIFF_COVERAGE_LOW fail",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 384,
+              "title": "capability tests-selection diff below the minimum -> UNSPECIFIED_CHANGE fail with the missed files",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 394,
+              "title": "claim tests that reach no owned code fail",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 401,
+              "title": "a changed file without fresh coverage, or a changed test selection -> COVERAGE_STALE unknown",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 410,
+              "title": "unreached owned code outside change mode is a note only",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 418,
+              "title": "an intent gap is a note that never blocks",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 429,
+              "title": "ledger failed/error -> fail; stale/unproven -> unknown; unexercised without tests -> NO_TAGGED_TESTS",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 446,
+              "title": "a missing required layer: untested -> LAYER_UNTESTED, tested but unproven -> LAYER_MISSING",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 459,
+              "title": "an agentic row at the unit layer -> AGENTIC_NOT_ACCEPTED, but fine at functional",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 467,
+              "title": "weak-only, conditional-only and all-skipped map to their codes; blocking only with requireStrength",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 482,
+              "title": "strength not computed -> STRENGTH_UNKNOWN; unsupported languages too",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 492,
+              "title": "a changed claim without mutation or red-green -> SENSITIVITY_MISSING",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 504,
+              "title": "a changed claim with a kill and a score at the minimum is ok; NOT_KILLED and SCORE_LOW fail; stale is unknown",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 523,
+              "title": "unchanged claims never need sensitivity, and without a base it is not evaluated",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 530,
+              "title": "assurance property needs a strong property test; bounded -> ASSURANCE_TOOLING_MISSING",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 542,
+              "title": "a manual-evidence claim conforms with a MANUAL_EVIDENCE note naming the verifier",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 555,
+              "title": "error-level weakening touching the capability -> WEAKENING fail; warn -> note",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-approval-own-pillar",
+          "ref": "capabilities/traceability-and-drift#statement-approval-own-pillar",
+          "text": "The statement keeps approval in its own pillar and takes the raw proof-ledger verdict with no drift-assessment opinion: an unapproved claim with a passing proof is still proven, and approval never turns a proof stale or failed",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 232,
+              "title": "approval never changes the ledger verdict: an unapproved but proven claim is still proven",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 429,
+              "title": "ledger failed/error -> fail; stale/unproven -> unknown; unexercised without tests -> NO_TAGGED_TESTS",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-certified-rule",
+          "ref": "capabilities/traceability-and-drift#statement-certified-rule",
+          "text": "A capability is certified at a commit only when all four pillars are `ok`, every piece of evidence it used was earned in CI, the commit is known and none of the capability's input files has uncommitted changes; the same pillars with local or server evidence or a dirty input are provisional, anything else is not certified, a planned capability is planned, and the system is certified only when every non-planned capability is certified and no source file is unowned",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 146,
+              "title": "all pillars ok with ci evidence and clean inputs -> certified at the head sha",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 157,
+              "title": "local evidence -> provisional with a LOCAL_EVIDENCE note",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 166,
+              "title": "server evidence and local coverage also make the level provisional",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 174,
+              "title": "a dirty input file -> provisional with DIRTY_TREE",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 183,
+              "title": "an unknown commit can only be provisional",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 190,
+              "title": "requireCi turns local evidence into CI_EVIDENCE_REQUIRED (unknown, blocking)",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 201,
+              "title": "the system is certified only when every non-planned capability is certified and nothing is unowned",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-policy-only-blocks",
+          "ref": "capabilities/traceability-and-drift#statement-policy-only-blocks",
+          "text": "Pillar status never depends on policy: the `proof.require*` gate flags (approval, testable, strength, sensitivity, conforms, alignment, ci) and `proof.strict` decide only which reasons are marked blocking, with every flag off by default and `strict` turning all on with `enforceLayers` at `fail`; a reason whose gate is `never` (a capability that owns no files, an intent gap) never blocks",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 104,
+              "title": "resolves defaults with every gate off and strict with every gate on",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 134,
+              "title": "config accepts every proof gate flag and resolves them into the policy",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 219,
+              "title": "an unapproved claim fails Approved, and blocks only with requireApproval",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 467,
+              "title": "weak-only, conditional-only and all-skipped map to their codes; blocking only with requireStrength",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 591,
+              "title": "default policy: nothing blocks and exitCode is 0 whatever the statuses",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 608,
+              "title": "statuses do not depend on policy: the same input has the same pillars under every policy",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-degradation",
+          "ref": "capabilities/traceability-and-drift#statement-degradation",
+          "text": "A repository that uses none of the new features keeps its `check` lines and exit codes: its statement reads not certified with the exact reasons (no approvals recorded, no coverage evidence, strength not analysed), no reason blocks, and the statement exit code is 0",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 591,
+              "title": "default policy: nothing blocks and exitCode is 0 whatever the statuses",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 634,
+              "title": "a repo using none of the new features is not certified, with exact reasons, and nothing blocks",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-exit-code-not-certified",
+          "ref": "capabilities/traceability-and-drift#statement-exit-code-not-certified",
+          "text": "The statement's exit code is 13 (not certified) only when at least one reason is blocking under a gate flag that is on, and 0 otherwise; the existing codes 2, 3 and 4 keep their precedence over it",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 617,
+              "title": "strict policy turns every gate on; any blocking reason -> exit code 13",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-blocking-precedence",
+          "ref": "capabilities/traceability-and-drift#statement-blocking-precedence",
+          "text": "Blocking reasons are ordered by pillar (Approved, Testable, Aligned, Conforms), failures before unknowns, capability-level reasons before claim-level ones, then spec order, and the capability headline names the count and the first two",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 572,
+              "title": "orders blocking reasons approved > testable > aligned > conforms, fail before unknown, then spec order",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-json-and-explain",
+          "ref": "capabilities/traceability-and-drift#statement-json-and-explain",
+          "text": "The statement serialises to a stable JSON shape (version, policy, level, counts, exit code and per capability the pillars with their reasons, blocking reasons, claims, metrics and evidence), renders one `STATEMENT:` line per capability and a system line, and `--explain` text lists the pillars, each blocking reason with its fix, the advisory reasons and the stated limits of the evidence",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 670,
+              "title": "the JSON shape of the statement is stable",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 701,
+              "title": "renders the STATEMENT lines for check",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 712,
+              "title": "the headline of a capability with nothing blocking names the four pillars",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 720,
+              "title": "explain lines include the pillars, codes, fixes, advisory reasons and limits",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 744,
+              "title": "explain groups repeated advisory reasons of one code",
+              "origin": "source"
+            }
+          ]
+        },
+        {
+          "id": "statement-is-pure",
+          "ref": "capabilities/traceability-and-drift#statement-is-pure",
+          "text": "Composing the statement is pure and deterministic: the same input gives a deep-equal output, the input is not changed, and the module reads no file, runs no process and calls no model",
+          "proof": "unproven",
+          "tests": [
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 752,
+              "title": "same input -> deep-equal output, and the input is not mutated",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/proof-statement.test.ts",
+              "line": 764,
+              "title": "the module imports no node:fs and no node:child_process (purity guard)",
+              "origin": "source"
+            }
+          ]
         }
       ],
       "counts": {
-        "claims": 23,
+        "claims": 32,
         "proven": 20,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
-        "unproven": 3,
-        "withTests": 20,
+        "unproven": 12,
+        "withTests": 29,
         "incomplete": 0
       }
     },
@@ -10252,7 +11126,7 @@
           "tests": [
             {
               "file": "tests/core/claims.test.ts",
-              "line": 74,
+              "line": 75,
               "title": "accepts a repo-qualified ref and a bare ref, and rejects a string with no hash",
               "origin": "source"
             }
@@ -10917,21 +11791,27 @@
       }
     }
   ],
-  "unowned": [],
+  "unowned": [
+    "src/core/diff-lines.ts",
+    "src/core/examples.ts",
+    "src/core/source-scan.ts",
+    "src/core/test-assertions.ts",
+    "src/core/testability.ts"
+  ],
   "issues": [],
   "totals": {
-    "claims": 302,
-    "proven": 269,
+    "claims": 323,
+    "proven": 154,
     "failed": 0,
-    "stale": 0,
+    "stale": 115,
     "unexercised": 0,
     "error": 0,
-    "unproven": 33,
-    "withTests": 271,
+    "unproven": 54,
+    "withTests": 292,
     "incomplete": 0,
-    "capabilities": 12,
-    "ownedFiles": 343,
-    "sourceFiles": 265
+    "capabilities": 13,
+    "ownedFiles": 352,
+    "sourceFiles": 277
   },
   "gaps": {
     "intent": [
@@ -10941,13 +11821,23 @@
         "intentDate": "2026-10-22"
       },
       {
+        "id": "integration-surfaces",
+        "codeDate": "2026-10-26",
+        "intentDate": "2026-10-25"
+      },
+      {
+        "id": "platform-foundation",
+        "codeDate": "2026-10-26",
+        "intentDate": "2026-10-25"
+      },
+      {
         "id": "requirement-history",
-        "codeDate": "2026-10-25",
+        "codeDate": "2026-10-26",
         "intentDate": "2026-10-22"
       },
       {
         "id": "spec-authoring",
-        "codeDate": "2026-10-25",
+        "codeDate": "2026-10-26",
         "intentDate": "2026-10-25"
       },
       {
@@ -10956,16 +11846,16 @@
         "intentDate": "2026-10-22"
       },
       {
-        "id": "traceability-and-drift",
-        "codeDate": "2026-10-25",
-        "intentDate": "2026-10-25"
-      },
-      {
         "id": "workspaces",
         "codeDate": "2026-10-25",
         "intentDate": "2026-10-24"
       }
     ],
-    "docsStale": []
+    "docsStale": [
+      "integration-surfaces",
+      "platform-foundation",
+      "requirement-history",
+      "spec-authoring"
+    ]
   }
 }
