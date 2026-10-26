@@ -31,6 +31,9 @@ sources:
   - "src/pipelines/plugin-manage.ts"
   - "src/core/ci-workflow.ts"
   - "src/core/safe-path.ts"
+  - "src/ci/context.ts"
+  - "src/ci/github-api.ts"
+  - "src/ci/pipeline-changes.ts"
 tests:
   - "tests/action/run-gates.test.ts"
   - "tests/mcp/*.test.ts"
@@ -53,6 +56,9 @@ tests:
   - "tests/plugins/*.test.ts"
   - "tests/core/neutral.test.ts"
   - "extension/src/**/*.test.ts"
+  - "tests/ci/context.test.ts"
+  - "tests/ci/github-api.test.ts"
+  - "tests/ci/pipeline-changes.test.ts"
 docs:
   - "README.md"
   - "docs/ci.md"
@@ -79,6 +85,7 @@ history:
   - 2026-10-22-extension-runs-the-cli-under-the-host-ex
   - 2026-10-25-specguard-proves-intent-not-metrics-thre
   - 2026-10-25-0-4-the-host-coding-agent-does-the-model
+  - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -138,6 +145,12 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] An npm plugin is named only by a valid npm package name: a path, a URL, an uppercase or spaced name is refused before anything is imported, a package that is not installed or that exports another id is refused, and a bare string never names a package <!-- claim: plugin-package-names -->
 - [ ] The MCP server limits what an agent can do in one process: at most 300 tool calls a minute (`SPECGUARD_MCP_RATE_PER_MIN`) and 20 history entries a minute (`SPECGUARD_MCP_HISTORY_PER_MIN`), a call over the limit gets an error result naming the setting, not a thrown error, and is logged <!-- claim: mcp-limits -->
 - [ ] With `SPECGUARD_MCP_READONLY=1` the MCP server offers no tool that creates or changes files (spec writes, history entries, init, generation, test runs, verification, scans, ingest, contracts) and no plugin tool, leaving the tools that read <!-- claim: mcp-readonly -->
+- [ ] The CI context is read from the GitHub Actions environment and event payload without I/O of its own: for a pull request the commit under test is the head sha, the base is the PR base sha, and the author, number, head repository, draft flag and fork status come from the payload (a missing or deleted head repository is a fork); a push or merge group takes its base from `before` or `base_sha` and an all-zero `before` is no base; scheduled, dispatched and unknown events have none; missing, malformed or throwing input never throws <!-- claim: ci-context-pull-request -->
+- [ ] The CI context says what the run may write: notes, comments and check runs need a token and GitHub Actions, comments need a same-repository pull request, and a fork or a missing or blank token leaves all three false <!-- claim: ci-context-write-rights -->
+- [ ] The GitHub client is a thin layer over the global `fetch` that makes exactly the calls the gate needs (list pull request reviews and files, list check runs by name on a commit, create a check run), sends the token only as a bearer header to the configured API root, follows `Link` pagination (or page numbers when there is no header) and has no dependency, retry or cache; `fetch` is injectable <!-- claim: github-client-calls -->
+- [ ] A failed GitHub call throws a typed error carrying status (0 for no response), method, path and a rate-limit flag; the token never appears in an error, not even when the server or network layer echoes it, a pagination link that leaves the API root is never followed, and a missing token or malformed repository is refused before any request <!-- claim: github-client-errors-and-token -->
+- [ ] Posting the pull request comment finds the comment holding a marker (on any page) and updates it, or posts a new one, and never throws: a refused write returns `posted: false` with a reason that holds no token <!-- claim: github-comment-upsert -->
+- [ ] Pull request files that run or guard the gates (workflows of any provider, the SpecGuard config, the code owners file, the Action) are listed from file names and statuses alone: adding or editing one is a warning, deleting one or renaming it away is an error, and each file appears once, sorted, with the error winning <!-- claim: pipeline-change-detection -->
 
 ## Scenarios
 ### Scenario 1: Bootstrap a project for humans and agents

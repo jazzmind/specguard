@@ -40,6 +40,8 @@ tests:
   - "tests/mcp/ingest-tools.test.ts"
   - "tests/fixtures/results/**"
   - "tests/pipelines/test-run.test.ts"
+  - "tests/adapters/test-runners-title.test.ts"
+  - "tests/pipelines/test-run-claims.test.ts"
 docs:
   - "README.md"
   - "docs/ci.md"
@@ -50,6 +52,7 @@ history:
   - 2026-10-22-header-role-fix-and-spec-level-security
   - 2026-10-22-security-evidence-path-traversal-not-con
   - 2026-10-26-example-rows-reach-the-proof-ledger-and
+  - 2026-10-26-title-scoped-test-selection-and-claim-sc
 ---
 
 # Conformance Testing
@@ -106,6 +109,13 @@ Conformance testing turns specs into tests, runs the project's own test suite th
 - [ ] A claim with an examples table has a proof per row, stored under `specKey#claim/row` with the row hash in `claimHash`: ingest resolves a row ref against the claim's table and fails a row that is not in it, the proof walk visits each row after its claim and judges it against the row hash so editing a row cell stales only that row's proof, and a spec with no tables is walked exactly as before <!-- claim: row-proofs -->
 - [ ] A result tagged `cap#claim/row` counts for the row and also, once, for the parent claim, and a parameterized test tagged `cap#claim` whose title names exactly one row id of that claim is also attributed to that row <!-- claim: row-aggregation -->
 - [ ] A parameterized test whose title names more than one row id of its claim is attributed to no row, and `results ingest` warns `EXAMPLE_TITLE_AMBIGUOUS` without failing <!-- claim: example-title-ambiguity-warning -->
+- [ ] `test run --claims <refs...>` runs exactly the tests tagged to the given claim refs (found through the claim-test index), selecting them by title where the runner can, and reports which claims have no tagged test instead of running the whole suite <!-- claim: claims-run-exact-tests -->
+- [ ] When the runner cannot select by title (or a tagged test has no title the runner can be given), `test run --claims` runs the files that hold the tests, says so, and flags `selection: files` in the run output and the run record; a report row that names none of the selected tests reads `missing`, never pass <!-- claim: claims-files-fallback -->
+- [ ] Each runner selects tests by exact title: vitest and jest with `-t`, Playwright with `--grep` (an escaped, end-anchored regex alternation), pytest with `-k`, go test with an anchored `-run`, cargo with name filters after `--`, and JUnit through Maven `-Dtest=Class#method` or Gradle `--tests` from the declaration's class and method <!-- claim: title-selection-per-runner -->
+- [ ] A title is passed to the runner as one literal argument: regex metacharacters, quotes, unicode and shell syntax are escaped or quoted and never interpolated, and a list too long for one command line, or an argument the shell cannot be given, yields unknown <!-- claim: title-selection-safe-quoting -->
+- [ ] A runner that cannot select by title, or a title it cannot express (a pytest, go or cargo name that is not an identifier, a Java test without a known class and method, an empty list), yields `undefined` from `titleFlags`: unknown, which callers treat as files or the whole suite, never as a pass <!-- claim: title-unsupported-unknown -->
+- [ ] `test run --coverage` appends each app's `test.coverage.flags` to the test command and records the configured report paths (and format) in the run output and run record, without ingesting them; an app with no `test.coverage` runs without coverage and says so <!-- claim: coverage-flags-recorded -->
+- [ ] `test run --record <id>` writes `.specguard/runs/<id>.json` with the run id, start and finish times, claims, selected tests with per-test verdicts, suites, head commit and `ownedSourceTreeHash`, a hash of the owned source files' contents that changes when an owned file is edited or added and not when an unowned file changes <!-- claim: run-record-owned-hash -->
 
 ## Scenarios
 ### Scenario 1: Spec to tagged tests

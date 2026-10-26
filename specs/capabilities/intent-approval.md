@@ -13,11 +13,13 @@ docs: []
 history:
   - 2026-10-26-intent-approvals-are-history-entries-bou
   - 2026-10-26-example-rows-reach-the-proof-ledger-and
+  - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
 tests:
   - "tests/core/approvals.test.ts"
   - "tests/pipelines/approve.test.ts"
   - "tests/mcp/no-approve-tool.test.ts"
   - "tests/cli/approve.test.ts"
+  - "tests/ci/pr-approvals.test.ts"
 ---
 
 # Intent Approval
@@ -48,6 +50,17 @@ Intent approval adds the missing human step. A person approves a requirement at 
 - [ ] An approval may name an example row (`specKey#claimId/rowId@<first 16 hex of the row hash>`): a claim and each of its rows are approved separately, so approving a claim never approves its rows and the other way round, `spec approve cap#claim` approves the claim and all its current rows in one entry, `cap#claim/row` approves only that row, and a claim without an examples table has no row entries <!-- claim: approval-rows -->
 - [ ] The approval index offers `latest(ref)`, the newest approval of a ref at any hash, so a claim approved earlier and changed since can be told apart from one never approved <!-- claim: approval-latest -->
 - [ ] `history add` never writes an approval: it refuses `--kind approval` and any approves list with a message pointing to `spec approve`, so the only way to record an approval is the person-run command and its guards <!-- claim: no-approval-via-history-add -->
+- [ ] In CI an approving review counts only when it is the latest decisive review of a human other than the pull request's author, its state is APPROVED, its author association is owner, member or collaborator, and it is not a bot (by type or a `[bot]` login suffix); logins compare case-insensitively <!-- claim: ci-review-qualifies -->
+- [ ] A reviewer's latest decisive review wins: a later change request cancels an earlier approval and a later approval restores a change request, while a later plain comment or pending review never withdraws an approval; the result does not depend on input order <!-- claim: ci-review-latest-per-user -->
+- [ ] A review covers a claim, or example row, only when its hash at the reviewed commit equals its hash at head, so a review on an older commit still covers a claim that did not change since and stops covering one edited after it; a claim absent at the reviewed commit is not covered <!-- claim: ci-review-covers-by-hash -->
+- [ ] A recorded approval entry already on the base branch is inherited: it counts in CI, is labelled `inherited`, and needs no review <!-- claim: ci-inherited-approvals -->
+- [ ] A recorded approval entry added in the pull request (method command, plan or as-built) is countersigned, and counts, when a qualifying review covers its claim; the packet label names the reviewer and the proof note records a countersign row <!-- claim: ci-countersigned-approvals -->
+- [ ] An approval added in the pull request needs a covering review only where `approvals.ci.requireReview` says so (`enforce`: capabilities at enforce; `always`; `never`): below that it counts labelled `recorded`, and where a review is required and missing it does not count and is labelled `missing` <!-- claim: ci-review-required-by-policy -->
+- [ ] With `approvals.ci.allowSelf` an approval added in the pull request without a review counts and is labelled `self-approved` (also in the note); a covering review still labels it countersigned, and self-approval is never applied when `allowSelf` is off <!-- claim: ci-self-approved-opt-in -->
+- [ ] A qualifying review that covers a changed claim with no approval entry is itself a verified `pr` approval, written to the proof note with reviewer, review id and reviewed commit; an approval already carried in the note for the same wording is reused rather than written again, and one for an earlier wording does not count <!-- claim: ci-review-is-approval -->
+- [ ] A committed `pr` approval entry is verified only when a qualifying review whose login equals the entry's author covers the claim; otherwise it is treated like any recorded entry and needs a countersign where a review is required <!-- claim: ci-pr-entry-needs-same-reviewer -->
+- [ ] Removing a claim is a change of intent: at a capability that requires review a removal needs a review that saw the claim gone, and an uncovered removal is reported as needing review (not when review is not required or `allowSelf` is on); a covered removal is shown as a verified approval <!-- claim: ci-removal-needs-review -->
+- [ ] The approvals the statement may count in CI are exactly the ones that pass these rules, judged for every recorded entry (including entries for claims that did not change) and dropping entries for an earlier wording of a changed claim; when several entries approve the same wording the strongest label is shown <!-- claim: ci-effective-approvals -->
 
 ## Scenarios
 ### Scenario 1: Approve a capability

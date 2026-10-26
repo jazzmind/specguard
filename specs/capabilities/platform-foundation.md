@@ -40,6 +40,7 @@ tests:
   - "tests/regression/no-private-names.test.ts"
   - "tests/core/language-profiles.test.ts"
   - "tests/core/version.test.ts"
+  - "tests/core/migrate-plan.test.ts"
 docs:
   - "README.md"
   - "docs/user/config.md"
@@ -58,6 +59,7 @@ history:
   - 2026-10-22-security-replay-recordings-containing-se
   - 2026-10-25-specguard-proves-intent-not-metrics-thre
   - 2026-10-25-0-4-the-host-coding-agent-does-the-model
+  - 2026-10-26-migration-planning-is-a-pure-idempotent
 ---
 
 # Platform Foundation
@@ -104,6 +106,13 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Every model call, from every pipeline, has credentials masked in its prompt and system message before it leaves the machine (JWTs, bearer and basic tokens, provider API keys, private keys, `password=` and `secret=` values; a prompt with nothing sensitive is unchanged byte for byte, so replay recordings still match); `llm.redactPatterns` adds the project's own patterns, a pattern that is not a regular expression is skipped, and `llm.redactPrompts: false` is the only way to turn it off <!-- claim: prompt-redaction -->
 - [ ] A redaction hook fails closed: it must be a synchronous function returning a string of at most 2,000,000 characters, and a throw, a promise or any other result raises an error instead of letting text through that the project's own rules never saw <!-- claim: redaction-hook-fails-closed -->
 - [ ] A redaction hook module is a file inside the project: a URL, an absolute path elsewhere, `..` and a symlink that leaves the project are refused before it is imported <!-- claim: hook-path-inside-project -->
+- [ ] The migration planner detects the repository's format from facts alone: per-file specs left in place mean v0.1 (even beside drafted capability specs), capability specs with tracked proofs or trace, a missing or outdated ignore block, or local rows claiming a CI origin mean v0.2-0.3, capability specs with everything current mean v0.6, and no specs of either kind mean none. <!-- claim: migrate-detect-format -->
+- [ ] The migration plan always lists every step in one fixed order with a state (todo, done, skip, person or agent), a description, and the exact paths and commands involved; each step's state follows from the facts, so a half-migrated repo shows only what is left, and steps the repository cannot take (no git) are skipped with a "Blocked:" reason. <!-- claim: migrate-ordered-plan -->
+- [ ] Steps that need a human are labelled person and carry the exact command to run, and the planner never lists the as-built approval (or any approve command) as a step the tool runs; it is skipped only when every claim is already approved. <!-- claim: migrate-person-steps -->
+- [ ] The migration dry-run text names the detected format, every step with its state, changed paths and commands, what is left for the person, and the flags to apply with, and states that it changed nothing. <!-- claim: migrate-dry-run -->
+- [ ] Every migration dry run lists what is never touched (capability spec text and claims, test files apart from claim tags, source, specs/history, existing approvals, other workflows, git history and remotes), and no planned change edits or deletes those. <!-- claim: migrate-never-touches -->
+- [ ] The default route for a v0.1 repository, whatever its spec count, is to archive the per-file specs and redraft capability specs as built; consolidating is listed as the alternative and, when asked for, replaces the archive, draft, tag and ledger steps with `spec consolidate`. <!-- claim: migrate-v1-route -->
+- [ ] A repository that is already current (and one with no specs) plans every step as done or skip, so the migration is a no-op success. <!-- claim: migrate-noop-current -->
 
 ## Scenarios
 ### Scenario 1: Run inside a sub-repo with no config

@@ -3,7 +3,7 @@ id: spec-first-changes
 kind: capability
 title: Spec-First Changes
 parent: system
-value: A change starts as a requirement a person approved, is proven by a test that failed before the code existed and passed after, and reaches review with a packet that shows what changed and what was proven, so an agent cannot ship code nobody asked for.
+value: A change goes spec, tests, red, code, green, validated in that order, with enforcement set per capability, so a requirement is approved before it is built, its tests are seen failing before the code exists, and review sees a packet of what changed and what was proven instead of reading code.
 status: active
 sources:
   - "src/core/change-record.ts"
@@ -14,12 +14,31 @@ sources:
   - "src/cli/commands/change.ts"
   - "src/cli/commands/enforce.ts"
   - "src/cli/commands/hook.ts"
+  - "src/core/change-base.ts"
+  - "src/core/change-stage.ts"
+  - "src/core/enforce.ts"
+  - "src/pipelines/enforce.ts"
 docs: []
 history:
   - 2026-10-26-phase-3-contracts-and-seams
+  - 2026-10-26-change-model-is-four-pure-modules-stage
+  - 2026-10-26-proof-packet-and-unrequested-code-check
+  - 2026-10-26-per-capability-enforcement-ratchet-and-i
+  - 2026-10-26-edit-guard-is-a-pure-decision-table-over
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"
+  - "tests/core/change-record.test.ts"
+  - "tests/core/change-claims.test.ts"
+  - "tests/core/change-base.test.ts"
+  - "tests/core/change-stage.test.ts"
+  - "tests/core/proof-packet.test.ts"
+  - "tests/core/unrequested.test.ts"
+  - "tests/core/enforce.test.ts"
+  - "tests/core/weakening-enforce.test.ts"
+  - "tests/pipelines/enforce.test.ts"
+  - "tests/hooks/decide.test.ts"
+  - "tests/hooks/stdin.test.ts"
 ---
 
 # Spec-First Changes
@@ -29,6 +48,56 @@ A coding agent can write the code, then the requirement that describes it, then 
 
 A spec-first change reverses the order and enforces it. The requirement is written and approved first, the tests that cite it must fail against the old code, and only then is code written. Each capability sets how strictly this binds it, from observing to enforcing, so a repository can tighten one capability at a time. The pull request carries a packet that lists the requirements that changed, the evidence for each, any test that was weakened and any code no requirement asked for.
 
+## Users & Journeys
+- A developer starts a change for a capability, edits the requirement, approves it, writes tests and records a red run before any owned code is edited.
+- A coding agent that tries to edit owned code before the requirement and a failing test exist is stopped by the edit guard and told the next step.
+- A tech lead raises one capability from observe to warn to enforce while the rest of the repository stays advisory.
+- A reviewer opens a pull request and reads the proof packet: requirements that changed in plain words, how far each approval can be trusted, and code no requirement asked for.
+- A maintainer refactors without changing a requirement and the change closes on a green run of the capability's claim tests and a CI pass.
+
 ## Requirements
 - [ ] A change record is one JSON file named by an id of date, slug and four hex characters, lists at least one capability and has the kind feature, refactor or spike, so the record contract rejects an id that could leave the changes directory, a record without a capability and an unknown kind <!-- claim: change-record-contract -->
 - [ ] A capability's enforcement level is observe, warn or enforce, weakest first, and a repository whose config sets none treats every capability as observe <!-- claim: enforce-levels -->
+- [ ] A change's changed claims are computed by diffing the capability's spec at its base against the current spec: a claim is added, modified (its wording, or the Problem & Value it is read under, changed) or removed (kept with its base text), a spec file added or deleted adds or removes all its claims, and an edit outside the claims (frontmatter, spacing, history links) changes nothing. <!-- claim: changed-claims -->
+- [ ] An example row is its own changed ref: an added, reworded or removed row is listed with the claim marked modified (rows-added, rows-changed, rows-removed), while a claim whose only change is its wording lists no row, because each row hash moves with the claim hash. <!-- claim: changed-example-rows -->
+- [ ] A change's stage (spec, tests, red, code, green, validated) is detected from facts (changed claims, approvals, tagged tests and their strength, hashes, run records, the CI verdict), never from the change record, and is the first stage whose rule fails; the status carries the blocks that explain it and one next command. <!-- claim: stages-detected-from-facts -->
+- [ ] Once code differs from base, a red whose tests or spec were edited afterwards is invalid: the stage falls back to tests with a block naming what was edited, and the fix is to record red again against the current files. <!-- claim: stage-locks -->
+- [ ] A red run counts only when it belongs to the change, matches the current spec and test hashes, ran against owned code equal to base, and every added or modified ref has a failing test; an error counts for an added ref (default), for every ref, or for none, per policy, and tests that cover no changed ref are ignored. <!-- claim: red-acceptance -->
+- [ ] A green run counts only when it belongs to the change, matches the current spec, test and code hashes, and every test tagged to a changed ref passed; any edit after it makes it stale. <!-- claim: green-acceptance -->
+- [ ] A refactor changes no requirement: a changed claim blocks it, tests and red do not apply, and it needs code, a green run in which every claim test of its capabilities passed, and a CI pass. <!-- claim: refactor-rules -->
+- [ ] A spike follows the feature rules for spec, tests and red but can never be validated; converting it to a feature keeps its trail and lets CI decide. <!-- claim: spike-rules -->
+- [ ] The base ref is the first of the explicit flag, the record's base, the configured base, origin/HEAD, origin/main, main and master that resolves; a ref that could be read as an option is refused, and an explicit flag that is unusable fails instead of falling through. <!-- claim: base-resolution -->
+- [ ] A change record is one file named by an id of date, slug and four random hex characters, so parallel changes never collide; it parses strictly (kind, capabilities, id), keeps fields a newer version added, and serializes to the same bytes every time. <!-- claim: change-ids-and-records -->
+- [ ] Parallel changes on one branch see the same changed claims and are judged by their own run records, and a closed change keeps its closed fields and has no next step. <!-- claim: parallel-and-abandoned -->
+- [ ] A change that links plans gets computed plan approvals (never written) for every changed, non-removed ref of its capabilities, taken from the newest linked plan, and removed claims, other capabilities and refs without a current hash get none. <!-- claim: plan-approvals -->
+- [ ] The PR proof packet is one markdown comment built only from text already in the specs, history and proof statement, with a headline and, when they have something to show, these sections in order: "What the requirements now say" (one row per added, modified or removed requirement and example row, with who approved it), "Evidence for changed requirements", "Capabilities" (always shown, with the four pillars and the effect on the merge), "Changes", "Test weakening", "Code no requirement asked for", "Pipeline changes" and a collapsed list of fixes <!-- claim: packet-sections -->
+- [ ] The packet verdict is `blocked` when any touched capability blocks, else `advisory` when one warns or a pipeline file changed at error severity, else `no-change` when there is no requirement change, no owned-code change, no weakening and no pipeline change, else `ready`; a capability passes only when the changed claims' four pillars are ok, no error-level weakening names it, no unrequested line is an error, no changed file lacks a change and every change covering it passed (a spike counts as not passed), is `unknown` when the only problems are unknown, and an `enforce` capability that is `unknown` or `fail` blocks, a `warn` one that is not `pass` warns, an `observe` one never affects the merge and is shown collapsed <!-- claim: packet-verdict -->
+- [ ] Each changed requirement is told in plain language from its own text, never from a model: an added claim reads "now reads: ...", a modified one "now reads: ... (was: ...)", a removed one "removed (was: ...)", and an example row is described the same way as a row, so a reviewer sees the intent diff instead of the code <!-- claim: packet-intent-plain -->
+- [ ] An approval is labelled by how far it can be trusted: a PR review by a named reviewer is `verified`, an entry added in the PR with a qualifying review is `countersigned`, one already on the base branch is `inherited`, one with no second reviewer is `self-approved`, one still needing a review shows as pending, and a requirement with none shows as not approved; only a verified reviewer is named with a mention <!-- claim: packet-approval-trust -->
+- [ ] Code reported as unrequested is found by line: a changed executable line of an owned file that no test of the change's claims reaches is `unrequested`, one reached only by other claims' tests of the same capability is `incidental`, and one with no fresh line data, suite-wide or summarized coverage, or file-level test selection is `unknown` and makes the evidence not claimable, while an owned code file changed with no open change covering any of its capabilities is listed as changed without a change <!-- claim: unrequested-lines -->
+- [ ] The severity of unrequested code comes from configuration: with `unrequested.severity` set to `error` an unrequested line fails its capability (blocking at `enforce`), with `warn` it only makes the packet advisory, and incidental and unknown lines never block <!-- claim: unrequested-severity -->
+- [ ] A packet that would exceed the comment size is cut deterministically to fit under the limit (60,000 characters by default, never above GitHub's 65,536): tables lose rows from the end in fixed steps and say how many more are in packet.json, while the headline, the Capabilities table and the fixes are kept longest, and a packet too large for even that falls back to the verdict and headline <!-- claim: packet-truncation -->
+- [ ] The first line of every rendered packet is the marker `<!-- specguard-proof-packet v1 -->`, which untrusted text cannot repeat, so CI finds its own comment and updates it in place <!-- claim: packet-marker -->
+- [ ] The packet digest is the sha256 of the packet JSON with keys in a stable order, so the same packet always has the same digest and any change to it changes the digest, and the markdown ends with that digest <!-- claim: packet-digest-stable -->
+- [ ] The packet never contains secrets or live markup from untrusted text: credentials in spec, test and finding text are masked in both the markdown and the JSON, and pipes, backslashes, backticks, angle brackets, brackets and mentions are escaped, text is collapsed to one line and capped at 200 characters per cell, and the PR author and absolute paths are never printed <!-- claim: packet-no-secrets -->
+- [ ] A capability's effective level is its `enforce:` frontmatter, else the config's `enforce.default`, else `observe`; a new capability takes `enforce.newCapabilities`, else the default level <!-- claim: enforce-default-observe -->
+- [ ] An `enforce:` value that is not `observe`, `warn` or `enforce` never makes the spec unreadable: it is kept as an unknown key, reported by `enforce show` as ignored, and the capability takes the default level <!-- claim: enforce-unknown-collected -->
+- [ ] `enforce:` is outside every claim hash, so raising or lowering it never stales an approval, and the only guard on a lowering is policy-weakening detection <!-- claim: enforce-not-hashed -->
+- [ ] Between two versions of a capability spec, a lowered `enforce:` level, or one removed so the capability falls below the config default, is an error-level `policy-enforce-lowered` finding naming the capability and its claims; raising, keeping, or newly setting a level is not <!-- claim: enforce-lowering-is-weakening -->
+- [ ] `specguard enforce raise <capability...> [--to <level>]` moves a capability up (default: the next level); moving to `warn` is always allowed, moving to `enforce` only while the capability's proof statement is certified, otherwise every named capability is refused with the reasons that block it (exit 13) and nothing is written <!-- claim: enforce-raise-while-certified -->
+- [ ] `specguard enforce lower <capability...> --to <level> --why <text>` needs a reason, accepts only a lower level, and records a `decision` history entry naming the person with the policy line `enforce lowered: <capability> <from>-><to>` and the reason; `raise` records `enforce raised: ...` the same way <!-- claim: enforce-lower-recorded -->
+- [ ] `enforce raise` and `enforce lower` refuse, writing nothing, when an agent without a terminal is detected, the same guard as `spec approve`; a person in a terminal is never refused <!-- claim: enforce-person-only -->
+- [ ] The level is written with a one-line frontmatter edit: an existing `enforce:` line is changed in place (a trailing comment is kept), a missing one is added after the last frontmatter line, and the body and every other line stay byte for byte the same apart from the history back-reference <!-- claim: enforce-minimal-edit -->
+- [ ] `specguard enforce show [capability...]` (alias `status`) prints every capability's level, whether it is set or defaulted, its certification, and whether it could be raised now <!-- claim: enforce-show -->
+- [ ] At observe the guard logs an edit to owned source with no covering change and allows it without a message, so a repository can watch the pattern before it binds <!-- claim: hook-observe-logs -->
+- [ ] At warn the guard allows an edit to owned source that has no change, or a change that is unapproved or has no valid red, and its message names the one command that is the next step <!-- claim: hook-warn-names-next-step -->
+- [ ] At enforce the guard denies an edit to owned source when no open change covers it, when the change has requirements nobody approved, or when the change has no valid failing-test evidence yet, and allows it once a feature change is approved with valid red <!-- claim: hook-enforce-denies-code -->
+- [ ] Specs and tests are always editable and other files are never guarded, at every level, and edits to config, workflows and CODEOWNERS are allowed with a note that CI reviews them <!-- claim: hook-spec-test-free -->
+- [ ] A test edit, or a spec edit, that would invalidate a change's valid red is allowed and answered with a message that the change is back at red and names the command to run again, and red validity is the live value the entry supplies, not the build-time one <!-- claim: hook-stage-lock -->
+- [ ] The guard denies an agent's attempt to approve requirements: a history file write whose new text is an approval, any edit to a closed change record or one that sets its kind or closed state, and a Bash command that runs spec approve, enforce lower or raise, change convert, abandon or done with force, or proof publish, in plain, npx, bin and node forms, inside bash -c, eval and command substitution <!-- claim: hook-agent-bash-guard -->
+- [ ] The guard denies shell writes into the history directory and git commands that write the proof notes ref, and allows reading them and every other git and specguard command <!-- claim: hook-approval-write-denied -->
+- [ ] When an edit touches several files each is decided and the strictest verdict wins, and a file owned by several capabilities takes the strictest level among them and needs a change that covers all of them <!-- claim: hook-strictest-wins -->
+- [ ] The guard fails open: a malformed or unknown hook payload, a missing index part, a path outside the repository or an error in the hook allows the call (with a notice that CI still checks when it was an error), and the guard never throws <!-- claim: hook-fails-open -->
+- [ ] Every message the guard shows the agent is one line of at most 300 characters and contains one command <!-- claim: hook-messages-short -->
+- [ ] Codex edits are read from apply_patch text, so every added, updated, deleted and moved path in the patch is guarded like a Claude edit, and a decision that would ask becomes a deny because Codex has no ask <!-- claim: hook-codex-patch-paths -->
+- [ ] An open refactor change allows code edits at every level in any order, and an open spike allows code-first edits, silently at observe and with the cannot-merge message at warn and enforce <!-- claim: hook-change-kinds -->
