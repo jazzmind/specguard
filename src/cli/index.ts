@@ -58,7 +58,7 @@ import { serveCommand } from './commands/serve.js';
 import { serverCommand } from './commands/server.js';
 import { testRunCommand } from './commands/test.js';
 import { historyAddCommand, historyCaptureCommand, historyInboxCommand, historyLogCommand } from './commands/history.js';
-import { specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand, startCommand } from './commands/spec.js';
+import { specApprovalsCommand, specApproveCommand, specConsolidateCommand, specDraftCommand, specGraphCommand, specIndexCommand, specTagCommand, startCommand } from './commands/spec.js';
 import { proofIngestCommand, proofStatusCommand } from './commands/proof.js';
 import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../core/llm-runtime.js';
 import { AgentWorkPendingError, pendingMessage, pendingThisRun } from '../core/agent-work.js';
@@ -685,6 +685,26 @@ specCmd
       await specConsolidateCommand(withGlobals(cmd, { ...opts, noArchive: opts.archive === false }));
     },
   );
+
+specCmd
+  .command('approve')
+  .description('approve requirements as stating what the system should do, recorded as a committed history entry (dry run unless --yes; CLI only, never an agent tool)')
+  .argument('[targets...]', 'capability ids, or claim refs such as cart#total-sums-prices')
+  .option('--all', 'every requirement of every capability')
+  .option('--as-built', 'accept what the code already does; refused for a capability that owns no source files')
+  .option('--by <name>', 'who is approving (default: git user.name)')
+  .option('--note <text>', 'why, recorded with the approval')
+  .option('--yes', 'write the approval')
+  .action(async (targets: string[], opts: { all?: boolean; asBuilt?: boolean; by?: string; note?: string; yes?: boolean }, cmd: Command) => {
+    await specApproveCommand(withGlobals(cmd, { ...opts, targets }));
+  });
+
+specCmd
+  .command('approvals')
+  .description('per capability: how many requirements are approved, and which are not')
+  .action(async (_opts: Record<string, never>, cmd: Command) => {
+    await specApprovalsCommand(withGlobals(cmd, {}));
+  });
 
 // --- claims ---------------------------------------------------------------
 const claimsCmd = program

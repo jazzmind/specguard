@@ -40,6 +40,10 @@ export interface HistoryAddOpts {
   author?: string;
   /** Date override for tests, `YYYY-MM-DD`. */
   date?: string;
+  /** Approval entries (`kind: approval`): the claims approved, as `ref@hash`. */
+  approves?: string[];
+  /** Approval entries: how the approval was given. */
+  method?: string;
 }
 
 const INBOX = '.specguard/history/inbox.jsonl';
@@ -138,7 +142,7 @@ export async function writeHistory(config: SpecGuardConfig, opts: HistoryAddOpts
 
   await writeFile(
     path.join(dir, `${id}.md`),
-    renderHistoryEntry({ id, date, kind, author: opts.author ?? authorOf(root), source: opts.source ?? 'manual', title, affects }, `# ${title}\n\n${body}`),
+    renderHistoryEntry({ id, date, kind, author: opts.author ?? authorOf(root), source: opts.source ?? 'manual', title, affects, approves: opts.approves, method: opts.method }, `# ${title}\n\n${body}`),
   );
   for (const a of affects) {
     const node = graph.nodes.get(a);

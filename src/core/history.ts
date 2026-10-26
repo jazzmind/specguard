@@ -15,7 +15,7 @@ import { parse as parseYaml } from 'yaml';
 import { specsRootDir } from './spec-key.js';
 import type { SpecGuardConfig } from './types.js';
 
-export type HistoryKind = 'prompt' | 'plan' | 'prompt+plan' | 'decision' | 'import';
+export type HistoryKind = 'prompt' | 'plan' | 'prompt+plan' | 'decision' | 'import' | 'approval';
 
 export interface HistoryMeta {
   id: string;
@@ -27,6 +27,10 @@ export interface HistoryMeta {
   title?: string;
   /** Capability ids the entry changed. */
   affects: string[];
+  /** Approval entries: the claims approved, each `specKey#claimId@<hash16>`. */
+  approves?: string[];
+  /** Approval entries: how the approval was given (`command`, `as-built`, ...). */
+  method?: string;
 }
 
 export interface HistoryEntry extends HistoryMeta {
@@ -73,6 +77,8 @@ export function renderHistoryEntry(meta: HistoryMeta, body: string): string {
     ...(meta.source ? [`source: ${meta.source}`] : []),
     ...(meta.title ? [`title: ${q(meta.title)}`] : []),
     ...(meta.affects.length > 0 ? ['affects:', ...meta.affects.map((a) => `  - ${a}`)] : ['affects: []']),
+    ...(meta.approves && meta.approves.length > 0 ? ['approves:', ...meta.approves.map((a) => `  - ${q(a)}`)] : []),
+    ...(meta.method ? [`method: ${meta.method}`] : []),
     '---',
     '',
   ];
@@ -98,6 +104,8 @@ export function parseHistoryEntry(content: string, file: string): HistoryEntry |
     source: typeof doc.source === 'string' ? doc.source : undefined,
     title: typeof doc.title === 'string' ? doc.title : undefined,
     affects: Array.isArray(doc.affects) ? doc.affects.filter((a): a is string => typeof a === 'string') : [],
+    approves: Array.isArray(doc.approves) ? doc.approves.filter((a): a is string => typeof a === 'string') : undefined,
+    method: typeof doc.method === 'string' ? doc.method : undefined,
     file,
     body: content.slice(m[0].length),
   };

@@ -334,7 +334,7 @@ const configSchema = z
     plugins: z.array(z.union([z.string(), z.object({ name: z.string(), package: z.string() })])).optional(),
     disabledPlugins: z.array(z.string()).optional(),
     proof: z
-      .object({ requiredLayers: z.array(z.enum(TEST_LAYERS)).optional(), enforceLayers: z.enum(['off', 'warn', 'fail']).optional() })
+      .object({ requiredLayers: z.array(z.enum(TEST_LAYERS)).optional(), enforceLayers: z.enum(['off', 'warn', 'fail']).optional(), requireApproval: z.boolean().optional() })
       .passthrough()
       .optional(),
     featureState: featureStateSchema.optional(),

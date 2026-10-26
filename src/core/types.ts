@@ -291,6 +291,8 @@ export interface ProofConfig {
   requiredLayers?: TestLayer[];
   /** `warn` (default) reports claims missing a required layer; `fail` makes `proof status` fail on them; `off` does not report. */
   enforceLayers?: 'off' | 'warn' | 'fail';
+  /** When true, a claim counts as proven only while a person has approved its current wording. Default: false. */
+  requireApproval?: boolean;
 }
 
 /** Runner placement: where each external tool executes. */

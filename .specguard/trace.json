@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-25T23:30:54.547Z",
+  "generated": "2026-10-26T00:15:16.369Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -2726,6 +2726,7 @@
         "tests/mcp/functional-tools.test.ts",
         "tests/mcp/ingest-tools.test.ts",
         "tests/mcp/limits.test.ts",
+        "tests/mcp/no-approve-tool.test.ts",
         "tests/mcp/plugin-tools.test.ts",
         "tests/mcp/server.test.ts",
         "tests/pipelines/feature-state-collect.test.ts",
@@ -4387,6 +4388,309 @@
       }
     },
     {
+      "id": "intent-approval",
+      "specKey": "capabilities/intent-approval",
+      "kind": "capability",
+      "title": "Intent Approval",
+      "status": "active",
+      "value": "A person, not a tool, signs off that each requirement states what the system should do, and the sign-off is a committed record that lapses the moment the requirement's wording changes.",
+      "parent": "system",
+      "unit": ".",
+      "ownedFiles": [
+        "src/core/approvals.ts",
+        "src/pipelines/approve.ts"
+      ],
+      "tests": [
+        "tests/cli/approve.test.ts",
+        "tests/core/approvals.test.ts",
+        "tests/mcp/no-approve-tool.test.ts",
+        "tests/pipelines/approve.test.ts"
+      ],
+      "docs": [],
+      "history": [
+        "2026-10-26-intent-approvals-are-history-entries-bou"
+      ],
+      "claims": [
+        {
+          "id": "approval-entry-record",
+          "ref": "capabilities/intent-approval#approval-entry-record",
+          "text": "An approval is recorded as one new history entry per approval event, with `kind: approval`, an `approves` list of `specKey#claimId@<first 16 hex of the claim hash>`, a `method` (command, as-built, pr or plan) and the approver as author, so approvals are committed files that branches never conflict on",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 14,
+              "title": "formats and parses ref@hash round trip",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 22,
+              "title": "rejects malformed refs and hashes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 29,
+              "title": "survives a render/parse round trip of a history entry",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 43,
+              "title": "leaves entries without approval fields as they were",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 52,
+              "title": "reads only approval entries and skips malformed refs and unknown methods",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 56,
+              "title": "--yes writes one approval entry, back-references it, and changes no claim hash",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approved-while-hash-matches",
+          "ref": "capabilities/intent-approval#approved-while-hash-matches",
+          "text": "A claim counts as approved only while an approval's recorded hash equals the hash of the claim as it reads now, so editing a claim's text or its Problem & Value makes it unapproved, and when several approvals match the newest wins",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 68,
+              "title": "matches only while the hash is the same",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 76,
+              "title": "editing a claim (new hash) makes it unapproved",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/approvals.test.ts",
+              "line": 82,
+              "title": "the newest matching approval wins, ignoring newer ones for other wordings",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 95,
+              "title": "approves only a reworded claim after an edit, leaving approved claims alone",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approval-backrefs-keep-hashes",
+          "ref": "capabilities/intent-approval#approval-backrefs-keep-hashes",
+          "text": "Recording an approval adds the entry id to the `history:` list of each affected capability and changes no claim hash, so no existing proof goes stale",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 56,
+              "title": "--yes writes one approval entry, back-references it, and changes no claim hash",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-dry-run",
+          "ref": "capabilities/intent-approval#approve-dry-run",
+          "text": "`spec approve` is a dry run unless `--yes` is given: it lists the claims it would approve and the number of capabilities, exits 0 and writes nothing",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/approve.test.ts",
+              "line": 17,
+              "title": "dry-runs by default, writes with --yes, and reports through `spec approvals --json`",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 46,
+              "title": "is a dry run without --yes: lists what it would approve and writes nothing",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-targets",
+          "ref": "capabilities/intent-approval#approve-targets",
+          "text": "`spec approve` takes capability ids, `capability#claim` refs or bare claim ids, and with `--all` every claim; an unknown or ambiguous target fails with exit 2 and writes nothing",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 29,
+              "title": "lists claims with ids of v2 capability specs, with owned source counts",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 37,
+              "title": "skips v1 specs",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 113,
+              "title": "takes targets by capability, by capability#claim, by specKey#claim and by bare claim id",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 127,
+              "title": "fails on an unknown target, or no scope at all, and writes nothing",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "as-built-needs-sources",
+          "ref": "capabilities/intent-approval#as-built-needs-sources",
+          "text": "`--as-built` refuses, with exit 2 and nothing written, any capability in scope that owns no source files, so a new or work-in-progress capability cannot skip review",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 137,
+              "title": "--as-built refuses a capability that owns no source files and writes nothing",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "agent-needs-terminal",
+          "ref": "capabilities/intent-approval#agent-needs-terminal",
+          "text": "`spec approve` run by a coding agent without an interactive terminal is refused with exit 1 and a message that approvals must be given by a person in their own terminal",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/approve.test.ts",
+              "line": 38,
+              "title": "refuses an agent session with no terminal",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 154,
+              "title": "refuses an agent without a terminal, and allows an agent that has one",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 163,
+              "title": "derives the default actor from the host agent environment",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approved-untouched",
+          "ref": "capabilities/intent-approval#approved-untouched",
+          "text": "Approving only adds approval for claims that are not yet approved at their current wording: an approved claim is left alone, and a second identical run writes nothing",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 82,
+              "title": "is idempotent: a second run writes nothing",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 95,
+              "title": "approves only a reworded claim after an edit, leaving approved claims alone",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-cli-only",
+          "ref": "capabilities/intent-approval#approve-cli-only",
+          "text": "Approval is available only through the CLI: the MCP server offers no tool that approves, so an agent cannot certify intent",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/mcp/no-approve-tool.test.ts",
+              "line": 16,
+              "title": "no tool name contains \"approve\", with or without the legacy tools",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approvals-report",
+          "ref": "capabilities/intent-approval#approvals-report",
+          "text": "`spec approvals` reports, per capability, how many claims are approved out of how many, and lists the unapproved claim refs; `--json` prints the same data as JSON",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/approve.test.ts",
+              "line": 17,
+              "title": "dry-runs by default, writes with --yes, and reports through `spec approvals --json`",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve.test.ts",
+              "line": 180,
+              "title": "reports approved/total per capability and the unapproved refs",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        }
+      ],
+      "counts": {
+        "claims": 10,
+        "proven": 10,
+        "failed": 0,
+        "stale": 0,
+        "unexercised": 0,
+        "error": 0,
+        "unproven": 0,
+        "withTests": 10,
+        "incomplete": 0
+      }
+    },
+    {
       "id": "platform-foundation",
       "specKey": "capabilities/platform-foundation",
       "kind": "capability",
@@ -5614,6 +5918,7 @@
         "specs/history/2026-10-24-key-set-status-and-a-per-user-env-file.md",
         "specs/history/2026-10-25-0-4-the-host-coding-agent-does-the-model.md",
         "specs/history/2026-10-25-specguard-proves-intent-not-metrics-thre.md",
+        "specs/history/2026-10-26-intent-approvals-are-history-entries-bou.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -10615,18 +10920,18 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 292,
-    "proven": 259,
+    "claims": 302,
+    "proven": 269,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 261,
+    "withTests": 271,
     "incomplete": 0,
-    "capabilities": 11,
-    "ownedFiles": 340,
-    "sourceFiles": 263
+    "capabilities": 12,
+    "ownedFiles": 343,
+    "sourceFiles": 265
   },
   "gaps": {
     "intent": [
@@ -10649,14 +10954,18 @@
         "id": "team-server",
         "codeDate": "2026-10-25",
         "intentDate": "2026-10-22"
+      },
+      {
+        "id": "traceability-and-drift",
+        "codeDate": "2026-10-25",
+        "intentDate": "2026-10-25"
+      },
+      {
+        "id": "workspaces",
+        "codeDate": "2026-10-25",
+        "intentDate": "2026-10-24"
       }
     ],
-    "docsStale": [
-      "documentation-api",
-      "integration-surfaces",
-      "platform-foundation",
-      "requirement-history",
-      "spec-authoring"
-    ]
+    "docsStale": []
   }
 }
