@@ -34,8 +34,10 @@ import {
   getWorkspaceManifestRoot,
   loadContractsSummary,
   loadWorkspaceManifest,
+  warmProjectConfigs,
   type WorkspaceRepo,
 } from './workspace-state.js';
+import { cachedProjectConfig, configDirFor, describeProjectConfig } from './project-config.js';
 
 // ---------------------------------------------------------------------------
 // Tree item types
@@ -362,7 +364,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       if (!repo.hasConfig) {
         item.description = isActive ? 'no config  (active)' : 'no config';
         item.iconPath = new vscode.ThemeIcon('circle-slash');
-        item.tooltip = `${repo.absPath}\nNo .specguard/config.json — run specguard init`;
+        item.tooltip = `${repo.absPath}\nNo .specguard/config.json, and no overlay covers it — run specguard init (or specguard overlay add <dir>)`;
       } else if (repo.specCount === 0) {
         item.description = isActive ? 'no specs  (active)' : 'no specs';
         item.iconPath = new vscode.ThemeIcon(
@@ -379,7 +381,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         );
         const archived = repo.archivedSpecs > 0 ? `\n${repo.archivedSpecs} archived v1 specs are not counted` : '';
         const system = repo.hasSystemSpec ? '\nincludes a system spec' : '';
-        item.tooltip = `${repo.absPath}\n${repo.specLabel}${system}${archived}`;
+        const via = describeProjectConfig(cachedProjectConfig(repo.absPath));
+        item.tooltip = `${repo.absPath}\n${repo.specLabel}${system}${archived}${via ? `\n${via}` : ''}`;
       }
 
       if (!isActive) {
@@ -407,7 +410,9 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     specItem.iconPath = new vscode.ThemeIcon('book');
     specItem.description = totalSpecs > 0 ? specsOutputDescription(basis) : 'run reverse or import';
     specItem.tooltip = 'Click to open specs directory';
-    const specsDir = path.join(root, 'specs');
+    // Specs and the trace live next to the config: in the overlay repo when that is where the project's specs are kept.
+    const stateDir = configDirFor(root);
+    const specsDir = path.join(stateDir, 'specs');
     if (fs.existsSync(specsDir)) {
       specItem.command = {
         command: 'revealFileInOS',
@@ -455,8 +460,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     items.push(docItem);
 
     // Traceability matrix — click opens the JSON file
-    const traceJson = path.join(root, '.specguard', 'trace.json');
-    const matrixFile = path.join(root, '.specguard', 'traceability.json');
+    const traceJson = path.join(stateDir, '.specguard', 'trace.json');
+    const matrixFile = path.join(stateDir, '.specguard', 'traceability.json');
     const traceAge = fs.existsSync(traceJson) ? Date.now() - fs.statSync(traceJson).mtimeMs : undefined;
     const matrixAge = traceAge === undefined && fs.existsSync(matrixFile) ? Date.now() - fs.statSync(matrixFile).mtimeMs : undefined;
     const trace = traceRow({ traceAgeMs: traceAge, matrixAgeMs: matrixAge });
@@ -494,7 +499,9 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
   private async loadCoverage(): Promise<void> {
     const workspaceRoot = getActiveWorkspaceRoot();
-    if (!workspaceRoot || !fs.existsSync(path.join(workspaceRoot, '.specguard', 'config.json'))) {
+    // Configured means its own config, or specs kept in an overlay repo (the CLI says which).
+    await warmProjectConfigs();
+    if (!workspaceRoot || !cachedProjectConfig(workspaceRoot).configured) {
       this._apps = [];
       this._error = undefined;
       this._noConfig = true;
@@ -529,7 +536,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       const cli = await resolveCliPath(workspaceRoot);
       const raw = await runCli(cli, ['status'], workspaceRoot);
       this._apps = parseCoverageText(raw);
-      augmentCoverageFromDisk(this._apps, workspaceRoot);
+      augmentCoverageFromDisk(this._apps, workspaceRoot, configDirFor(workspaceRoot));
     } catch (err) {
       this._error = (err as Error).message ?? String(err);
       this._apps = [];

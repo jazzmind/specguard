@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { loadConfig } from '../core/config.js';
+import { configDirOf } from '../core/overlay.js';
 import { ConfigNotFoundError, SpecGuardError } from '../core/errors.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { scanSourceForClaimTags } from '../core/claim-tags.js';
@@ -177,7 +178,7 @@ async function loadConfigQuietly(cwd: string): Promise<{ config?: SpecGuardConfi
   } catch (err) {
     if (err instanceof ConfigNotFoundError) return { root: cwd, hasConfig: false };
     // A config that does not validate is still a config: migrate adds keys to its text and never reads past them.
-    if (err instanceof SpecGuardError) return { root: cwd, hasConfig: fs.existsSync(path.join(cwd, CONFIG_REL)) };
+    if (err instanceof SpecGuardError) return { root: cwd, hasConfig: fs.existsSync(path.join(cwd, CONFIG_REL)) || configDirOf(cwd) !== null };
     throw err;
   }
 }

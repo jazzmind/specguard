@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { inventorySpecs, specCountLabel, type SpecInventory } from './spec-inventory.js';
+import { cachedProjectConfig, configDirFor, configFileFor, detectProjectConfig } from './project-config.js';
 
 const STATE_KEY = 'specguard.activeWorkspaceRoot';
 
@@ -57,6 +58,8 @@ export async function pickWorkspaceRoot(): Promise<string | undefined> {
     fsPath: string;
   }
 
+  // A folder whose specs live in an overlay repo is configured too: ask the CLI before labelling.
+  await warmProjectConfigs();
   const items: FolderItem[] = folders.map((f) => ({
     label: f.name,
     description: f.uri.fsPath,
@@ -74,7 +77,17 @@ export async function pickWorkspaceRoot(): Promise<string | undefined> {
 }
 
 function hasSpecGuardConfig(root: string): boolean {
-  return fs.existsSync(path.join(root, '.specguard', 'config.json'));
+  return cachedProjectConfig(root).configured;
+}
+
+/**
+ * Resolve every open folder and every repo of the workspace manifest, so the synchronous readers (`hasSpecGuardConfig`,
+ * `loadWorkspaceManifest`) see overlay-covered folders as configured. A folder with its own config costs no CLI call.
+ */
+export async function warmProjectConfigs(): Promise<void> {
+  const folders = new Set<string>((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
+  for (const repo of loadWorkspaceManifest()?.repos ?? []) folders.add(repo.absPath);
+  await Promise.all([...folders].map((f) => detectProjectConfig(f)));
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +239,9 @@ export interface WorkspaceManifestData {
 function inventoryForRepo(absPath: string): SpecInventory {
   const empty: SpecInventory = { capabilities: 0, hasSystem: false, livingFiles: 0, archivedFiles: 0 };
   const dirs: string[] = [];
-  const configPath = path.join(absPath, '.specguard', 'config.json');
+  // The config may live in an overlay repo; its specDirs are relative to the folder that holds that `.specguard/`.
+  const configPath = configFileFor(absPath);
+  const base = configDirFor(absPath);
   if (fs.existsSync(configPath)) {
     try {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
@@ -236,7 +251,7 @@ function inventoryForRepo(absPath: string): SpecInventory {
       const seen = new Set<string>();
       for (const app of apps) {
         if (!app.specDir) continue;
-        const resolved = path.normalize(path.resolve(absPath, app.specDir));
+        const resolved = path.normalize(path.resolve(base, app.specDir));
         if (!seen.has(resolved)) {
           seen.add(resolved);
           dirs.push(resolved);
@@ -259,7 +274,7 @@ function inventoryForRepo(absPath: string): SpecInventory {
 /**
  * Load workspace.json and augment each repo entry with disk-derived metadata:
  * - `absPath` resolved from manifestRoot + repo.path
- * - `hasConfig` — .specguard/config.json exists
+ * - `hasConfig` — .specguard/config.json exists, or an overlay repo holds the repo's specs (as last resolved)
  * - `specCount` — capabilities when the repo has them, otherwise living spec files. Archived v1 specs are excluded.
  * Returns null when no workspace.json is found.
  */
@@ -289,7 +304,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
     const repos: WorkspaceRepo[] = Object.entries(reposRaw).map(([key, entry]) => {
       const relPath = entry.path ?? key;
       const absPath = path.resolve(manifestRoot, relPath);
-      const hasConfig = fs.existsSync(path.join(absPath, '.specguard', 'config.json'));
+      const hasConfig = cachedProjectConfig(absPath).configured;
       const inventory = inventoryForRepo(absPath);
       const counted = specCountLabel(inventory);
       return {

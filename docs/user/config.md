@@ -39,6 +39,17 @@ my-project/          ← .specguard/config.json lives here (rootDir)
 └── ...
 ```
 
+### When the specs live in another repository (overlays)
+
+The search above is the first step of a longer resolution order, used by every command, the MCP server and the agent edit guard:
+
+1. The repository's own `.specguard/config.json`, found by walking up to the git boundary (a nested repo with no config does not inherit an outer one; use `extends`).
+2. `SPECGUARD_CONFIG`, a path to a `.specguard/config.json` (or the folder holding it), for every start directory.
+3. Overlay entries: the roots in `SPECGUARD_OVERLAY` first, then the registry kept by `specguard overlay add`. The entry whose `repo` is the deepest ancestor-or-equal of the directory wins; failing that, an entry covers the git repository that encloses its `repo` folder (a repo opened at its root resolves to the entry for the app folder inside it; the search never goes above the directory's own git root). Two different configs for the same repo, or for several apps of one git repo when started at its root, are an error that names them, never a guess.
+4. Otherwise `ConfigNotFoundError`, with a hint when an overlay is registered but none matched.
+
+An overlay config is loaded exactly as if you had run from its own folder: `rootDir` is the folder holding that `.specguard/`, so specs, the proof ledger and caches resolve there, and `apps[].repo` resolves to the real repository. The loaded config carries `resolvedVia` (`overlay`, `env-overlay` or `env-config`) so callers can say where it came from. A repo's own config always wins over an overlay. The `--config <path>` flag still names a config explicitly.
+
 ---
 
 ## Error Handling

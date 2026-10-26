@@ -35,6 +35,7 @@ import type { ExampleIssue, ExampleTable } from './examples.js';
 import type { LayerRequirements, TestLayer } from './test-layers.js';
 import type { SystemStatement } from './proof-statement.js';
 import type { CoverageFormat } from './coverage.js';
+import type { ConfigResolution } from './overlay.js';
 
 /** How strongly a claim is assured, weakest first. */
 export const ASSURANCE_LEVELS = ['tested', 'property', 'bounded', 'proved-model', 'proved-code'] as const;
@@ -932,6 +933,8 @@ export interface SpecGuardConfig {
   remediate?: RemediateConfig;
   /** Directory the config was loaded from (the dir containing `.specguard/`). */
   rootDir?: string;
+  /** How the config was found when not by the repository's own `.specguard/` (an overlay, or `SPECGUARD_CONFIG`). Absent otherwise. */
+  resolvedVia?: ConfigResolution;
 }
 
 // ---------------------------------------------------------------------------

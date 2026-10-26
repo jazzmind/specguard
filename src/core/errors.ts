@@ -22,13 +22,49 @@ export class SpecGuardError extends Error {
 
 /** Thrown when `.specguard/config.json` cannot be found. */
 export class ConfigNotFoundError extends SpecGuardError {
-  constructor(searchedFrom: string) {
+  /** An extra line for the person, when something other than a missing `init` explains it (an overlay that did not match). */
+  readonly hint?: string;
+
+  constructor(searchedFrom: string, hint?: string) {
     super(
-      `No config found (searched from ${searchedFrom}). Run \`specguard init\` to create one.`,
+      `No config found (searched from ${searchedFrom}). Run \`specguard init\` to create one.${hint ? `\n${hint}` : ''}`,
       ExitCode.InternalError,
     );
     this.name = 'ConfigNotFoundError';
+    if (hint) this.hint = hint;
     Object.setPrototypeOf(this, ConfigNotFoundError.prototype);
+  }
+}
+
+/** One overlay config that claims a directory. */
+export interface AmbiguousCandidate {
+  config: string;
+  overlayRoot: string;
+  app: string;
+  /** The application folder the config points at. */
+  repo?: string;
+}
+
+/**
+ * Thrown when two overlay configs claim the same directory: SpecGuard never guesses which one is meant. `enclosing` is
+ * set when they claim it as the git repository that encloses their own folders (a monorepo started at its root).
+ */
+export class ConfigAmbiguousError extends SpecGuardError {
+  /** The overlay configs that claim the directory. */
+  readonly candidates: AmbiguousCandidate[];
+
+  constructor(dir: string, candidates: AmbiguousCandidate[], opts: { enclosing?: boolean } = {}) {
+    const list = candidates.map((c) => `${c.config} (overlay ${c.overlayRoot}, app ${c.app})`).join(' and ');
+    const apps = [...new Set(candidates.flatMap((c) => (c.repo ? [c.repo] : [])))];
+    super(
+      opts.enclosing
+        ? `More than one overlay config covers the git repository ${dir}: ${list}. Start from inside one of the apps (${apps.join(', ')}) or pass --config <path> / SPECGUARD_CONFIG=<path>.`
+        : `More than one overlay config covers ${dir}: ${list}. Pick one with --config <path> or SPECGUARD_CONFIG=<path>.`,
+      ExitCode.InternalError,
+    );
+    this.name = 'ConfigAmbiguousError';
+    this.candidates = candidates;
+    Object.setPrototypeOf(this, ConfigAmbiguousError.prototype);
   }
 }
 

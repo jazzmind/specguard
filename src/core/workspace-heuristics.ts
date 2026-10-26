@@ -6,6 +6,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { configDirOf } from './overlay.js';
 
 /** Directory name -> repo key. Lowercase, runs of other characters become `-`. */
 export function workspaceRepoKey(dirName: string): string {
@@ -53,7 +54,7 @@ interface RepoConfigHint {
 function configHint(dir: string): RepoConfigHint {
   const hint: RepoConfigHint = { frameworks: [], languages: [], hasApiSources: false, docsOnly: false };
   try {
-    const cfg = JSON.parse(readText(path.join(dir, '.specguard', 'config.json'))) as {
+    const cfg = JSON.parse(readText(path.join(configDirOf(dir) ?? dir, '.specguard', 'config.json'))) as {
       apps?: Array<{ framework?: string; language?: string; sources?: Record<string, string[] | undefined> }>;
     };
     for (const app of cfg.apps ?? []) {

@@ -89,6 +89,11 @@ Each subcommand maps directly to a SpecGuard pipeline. The table below shows eve
 | `ci run` | The CI gate: proves the pull request or commit, posts the proof packet, writes the proof note; exits 13 when an enforce capability blocks | `--event`, `--dry-run`, `--full`, `--no-tests`, `--no-red`, `--no-push`, `--no-comment`, `--out` |
 | `ci packet [file]` | Renders a saved `packet.json` as the pull request markdown | _(none)_ |
 | `ci doctor` | Checks the environment, permissions and what `ci run` would do here, with no network | `--event` |
+| `overlay add <dir>` | Scans an overlay repository (one `.specguard/config.json` per app, each `apps[].repo` pointing at the real repo), shows what it covers and what it skipped, and registers it in the per-user registry. Writes nothing into the app repos; refuses a directory with no usable config | `--json` |
+| `overlay list` | The registered overlays and `SPECGUARD_OVERLAY` roots, with the repos each covers; stale entries (config deleted) are flagged | `--json` |
+| `overlay remove <dir>` | Forgets a registered overlay; its files are not touched | `--json` |
+| `overlay refresh [dir]` | Rescans one or all registered overlays and reports what was added or removed | `--json` |
+| `overlay resolve [dir]` | Which config, overlay and app a directory resolves to, or why none. Read-only; exit 0 when configured, 1 when not (including an ambiguous repo) | `--json` |
 | `migrate` | Brings a repository to the current layout. A dry run that lists every step; `--yes` applies those the tool may do itself (it never approves, commits or pushes) | `--yes`, `--consolidate`, `--allow-dirty`, `--json` |
 | `test run [files...]` | Runs the configured tests and ingests the results into the proof ledger; with `--claims` runs exactly the tests tagged to those requirements | `--claims <refs...>`, `--record <id>`, `--coverage`, `--app` |
 | `coverage ingest <files...>` | Normalizes lcov, JaCoCo, Cobertura or Go coverage reports into evidence | `--format`, `--capability`, `--selection`, `--run-id`, `--origin` |

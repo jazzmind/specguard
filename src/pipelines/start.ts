@@ -23,6 +23,7 @@ import { runInit } from './init.js';
 import { runSpecDraft } from './spec-draft.js';
 import { runSpecTag } from './spec-tag.js';
 import { runTestRun } from './test-run.js';
+import { describeResolution } from '../core/overlay.js';
 
 export interface StartOpts {
   cwd?: string;
@@ -48,7 +49,7 @@ export async function runStart(opts: StartOpts = {}): Promise<PipelineResult> {
   let config: SpecGuardConfig;
   try {
     config = await loadConfig(cwd);
-    log('  found .specguard/config.json');
+    log(config.resolvedVia ? `  found the config (${describeResolution(config.resolvedVia)})` : '  found .specguard/config.json');
   } catch (err) {
     if (!(err instanceof ConfigNotFoundError)) throw err;
     const init = await runInit({ cwd });

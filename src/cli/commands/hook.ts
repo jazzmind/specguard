@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import type { Command } from 'commander';
 
-import { decideForEvent, findProjectRoot, HOOK_LOG_FILE, main as hookMain } from '../../hooks/entry.js';
+import { decideForEvent, findProject, HOOK_LOG_FILE, main as hookMain, type HookProject } from '../../hooks/entry.js';
 import type { HookEvent, HookLogEntry } from '../../hooks/decide.js';
 import { loadHookIndex } from '../../hooks/index-build.js';
 import type { GlobalOpts } from './helpers.js';
@@ -20,11 +20,13 @@ const globalsOf = (cmd: Command): GlobalOpts => {
   return { config: g.config, json: g.json };
 };
 
-/** The project root for a command: `--config` (a file or directory) when given, else the current directory. */
-function rootFor(globals: GlobalOpts): string | null {
+/** The project for a command: `--config` (a file or directory) when given, else the current directory. In overlay mode `root` is the real repository and `stateRoot` the overlay app's folder. */
+function projectFor(globals: GlobalOpts): HookProject | null {
   const start = globals.config ? path.resolve(globals.config.endsWith('.json') ? path.dirname(path.dirname(globals.config)) : globals.config) : process.cwd();
-  return findProjectRoot(start);
+  return findProject(start);
 }
+
+const indexOpts = (p: HookProject): { repoRoot?: string } => (p.overlay?.repo ? { repoRoot: p.overlay.repo } : {});
 
 const out = (text: string): void => {
   process.stdout.write(`${text}\n`);
@@ -48,16 +50,17 @@ export function registerHookCommands(program: Command): void {
     .description('rebuild the ownership index the guard reads (.specguard/cache/hook-index.json)')
     .action(async (_opts: Record<string, never>, cmd: Command) => {
       const globals = globalsOf(cmd);
-      const root = rootFor(globals);
-      if (!root) {
-        process.stderr.write('No config found. Run `specguard init` to create one.\n');
+      const project = projectFor(globals);
+      if (!project) {
+        process.stderr.write('No config found. Run `specguard init` to create one (or `specguard overlay add <dir>` when the specs live in another repo).\n');
         process.exitCode = 1;
         return;
       }
       const started = Date.now();
-      const { index, cached } = await loadHookIndex(root, { force: true });
+      const { index, cached } = await loadHookIndex(project.stateRoot, { force: true, ...indexOpts(project) });
       const summary = {
-        root,
+        root: project.root,
+        ...(project.overlay ? { stateRoot: project.stateRoot } : {}),
         file: '.specguard/cache/hook-index.json',
         cached,
         ms: Date.now() - started,
@@ -82,13 +85,14 @@ export function registerHookCommands(program: Command): void {
     .option('--agent <host>', 'claude or codex', 'claude')
     .action(async (paths: string[], opts: { tool: string; bash?: string; agent: string }, cmd: Command) => {
       const globals = globalsOf(cmd);
-      const root = rootFor(globals);
-      if (!root) {
-        process.stderr.write('No config found. Run `specguard init` to create one.\n');
+      const project = projectFor(globals);
+      if (!project) {
+        process.stderr.write('No config found. Run `specguard init` to create one (or `specguard overlay add <dir>` when the specs live in another repo).\n');
         process.exitCode = 1;
         return;
       }
-      const { index, rebuilt } = await loadHookIndex(root);
+      const root = project.root;
+      const { index, rebuilt } = await loadHookIndex(project.stateRoot, indexOpts(project));
       const rel = paths.map((p) => path.relative(root, path.resolve(root, p)).split(path.sep).join('/'));
       const event: HookEvent = {
         event: 'PreToolUse',
@@ -97,7 +101,7 @@ export function registerHookCommands(program: Command): void {
         ...(opts.bash !== undefined ? { bash: opts.bash } : {}),
         agent: opts.agent === 'codex' ? 'codex' : 'claude',
       };
-      const { classes, decision } = decideForEvent(event, root, index);
+      const { classes, decision } = decideForEvent(event, root, index, project.stateRoot);
       if (globals.json) {
         out(JSON.stringify({ index: { rebuilt, fingerprint: index.fingerprint }, event, classes, decision }));
         return;
@@ -118,9 +122,9 @@ export function registerHookCommands(program: Command): void {
     .option('--limit <n>', 'how many lines', '20')
     .action(async (opts: { denied?: boolean; limit: string }, cmd: Command) => {
       const globals = globalsOf(cmd);
-      const root = rootFor(globals);
-      const file = root ? path.join(root, HOOK_LOG_FILE) : '';
-      if (!root || !existsSync(file)) {
+      const project = projectFor(globals);
+      const file = project ? path.join(project.stateRoot, HOOK_LOG_FILE) : '';
+      if (!project || !existsSync(file)) {
         out('no hook decisions logged yet');
         return;
       }

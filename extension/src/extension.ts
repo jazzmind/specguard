@@ -10,7 +10,9 @@ import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
 import { initWorkspaceState } from './workspace-state.js';
-import { resolveCliPath, setExtensionPath } from './dashboard/cli.js';
+import { resolveCliPath, setExtensionPath, spawnCli } from './dashboard/cli.js';
+import { detectProjectConfig, setConfigRunner, type CliRunner } from './project-config.js';
+import * as fs from 'fs';
 import { expectedCliVersion, mismatchMessage, queryCliVersion } from './cli-version.js';
 import { ApiHub } from './api/hub.js';
 import { setHub } from './api/shared.js';
@@ -23,9 +25,36 @@ import * as path from 'path';
 let statusBarItem: vscode.StatusBarItem | undefined;
 let coverageProvider: CoverageProvider | undefined;
 
+/** Runs the CLI the extension resolves (setting, local install, dev checkout or bundled) and collects what it printed. */
+const cliRunner: CliRunner = async (args, cwd) => {
+  try {
+    const cli = await resolveCliPath(cwd);
+    if (!cli) return { stdout: '', code: null };
+    const lines: string[] = [];
+    const code = await spawnCli(cli, args, cwd, (line) => lines.push(line)).promise;
+    return { stdout: lines.join('\n'), code };
+  } catch {
+    return { stdout: '', code: null };
+  }
+};
+
+/**
+ * Whether this window has a SpecGuard project: a folder with its own config or workspace manifest, or one whose specs
+ * live in an overlay repo (the CLI says so; asked only for folders without their own config, and only when an overlay
+ * may apply). The extension also starts on `onStartupFinished`, so a window with no SpecGuard project must stay quiet.
+ */
+async function windowHasProject(): Promise<boolean> {
+  const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+  if (folders.some((f) => fs.existsSync(path.join(f, '.specguard', 'workspace.json')))) return true;
+  for (const f of folders) if ((await detectProjectConfig(f)).configured) return true;
+  return false;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   initWorkspaceState(context);
   setExtensionPath(context.extensionPath);
+  setConfigRunner(cliRunner);
+  const relevant = await windowHasProject();
 
   // One connection to SpecGuard's API: the team server when configured and reachable, else a local `serve`.
   const hub = new ApiHub(context.secrets);
@@ -72,7 +101,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Status bar: shows "SpecGuard: 82%" or similar
   const config = vscode.workspace.getConfiguration('specguard');
-  if (config.get<boolean>('showStatusBar', true)) {
+  if (relevant && config.get<boolean>('showStatusBar', true)) {
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
     statusBarItem.command = 'specguard.status';
     statusBarItem.text = '$(shield) SpecGuard';
@@ -85,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerCommands(context, coverageProvider, statusBarItem);
 
   // Auto-refresh on spec file changes
-  if (config.get<boolean>('autoRefresh', true)) {
+  if (relevant && config.get<boolean>('autoRefresh', true)) {
     const watcher = vscode.workspace.createFileSystemWatcher('**/specs/**/*.md');
     watcher.onDidChange(() => coverageProvider?.refresh());
     watcher.onDidCreate(() => coverageProvider?.refresh());
@@ -98,6 +127,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Keep the workspace manifest in step with the open .code-workspace file.
   watchCodeWorkspace(context, () => void coverageProvider?.refresh());
+
+  // Nothing below is for a window that has no SpecGuard project (the extension also starts on `onStartupFinished`).
+  if (!relevant) return;
 
   // Warn (once per session) when an installed CLI is not the version this extension was built for.
   void warnOnCliMismatch(context);

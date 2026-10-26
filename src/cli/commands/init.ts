@@ -8,6 +8,7 @@
  */
 import { runInit } from '../../pipelines/init.js';
 import { loadConfig } from '../../core/config.js';
+import { describeResolution, findOwnConfigDir, overlayCoverage } from '../../core/overlay.js';
 import { resolveProfile, type LanguageId } from '../../core/language-profiles.js';
 import { scaffoldHarnessFiles, type Harness } from '../../core/scaffold.js';
 
@@ -51,6 +52,12 @@ function checkCi(ci: string | undefined): 'github' | undefined {
 }
 
 export async function initCommand(opts: InitOpts): Promise<void> {
+  // A repository whose specs live in an overlay is already set up; init would write a second config into it.
+  const covered = findOwnConfigDir(process.cwd()) === null ? overlayCoverage(process.cwd()) : null;
+  if (covered) {
+    process.stderr.write(`This repository is already covered: ${describeResolution(covered)}. init would write into it; run init in the overlay folder, or remove the overlay (specguard overlay remove) to configure the repo itself.\n`);
+    process.exit(1);
+  }
   const result = await runInit({
     framework: opts.withPlaywright ? 'playwright' : undefined,
     language: opts.language as LanguageId | undefined,

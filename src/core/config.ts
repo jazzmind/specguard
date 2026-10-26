@@ -31,6 +31,7 @@ import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
 import { configureLlm } from './llm-runtime.js';
 import { isTestabilityRuleId } from './testability.js';
+import { overlayMissHint, resolveConfigDirDetailed } from './overlay.js';
 
 // ---------------------------------------------------------------------------
 // Zod schema — mirrors the types in ./types.ts, permissive on unknown keys so
@@ -522,27 +523,6 @@ const configSchema = z
 /** Relative path from a repo root to the config file. */
 const CONFIG_REL = path.join('.specguard', 'config.json');
 
-/**
- * Walk up from `start` (inclusive) looking for `.specguard/config.json`.
- * The search stops at the repository boundary: the first directory that
- * contains `.git`. A repo with no config of its own therefore never picks up a
- * parent repo's config; use `extends` to inherit one on purpose.
- * Returns the directory containing `.specguard/`, or null if none found.
- */
-async function findConfigDir(start: string): Promise<string | null> {
-  let dir = path.resolve(start);
-  // Walk until the filesystem root (parent === dir).
-  while (true) {
-    if (await fileExists(path.join(dir, CONFIG_REL))) {
-      return dir;
-    }
-    if (await fileExists(path.join(dir, '.git'))) return null;
-    const parent = path.dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-}
-
 /** Format a ZodError into a readable single-line message. */
 function formatZodError(err: z.ZodError): string {
   return err.errors
@@ -593,17 +573,21 @@ async function resolveExtends(configPath: string, raw: Json, seen: Set<string>):
 }
 
 /**
- * Load and validate `.specguard/config.json`, searching from `cwd` upward to the
- * repository boundary.
+ * Load and validate `.specguard/config.json` for `cwd`. The repository's own config is found by walking up from `cwd`
+ * to the repository boundary; failing that, `SPECGUARD_CONFIG` and then the overlay entries (see `./overlay.ts`) say where
+ * the specs for this directory live. In overlay mode the config is loaded exactly as if the command ran from the
+ * overlay app's directory (`rootDir` is the directory holding that `.specguard/`) and `resolvedVia` records how.
  *
- * @throws {ConfigNotFoundError} when no config file is found before the repo boundary.
+ * @throws {ConfigNotFoundError} when no config is found.
+ * @throws {ConfigAmbiguousError} when two overlay configs name the same repository.
  * @throws {ConfigInvalidError} when the file is not valid JSON, fails schema validation, or `extends` is broken.
  */
-export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuardConfig> {
-  const rootDir = await findConfigDir(cwd);
-  if (rootDir === null) {
-    throw new ConfigNotFoundError(path.resolve(cwd));
+export async function loadConfig(cwd: string = process.cwd(), opts: { env?: NodeJS.ProcessEnv } = {}): Promise<SpecGuardConfig> {
+  const detail = resolveConfigDirDetailed(cwd, opts.env ?? process.env);
+  if (detail.resolved === null) {
+    throw new ConfigNotFoundError(path.resolve(cwd), overlayMissHint(detail));
   }
+  const rootDir = detail.resolved.dir;
 
   const configPath = path.join(rootDir, CONFIG_REL);
   const raw = await readFile(configPath);
@@ -630,6 +614,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<SpecGuard
   // canonical type and stamp the resolved root directory.
   const config = result.data as unknown as SpecGuardConfig;
   config.rootDir = rootDir;
+  if (detail.resolved.via !== 'repo') config.resolvedVia = detail.resolved;
   // A plugin the repo disabled stays off even when an extended config enables it.
   if (config.disabledPlugins?.length && config.plugins) {
     const off = new Set(config.disabledPlugins);

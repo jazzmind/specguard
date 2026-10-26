@@ -17,6 +17,7 @@ import { SEVERITY_LEVELS, type PlanSeverity, type RemediationPlan } from './reme
 import { readPlanFile } from './state/plan-store.js';
 import type { TraceModel } from './trace.js';
 import { loadWorkspace, type WorkspaceManifest } from './workspace.js';
+import { configDirOf } from './overlay.js';
 
 export const ROLLUP_FILE = '.specguard/rollup.json';
 const LAYER_NAMES = ['unit', 'integration', 'e2e', 'security', 'functional'] as const;
@@ -242,12 +243,14 @@ function newestIngest(ledgerFile: string): { newest: string | null; unreadable: 
 
 /** Build the rollup input for a repo directory from the files it holds. */
 export function readRepoInput(entry: { key: string; path: string; role: string; ignored?: boolean; ignoreReason?: string }, absPath: string): RollupInput {
-  const configured = existsSync(path.join(absPath, '.specguard', 'config.json'));
-  if (!configured) return { ...entry, configured: false };
-  const trace = readJson<TraceModel>(path.join(absPath, '.specguard', 'trace.json'));
-  const ledgerFile = ['proofs.json', 'proof-ledger.json'].map((f) => path.join(absPath, '.specguard', f)).find((f) => existsSync(f));
+  // A repo whose specs live in an overlay is configured: its trace and proofs sit in the overlay's `.specguard/`.
+  const configDir = configDirOf(absPath);
+  const configured = configDir !== null;
+  if (configDir === null) return { ...entry, configured: false };
+  const trace = readJson<TraceModel>(path.join(configDir, '.specguard', 'trace.json'));
+  const ledgerFile = ['proofs.json', 'proof-ledger.json'].map((f) => path.join(configDir, '.specguard', f)).find((f) => existsSync(f));
   const ledger = ledgerFile ? newestIngest(ledgerFile) : { newest: null, unreadable: false };
-  const plan = readPlanFile(path.join(absPath, '.specguard', 'security', 'plans'), 'latest');
+  const plan = readPlanFile(path.join(configDir, '.specguard', 'security', 'plans'), 'latest');
   return {
     ...entry,
     configured,

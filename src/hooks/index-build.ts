@@ -23,6 +23,14 @@ export const INDEX_REVISION = 'k1';
 
 export const CONFIG_FILE = '.specguard/config.json';
 export const HOOK_INDEX_FILE = '.specguard/cache/hook-index.json';
+
+/**
+ * The cache file for an index. Next to the config, in the folder that holds `.specguard/`. In overlay mode one config can
+ * guard several repositories, so each repository gets its own file (named by a hash of its path).
+ */
+export function hookIndexFile(repoRoot?: string): string {
+  return repoRoot ? `.specguard/cache/hook-index-${createHash('sha1').update(repoRoot).digest('hex').slice(0, 10)}.json` : HOOK_INDEX_FILE;
+}
 export const CHANGES_DIRECTORY = '.specguard/changes';
 export const CHANGE_CACHE_DIRECTORY = '.specguard/cache/changes';
 
@@ -38,6 +46,14 @@ export interface CachedHookIndex extends HookIndex {
   onError?: 'allow' | 'deny';
   /** Things the builder could not judge (a change record that does not parse, a base that does not resolve). */
   notes?: string[];
+  /**
+   * Overlay mode only: the absolute, canonical path of the real repository the index guards. The config, specs and change
+   * records live elsewhere (the overlay), so `owned`, `testGlobs` and the capabilities' source globs are relative to
+   * THIS directory, `specsRoot`, `historyDir` and each `specFile` are relative to it when inside it and absolute
+   * otherwise (so they never match a repository path), and `openChanges[].lockedTests` stay relative to the folder that
+   * holds the cache (what the red record says; the entry re-bases them with {@link repoView}).
+   */
+  repoRoot?: string;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -113,8 +129,9 @@ function listDir(dir: string): string[] {
  * for a few hundred specs. Test and source edits are deliberately absent: tests are re-hashed live and new source files
  * are matched by the capabilities' globs.
  */
-export function indexFingerprint(root: string, lite: LiteConfig | null = readLiteConfig(root)): string {
+export function indexFingerprint(root: string, lite: LiteConfig | null = readLiteConfig(root), repoRoot?: string): string {
   const parts: string[] = [`v${HOOK_INDEX_VERSION}`, INDEX_REVISION, statKey(path.join(root, CONFIG_FILE), CONFIG_FILE)];
+  if (repoRoot) parts.push(`repo\0${repoRoot}`);
   for (const f of lite?.extendsFiles ?? []) parts.push(statKey(f, `extends:${path.basename(f)}`));
 
   const specsRoot = path.resolve(root, lite?.specsRoot ?? 'specs');
@@ -135,9 +152,9 @@ export function indexFingerprint(root: string, lite: LiteConfig | null = readLit
 // ---------------------------------------------------------------------------------------------------------------------
 
 /** The cached index, or null when it is missing, unreadable or from another version. Never throws. */
-export function readHookIndexCache(root: string): CachedHookIndex | null {
+export function readHookIndexCache(root: string, repoRoot?: string): CachedHookIndex | null {
   try {
-    const data: unknown = JSON.parse(readFileSync(path.join(root, HOOK_INDEX_FILE), 'utf8'));
+    const data: unknown = JSON.parse(readFileSync(path.join(root, hookIndexFile(repoRoot)), 'utf8'));
     if (!isRecord(data) || data.version !== HOOK_INDEX_VERSION || typeof data.fingerprint !== 'string') return null;
     if (!isRecord(data.owned) || !Array.isArray(data.capabilities) || !Array.isArray(data.openChanges) || !Array.isArray(data.testGlobs)) return null;
     if (typeof data.specsRoot !== 'string' || typeof data.historyDir !== 'string') return null;
@@ -148,8 +165,8 @@ export function readHookIndexCache(root: string): CachedHookIndex | null {
 }
 
 /** Atomic write (temp file, then rename), so two hooks running at once never read half an index. Returns false when the cache cannot be written. */
-export function writeHookIndexCache(root: string, index: CachedHookIndex): boolean {
-  const file = path.join(root, HOOK_INDEX_FILE);
+export function writeHookIndexCache(root: string, index: CachedHookIndex, repoRoot?: string): boolean {
+  const file = path.join(root, hookIndexFile(repoRoot));
   const tmp = `${file}.${process.pid}.tmp`;
   try {
     mkdirSync(path.dirname(file), { recursive: true });
@@ -169,19 +186,37 @@ export interface LoadedIndex {
   cached: boolean;
 }
 
-/** The index for the repository at `root`: the cache when its fingerprint still holds, else a fresh build that is cached. Throws when the build fails. */
-export async function loadHookIndex(root: string, opts: { force?: boolean } = {}): Promise<LoadedIndex> {
+/**
+ * The index for the project whose `.specguard/` is in `root`: the cache when its fingerprint still holds, else a fresh
+ * build that is cached. `repoRoot` is set in overlay mode (see {@link CachedHookIndex.repoRoot}). Throws when the build fails.
+ */
+export async function loadHookIndex(root: string, opts: { force?: boolean; repoRoot?: string } = {}): Promise<LoadedIndex> {
   const lite = readLiteConfig(root);
-  const fingerprint = indexFingerprint(root, lite);
+  const fingerprint = indexFingerprint(root, lite, opts.repoRoot);
   if (!opts.force) {
-    const hit = readHookIndexCache(root);
+    const hit = readHookIndexCache(root, opts.repoRoot);
     if (hit && hit.fingerprint === fingerprint) return { index: hit, rebuilt: false, cached: true };
   }
   const { loadConfig } = await import('../core/config.js');
   const config = await loadConfig(root);
-  const index = await buildHookIndex(config);
+  const index = await buildHookIndex(config, opts.repoRoot ? { repoRoot: opts.repoRoot } : {});
   index.fingerprint = fingerprint;
-  return { index, rebuilt: true, cached: writeHookIndexCache(root, index) };
+  return { index, rebuilt: true, cached: writeHookIndexCache(root, index, opts.repoRoot) };
+}
+
+/**
+ * The index as the decision table should see it: in overlay mode the locked test files re-based from the cache's folder
+ * to the repository (a file outside the repository can never be the target of an edit there, so it is dropped). The
+ * entry keeps the original for the live red check, which hashes those files from the cache's folder. Not overlay: as is.
+ */
+export function repoView(index: CachedHookIndex, stateRoot: string): CachedHookIndex {
+  const repo = index.repoRoot;
+  if (!repo) return index;
+  const rebase = (f: string): string[] => {
+    const rel = path.relative(repo, path.resolve(stateRoot, f));
+    return rel === '' || rel.startsWith('..') || path.isAbsolute(rel) ? [] : [rel.split(path.sep).join('/')];
+  };
+  return { ...index, openChanges: index.openChanges.map((c) => ({ ...c, lockedTests: c.lockedTests.flatMap(rebase) })) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -277,14 +312,28 @@ function redFacts(root: string, id: string): Pick<IndexedChange, 'lockedTests' |
  * Build the index from the repository: the spec graph (ownership, enforce levels), the test globs and the open change
  * records. Heavy modules load here, not at import.
  */
-export async function buildHookIndex(config: SpecGuardConfig): Promise<CachedHookIndex> {
+export async function buildHookIndex(config: SpecGuardConfig, opts: { repoRoot?: string } = {}): Promise<CachedHookIndex> {
   const root = path.resolve(config.rootDir ?? process.cwd());
-  const [{ buildSpecGraph }, { effectiveEnforce }, { declaredSources, specsRootDir }, { historyDir }] = await Promise.all([
+  const repoRoot = opts.repoRoot;
+  const [{ buildSpecGraph }, { effectiveEnforce }, { declaredSources, specsRootDir, appForSpecFile }, { historyDir }, { realPathLoose }] = await Promise.all([
     import('../core/spec-graph.js'),
     import('../core/enforce.js'),
     import('../core/spec-key.js'),
     import('../core/history.js'),
+    import('../core/overlay.js'),
   ]);
+
+  // Overlay mode: paths of files in the guarded repository are relative to it; anything else (the overlay's own files)
+  // stays absolute, so it can never equal a repository-relative path the agent sends.
+  const posix = (p: string): string => p.split(path.sep).join('/');
+  const inRepo = (abs: string): string | null => {
+    if (!repoRoot) return posixRel(root, abs);
+    const rel = path.relative(repoRoot, abs);
+    return rel === '' || rel.startsWith('..') || path.isAbsolute(rel) ? null : posix(rel);
+  };
+  const where = (abs: string): string => inRepo(abs) ?? posix(abs);
+  // A config can describe several apps in several repositories: only the apps of THIS repository contribute globs.
+  const appHere = (app: { repo: string } | undefined): boolean => !repoRoot || (app !== undefined && realPathLoose(path.resolve(root, app.repo)) === repoRoot);
 
   const notes: string[] = [];
   const graph = await buildSpecGraph(config, { warn: () => undefined });
@@ -294,31 +343,39 @@ export async function buildHookIndex(config: SpecGuardConfig): Promise<CachedHoo
   const testGlobs = new Set<string>();
   for (const node of [...graph.nodes.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
     if (!node.kind) continue;
+    const specAbs = path.resolve(root, node.spec.filePath);
+    const here = appHere(appForSpecFile(config, specAbs) ?? config.apps[0]);
     capabilities.push({
       id: node.id,
-      specFile: posixRel(root, path.resolve(root, node.spec.filePath)),
+      specFile: where(specAbs),
       enforce: effectiveEnforce(node.spec.meta, config.enforce),
-      sources: declaredSources(node.spec),
+      sources: here ? declaredSources(node.spec) : [],
     });
-    for (const file of node.ownedFiles) (owned[file] ??= []).push(node.id);
-    for (const t of node.spec.meta.tests ?? []) testGlobs.add(t);
+    for (const file of node.ownedFiles) {
+      const key = repoRoot ? inRepo(path.resolve(root, file)) : file;
+      if (key !== null) (owned[key] ??= []).push(node.id);
+    }
+    if (here) for (const t of node.spec.meta.tests ?? []) testGlobs.add(t);
   }
-  for (const app of config.apps) for (const t of [...(app.sources.tests ?? []), ...(app.extraTestSources ?? [])]) testGlobs.add(t);
+  for (const app of config.apps) {
+    if (appHere(app)) for (const t of [...(app.sources.tests ?? []), ...(app.extraTestSources ?? [])]) testGlobs.add(t);
+  }
 
   const openChanges = await openChangesOf(config, root, graph, notes);
 
   return {
     version: HOOK_INDEX_VERSION,
     builtAt: new Date().toISOString(),
-    fingerprint: indexFingerprint(root),
-    specsRoot: posixRel(root, specsRootDir(config)),
-    historyDir: posixRel(root, historyDir(config)),
+    fingerprint: indexFingerprint(root, readLiteConfig(root), repoRoot),
+    specsRoot: where(specsRootDir(config)),
+    historyDir: where(historyDir(config)),
     testGlobs: [...testGlobs],
     owned: Object.fromEntries(Object.entries(owned).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
     capabilities,
     openChanges,
     onError: config.hooks?.onError === 'deny' ? 'deny' : 'allow',
     ...(notes.length > 0 ? { notes } : {}),
+    ...(repoRoot ? { repoRoot } : {}),
   };
 }
 

@@ -26,6 +26,7 @@ sources:
   - "src/cli/commands/migrate.ts"
   - "src/pipelines/migrate.ts"
   - "src/legacy/index.ts"
+  - "src/core/overlay.ts"
 tests:
   - "tests/core/config.test.ts"
   - "tests/core/config-phase3.test.ts"
@@ -45,6 +46,9 @@ tests:
   - "tests/core/migrate-plan.test.ts"
   - "tests/pipelines/migrate.test.ts"
   - "tests/cli/migrate.test.ts"
+  - "tests/core/overlay.test.ts"
+  - "tests/core/config-overlay.test.ts"
+  - "tests/helpers/overlay-fixture.ts"
 docs:
   - "README.md"
   - "docs/user/config.md"
@@ -65,6 +69,7 @@ history:
   - 2026-10-25-0-4-the-host-coding-agent-does-the-model
   - 2026-10-26-migration-planning-is-a-pure-idempotent
   - 2026-10-26-migrate-applies-the-plan-idempotently-an
+  - 2026-10-26-overlay-spec-sources-specs-kept-outside
 ---
 
 # Platform Foundation
@@ -84,7 +89,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - A monorepo owner declares several apps in one config, each with its own language, spec directory and test runner.
 
 ## Requirements
-- [ ] Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config yields a not-found error that names the search start and suggests `specguard init` <!-- claim: config-discovery -->
+- [ ] Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config, and no overlay covering the directory, yields a not-found error that names the search start and suggests `specguard init` <!-- claim: config-discovery -->
 - [ ] Configuration is validated against one schema: invalid JSON or an invalid field fails with a readable invalid-config error, unknown keys and `_comment` are tolerated, and the directory that holds `.specguard/` is exposed to every pipeline as the root <!-- claim: config-validation -->
 - [ ] A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error <!-- claim: config-extends -->
 - [ ] Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start <!-- claim: config-apps-and-defaults -->
@@ -127,6 +132,18 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] `migrate --yes` refuses to start on a working tree with uncommitted changes (exit 2, nothing changed, the paths named) unless `--allow-dirty` is given; a migration already under way, which left its own changes, is not refused <!-- claim: migrate-refuses-dirty-tree -->
 - [ ] Configuration and hooks are only added to: `proofStore` and `enforce` are inserted into the user's config text when absent, leaving every other byte, key order and value as written (a config that has both is not written), and the guard hooks join `.claude/settings.json` only when it already has SpecGuard hooks and lacks them; an invalid or hook-less file is left alone <!-- claim: migrate-config-and-hooks-additive -->
 - [ ] Everything that is a person's decision is printed with its exact command and never run: approving what the code does today, committing and pushing; after an apply those steps keep the exit code at 14, and migrate never touches source, tests, capability specs, `specs/history/` or existing approvals <!-- claim: migrate-person-steps-never-run -->
+- [ ] When a repository has no config of its own, the config is resolved in one fixed order (`resolveConfigDir(start, env)` in `src/core/overlay.ts`, used by `loadConfig`): (a) the repository's own `.specguard/config.json` exactly as before, including the git-boundary rule and `extends`; (b) `SPECGUARD_CONFIG`; (c) overlay entries, the roots named by `SPECGUARD_OVERLAY` first and then the per-user registry, each tier taking the entry whose repo is the deepest ancestor-or-equal of the start directory; (d) otherwise null, which `loadConfig` reports as the same not-found error as before <!-- claim: overlay-resolution-order -->
+- [ ] A repository's own config always wins over an overlay entry or `SPECGUARD_CONFIG`, and a config loaded from the repository's own `.specguard/` carries no overlay metadata and behaves exactly as it did before overlays existed <!-- claim: overlay-repo-config-wins -->
+- [ ] `loadConfig` in overlay mode returns the overlay app's config exactly as if the command had run from the overlay app's directory: `rootDir` is the folder that holds that `.specguard/`, so specs, the proof ledger, caches and the trace resolve inside the overlay, and `apps[].repo` resolves to the real repository; the config carries `resolvedVia` (`overlay`, `env-overlay` or `env-config`, with the overlay root, repo and app) so a message can say where it came from <!-- claim: overlay-mode-semantics -->
+- [ ] An overlay is scanned for `**/.specguard/config.json` up to four levels below its root (skipping node_modules, .git, dist and dot-folders): each `apps[].repo` is read as raw JSON and resolved against the folder that holds `.specguard/`; an app whose repo is that folder itself is an ordinary in-repo config, and a config that is not valid JSON, has no apps, or names a repo directory that does not exist is skipped and reported with the reason <!-- claim: overlay-scan -->
+- [ ] The per-user overlay registry is `$XDG_CONFIG_HOME/specguard/overlays.json`, else `~/.config/specguard/overlays.json` (and none when the given environment names no home, so a test never touches the real one); it holds `{ version: 1, overlays: [{ root, addedAt, entries: [{ repo, config, app }] }] }` derived from scans, is written atomically with mode 600 in a 700 folder, and a missing, corrupt or foreign file reads as empty with the problem named, never as an error <!-- claim: overlay-registry -->
+- [ ] An overlay entry matches a directory when its repo is an ancestor-or-equal of it, compared by real path (so `/tmp` and `/private/tmp` agree), the deepest such repo wins, and the walk stops at a git boundary the way the in-repo lookup does, so a nested repository with no config is not taken to be part of an outer repo that an overlay covers <!-- claim: overlay-deepest-match -->
+- [ ] Two entries with the same repo but different overlay configs are ambiguous: resolution fails with a typed error that names both configs (with their overlay roots and apps) and says to pick one with `--config` or `SPECGUARD_CONFIG`, and never guesses; one config that names the same repo through several apps is not ambiguous <!-- claim: overlay-ambiguity -->
+- [ ] `SPECGUARD_OVERLAY=<dir>[:<dir>...]` (the path-list separator) names overlay roots that are scanned on the fly with no registration and take precedence over the registry; a nonexistent root contributes nothing <!-- claim: overlay-env-roots -->
+- [ ] `SPECGUARD_CONFIG` names a `.specguard/config.json`, its `.specguard` folder or the folder above it, and then applies to every start directory that has no config of its own, beating the registry; a value that names no config is an invalid-config error, and the `--config <path>` flag keeps working as before <!-- claim: overlay-env-config -->
+- [ ] A registry entry whose config file was deleted is ignored with a warning that names the fix (`specguard overlay refresh <root>`), so the directory reads as not configured rather than failing, and the not-found error carries a hint about `specguard overlay add` when an overlay is registered but none matched <!-- claim: overlay-stale-entry -->
+- [ ] With no overlay registered or named in the environment and no config, `loadConfig` throws the same `ConfigNotFoundError` message as before, with no extra hint, and resolving reads no file other than the registry <!-- claim: overlay-no-change -->
+- [ ] An overlay entry also covers the git repository that encloses its repo folder: when no entry's repo contains the start directory, entries whose enclosing git root (nearest `.git` above the entry's repo, by real path) equals the git root enclosing the start match, so a repo opened at its root resolves to the entry for the app folder inside it; exactly one distinct config resolves to it, several distinct configs (a monorepo whose apps each have an entry, started at its root) are the ambiguity error with a message that says to start inside one of the apps (listing their folders) or pass `--config` or `SPECGUARD_CONFIG`; the walk never goes above the start's own git root, so a folder that holds several repos, or one outside any repo, matches nothing <!-- claim: overlay-enclosing-git-root -->
 
 ## Scenarios
 ### Scenario 1: Run inside a sub-repo with no config

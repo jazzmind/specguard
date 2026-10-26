@@ -32,6 +32,7 @@ tests:
   - "tests/pipelines/init.test.ts"
   - "tests/core/workspace-units.test.ts"
   - "tests/pipelines/workspaces.test.ts"
+  - "tests/core/workspace-sync-overlay.test.ts"
 docs:
   - "README.md"
 history:
@@ -48,6 +49,7 @@ history:
   - 2026-10-22-extension-manual-initialize-workspace-co
   - 2026-10-23-workspace-panel-route-clicks-by-data-act
   - 2026-10-24-key-set-status-and-a-per-user-env-file
+  - 2026-10-26-overlay-spec-sources-specs-kept-outside
 ---
 
 # Workspaces - Multi-Repo and Monorepo
@@ -97,6 +99,8 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - [ ] A per-user `~/.config/specguard/.env` (or `$XDG_CONFIG_HOME/specguard/.env`) supplies keys to every workspace and repo on the machine at the lowest precedence, below the repo's and the workspace's file and below real environment variables <!-- claim: user-env -->
 - [ ] `specguard key set` saves the model API key (`llm.apiKeyEnv`, default `ANTHROPIC_API_KEY`) into the user's, the workspace's or the repo's `.env` with mode 600, reading it from a hidden prompt, stdin or `--from-env` and never from an argument, replacing an existing line, refusing a multi-line value, and never printing the key; `key status` says which files define it without showing it; `config.json` only ever names the variable <!-- claim: key-command -->
 - [ ] When `.specguard/.env` (which holds secrets) is readable by other users the CLI warns, names the file and the fix (`chmod 600`), never prints a value, and still loads the file <!-- claim: env-permission-warning -->
+- [ ] `workspace sync` treats a folder with no config of its own but covered by an overlay as a normal repo unit instead of `auto:no-config`, recording `configVia: overlay` in an optional unit field (manifests without it load unchanged), and the workspace scan, rollup and role guess read its config, trace and proofs from the overlay; a git root folder whose overlay entry names an app folder inside it counts as covered, while a monorepo root whose apps each have an entry (ambiguous) does not <!-- claim: workspace-sync-overlay -->
+- [ ] A unit that sync marked `auto:no-config` is retired automatically on the next sync once an overlay covers it, and `configVia` is dropped again when the overlay stops covering it; a unit a person marked ignore by hand (any other reason, or an entry sync did not create) is never touched <!-- claim: workspace-sync-retire -->
 
 ## Scenarios
 ### Scenario 1: Register a multi-repo system

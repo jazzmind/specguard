@@ -26,7 +26,8 @@
   "activationEvents": [
     "workspaceContains:.specguard/config.json",
     "workspaceContains:.specguard/workspace.json",
-    "onView:specguard-sidebar"
+    "onView:specguard-sidebar",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "icon": "resources/icon.png",

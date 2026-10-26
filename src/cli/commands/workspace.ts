@@ -25,6 +25,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { setIgnoreOnDisk, syncManifestOnDisk, type SyncChange } from '../../core/workspace-sync.js';
 import { loadContractGraph } from '../../core/contracts.js';
 import { guessRepoRole, workspaceRepoKey } from '../../core/workspace-heuristics.js';
+import { overlayCoverage } from '../../core/overlay.js';
 
 // ---------------------------------------------------------------------------
 // workspace init
@@ -48,8 +49,8 @@ export interface WorkspaceInitOpts {
 interface ScannedRepo { rel: string; configured: boolean }
 
 /**
- * Find repos below `root`. A folder with a SpecGuard config is a configured repo and one with
- * only `.git` is an unconfigured repo; neither is searched further. Hidden folders and
+ * Find repos below `root`. A folder with a SpecGuard config (or whose specs an overlay holds) is a configured repo
+ * and one with only `.git` is an unconfigured repo; neither is searched further. Hidden folders and
  * node_modules are skipped.
  */
 export function scanRepos(root: string, maxDepth: number): ScannedRepo[] {
@@ -73,7 +74,7 @@ export function scanRepos(root: string, maxDepth: number): ScannedRepo[] {
       if (!isDir) continue;
       const rel = path.relative(root, abs).split(path.sep).join('/');
       if (existsSync(path.join(abs, '.specguard', 'config.json'))) found.push({ rel, configured: true });
-      else if (existsSync(path.join(abs, '.git'))) found.push({ rel, configured: false });
+      else if (existsSync(path.join(abs, '.git'))) found.push({ rel, configured: overlayCoverage(abs) !== null });
       else if (depth < maxDepth) walk(abs, depth + 1);
     }
   };

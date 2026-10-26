@@ -58,7 +58,7 @@ export async function loadCliConfig(opts: GlobalOpts): Promise<SpecGuardConfig> 
     return await loadConfig(cwd);
   } catch (err) {
     if (err instanceof ConfigNotFoundError) {
-      process.stderr.write('No config found. Run `specguard init` to create one.\n');
+      process.stderr.write(`No config found. Run \`specguard init\` to create one.${err.hint ? `\n${err.hint}` : ''}\n`);
       process.exit(ExitCode.InternalError);
     }
     throw err;

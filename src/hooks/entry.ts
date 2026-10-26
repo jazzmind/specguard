@@ -3,7 +3,10 @@
  * from stdin, finds the SpecGuard project, loads the ownership index (rebuilding it in process when a spec, the config
  * or a change record moved), asks the decision table, and prints the host's JSON answer. No model, no network.
  *
- * It fails open. A project without `.specguard/config.json` gets silence; an error, an unreadable index or an unreadable
+ * A repository whose specs live in an overlay repo (see `src/core/overlay.ts`) is judged too: the project root is the real
+ * repository, the config, change records, index cache and decision log are the overlay app's.
+ *
+ * It fails open. A project without `.specguard/config.json` (and no overlay covering it) gets silence; an error, an unreadable index or an unreadable
  * payload allows the edit with a visible notice, unless the config says `hooks.onError: "deny"`, which fails closed in a
  * project with an `enforce` capability. CI stays the gate either way.
  *
@@ -18,7 +21,8 @@ import path from 'node:path';
 import picomatch from 'picomatch';
 
 import { classify, decide, systemDecision, withLogContext, type HookDecision, type HookEvent, type HookLogEntry, type PathClass } from './decide.js';
-import { CONFIG_FILE, liveRedValidity, loadHookIndex, readHookIndexCache, readLiteConfig, type CachedHookIndex } from './index-build.js';
+import { CONFIG_FILE, liveRedValidity, loadHookIndex, readHookIndexCache, readLiteConfig, repoView, type CachedHookIndex } from './index-build.js';
+import { entriesOfConfig, matchOverlayEntries, resolveConfigDirDetailed, type ConfigResolution } from '../core/overlay.js';
 import { parseHookInput, type ParsedHookInput } from './stdin.js';
 
 export type HookAgent = 'claude' | 'codex';
@@ -78,6 +82,39 @@ export function findProjectRoot(start: string): string | null {
   }
 }
 
+/** Where a tool call happens and where SpecGuard's own files are: the same folder, or (overlay mode) two. */
+export interface HookProject {
+  /** The repository the agent works in. Paths in the payload are made relative to it. */
+  root: string;
+  /** The folder holding `.specguard/` (config, change records, index cache, decision log): `root`, or the overlay app's folder. */
+  stateRoot: string;
+  /** Set in overlay mode: how the config was found. */
+  overlay?: ConfigResolution;
+}
+
+/**
+ * The project for a directory. The repository's own config first (exactly {@link findProjectRoot}); failing that a light
+ * lookup through `SPECGUARD_CONFIG`, `SPECGUARD_OVERLAY` and the per-user overlay registry (node built-ins only: this is
+ * the hot path). Fails open: an ambiguous or broken overlay setup is "not a project", never an error.
+ */
+export function findProject(start: string, env: NodeJS.ProcessEnv = process.env): HookProject | null {
+  const own = findProjectRoot(start);
+  if (own) return { root: own, stateRoot: own };
+  try {
+    const detail = resolveConfigDirDetailed(start, env);
+    const r = detail.resolved;
+    if (!r || r.via === 'repo') return null;
+    if (r.via === 'env-config') {
+      // One config for every directory: the guarded repository is whichever of its apps contains the start directory.
+      const m = matchOverlayEntries(start, entriesOfConfig(path.join(r.dir, CONFIG_FILE)).entries);
+      return m ? { root: m.dir, stateRoot: r.dir, overlay: { ...r, repo: m.hits[0]!.repo, app: m.hits[0]!.app } } : null;
+    }
+    return detail.repoDir && r.repo ? { root: detail.repoDir, stateRoot: r.dir, overlay: r } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Whether the history entry already on disk is an approval (its frontmatter says `kind: approval`). Unreadable means no. */
 function approvalOnDisk(root: string, rel: string): boolean {
   try {
@@ -87,14 +124,16 @@ function approvalOnDisk(root: string, rel: string): boolean {
   }
 }
 
-export function decideForEvent(event: HookEvent, root: string, index: CachedHookIndex): { classes: PathClass[]; decision: HookDecision } {
+export function decideForEvent(event: HookEvent, root: string, index: CachedHookIndex, stateRoot: string = root): { classes: PathClass[]; decision: HookDecision } {
+  const view = repoView(index, stateRoot);
   const classes = event.paths.map((p): PathClass => {
-    const cls = classify(p, index, matchGlob);
+    const cls = classify(p, view, matchGlob);
     // An edit is judged on its new text alone, so changing the hashes inside an approval already on disk would pass:
     // any change to an existing approval is treated as writing one.
     return cls.kind === 'history' && !cls.approvalLike && approvalOnDisk(root, p) ? { ...cls, approvalLike: true } : cls;
   });
-  return { classes, decision: decide(event, classes, index, { redValid: liveRedValidity(root, index) }) };
+  // The red evidence lives with the change records, in the folder that holds `.specguard/`.
+  return { classes, decision: decide(event, classes, view, { redValid: liveRedValidity(stateRoot, index) }) };
 }
 
 /** The host's JSON for a decision. Empty for an allow with nothing to say. */
@@ -180,10 +219,10 @@ function reanchor(parsed: ParsedHookInput, root: string): void {
   parsed.outside = still;
 }
 
-function failure(err: unknown, root: string, event: HookEvent): HookDecision {
+function failure(err: unknown, root: string, event: HookEvent, repoRoot?: string): HookDecision {
   const short = err instanceof Error ? err.message : String(err);
   // What to do with an error comes from the last good index when there is one, else the raw config.
-  const stale = readHookIndexCache(root);
+  const stale = readHookIndexCache(root, repoRoot);
   const onError = stale?.onError ?? readLiteConfig(root)?.onError ?? 'allow';
   const nothingToEnforce = stale !== null && !stale.capabilities.some((c) => c.enforce === 'enforce');
   return systemDecision(onError === 'deny' && !nothingToEnforce ? 'ERROR_CLOSED' : 'ERROR_OPEN', event, short);
@@ -197,13 +236,18 @@ function finish(root: string, decision: HookDecision, ctx: { ts: string; session
 
 /** One PreToolUse call: the host's payload in, the host's answer out. Never throws. */
 export async function runPreToolUse(raw: string, opts: EntryOptions = {}): Promise<HookRun> {
-  let root: string | null = null;
+  // `logRoot` is where `.specguard/` is (the decision log, the cache); `root` is the repository the paths belong to.
+  let logRoot: string | null = null;
+  let repoRoot: string | undefined;
   let event: HookEvent = { event: 'PreToolUse', tool: '', paths: [], agent: opts.agent ?? 'claude' };
   try {
     const now = opts.now ?? ((): Date => new Date());
-    root = findProjectRoot(probeCwd(raw) ?? opts.cwd ?? process.cwd());
+    const project = findProject(probeCwd(raw) ?? opts.cwd ?? process.cwd());
     // Not a SpecGuard project: nothing to say, and nothing is read.
-    if (!root) return silent();
+    if (!project) return silent();
+    const { root, stateRoot } = project;
+    logRoot = stateRoot;
+    repoRoot = project.overlay ? project.overlay.repo : undefined;
 
     const parsed = parseHookInput(raw, { ...(opts.agent ? { agent: opts.agent } : {}), root });
     event = parsed.event;
@@ -211,17 +255,17 @@ export async function runPreToolUse(raw: string, opts: EntryOptions = {}): Promi
 
     // A payload we cannot read is always an allow, with a notice: the hook never breaks a session over its input.
     if (parsed.noop === 'malformed-json' || parsed.noop === 'not-an-object') {
-      return finish(root, systemDecision('ERROR_OPEN', event, 'unreadable hook input'), ctx);
+      return finish(stateRoot, systemDecision('ERROR_OPEN', event, 'unreadable hook input'), ctx);
     }
     reanchor(parsed, root);
     if (parsed.event.paths.length === 0 && parsed.event.bash === undefined) return silent();
 
-    const { index } = await loadHookIndex(root);
-    return finish(root, decideForEvent(parsed.event, root, index).decision, ctx);
+    const { index } = await loadHookIndex(stateRoot, repoRoot ? { repoRoot } : {});
+    return finish(stateRoot, decideForEvent(parsed.event, root, index, stateRoot).decision, ctx);
   } catch (err) {
-    if (!root) return silent();
+    if (!logRoot) return silent();
     try {
-      return finish(root, failure(err, root, event), { ts: new Date().toISOString() });
+      return finish(logRoot, failure(err, logRoot, event, repoRoot), { ts: new Date().toISOString() });
     } catch {
       return silent();
     }

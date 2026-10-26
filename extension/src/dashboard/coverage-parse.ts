@@ -108,9 +108,10 @@ function walkMdFiles(dir: string): string[] {
  * Traverses subdirectories recursively so nested specs (e.g. specs/auth/login.md)
  * are counted correctly.
  */
-export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: string): void {
+export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: string, configDir: string = workspaceRoot): void {
   try {
-    const configFile = path.join(workspaceRoot, '.specguard', 'config.json');
+    // `configDir` differs from `workspaceRoot` when the project's specs live in an overlay repo.
+    const configFile = path.join(configDir, '.specguard', 'config.json');
     if (!fs.existsSync(configFile)) return;
     const config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as {
       apps?: Array<{ name: string; specDir: string; testOutput?: string }>;
@@ -123,7 +124,7 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
 
       const specDirAbs = path.isAbsolute(appCfg.specDir)
         ? appCfg.specDir
-        : path.join(workspaceRoot, appCfg.specDir);
+        : path.join(configDir, appCfg.specDir);
       if (!fs.existsSync(specDirAbs)) continue;
 
       // Recursive walk — picks up specs in subdirectories (e.g. specs/auth/login.md)
@@ -132,7 +133,7 @@ export function augmentCoverageFromDisk(coverage: AppCoverage[], workspaceRoot: 
 
       // Resolve testOutput so we can check for generated tests.
       const testOutputAbs = appCfg.testOutput
-        ? (path.isAbsolute(appCfg.testOutput) ? appCfg.testOutput : path.join(workspaceRoot, appCfg.testOutput))
+        ? (path.isAbsolute(appCfg.testOutput) ? appCfg.testOutput : path.join(configDir, appCfg.testOutput))
         : null;
 
       let testCount = 0;

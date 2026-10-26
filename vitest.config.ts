@@ -16,7 +16,8 @@ export default defineConfig({
     exclude: ['node_modules/**', 'dist/**', 'tests/security/auth-state-machine.test.ts', 'tests/security/cli.test.ts', 'tests/security/config.test.ts', 'tests/security/doc-generate.test.ts', 'tests/security/docker.test.ts', 'tests/security/drift-registry.test.ts', 'tests/security/drift.test.ts', 'tests/security/extension.test.ts', 'tests/security/forward-generate.test.ts', 'tests/security/guardrails.test.ts', 'tests/security/heal.test.ts', 'tests/security/import.test.ts', 'tests/security/llm.test.ts', 'tests/security/matrix.test.ts', 'tests/security/mcp-server.test.ts', 'tests/security/npm-audit.test.ts', 'tests/security/playwright.test.ts', 'tests/security/reverse-generate.test.ts', 'tests/security/security.test.ts', 'tests/security/spec-parser.test.ts', 'tests/security/status.test.ts', 'tests/security/validate.test.ts', 'tests/security/writer.test.ts'],
     environment: 'node',
     // Many tests build temporary git repos and run the CLI; under a parallel full run on a busy machine 5s is too tight.
-    testTimeout: 30_000,
+    // Many tests build real git repos and spawn processes (4-10 s alone); with the whole suite running in parallel on a busy machine they stretch past 30 s.
+    testTimeout: 90_000,
     globals: false,
     passWithNoTests: true,
   },

@@ -73,6 +73,7 @@ import { registerEnforceCommands } from './commands/enforce.js';
 import { registerHookCommands } from './commands/hook.js';
 import { registerCiCommands } from './commands/ci.js';
 import { registerMigrateCommand } from './commands/migrate.js';
+import { registerOverlayCommands } from './commands/overlay.js';
 import { cliVersion, versionInfo } from '../core/version.js';
 
 // One version source: package.json, or the value injected at bundle time (src/core/version.ts).
@@ -1053,6 +1054,7 @@ registerEnforceCommands(program);
 registerHookCommands(program);
 registerCiCommands(program);
 registerMigrateCommand(program);
+registerOverlayCommands(program);
 
 export async function main(): Promise<void> {
   // `specguard --version --json` is machine-readable: the extension uses it to detect a CLI/extension mismatch.

@@ -81,9 +81,9 @@ export interface Ran {
 }
 
 /** Spawn the committed bundle as a real process, as the host would. */
-export function runBundle(stdin: string, opts: { cwd?: string; args?: string[] } = {}): Ran {
+export function runBundle(stdin: string, opts: { cwd?: string; args?: string[]; env?: NodeJS.ProcessEnv } = {}): Ran {
   const started = performance.now();
-  const r = spawnSync(process.execPath, [BUNDLE, ...(opts.args ?? ['pre-tool-use'])], { input: stdin, encoding: 'utf8', cwd: opts.cwd, timeout: 20_000, env: { PATH: process.env.PATH ?? '' } });
+  const r = spawnSync(process.execPath, [BUNDLE, ...(opts.args ?? ['pre-tool-use'])], { input: stdin, encoding: 'utf8', cwd: opts.cwd, timeout: 20_000, env: opts.env ?? { PATH: process.env.PATH ?? '' } });
   const ms = performance.now() - started;
   return { status: r.status, stdout: r.stdout, stderr: r.stderr, ms, ...(r.stdout.trim() ? { json: JSON.parse(r.stdout) as Ran['json'] } : {}) };
 }

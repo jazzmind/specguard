@@ -12,6 +12,7 @@ import path from 'node:path';
 import { existsSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { guessRepoRole, workspaceRepoKey } from './workspace-heuristics.js';
 import { readCodeWorkspace, WORKSPACE_REL } from './workspace.js';
+import { overlayCoverage } from './overlay.js';
 
 type Json = Record<string, unknown>;
 
@@ -21,6 +22,8 @@ export interface SyncProbe {
   /** Canonical path, so two spellings of one folder are one repo. */
   real(abs: string): string;
   hasConfig(abs: string): boolean;
+  /** Whether an overlay (a separate repo that holds the specs) covers a folder that has no config of its own. Absent means no. */
+  overlay?(abs: string): boolean;
   role(abs: string): string;
   now(): string;
 }
@@ -35,6 +38,7 @@ export const fsProbe: SyncProbe = {
     }
   },
   hasConfig: (abs) => existsSync(path.join(abs, '.specguard', 'config.json')),
+  overlay: (abs) => overlayCoverage(abs) !== null,
   role: (abs) => guessRepoRole(abs),
   now: () => new Date().toISOString(),
 };
@@ -118,6 +122,8 @@ export function syncFromCodeWorkspace(raw: Json, opts: SyncOptions): SyncResult 
     wanted.add(real);
     const found = byReal.get(real);
     const hasConfig = probe.hasConfig(abs);
+    // A folder with no config of its own but covered by an overlay is as good as configured: its specs live elsewhere.
+    const viaOverlay = !hasConfig && probe.overlay?.(abs) === true;
 
     if (!found) {
       const base = workspaceRepoKey(folder.name ?? path.basename(abs));
@@ -133,7 +139,11 @@ export function syncFromCodeWorkspace(raw: Json, opts: SyncOptions): SyncResult 
         syncedValues: { path: rel, role },
       };
       let detail = `${rel} as ${role}`;
-      if (!hasConfig && autoIgnore) {
+      if (viaOverlay) {
+        entry.configVia = 'overlay';
+        detail += ' (specs in an overlay)';
+      }
+      if (!hasConfig && !viaOverlay && autoIgnore) {
         entry.ignore = true;
         entry.ignoreReason = 'auto:no-config';
         detail += ' (ignored: no SpecGuard config)';
@@ -146,10 +156,17 @@ export function syncFromCodeWorkspace(raw: Json, opts: SyncOptions): SyncResult 
 
     const { key, entry } = found;
     if (entry.origin !== 'code-workspace') continue; // hand-made entry: leave it alone
-    if (entry.ignore === true && entry.ignoreReason === 'auto:no-config' && hasConfig) {
+    if (entry.ignore === true && entry.ignoreReason === 'auto:no-config' && (hasConfig || viaOverlay)) {
       delete entry.ignore;
       delete entry.ignoreReason;
-      changes.push({ type: 'unignored', key, detail: 'a SpecGuard config appeared' });
+      changes.push({ type: 'unignored', key, detail: viaOverlay ? 'an overlay now covers it' : 'a SpecGuard config appeared' });
+    }
+    if (viaOverlay && entry.configVia !== 'overlay') {
+      entry.configVia = 'overlay';
+      changes.push({ type: 'updated', key, detail: 'its specs are in an overlay' });
+    } else if (!viaOverlay && entry.configVia === 'overlay') {
+      delete entry.configVia;
+      changes.push({ type: 'updated', key, detail: 'no longer covered by an overlay' });
     }
     if (entry.ignore === true && entry.ignoreReason === 'auto:removed') {
       delete entry.ignore;

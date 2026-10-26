@@ -858,6 +858,33 @@ Set the provider in `llm`. The API key is read from the env var named by `apiKey
 }
 ```
 
+### Specs kept in a separate repo (overlays)
+
+Some teams keep the SpecGuard config, specs and test results for a whole workspace in ONE separate "overlay" repository and never write anything into the application repos. The overlay holds one config per application, and each config's `apps[].repo` points out to the real repository (relative to the folder that holds `.specguard/`):
+
+```
+shop-specs/                        (a git repo)
+  apps/api/.specguard/config.json    apps: [{ "name": "api", "repo": "../../../shop-api", "specDir": "specs", ... }]
+  apps/api/specs/  apps/api/tags/
+  apps/web/.specguard/config.json    apps: [{ "name": "web", "repo": "../../../shop-web", ... }]
+```
+
+Register it once per machine; the real repos are then configured, whether you open one of them or a `.code-workspace` that contains them:
+
+```bash
+specguard overlay add ../shop-specs   # scans it, shows what it covers and what it skipped, registers it
+specguard overlay list                # registered overlays (stale entries are flagged)
+specguard overlay resolve .           # which config, overlay and app this directory uses, or why none
+specguard overlay refresh             # rescan after configs were added, moved or deleted
+specguard overlay remove ../shop-specs
+```
+
+`add` and `refresh` write only the per-user registry (`~/.config/specguard/overlays.json`, or `$XDG_CONFIG_HOME/specguard/`, mode 600). Nothing is written into the application repos: specs, the proof ledger, caches and the edit guard's index and log all live in the overlay. Run from inside `shop-api`, a command loads the overlay app's config exactly as if you had run it from `shop-specs/apps/api`, and `check` and `status` say so on their first line.
+
+Without registering, `SPECGUARD_OVERLAY=<dir>[:<dir>...]` (the path-list separator) names overlay roots that are scanned on the fly (handy in plugin or MCP configs), and `SPECGUARD_CONFIG=<path to a .specguard/config.json, or its folder>` names one config for every directory. The `--config` flag keeps working as before.
+
+Resolution order for a directory: its repository's own `.specguard/config.json` (as before, up to the git boundary); then `SPECGUARD_CONFIG`; then overlay entries (`SPECGUARD_OVERLAY` roots first, then the registry), taking the entry whose repo is the deepest ancestor-or-equal of the directory, else the entry whose repo sits inside the git repository the directory is in (so a repo opened at its root resolves when the overlay config points at an app folder inside it; a folder above the git root matches nothing). A repo's own config always wins over an overlay. If two overlay configs name the same repo (or, started at a git root, different apps inside it, in which case start from inside one app), SpecGuard stops with an error that names both and says how to pick (`--config` or `SPECGUARD_CONFIG`); it never guesses. `workspace sync` treats an overlay-covered folder as a normal repo, the Claude Code and Codex edit guard judges edits in it, and the VS Code extension shows it as configured.
+
 ---
 
 ## Test Results and Proofs

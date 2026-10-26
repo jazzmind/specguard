@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-26T06:22:20.583Z",
+  "generated": "2026-10-26T14:34:24.549Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -3525,6 +3525,8 @@
         "extension/src/plugins-model.ts",
         "extension/src/plugins-state.ts",
         "extension/src/plugins-view.ts",
+        "extension/src/project-config.test.ts",
+        "extension/src/project-config.ts",
         "extension/src/project-updater.ts",
         "extension/src/safe-spawn.test.ts",
         "extension/src/safe-spawn.ts",
@@ -3567,6 +3569,7 @@
         "src/cli/commands/helpers.ts",
         "src/cli/commands/index.ts",
         "src/cli/commands/init.ts",
+        "src/cli/commands/overlay.ts",
         "src/cli/commands/plugin.ts",
         "src/cli/index.ts",
         "src/cli/plugin-commands.ts",
@@ -3617,6 +3620,7 @@
         "extension/src/dashboard/matrix-model.test.ts",
         "extension/src/dashboard/protocol.test.ts",
         "extension/src/plugins-model.test.ts",
+        "extension/src/project-config.test.ts",
         "extension/src/safe-spawn.test.ts",
         "extension/src/spec-inventory.test.ts",
         "extension/src/workspace-panel.test.ts",
@@ -3628,6 +3632,7 @@
         "tests/cli/check-base.test.ts",
         "tests/cli/ci.test.ts",
         "tests/cli/features.test.ts",
+        "tests/cli/overlay.test.ts",
         "tests/cli/plugin-json.test.ts",
         "tests/core/ci-workflow.test.ts",
         "tests/core/cli.test.ts",
@@ -3640,6 +3645,7 @@
         "tests/core/runner.test.ts",
         "tests/core/scaffold.test.ts",
         "tests/core/version.test.ts",
+        "tests/hooks/overlay.test.ts",
         "tests/mcp/agent-work-tool.test.ts",
         "tests/mcp/change-tools.test.ts",
         "tests/mcp/functional-tools.test.ts",
@@ -3665,6 +3671,7 @@
         "tests/plugins/npm-plugins.test.ts",
         "tests/plugins/plugin-package.test.ts",
         "tests/plugins/quality-fix.test.ts",
+        "tests/plugins/session-status.test.ts",
         "tests/server/api.test.ts"
       ],
       "docs": [
@@ -3697,7 +3704,8 @@
         "2026-10-25-0-4-the-host-coding-agent-does-the-model",
         "2026-10-26-ci-trust-approvals-are-records-ci-plumbi",
         "2026-10-26-edit-guard-hook-entry-index-and-bundle",
-        "2026-10-26-ci-orchestrator-ci-run-proof-packet-and"
+        "2026-10-26-ci-orchestrator-ci-run-proof-packet-and",
+        "2026-10-26-overlay-spec-sources-specs-kept-outside"
       ],
       "claims": [
         {
@@ -4115,7 +4123,7 @@
         {
           "id": "plugin-distribution",
           "ref": "capabilities/integration-surfaces#plugin-distribution",
-          "text": "The repository is a Claude Code plugin marketplace and a Codex plugin marketplace whose one plugin, `specguard`, installs with one line, needs no API key inside the agent and writes nothing into the project: it ships the skills (the working rules, and how to answer model requests), the `start` and `check` commands, a `specguard` executable on the agent's PATH that runs the CLI of the same minor version with the host agent doing the model work (`SPECGUARD_CLI` runs a local build), the MCP server configured the same way, and a session-start hook that prints a short status only in a project that uses SpecGuard; both manifests carry the package's version",
+          "text": "The repository is a Claude Code plugin marketplace and a Codex plugin marketplace whose one plugin, `specguard`, installs with one line, needs no API key inside the agent and writes nothing into the project: it ships the skills (the working rules, and how to answer model requests), the `start` and `check` commands, a `specguard` executable on the agent's PATH that runs the CLI of the same minor version with the host agent doing the model work (`SPECGUARD_CLI` runs a local build), the MCP server configured the same way, and a session-start hook that prints a short status only in a project that uses SpecGuard (including one whose specs live in an overlay); both manifests carry the package's version",
           "proof": "proven",
           "tests": [
             {
@@ -6027,17 +6035,254 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "overlay-cli",
+          "ref": "capabilities/integration-surfaces#overlay-cli",
+          "text": "`specguard overlay add <dir>` scans the directory, shows each repo it covers and each config it skipped with the reason, and registers it (refusing a directory with no config that points at another repository, and writing only the registry); `overlay list` shows registered overlays and `SPECGUARD_OVERLAY` roots and flags stale entries; `overlay refresh [dir]` rescans and reports what was added or removed; `overlay remove <dir>` forgets one without touching its files; `overlay resolve [dir]` prints which config, overlay and app a directory resolves to or why none (exit 0 when configured, 1 when not or ambiguous), read-only; `--json` works on all of them, `init` refuses to write a second config into an overlay-covered repo, and `check` and `status` print one first line `configured via overlay <root> (app <name>)` only when running through an overlay",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 20,
+              "title": "add scans the overlay, shows each entry, registers it with mode 600 and writes nothing into the app repos",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 35,
+              "title": "add shows what it skipped and why, and --json carries the same",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 47,
+              "title": "add refuses a directory with no configs, or with none that point at another repo, and registers nothing",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 66,
+              "title": "list shows registered overlays (and SPECGUARD_OVERLAY roots) as text and JSON, and flags a stale entry",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 82,
+              "title": "refresh rescans after a config was added or deleted, for one overlay or all, and reports the difference",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 96,
+              "title": "remove forgets an overlay and leaves its files alone; removing an unknown one fails",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 106,
+              "title": "resolve says which config, overlay and app a directory resolves to (exit 0), or why none (exit 1), read-only",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 132,
+              "title": "resolve reports an ambiguous repo with both candidates, and add warns about it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 146,
+              "title": "status and check run from inside the real repo and say on the first line that the config came from the overlay",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 157,
+              "title": "a repo no overlay covers still says to run init, and an overlay-covered repo is not re-initialised into",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 172,
+              "title": "--config and SPECGUARD_CONFIG pick the config explicitly, and --config keeps working as before",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 184,
+              "title": "add and list show the enclosing git root when it differs from the entry folder, and resolve works from the git root",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "hook-overlay",
+          "ref": "capabilities/integration-surfaces#hook-overlay",
+          "text": "The agent edit guard works in a real repository whose specs live in an overlay: it finds the overlay app with a light lookup (node built-ins, no heavy imports) of `SPECGUARD_CONFIG`, `SPECGUARD_OVERLAY` and the registry, expresses ownership relative to the real repository while reading specs, change records and enforce levels from the overlay, keeps its index cache and decision log in the overlay, classifies an edit to an overlay file from a session opened in the repo as outside the repo and allows it, never mistakes the repository's own `specs/` folder for the overlay's, takes ownership relative to the entry's app folder when that is nested inside the git repo the session opened (a file in the repo outside the app folder is outside and allowed), and fails open (silent) when nothing or more than one config matches",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 18,
+              "title": "denies an edit to an owned file of a repo whose specs live in the overlay, with the normal message",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 27,
+              "title": "judges from a nested directory of the repo, and a file the specs do not own is allowed silently",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 35,
+              "title": "writes its index and decision log into the overlay and nothing into the application repo",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 44,
+              "title": "lets an edit to an overlay file through when the session is opened in the repo: it is outside the repo",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 51,
+              "title": "does not mistake the repo's own specs/ folder for the overlay's specs",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 58,
+              "title": "is silent when no overlay covers the repo, and for a repo the overlay does not name",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 66,
+              "title": "works from SPECGUARD_OVERLAY alone, with no registration",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 73,
+              "title": "stays quick once the index is cached (generous bound: 1 s per call)",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 82,
+              "title": "fails open: two overlay configs for one repo give silence, not a guess or an error",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 90,
+              "title": "with the entry pointing at a nested app folder, a session opened at the git root denies an edit inside the app and is silent outside it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 111,
+              "title": "is silent at the root of a git repo whose apps each have an entry (ambiguous), above a git root, and outside any repo",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-clients",
+          "ref": "capabilities/integration-surfaces#overlay-clients",
+          "text": "The session-start status script and the VS Code extension see overlay-covered folders as configured: the script runs `specguard overlay resolve . --json` only when the folder has no config and an overlay registry, `SPECGUARD_OVERLAY` or `SPECGUARD_CONFIG` exists (no CLI start-up for projects without overlays); the extension asks the CLI's `overlay resolve <folder> --json` when `.specguard/config.json` is absent, reads specs and traces from the folder that holds the config, starts on `onStartupFinished` and stays quiet in a window with no SpecGuard project",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 49,
+              "title": "a folder with its own config is configured without starting the CLI",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 57,
+              "title": "a folder without one asks `overlay resolve <folder> --json` and takes the overlay answer",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 67,
+              "title": "is not configured when the CLI says so (exit 1 with JSON), prints nothing usable, or cannot run",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 77,
+              "title": "does not start the CLI for a plain unconfigured folder: only when a registry file or SPECGUARD_OVERLAY / SPECGUARD_CONFIG exists",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 89,
+              "title": "parses the JSON line even when other output comes first",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 96,
+              "title": "detect remembers the answer for the synchronous readers: configured, and where the config and specs are",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 107,
+              "title": "without a recorded answer the readers behave exactly as before: the folder itself and its own config path",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-config.test.ts",
+              "line": 118,
+              "title": "augmentCoverageFromDisk counts the overlay's specs: specDir is relative to the config folder, not the repo",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/session-status.test.ts",
+              "line": 26,
+              "title": "shows the status of a repo whose specs live in an overlay, starting with where the config came from",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/session-status.test.ts",
+              "line": 34,
+              "title": "asks the CLI only when the folder has no config and an overlay is known: no start-up cost for plain projects",
+              "origin": "source"
+            },
+            {
+              "file": "tests/plugins/session-status.test.ts",
+              "line": 55,
+              "title": "stays silent when the CLI says the folder resolves to nothing, and does not ask when the folder has its own config",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 61,
-        "proven": 58,
+        "claims": 64,
+        "proven": 61,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 59,
+        "withTests": 62,
         "incomplete": 0
       }
     },
@@ -6835,6 +7080,7 @@
         "src/core/llm-usage.ts",
         "src/core/llm.ts",
         "src/core/migrate-plan.ts",
+        "src/core/overlay.ts",
         "src/core/reader.ts",
         "src/core/redact.ts",
         "src/core/sentinels.ts",
@@ -6847,7 +7093,9 @@
       ],
       "tests": [
         "tests/cli/migrate.test.ts",
+        "tests/cli/overlay.test.ts",
         "tests/core/agent-work.test.ts",
+        "tests/core/config-overlay.test.ts",
         "tests/core/config-phase3.test.ts",
         "tests/core/config.test.ts",
         "tests/core/errors.test.ts",
@@ -6858,10 +7106,14 @@
         "tests/core/llm-tiers.test.ts",
         "tests/core/llm.test.ts",
         "tests/core/migrate-plan.test.ts",
+        "tests/core/overlay.test.ts",
         "tests/core/reader.test.ts",
         "tests/core/redact.test.ts",
         "tests/core/version.test.ts",
+        "tests/core/workspace-sync-overlay.test.ts",
         "tests/core/writer.test.ts",
+        "tests/helpers/overlay-fixture.ts",
+        "tests/hooks/overlay.test.ts",
         "tests/pipelines/git-ops-scope.test.ts",
         "tests/pipelines/host-agent-flow.test.ts",
         "tests/pipelines/migrate.test.ts",
@@ -6887,13 +7139,14 @@
         "2026-10-25-specguard-proves-intent-not-metrics-thre",
         "2026-10-25-0-4-the-host-coding-agent-does-the-model",
         "2026-10-26-migration-planning-is-a-pure-idempotent",
-        "2026-10-26-migrate-applies-the-plan-idempotently-an"
+        "2026-10-26-migrate-applies-the-plan-idempotently-an",
+        "2026-10-26-overlay-spec-sources-specs-kept-outside"
       ],
       "claims": [
         {
           "id": "config-discovery",
           "ref": "capabilities/platform-foundation#config-discovery",
-          "text": "Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config yields a not-found error that names the search start and suggests `specguard init`",
+          "text": "Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config, and no overlay covering the directory, yields a not-found error that names the search start and suggests `specguard init`",
           "proof": "proven",
           "tests": [
             {
@@ -8490,17 +8743,431 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "overlay-resolution-order",
+          "ref": "capabilities/platform-foundation#overlay-resolution-order",
+          "text": "When a repository has no config of its own, the config is resolved in one fixed order (`resolveConfigDir(start, env)` in `src/core/overlay.ts`, used by `loadConfig`): (a) the repository's own `.specguard/config.json` exactly as before, including the git-boundary rule and `extends`; (b) `SPECGUARD_CONFIG`; (c) overlay entries, the roots named by `SPECGUARD_OVERLAY` first and then the per-user registry, each tier taking the entry whose repo is the deepest ancestor-or-equal of the start directory; (d) otherwise null, which `loadConfig` reports as the same not-found error as before",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 187,
+              "title": "resolves a registered overlay entry for a directory inside the repo, and reports the overlay root and app",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 268,
+              "title": "with no overlay known it answers null without reading anything else",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 274,
+              "title": "overlayCoverage is the overlay-only view: SPECGUARD_CONFIG is not coverage, and an ambiguous setup reads as not covered",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-repo-config-wins",
+          "ref": "capabilities/platform-foundation#overlay-repo-config-wins",
+          "text": "A repository's own config always wins over an overlay entry or `SPECGUARD_CONFIG`, and a config loaded from the repository's own `.specguard/` carries no overlay metadata and behaves exactly as it did before overlays existed",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 34,
+              "title": "a repo's own config wins over the overlay, and carries no overlay metadata",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 196,
+              "title": "a repo's own config always wins over an overlay entry for it",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-mode-semantics",
+          "ref": "capabilities/platform-foundation#overlay-mode-semantics",
+          "text": "`loadConfig` in overlay mode returns the overlay app's config exactly as if the command had run from the overlay app's directory: `rootDir` is the folder that holds that `.specguard/`, so specs, the proof ledger, caches and the trace resolve inside the overlay, and `apps[].repo` resolves to the real repository; the config carries `resolvedVia` (`overlay`, `env-overlay` or `env-config`, with the overlay root, repo and app) so a message can say where it came from",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 146,
+              "title": "status and check run from inside the real repo and say on the first line that the config came from the overlay",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 12,
+              "title": "from inside the real repo it loads the overlay app config as if run from the overlay app directory",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 26,
+              "title": "loads the other app of the same overlay from its own repo",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-scan",
+          "ref": "capabilities/platform-foundation#overlay-scan",
+          "text": "An overlay is scanned for `**/.specguard/config.json` up to four levels below its root (skipping node_modules, .git, dist and dot-folders): each `apps[].repo` is read as raw JSON and resolved against the folder that holds `.specguard/`; an app whose repo is that folder itself is an ordinary in-repo config, and a config that is not valid JSON, has no apps, or names a repo directory that does not exist is skipped and reported with the reason",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 35,
+              "title": "add shows what it skipped and why, and --json carries the same",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 29,
+              "title": "finds one entry per app config and resolves apps[].repo against the folder that holds .specguard",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 41,
+              "title": "reports what it skips and why: a repo that does not exist, bad JSON, no apps, and an in-repo root config",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 57,
+              "title": "does not look inside node_modules, .git, dist or deeper than four levels",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 72,
+              "title": "follows extends when the overlay config takes its apps from a base config",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-registry",
+          "ref": "capabilities/platform-foundation#overlay-registry",
+          "text": "The per-user overlay registry is `$XDG_CONFIG_HOME/specguard/overlays.json`, else `~/.config/specguard/overlays.json` (and none when the given environment names no home, so a test never touches the real one); it holds `{ version: 1, overlays: [{ root, addedAt, entries: [{ repo, config, app }] }] }` derived from scans, is written atomically with mode 600 in a 700 folder, and a missing, corrupt or foreign file reads as empty with the problem named, never as an error",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 83,
+              "title": "lives in $XDG_CONFIG_HOME/specguard/overlays.json, else ~/.config/specguard/overlays.json, and none without a home",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 90,
+              "title": "round-trips, is written with mode 600 in a 700 folder, and leaves no temp file behind",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 106,
+              "title": "is isolated by the env it is given: HOME and XDG_CONFIG_HOME pick the file, and the real home is never touched",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 117,
+              "title": "reads a missing, corrupt or foreign file as empty and says why; it never throws",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 129,
+              "title": "upsert replaces the overlay of the same root and drop removes it, both pure",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-deepest-match",
+          "ref": "capabilities/platform-foundation#overlay-deepest-match",
+          "text": "An overlay entry matches a directory when its repo is an ancestor-or-equal of it, compared by real path (so `/tmp` and `/private/tmp` agree), the deepest such repo wins, and the walk stops at a git boundary the way the in-repo lookup does, so a nested repository with no config is not taken to be part of an outer repo that an overlay covers",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 143,
+              "title": "picks the entry whose repo is the deepest ancestor-or-equal of the start directory",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 159,
+              "title": "compares real paths, so a symlinked spelling of the repo matches",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 170,
+              "title": "does not reach a repo across a git boundary: a nested repo without a config is not part of an outer one",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-ambiguity",
+          "ref": "capabilities/platform-foundation#overlay-ambiguity",
+          "text": "Two entries with the same repo but different overlay configs are ambiguous: resolution fails with a typed error that names both configs (with their overlay roots and apps) and says to pick one with `--config` or `SPECGUARD_CONFIG`, and never guesses; one config that names the same repo through several apps is not ambiguous",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 132,
+              "title": "resolve reports an ambiguous repo with both candidates, and add warns about it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 71,
+              "title": "refuses to guess between two overlay configs for one repo",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 178,
+              "title": "counts one config that names a repo through several apps once, and two different configs as two",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 231,
+              "title": "two overlay configs for the same repo are ambiguous: a typed error names both and says how to pick, never a guess",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 318,
+              "title": "a git root with an entry per app is ambiguous when started at the root, and the message says to start inside an app",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-env-roots",
+          "ref": "capabilities/platform-foundation#overlay-env-roots",
+          "text": "`SPECGUARD_OVERLAY=<dir>[:<dir>...]` (the path-list separator) names overlay roots that are scanned on the fly with no registration and take precedence over the registry; a nonexistent root contributes nothing",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 216,
+              "title": "SPECGUARD_OVERLAY roots are scanned on the fly with no registration, several separated by the path-list separator, and come first",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-env-config",
+          "ref": "capabilities/platform-foundation#overlay-env-config",
+          "text": "`SPECGUARD_CONFIG` names a `.specguard/config.json`, its `.specguard` folder or the folder above it, and then applies to every start directory that has no config of its own, beating the registry; a value that names no config is an invalid-config error, and the `--config <path>` flag keeps working as before",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 172,
+              "title": "--config and SPECGUARD_CONFIG pick the config explicitly, and --config keeps working as before",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 63,
+              "title": "SPECGUARD_CONFIG beats the registry for a directory the registry covers",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 204,
+              "title": "SPECGUARD_CONFIG names the config for any directory, as a file, its .specguard folder or the folder above it, and beats the registry",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-stale-entry",
+          "ref": "capabilities/platform-foundation#overlay-stale-entry",
+          "text": "A registry entry whose config file was deleted is ignored with a warning that names the fix (`specguard overlay refresh <root>`), so the directory reads as not configured rather than failing, and the not-found error carries a hint about `specguard overlay add` when an overlay is registered but none matched",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 81,
+              "title": "a registered entry whose config was deleted is ignored: the directory reads as not configured, with the stale warning in the hint",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 255,
+              "title": "ignores a registered entry whose config was deleted, with a warning that names the fix",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-no-change",
+          "ref": "capabilities/platform-foundation#overlay-no-change",
+          "text": "With no overlay registered or named in the environment and no config, `loadConfig` throws the same `ConfigNotFoundError` message as before, with no extra hint, and resolving reads no file other than the registry",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 157,
+              "title": "a repo no overlay covers still says to run init, and an overlay-covered repo is not re-initialised into",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 44,
+              "title": "with no overlay and no config it throws ConfigNotFoundError exactly as before, with no overlay hint",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/config-overlay.test.ts",
+              "line": 54,
+              "title": "when an overlay is registered but none covers the directory, the error carries a hint about overlay add",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "overlay-enclosing-git-root",
+          "ref": "capabilities/platform-foundation#overlay-enclosing-git-root",
+          "text": "An overlay entry also covers the git repository that encloses its repo folder: when no entry's repo contains the start directory, entries whose enclosing git root (nearest `.git` above the entry's repo, by real path) equals the git root enclosing the start match, so a repo opened at its root resolves to the entry for the app folder inside it; exactly one distinct config resolves to it, several distinct configs (a monorepo whose apps each have an entry, started at its root) are the ambiguity error with a message that says to start inside one of the apps (listing their folders) or pass `--config` or `SPECGUARD_CONFIG`; the walk never goes above the start's own git root, so a folder that holds several repos, or one outside any repo, matches nothing",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/overlay.test.ts",
+              "line": 184,
+              "title": "add and list show the enclosing git root when it differs from the entry folder, and resolve works from the git root",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 287,
+              "title": "a repo opened at its git root resolves to the overlay entry for the app folder inside it, as do the app folder and below",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 301,
+              "title": "a directory outside any git repository, and one above the git root, match nothing",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 309,
+              "title": "the enclosing git root is the nearest .git above the folder, by real path",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 318,
+              "title": "a git root with an entry per app is ambiguous when started at the root, and the message says to start inside an app",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 338,
+              "title": "started inside one of the apps it resolves to that app only, and an explicit pick resolves the root",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 348,
+              "title": "one config naming several app folders of one git repo resolves from the root (not ambiguous), to the first folder",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 362,
+              "title": "a deeper entry that contains the start still wins over an enclosing-root match, and the git boundary is respected",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/overlay.test.ts",
+              "line": 373,
+              "title": "works for SPECGUARD_OVERLAY roots too, and overlayCoverage sees the git root as covered",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 141,
+              "title": "treats the git root folder of a repo whose overlay entry names an app inside it as covered; a monorepo root with two apps is not",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 90,
+              "title": "with the entry pointing at a nested app folder, a session opened at the git root denies an edit inside the app and is silent outside it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/overlay.test.ts",
+              "line": 111,
+              "title": "is silent at the root of a git repo whose apps each have an entry (ambiguous), above a git root, and outside any repo",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 43,
-        "proven": 43,
+        "claims": 55,
+        "proven": 55,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 43,
+        "withTests": 55,
         "incomplete": 0
       }
     },
@@ -9338,6 +10005,7 @@
         "specs/history/2026-10-26-intent-approvals-are-history-entries-bou.md",
         "specs/history/2026-10-26-migrate-applies-the-plan-idempotently-an.md",
         "specs/history/2026-10-26-migration-planning-is-a-pure-idempotent.md",
+        "specs/history/2026-10-26-overlay-spec-sources-specs-kept-outside.md",
         "specs/history/2026-10-26-per-capability-enforcement-ratchet-and-i.md",
         "specs/history/2026-10-26-phase-3-contracts-and-seams.md",
         "specs/history/2026-10-26-proof-note-is-a-pure-json-module-with-ca.md",
@@ -18281,6 +18949,7 @@
         "tests/core/monorepo.test.ts",
         "tests/core/workspace-heuristics.test.ts",
         "tests/core/workspace-rollup.test.ts",
+        "tests/core/workspace-sync-overlay.test.ts",
         "tests/core/workspace-sync.test.ts",
         "tests/core/workspace-units.test.ts",
         "tests/pipelines/contracts-llm.test.ts",
@@ -18306,7 +18975,8 @@
         "2026-10-22-extension-runs-the-cli-under-the-host-ex",
         "2026-10-22-extension-manual-initialize-workspace-co",
         "2026-10-23-workspace-panel-route-clicks-by-data-act",
-        "2026-10-24-key-set-status-and-a-per-user-env-file"
+        "2026-10-24-key-set-status-and-a-per-user-env-file",
+        "2026-10-26-overlay-spec-sources-specs-kept-outside"
       ],
       "claims": [
         {
@@ -19118,17 +19788,81 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "workspace-sync-overlay",
+          "ref": "capabilities/workspaces#workspace-sync-overlay",
+          "text": "`workspace sync` treats a folder with no config of its own but covered by an overlay as a normal repo unit instead of `auto:no-config`, recording `configVia: overlay` in an optional unit field (manifests without it load unchanged), and the workspace scan, rollup and role guess read its config, trace and proofs from the overlay; a git root folder whose overlay entry names an app folder inside it counts as covered, while a monorepo root whose apps each have an entry (ambiguous) does not",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 27,
+              "title": "registers a folder with no config of its own but covered by an overlay as a normal repo, recording configVia",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 64,
+              "title": "drops configVia when the overlay no longer covers the folder, and a second sync is a no-op",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 84,
+              "title": "an overlay registered after the first sync lifts the auto ignore on the next one; the manifest stays loadable",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 110,
+              "title": "workspace init scanning, the rollup and the role guess all see an overlay-covered repo as configured",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 141,
+              "title": "treats the git root folder of a repo whose overlay entry names an app inside it as covered; a monorepo root with two apps is not",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "workspace-sync-retire",
+          "ref": "capabilities/workspaces#workspace-sync-retire",
+          "text": "A unit that sync marked `auto:no-config` is retired automatically on the next sync once an overlay covers it, and `configVia` is dropped again when the overlay stops covering it; a unit a person marked ignore by hand (any other reason, or an entry sync did not create) is never touched",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 40,
+              "title": "retires an auto:no-config ignore when an overlay now covers the unit, and never touches a hand-made ignore",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/workspace-sync-overlay.test.ts",
+              "line": 84,
+              "title": "an overlay registered after the first sync lifts the auto ignore on the next one; the manifest stays loadable",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 31,
-        "proven": 22,
+        "claims": 33,
+        "proven": 24,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 9,
-        "withTests": 23,
+        "withTests": 25,
         "incomplete": 0
       }
     }
@@ -19136,18 +19870,18 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 526,
-    "proven": 493,
+    "claims": 543,
+    "proven": 510,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 495,
+    "withTests": 512,
     "incomplete": 0,
     "capabilities": 16,
-    "ownedFiles": 421,
-    "sourceFiles": 320
+    "ownedFiles": 426,
+    "sourceFiles": 324
   },
   "gaps": {
     "intent": [
@@ -19165,21 +19899,18 @@
         "id": "team-server",
         "codeDate": "2026-10-26",
         "intentDate": "2026-10-22"
-      },
-      {
-        "id": "workspaces",
-        "codeDate": "2026-10-26",
-        "intentDate": "2026-10-24"
       }
     ],
     "docsStale": [
+      "integration-surfaces",
+      "requirement-history",
       "team-server"
     ]
   },
   "statement": {
     "version": 1,
-    "generated": "2026-10-26T06:22:23.657Z",
-    "head": "2f6cb0f5e4545e6d9072806399072208ca882b1c",
+    "generated": "2026-10-26T14:34:28.028Z",
+    "head": "013c088f818282b960db7d1a28919fb694c0ec22",
     "policy": {
       "requireApproval": false,
       "requireTestable": false,
@@ -20859,7 +21590,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "agentic-verification: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -23662,7 +24393,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "conformance-testing: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -24508,7 +25239,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "coverage-and-mutation: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -26007,7 +26738,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "documentation-api: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -26031,7 +26762,7 @@
                 "fix": "specguard spec approve integration-surfaces  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/61 claims approved"
+            "summary": "0/64 claims approved"
           },
           "testable": {
             "status": "ok",
@@ -26167,7 +26898,7 @@
                 "gate": "requireTestable",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#plugin-distribution",
-                "message": "T-LONG: The claim is too long to read as one behaviour. (110 words, at most 80.)",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (118 words, at most 80.)",
                 "data": {
                   "rule": "T-LONG",
                   "matches": []
@@ -26876,9 +27607,75 @@
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#action-prove-gate",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (6 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (119 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (138 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-clients",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 22 warnings"
+            "summary": "0 errors, 25 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -26964,10 +27761,27 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/capabilities/integration-surfaces.md",
+                "message": "18 input file(s) have uncommitted changes: extension/src/dashboard/coverage-parse.ts, extension/src/dashboard/host.ts, extension/src/extension.ts, ...",
                 "data": {
                   "files": [
-                    "specs/capabilities/integration-surfaces.md"
+                    "extension/src/dashboard/coverage-parse.ts",
+                    "extension/src/dashboard/host.ts",
+                    "extension/src/extension.ts",
+                    "extension/src/project-config.test.ts",
+                    "extension/src/project-config.ts",
+                    "extension/src/project-updater.ts",
+                    "extension/src/sidebar.ts",
+                    "extension/src/workspace-state.ts",
+                    "plugins/specguard/scripts/session-status.sh",
+                    "specs/capabilities/integration-surfaces.md",
+                    "src/cli/commands/helpers.ts",
+                    "src/cli/commands/init.ts",
+                    "src/cli/commands/overlay.ts",
+                    "src/cli/index.ts",
+                    "src/pipelines/start.ts",
+                    "tests/cli/overlay.test.ts",
+                    "tests/hooks/overlay.test.ts",
+                    "tests/plugins/session-status.test.ts"
                   ]
                 }
               },
@@ -27782,9 +28596,51 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-clients",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "58 proven, 0 failed, 0 stale, 3 unproven"
+            "summary": "61 proven, 0 failed, 0 stale, 3 unproven"
           }
         },
         "blocking": [],
@@ -28129,7 +28985,7 @@
                 "gate": "requireTestable",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#plugin-distribution",
-                "message": "T-LONG: The claim is too long to read as one behaviour. (110 words, at most 80.)",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (118 words, at most 80.)",
                 "data": {
                   "rule": "T-LONG",
                   "matches": []
@@ -30172,14 +31028,155 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#overlay-cli",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (6 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (119 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-cli",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#hook-overlay",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (138 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#hook-overlay",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#overlay-clients",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-clients",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#overlay-clients",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 61,
+          "claims": 64,
           "approved": 0,
-          "testable": 61,
-          "proven": 58,
-          "meaningful": 58,
+          "testable": 64,
+          "proven": 61,
+          "meaningful": 61,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -30189,7 +31186,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "integration-surfaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -30550,19 +31547,6 @@
           "conforms": {
             "status": "ok",
             "reasons": [
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/capabilities/intent-approval.md",
-                "data": {
-                  "files": [
-                    "specs/capabilities/intent-approval.md"
-                  ]
-                }
-              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -31988,7 +32972,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "intent-approval: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -32012,7 +32996,7 @@
                 "fix": "specguard spec approve platform-foundation  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/43 claims approved"
+            "summary": "0/55 claims approved"
           },
           "testable": {
             "status": "fail",
@@ -32457,9 +33441,187 @@
                 "blocking": false,
                 "claim": "capabilities/platform-foundation#migrate-person-steps-never-run",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-repo-config-wins",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-mode-semantics",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-scan",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-registry",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-deepest-match",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "several"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-roots",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-config",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-stale-entry",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-no-change",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (130 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "several",
+                    "several"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "1 errors, 3 warnings"
+            "summary": "1 errors, 8 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -32479,6 +33641,30 @@
           "conforms": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "12 input file(s) have uncommitted changes: specs/capabilities/platform-foundation.md, src/core/config.ts, src/core/errors.ts, ...",
+                "data": {
+                  "files": [
+                    "specs/capabilities/platform-foundation.md",
+                    "src/core/config.ts",
+                    "src/core/errors.ts",
+                    "src/core/overlay.ts",
+                    "src/core/types.ts",
+                    "src/pipelines/migrate.ts",
+                    "tests/cli/overlay.test.ts",
+                    "tests/core/config-overlay.test.ts",
+                    "tests/core/overlay.test.ts",
+                    "tests/core/workspace-sync-overlay.test.ts",
+                    "tests/helpers/overlay-fixture.ts",
+                    "tests/hooks/overlay.test.ts"
+                  ]
+                }
+              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -33080,9 +34266,177 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-repo-config-wins",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-mode-semantics",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-scan",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-registry",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-deepest-match",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-roots",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-config",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-stale-entry",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-no-change",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "43 proven, 0 failed, 0 stale"
+            "summary": "55 proven, 0 failed, 0 stale"
           }
         },
         "blocking": [],
@@ -34602,14 +35956,492 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-resolution-order",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-resolution-order",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-repo-config-wins",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-repo-config-wins",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-repo-config-wins",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-mode-semantics",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-mode-semantics",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-mode-semantics",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-scan",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-scan",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-scan",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-registry",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-registry",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-registry",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-deepest-match",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-deepest-match",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-deepest-match",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-ambiguity",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "several"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-ambiguity",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-env-roots",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-roots",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-roots",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-env-config",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-config",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-env-config",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-stale-entry",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-stale-entry",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-stale-entry",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-no-change",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-no-change",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-no-change",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/platform-foundation#overlay-enclosing-git-root",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (130 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "several",
+                    "several"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#overlay-enclosing-git-root",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 43,
+          "claims": 55,
           "approved": 0,
-          "testable": 42,
-          "proven": 43,
-          "meaningful": 43,
+          "testable": 54,
+          "proven": 55,
+          "meaningful": 55,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -34619,7 +36451,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "platform-foundation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -36286,7 +38118,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "proof-store: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -36529,11 +38361,10 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: specs/history/2026-10-26-ci-orchestrator-ci-run-proof-packet-and.md, specs/history/2026-10-26-edit-guard-reads-the-red-record-change-r.md",
+                "message": "1 input file(s) have uncommitted changes: specs/history/2026-10-26-overlay-spec-sources-specs-kept-outside.md",
                 "data": {
                   "files": [
-                    "specs/history/2026-10-26-ci-orchestrator-ci-run-proof-packet-and.md",
-                    "specs/history/2026-10-26-edit-guard-reads-the-red-record-change-r.md"
+                    "specs/history/2026-10-26-overlay-spec-sources-specs-kept-outside.md"
                   ]
                 }
               },
@@ -37334,7 +39165,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "requirement-history: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -39594,7 +41425,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "security-and-remediation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -41872,7 +43703,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "spec-authoring: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -42773,10 +44604,12 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/capabilities/spec-first-changes.md",
+                "message": "3 input file(s) have uncommitted changes: src/cli/commands/hook.ts, src/hooks/entry.ts, src/hooks/index-build.ts",
                 "data": {
                   "files": [
-                    "specs/capabilities/spec-first-changes.md"
+                    "src/cli/commands/hook.ts",
+                    "src/hooks/entry.ts",
+                    "src/hooks/index-build.ts"
                   ]
                 }
               },
@@ -46689,7 +48522,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "spec-first-changes: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -47909,7 +49742,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "team-server: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -48691,7 +50524,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "test-strength: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -49295,6 +51128,20 @@
                 "claim": "capabilities/traceability-and-drift#gap-exit-code",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
+              },
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "2 input file(s) have uncommitted changes: src/cli/commands/check.ts, src/cli/commands/status.ts",
+                "data": {
+                  "files": [
+                    "src/cli/commands/check.ts",
+                    "src/cli/commands/status.ts"
+                  ]
+                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -51427,7 +53274,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "traceability-and-drift: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -51451,7 +53298,7 @@
                 "fix": "specguard spec approve workspaces  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/31 claims approved"
+            "summary": "0/33 claims approved"
           },
           "testable": {
             "status": "ok",
@@ -51792,9 +53639,40 @@
                 "blocking": false,
                 "claim": "capabilities/workspaces#env-permission-warning",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-retire",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 4 warnings"
+            "summary": "0 errors, 5 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -51807,14 +53685,6 @@
                 "blocking": false,
                 "message": "no coverage ingested for this capability",
                 "fix": "run the tests of this capability with coverage on, then: specguard coverage ingest <report> --capability <id>"
-              },
-              {
-                "code": "INTENT_GAP",
-                "pillar": "aligned",
-                "outcome": "note",
-                "gate": "never",
-                "blocking": false,
-                "message": "code changed 2026-10-26, after the intent was last changed 2026-10-24"
               }
             ],
             "summary": "no coverage evidence"
@@ -52001,6 +53871,25 @@
                 "claim": "capabilities/workspaces#workspace-drift",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
+              },
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "7 input file(s) have uncommitted changes: specs/capabilities/workspaces.md, src/cli/commands/workspace.ts, src/core/workspace-heuristics.ts, ...",
+                "data": {
+                  "files": [
+                    "specs/capabilities/workspaces.md",
+                    "src/cli/commands/workspace.ts",
+                    "src/core/workspace-heuristics.ts",
+                    "src/core/workspace-rollup.ts",
+                    "src/core/workspace-sync.ts",
+                    "src/core/workspace.ts",
+                    "tests/core/workspace-sync-overlay.test.ts"
+                  ]
+                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -52309,9 +54198,37 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-retire",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "22 proven, 0 failed, 0 stale, 9 unproven"
+            "summary": "24 proven, 0 failed, 0 stale, 9 unproven"
           }
         },
         "blocking": [],
@@ -53481,14 +55398,95 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/workspaces#workspace-sync-overlay",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-overlay",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/workspaces#workspace-sync-retire",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-retire",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/workspaces#workspace-sync-retire",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 31,
+          "claims": 33,
           "approved": 0,
-          "testable": 31,
-          "proven": 22,
-          "meaningful": 22,
+          "testable": 33,
+          "proven": 24,
+          "meaningful": 24,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -53498,7 +55496,7 @@
             "local"
           ],
           "shas": [
-            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
+            "013c088f818282b960db7d1a28919fb694c0ec22"
           ]
         },
         "headline": "workspaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"

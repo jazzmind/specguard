@@ -35,6 +35,8 @@ export interface WorkspaceRepo {
   ignore?: boolean;
   /** Why it is ignored: `auto:no-config`, `auto:removed`, or free text. */
   ignoreReason?: string;
+  /** Set by sync when the repo has no config of its own and its specs live in an overlay repo. */
+  configVia?: 'overlay';
 }
 
 /** The fully parsed workspace manifest. */
@@ -76,6 +78,8 @@ export interface WorkspaceUnit {
   test?: { command?: string; framework?: string };
   ignore?: boolean;
   ignoreReason?: string;
+  /** Set by sync when the repo has no config of its own and its specs live in an overlay repo. */
+  configVia?: 'overlay';
   /** How the entry was created: by hand, from a `.code-workspace` sync, or by a folder scan. */
   origin?: 'manual' | 'code-workspace' | 'scan';
   /** The folder's display name in the `.code-workspace`, when it has one. */
@@ -110,6 +114,7 @@ export interface WorkspaceRepoWithConfig extends WorkspaceRepo {
 const unitStateFields = {
   ignore: z.boolean().optional(),
   ignoreReason: z.string().optional(),
+  configVia: z.literal('overlay').optional(),
   origin: z.enum(['manual', 'code-workspace', 'scan']).optional(),
   folderName: z.string().optional(),
   syncedValues: z.record(z.string(), z.string()).optional(),

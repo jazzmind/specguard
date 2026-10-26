@@ -55,7 +55,8 @@ export async function checkAndOfferUpdate(
   context: vscode.ExtensionContext,
   workspaceRoot: string,
 ): Promise<void> {
-  // Only run when the project already has a .specguard config.
+  // Only run when the project already has its own .specguard config. A repo whose specs live in an overlay is left
+  // alone on purpose: these managed files would be written into the application repo, which an overlay keeps clean.
   const configPath = path.join(workspaceRoot, '.specguard', 'config.json');
   if (!fs.existsSync(configPath)) return;
 

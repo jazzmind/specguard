@@ -13,6 +13,7 @@ import { ActivityLogService } from './activity-log.js';
 import { loadProjectData, type ProjectData } from '../api/data.js';
 import { getHub } from '../api/shared.js';
 import { projectNameOf } from '../api/hub.js';
+import { configDirFor, configFileFor, detectProjectConfig } from '../project-config.js';
 
 /** 4 means "specs missing" and, for a security scan, 5 means "findings exist": the command ran, and the result is the finding. */
 function isSuccess(pipeline: string, code: number): boolean {
@@ -415,6 +416,8 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   async refresh(): Promise<void> {
+    // Ask where the config is (an overlay repo may hold it) before the synchronous pushes read it.
+    await detectProjectConfig(this.workspaceRoot);
     this._pushWorkspaceInfo();
     this._pushProjectConfig();
     // Clear accumulated artifacts from any previous project before re-populating.
@@ -447,14 +450,14 @@ export class DashboardHost {
       const coverage = parseCoverageText(out);
       // Augment: for apps where `status` reports 0 source files (e.g. imported-from-PRD
       // projects), count spec .md files on disk so the dashboard reflects reality.
-      augmentCoverageFromDisk(coverage, this.workspaceRoot);
+      augmentCoverageFromDisk(coverage, this.workspaceRoot, configDirFor(this.workspaceRoot));
       this.post({ type: 'coverage', data: coverage });
     } catch (err) {
       this.post({ type: 'error', scope: 'status', message: err instanceof Error ? err.message : String(err) });
     }
     // Matrix from traceability.json (if present)
     if (!api) try {
-      const file = path.join(this.workspaceRoot, '.specguard', 'traceability.json');
+      const file = path.join(configDirFor(this.workspaceRoot), '.specguard', 'traceability.json');
       if (fs.existsSync(file)) {
         const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
         this.post({ type: 'matrix', data: toMatrixModel(raw) });
@@ -644,8 +647,9 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   private _pushProjectConfig(): void {
-    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
-    const dotEnvFile = path.join(this.workspaceRoot, '.specguard', '.env');
+    // The config (and its .env) live in the overlay repo when the project's specs are kept there.
+    const configFile = configFileFor(this.workspaceRoot);
+    const dotEnvFile = path.join(configDirFor(this.workspaceRoot), '.specguard', '.env');
     const configFound = fs.existsSync(configFile);
 
     const defaultLlm: ProjectConfig['llm'] = { provider: 'anthropic', model: 'claude-sonnet-4-6', apiKeyEnv: 'ANTHROPIC_API_KEY' };
@@ -674,8 +678,8 @@ export class DashboardHost {
   }
 
   private async _saveProjectConfig(config: ProjectConfig): Promise<void> {
-    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
-    const dotEnvFile = path.join(this.workspaceRoot, '.specguard', '.env');
+    const configFile = configFileFor(this.workspaceRoot);
+    const dotEnvFile = path.join(configDirFor(this.workspaceRoot), '.specguard', '.env');
 
     try {
       let existing: Record<string, unknown> = {};
@@ -738,7 +742,7 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   private _pushWorkspaceInfo(): void {
-    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+    const configFile = configFileFor(this.workspaceRoot);
     const configFound = fs.existsSync(configFile);
     let configApps: string[] = [];
     if (configFound) {
@@ -811,8 +815,9 @@ export class DashboardHost {
    * without waiting for file-watcher create/change events.
    */
   private _pushExistingSpecs(): void {
-    const configFile = path.join(this.workspaceRoot, '.specguard', 'config.json');
+    const configFile = configFileFor(this.workspaceRoot);
     if (!fs.existsSync(configFile)) return;
+    const configDir = configDirFor(this.workspaceRoot);
 
     let appCfgs: Array<{ specDir: string }>;
     try {
@@ -843,7 +848,7 @@ export class DashboardHost {
     for (const appCfg of appCfgs) {
       const specDirAbs = path.isAbsolute(appCfg.specDir)
         ? appCfg.specDir
-        : path.join(this.workspaceRoot, appCfg.specDir);
+        : path.join(configDir, appCfg.specDir);
       if (!fs.existsSync(specDirAbs) || seen.has(specDirAbs)) continue;
       seen.add(specDirAbs);
       walk(specDirAbs);

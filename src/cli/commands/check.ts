@@ -5,6 +5,7 @@ import { runCheck, type CheckView } from '../../pipelines/check.js';
 import { runStatus } from '../../pipelines/status.js';
 import { isV2Repo } from '../../pipelines/check.js';
 import { teamLines } from '../../pipelines/team.js';
+import { describeResolution } from '../../core/overlay.js';
 import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
 import { workspaceCheckCommand } from './workspace-check.js';
 
@@ -43,9 +44,14 @@ export async function checkCommand(opts: CheckCliOpts): Promise<void> {
     const result = await runStatus(config);
     result.messages.push('This repo uses per-file specs. Run `specguard spec consolidate` to move to functional capability specs.');
     if (opts.explain !== undefined || opts.strict) result.messages.push('The proof statement (--explain, --strict) needs functional capability specs.');
+    const via = describeResolution(config.resolvedVia);
+    if (via) result.messages.unshift(via);
     outputResult(result, opts);
   }
   const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since ?? opts.base, spec: opts.spec, explain: opts.explain, strict: opts.strict, ...(opts.notes === false ? { noNotes: true } : {}) });
   if (opts.team) result.messages.push(...(await teamLines(config)));
+  // Specs read through an overlay say so on the first line, so nobody wonders where they came from.
+  const via = view === 'summary' ? describeResolution(config.resolvedVia) : '';
+  if (via) result.messages.unshift(via);
   outputResult(result, opts);
 }
