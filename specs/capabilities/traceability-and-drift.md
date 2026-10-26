@@ -27,6 +27,7 @@ sources:
   - "src/pipelines/drift-capability.ts"
   - "src/cli/commands/check.ts"
   - "src/core/proof-statement.ts"
+  - "src/pipelines/statement-input.ts"
 tests:
   - "tests/core/drift-registry.test.ts"
   - "tests/core/claim-hash.test.ts"
@@ -40,6 +41,8 @@ tests:
   - "tests/pipelines/check.test.ts"
   - "tests/pipelines/drift-capability.test.ts"
   - "tests/core/proof-statement.test.ts"
+  - "tests/pipelines/statement-input.test.ts"
+  - "tests/pipelines/check-statement.test.ts"
 docs:
   - "README.md"
 history:
@@ -49,6 +52,7 @@ history:
   - 2026-10-22-security-no-data-classification-requirem
   - 2026-10-22-security-no-access-control-requirement-o
   - 2026-10-26-proof-statement-is-a-pure-composition-wi
+  - 2026-10-26-check-leads-with-the-proof-statement-exi
 ---
 
 # Traceability and Drift
@@ -98,6 +102,16 @@ This capability computes that answer on demand and without opinion. It links spe
 - [ ] Blocking reasons are ordered by pillar (Approved, Testable, Aligned, Conforms), failures before unknowns, capability-level reasons before claim-level ones, then spec order, and the capability headline names the count and the first two <!-- claim: statement-blocking-precedence -->
 - [ ] The statement serialises to a stable JSON shape (version, policy, level, counts, exit code and per capability the pillars with their reasons, blocking reasons, claims, metrics and evidence), renders one `STATEMENT:` line per capability and a system line, and `--explain` text lists the pillars, each blocking reason with its fix, the advisory reasons and the stated limits of the evidence <!-- claim: statement-json-and-explain -->
 - [ ] Composing the statement is pure and deterministic: the same input gives a deep-equal output, the input is not changed, and the module reads no file, runs no process and calls no model <!-- claim: statement-is-pure -->
+- [ ] The `check` summary prints one `STATEMENT:` line per capability and a system line before any other line, sets the statement on the result and records it in `.specguard/trace.json` as an optional field with the trace version unchanged, and every other summary line (capability lines, TOTAL, ORPHANS, PROOFS, LAYERS, intent gaps) stays as it was <!-- claim: check-leads-with-statement -->
+- [ ] `check --explain <capability>` (and the `explain` input of `specguard_check`) prints that capability's pillars, its blocking reasons first with the command that fixes each and then its advisory reasons, returns the statement scoped to that capability, exits 13 when that capability has a blocking reason and 0 otherwise, and exits 1 naming the known capabilities when the id is unknown <!-- claim: check-explain -->
+- [ ] `check --strict` (and the `strict` input of `specguard_check`) judges the statement with every `proof.require*` gate on and `enforceLayers` at `fail`, without changing the config file <!-- claim: check-strict -->
+- [ ] With every proof gate off `check` returns the exit codes it returned before the statement existed, because the statement contributes 0 whatever its pillars say <!-- claim: check-exit-unchanged-without-gates -->
+- [ ] The `check` summary exits 13 only when the statement has a blocking reason and none of codes 2, 3 and 4 applies, so an unapproved claim under `requireApproval`, a claim that fails the lint under `requireTestable`, a skipped or assertion-free test under `requireStrength`, local evidence under `requireCi` and a changed claim without sensitivity evidence under `requireSensitivity` each exit 13 with that reason listed <!-- claim: check-exit-13-only-with-gate -->
+- [ ] The statement input is assembled from the repository: per claim the approval at its current wording (or the newest approval of an older wording), the testability lint under the project config, the strength of the tests tagged to it, and the origin, commit and evidence kind of the ledger rows its verdict rests on; per capability the coverage evidence (its own, else the suite's) and the mutation evidence scored per claim, when ingested; and the head commit with the uncommitted files some capability depends on <!-- claim: statement-input-assembly -->
+- [ ] Each test file is read once for the statement, however many capabilities and claims cite it <!-- claim: statement-input-reads-tests-once -->
+- [ ] The statement takes ledger verdicts judged by hashes alone, so a changed owned file leaves a claim not conforming even when a drift assessment says the change does not affect it <!-- claim: statement-input-deterministic-ledger -->
+- [ ] Evidence the repository does not hold (no ledger, coverage, mutation report, base ref or git checkout) is passed as absent, so its pillar reads unknown and never fail, and a base ref that does not resolve gives a warning and no change judgement <!-- claim: statement-input-absent-is-unknown -->
+- [ ] With a base ref (`check --since <ref>`) the statement classifies each claim as added, modified or unchanged against that ref and reports the policy the change relaxed (spec `layers`, `assurance` and `evidence` frontmatter, config gates and weakened tests); without a base no change is judged <!-- claim: statement-input-change-mode -->
 
 ## Scenarios
 ### Scenario 1: A new file has no spec
@@ -169,6 +183,7 @@ These pipelines read source, specs and tests and write only JSON, CSV and Markdo
 - CLI: `specguard status`, `specguard gap-analysis [--spec <key>] [--all] [--no-plan]`, `specguard matrix [--out <path>] [--format json|csv] [--app <name>]`, `specguard align [--app] [--spec] [--all] [--concurrency <n>] [--fresh] [--extra-tests <globs...>]`, `specguard drift [--since <ref>] [--spec <key>] [--force] [--mtime]`.
 - MCP tools: `specguard_status`, `specguard_drift`, `specguard_matrix`, `specguard_gap_analysis`, `specguard_check`.
 - Files under `.specguard/`: `drift-registry.json`, `gaps.json`, `plans/<feature>.md`, `plans/gap-analysis-<timestamp>.md`, `alignment.json`, `traceability.json` (path configurable through `matrix.output`).
+- `specguard check [--explain <capability>] [--strict] [--since <ref>] [--json]`: the summary leads with the proof statement; the same inputs (`explain`, `strict`, `since`) on `specguard_check`.
 - Exit codes: 0 success, 3 drift detected, 4 missing specs or gaps present, 1 internal error, 13 not certified (a blocking proof-statement reason under an enabled `proof` gate).
 - `specguard check` with the legacy commands as aliases.
 

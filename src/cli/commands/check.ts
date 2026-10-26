@@ -17,6 +17,10 @@ export interface CheckCliOpts extends GlobalOpts {
   align?: boolean;
   since?: string;
   spec?: string;
+  /** Explain one capability's proof statement: its blocking reasons first, then the advisory ones. */
+  explain?: string;
+  /** Judge the proof statement as if every `proof.require*` gate were on. */
+  strict?: boolean;
   out?: string;
   /** Show what the team's server knows next to this working tree's proofs. */
   team?: boolean;
@@ -34,9 +38,10 @@ export async function checkCommand(opts: CheckCliOpts): Promise<void> {
   if (view === 'summary' && !(await isV2Repo(config))) {
     const result = await runStatus(config);
     result.messages.push('This repo uses per-file specs. Run `specguard spec consolidate` to move to functional capability specs.');
+    if (opts.explain !== undefined || opts.strict) result.messages.push('The proof statement (--explain, --strict) needs functional capability specs.');
     outputResult(result, opts);
   }
-  const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since, spec: opts.spec });
+  const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since, spec: opts.spec, explain: opts.explain, strict: opts.strict });
   if (opts.team) result.messages.push(...(await teamLines(config)));
   outputResult(result, opts);
 }

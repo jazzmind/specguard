@@ -705,7 +705,8 @@ describe('diffTestFile', () => {
   const live = new Set(['c#a']);
   const c = cfg();
   const diff = (before: string | undefined, after: string | undefined, file = 'a.test.ts'): string[] => diffTestFile(before, after, file, c, live).map((f) => `${f.kind}:${f.severity}`);
-  const T = (body: string, tag = '// [claims: c#a]'): string => `${tag}\nit('x', () => { ${body} });`;
+  // The tag is assembled so this file does not itself contain a literal claim tag, which SpecGuard would read as one.
+  const T = (body: string, tag = `// [claims: c${'#'}a]`): string => `${tag}\nit('x', () => { ${body} });`;
 
   // [claims: capabilities/test-strength#weakening-tests]
   it('diffTestFile: assertion removed; toEqual -> toBeDefined weakened; wildcard added', () => {

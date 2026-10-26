@@ -18,6 +18,7 @@ import { buildSpecGraph, type GraphIssue, type SpecNode } from './spec-graph.js'
 import type { EffectiveVerdict } from './proof-ledger.js';
 import type { EvidenceLayer, TestLayer } from './test-layers.js';
 import type { IntentGap } from './intent-gap.js';
+import type { SystemStatement } from './proof-statement.js';
 import type { SpecGuardConfig, SpecKind } from './types.js';
 import { loadWorkspace, unitOfFile } from './workspace.js';
 
@@ -106,6 +107,8 @@ export interface TraceModel {
    * rollup, the server) can report them. Absent until `check` has run in a git repo.
    */
   gaps?: { intent: IntentGap[]; docsStale: string[] };
+  /** The proof statement (four pillars per capability), recorded by `check`'s summary view. Absent until then. */
+  statement?: SystemStatement;
   totals: TraceCounts & { capabilities: number; ownedFiles: number; sourceFiles: number; layerCounts?: Partial<Record<TestLayer, LayerCount>> };
 }
 

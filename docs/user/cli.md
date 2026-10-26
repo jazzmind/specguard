@@ -63,6 +63,9 @@ Each subcommand maps directly to a SpecGuard pipeline. The table below shows eve
 | `drift` | Detects drift between specs and the current state of your code or API | `--since`, `--spec` |
 | `matrix` | Produces a coverage matrix across all specs | `--out`, `--format` |
 | `status` | Shows an at-a-glance summary of spec coverage across your project | _(none)_ |
+| `check` | Spec health for the whole system. The summary starts with one `STATEMENT:` line per capability (approved, testable, aligned and conforms, each `ok`, `FAIL` or `??`) and a system line, then the ownership, test and proof lines | `--explain <capability>`, `--strict`, `--since <ref>`, `--json` |
+
+`check --explain <capability>` lists that capability's pillars, the blocking reasons first with the command that fixes each, then the advisory ones. `check --strict` judges the statement as if every `proof.require*` gate were on, whatever the config says. `check --since <ref>` also compares changed claims, coverage and weakened tests with that ref. With `--json` the result carries the full `statement`.
 
 > **Tip:** Run `specguard <subcommand> --help` to see the full flag reference for any individual command.
 
@@ -81,6 +84,7 @@ Each subcommand maps directly to a SpecGuard pipeline. The table below shows eve
 | `4` | Missing specs — uncovered features were found by `status` |
 | `5` | Security issues found |
 | `7` | Heal failed — tests are still broken after the maximum number of retries |
+| `13` | Not certified — `check` found a blocking reason in the proof statement. Only returned when a `proof.require*` gate (or `--strict`) is on, and after codes 2, 3 and 4 |
 
 ### Example: failing a CI job on drift
 

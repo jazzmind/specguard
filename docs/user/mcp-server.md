@@ -54,6 +54,7 @@ Each pipeline tool mirrors its corresponding `specguard` CLI subcommand exactly.
 | `specguard_generate` | Forward-generates code from a spec | `spec?`, `all?`, `framework?`, `app?`, `force?`, `cwd?` |
 | `specguard_heal` | Heals a spec by reconciling drift automatically | `spec?`, `all?`, `maxRetries?`, `cwd?` |
 | `specguard_status` | Reports the current status of all specs | `cwd?` |
+| `specguard_check` | Spec health for the whole system, led by each capability's proof statement (returned as `statement`) | `view?`, `spec?`, `since?`, `explain?`, `strict?`, `team?`, `cwd?` |
 | `specguard_drift` | Detects drift between specs and code | `since?`, `spec?`, `cwd?` |
 | `specguard_security` | Runs security checks against specs | `spec?`, `all?`, `withSast?`, `cwd?` |
 | `specguard_docs` | Generates documentation from specs | `spec?`, `all?`, `out?`, `cwd?` |

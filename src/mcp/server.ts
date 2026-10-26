@@ -905,19 +905,21 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
     'specguard_check',
     {
       description:
-        'Spec health for the whole system: owned files, tests, proofs, gaps, matrix or drift, from one trace model written to .specguard/trace.json (CLI: specguard check). Start here when unsure what needs attention.',
+        'Spec health for the whole system: owned files, tests, proofs, gaps, matrix or drift, from one trace model written to .specguard/trace.json (CLI: specguard check). The summary leads with each capability\'s proof statement (approved, testable, aligned, conforms; the `statement` field of the result). Start here when unsure what needs attention.',
       inputSchema: {
         view: z.enum(['summary', 'coverage', 'gaps', 'matrix', 'drift']).optional().describe('Default summary.'),
         spec: z.string().optional().describe('With drift: one capability id.'),
-        since: z.string().optional().describe('With drift: git ref to diff against.'),
+        since: z.string().optional().describe('With drift: git ref to diff against. With the summary: the base the proof statement judges changed claims, coverage and weakening against.'),
+        explain: z.string().optional().describe('Capability id: return that capability\'s proof statement explained (each pillar, the blocking reasons with the command that fixes each, the advisory ones) instead of the summary.'),
+        strict: z.boolean().optional().describe('Judge the proof statement as if every proof.require* gate were on.'),
         team: z.boolean().optional().describe('Also show what the team server has proven (CI), set against this working tree.'),
         cwd: z.string().optional(),
       },
     },
-    ({ view, spec, since, team, cwd }): Promise<ToolResult> =>
+    ({ view, spec, since, explain, strict, team, cwd }): Promise<ToolResult> =>
       withActivityLog('check', resolveCwd(cwd), async () => {
         const config = await loadConfig(resolveCwd(cwd));
-        const result = await runCheck(config, { view, spec, since });
+        const result = await runCheck(config, { view, spec, since, explain, strict });
         if (team) result.messages.push(...(await teamLines(config)));
         return toolResult(result);
       }).catch(errorResult),

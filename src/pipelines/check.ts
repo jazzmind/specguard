@@ -19,12 +19,14 @@ import { buildSpecGraph } from '../core/spec-graph.js';
 import { specsRootDir } from '../core/spec-key.js';
 import { buildTraceModel, TRACE_FILE, type TraceModel, type TraceNode } from '../core/trace.js';
 import type { EffectiveVerdict } from '../core/proof-ledger.js';
+import { computeStatement, explainCapability, headlineLines, type SystemStatement } from '../core/proof-statement.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
 import { runAlign } from './align.js';
 import { runCapabilityDrift } from './drift-capability.js';
 import { appendProofCoverage, walkClaimVerdicts } from './proof.js';
+import { buildStatementInput } from './statement-input.js';
 import { collectSourceFiles } from './spec-synth.js';
 
 export type CheckView = 'summary' | 'coverage' | 'gaps' | 'matrix' | 'drift' | 'align';
@@ -35,8 +37,13 @@ export interface CheckOpts {
   csv?: boolean;
   /** Matrix output path, relative to the repo root. */
   out?: string;
+  /** With `drift`: the git ref to diff against. With the summary: the base the proof statement judges change against. */
   since?: string;
   spec?: string;
+  /** Summary only: explain one capability's proof statement (its blocking reasons first) instead of the whole summary. */
+  explain?: string;
+  /** Summary only: judge the proof statement as if every `proof.require*` gate were on. */
+  strict?: boolean;
   /** Pipeline name to report under, so `status` and friends keep their `--json` identity. */
   as?: string;
 }
@@ -76,14 +83,54 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
   const log = (line: string): void => void result.messages.push(line);
   const root = config.rootDir ?? process.cwd();
   const { model, sourceFiles } = await loadTrace(config);
+  if (view === 'summary' && opts.explain !== undefined && !specNodes(model).some((n) => n.id === opts.explain || n.specKey === opts.explain)) {
+    result.failed = 1;
+    result.exitCode = ExitCode.InternalError;
+    log(`no capability "${opts.explain}"; known: ${specNodes(model).map((n) => n.id).join(', ') || 'none'}`);
+    return result;
+  }
   // Git-derived gaps go into the trace so readers without the repo's history can report them.
   const gaps = view === 'summary' ? intentGaps(root, model.nodes, listHistory(config), path.relative(root, specsRootDir(config)).split(path.sep).join('/')) : [];
   if (view === 'summary') model.gaps = { intent: gaps, docsStale: staleDocs(root, model.nodes) };
+  // The proof statement judges each capability on four pillars from the evidence in the repo; it leads the summary.
+  let statement: SystemStatement | undefined;
+  let statementWarnings: string[] = [];
+  if (view === 'summary') {
+    const assembled = await buildStatementInput(config, { model, gaps }, { strict: opts.strict, base: opts.since });
+    statementWarnings = assembled.warnings;
+    statement = computeStatement(assembled.input);
+    model.statement = statement;
+    result.statement = statement;
+  }
   await writeFile(path.join(root, TRACE_FILE), JSON.stringify(model, null, 2) + '\n');
 
   const errors = model.issues.filter((i) => i.level === 'error');
   const orphans = specNodes(model).filter((n) => n.ownedFiles.length === 0 && n.status !== 'planned');
+  if (statement && opts.explain === undefined) result.messages.push(...headlineLines(statement));
+  for (const w of statementWarnings) log(`  [warn] ${w}`);
   for (const issue of model.issues) log(`  [${issue.level === 'error' ? 'error' : 'warn'}] ${issue.code}: ${issue.message}`);
+
+  if (statement && opts.explain !== undefined) {
+    const cap = statement.capabilities.find((c) => c.capability === opts.explain || model.nodes.some((n) => n.id === c.capability && n.specKey === opts.explain))!;
+    result.messages.push(...explainCapability(cap, { head: statement.head, policy: statement.policy }));
+    // Scoped to the one capability: its own level, counts and exit code.
+    const counts = { certified: 0, provisional: 0, 'not-certified': 0, planned: 0 };
+    counts[cap.level] += 1;
+    result.statement = {
+      ...statement,
+      level: cap.level,
+      certifiedAt: cap.certifiedAt,
+      capabilities: [cap],
+      system: { reasons: [] },
+      counts,
+      exitCode: cap.blocking.length > 0 ? ExitCode.NotCertified : ExitCode.Success,
+    };
+    if (cap.certifiedAt === undefined) delete result.statement.certifiedAt;
+    result.created = 1;
+    result.failed = cap.blocking.length;
+    result.exitCode = errors.length > 0 ? ExitCode.ValidationFailed : result.statement.exitCode;
+    return result;
+  }
 
   switch (view) {
     case 'coverage':
@@ -183,6 +230,12 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
     result.exitCode = ExitCode.MissingSpecs;
   } else if (view === 'gaps' && result.failed > 0) {
     result.exitCode = ExitCode.MissingSpecs;
+  } else if (statement && statement.exitCode !== ExitCode.Success) {
+    // Last in precedence, and only when a `proof` gate is on: with every gate off nothing blocks.
+    const blocking = statement.capabilities.reduce((n, c) => n + c.blocking.length, 0);
+    result.failed += blocking;
+    result.exitCode = statement.exitCode;
+    log(`NOT CERTIFIED: ${blocking} blocking reason(s) in ${statement.capabilities.filter((c) => c.blocking.length > 0).map((c) => c.capability).join(', ')}; run \`specguard check --explain <capability>\``);
   }
   return result;
 }

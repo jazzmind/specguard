@@ -517,6 +517,8 @@ interface CoverageCounts {
 /** What a verdict callback learns beyond the verdict: the claim's evidence by layer and what it still needs. */
 export interface ClaimDetail extends ClaimProof {
   required: TestLayer[];
+  /** The ledger row the verdict was judged from (absent when the claim has none), for readers that need its origin and evidence kind. */
+  record?: ProofRecord;
 }
 
 type VerdictCallback = (ref: string, verdict: ReturnType<typeof effectiveVerdict>, detail?: ClaimDetail) => void;
@@ -583,7 +585,7 @@ async function walkClaims(
           );
           counts[proof.verdict] += 1;
           if (required.length > 0 && !proof.complete && proof.verdict !== 'unproven') counts.incomplete += 1;
-          onVerdict(visitRef, proof.verdict, { ...proof, required });
+          onVerdict(visitRef, proof.verdict, { ...proof, required, ...(visitRecord ? { record: visitRecord } : {}) });
         };
         visit(ref, record, claimHashOf(spec, claim.id));
         // Each example row is a further visit, judged against its own row hash. Specs without tables add none.
