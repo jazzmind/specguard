@@ -34,6 +34,7 @@ sources:
   - "src/ci/context.ts"
   - "src/ci/github-api.ts"
   - "src/ci/pipeline-changes.ts"
+  - "src/pipelines/ci-run.ts"
 tests:
   - "tests/action/run-gates.test.ts"
   - "tests/mcp/*.test.ts"
@@ -60,6 +61,10 @@ tests:
   - "tests/ci/github-api.test.ts"
   - "tests/ci/pipeline-changes.test.ts"
   - "tests/pipelines/init-codex.test.ts"
+  - "tests/pipelines/ci-run.test.ts"
+  - "tests/ci/ci-workflow.test.ts"
+  - "tests/cli/ci.test.ts"
+  - "tests/core/ci-workflow.test.ts"
 docs:
   - "README.md"
   - "docs/ci.md"
@@ -88,6 +93,7 @@ history:
   - 2026-10-25-0-4-the-host-coding-agent-does-the-model
   - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
   - 2026-10-26-edit-guard-hook-entry-index-and-bundle
+  - 2026-10-26-ci-orchestrator-ci-run-proof-packet-and
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -157,6 +163,17 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] The Codex plugin carries no hooks, so it stays eligible for the public plugin directory; Codex gets the guard only through the repository <!-- claim: codex-plugin-hook-free -->
 - [ ] `specguard init --codex` writes the repository's `.codex/hooks.json` (a PreToolUse hook on `apply_patch`, `Edit`, `Write` and `Bash`, timeout 10 s, using the installed bundle when the package is a local dependency, else a pinned npx command, with `--agent codex`) and `.codex/rules/specguard.rules` (`prefix_rule` forbidding `specguard spec approve` and its npx forms), merges into an existing hooks file without duplicating on a re-run, never overwrites a rules file it does not own or a hooks file it cannot parse, and tells the person to trust the hook in `/hooks`; without the flag no `.codex` file is written <!-- claim: init-codex-files -->
 - [ ] `init --harness claude` and `scaffold` also merge the same guard as a PreToolUse hook into `.claude/settings.json` (the installed bundle when the package is a local dependency, else the resolved runner's `hook pre-tool-use`), once and beside the user's own hooks, and with `hooks.onError: "deny"` the scaffolded hook sets `onFailure: "block"` <!-- claim: harness-guard-hook -->
+- [ ] `specguard ci run` proves a pull request without a model call: it reads the CI context, fetches the proof notes, runs only the claims whose proofs are stale, missing or changed in the pull request (the rest are carried from the nearest proof note, and every claim with a test runs when there is no usable note or with `--full`), and a pull request whose changed requirements are approved, proven and shown sensitive is `ready`: exit 0, one packet comment found again by the packet marker and updated on later runs, the packet appended to the job summary, and `packet.json`, `packet.md`, `statement.json` and `note.json` written under `.specguard/ci` <!-- claim: ci-run-ready -->
+- [ ] At a capability at `enforce`, `ci run` exits 13 and the packet is `blocked` when a changed requirement is not approved (an approval added in the pull request counts only when a review by someone other than the author covers it, or `approvals.ci.allowSelf` labels it self-approved), when its tests also pass on the base code, when a changed owned line no claim test reaches, when an existing test became a skip or lost an assertion, when owned code changed with no change record and no changed requirement, or when a covering change is a spike; the packet and the comment name each cause and the fix, and `unknown` blocks as `fail` does <!-- claim: ci-run-blocks-enforce -->
+- [ ] A capability at `warn` is shown with its findings and annotated with `::warning` but never fails the run, and a capability at `observe` neither blocks nor annotates: with only such capabilities touched the exit code is 0 and the packet still lists what was found <!-- claim: ci-run-observe-silent -->
+- [ ] Sensitivity is proven by construction, not by commit order: the changed claims' tests run once at head and once in a temporary worktree of head whose owned source files of the change's capabilities are taken from the base commit (files added since removed, the configured dependency directories linked in), selecting the tests by title; a claim is `ok` when a test of it fails on the base code and all pass at head, `fail` when its tests pass on the base code, and `unknown` (never a pass) when no owned code differs, `--no-red` or `--no-tests` is given, the run recorded no test of the claim, or the tree could not be built; the worktree is always removed <!-- claim: ci-run-red-by-construction -->
+- [ ] `ci run` writes the proof note for the checked-out commit (the pull request head, not GitHub's merge ref): the rows fresh at that commit (those earned in the run counted as CI evidence), the approvals carried or earned from reviews, countersign rows, the statement summary, the change verdicts, the packet digest and `sensitivity` on the changed claims' rows, pushed with fetch, re-apply and push; a check run `specguard/proof-note` carrying the note's digest (and `specguard/proof` with the verdict) is created only with `proofStore.verify: check-run`, and then an ancestor note without a matching check run is ignored and its claims re-proved <!-- claim: ci-run-note-head -->
+- [ ] On a later commit of the same pull request only the stale claims (and the changed ones) run again, and the others are carried from the nearest noted ancestor, which the new note names as `carriedFrom` <!-- claim: ci-run-affected-only -->
+- [ ] On a push or merge-group run, a note recorded for a commit with the same tree (a squash or rebase merge of a pull request that was up to date) is copied to the new commit with `importedFrom: tree-equal`, after `proofStore.verify` is satisfied, and no test runs <!-- claim: ci-run-squash-import -->
+- [ ] Every external step degrades instead of failing the job: a pull request from a fork, or a run with no token, posts no comment and pushes no note (the packet goes to the job summary and the artifacts, the note to `note.json`) and still decides by exit code; unreadable reviews, a refused comment, a checkout of the merge ref (no note is written for it), a missing git checkout and v1 specs are reported and carried on, `--dry-run` writes nothing outside `.specguard/ci`, and only a missing base commit (a shallow checkout of a pull request) is an error, exit 1 <!-- claim: ci-run-degrades -->
+- [ ] `ci packet [file]` renders a saved `packet.json` through the escaping renderer and refuses a file that is not a proof packet of a supported version; `ci doctor` reports what `ci run` would do here (context, token, rights to comment and push, notes remote, enforce levels, test and coverage configuration) without a network call and never prints the token; `ci run --event <file>` replays a recorded payload and never carries the token <!-- claim: ci-commands -->
+- [ ] The generated pull request workflow has a `prove` job that checks out the pull request head with full history (not the merge ref) and fetches the proof notes, passes no model API key (the scan runs in a separate `security` job that holds it), pins the installed SpecGuard by the package's major and minor, listens to the merge queue, asks for `contents: write` and `pull-requests: write` (and `checks: write` only when notes are attested), and fails on `prove` instead of the legacy proof thresholds <!-- claim: ci-workflow-prove -->
+- [ ] The Action has a `prove` gate that runs `specguard ci run` (`--full`, `--no-push` and `--no-comment` follow the `full`, `notes` and `comment` inputs), trips `fail-on: prove` on any non-zero exit, is added to the default gates only when the repository uses `proofStore`, `enforce`, `change` or `approvals` or has change records or a spec with `enforce:` (input `prove: auto`, `true` or `false`), swaps the default `fail-on` for `missing-specs,drift,prove,results` when it runs (a gitignored ledger is absent from a fresh checkout), echoes the run's own lines and annotations, turns the older comment into a pointer to the proof packet instead of posting a second comment, can fail the job when the note was not pushed (`note-required`), and the `proof` gate reads the effective ledger (the nearest note and the local cache) <!-- claim: action-prove-gate -->
 
 ## Scenarios
 ### Scenario 1: Bootstrap a project for humans and agents

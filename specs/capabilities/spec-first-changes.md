@@ -38,6 +38,7 @@ history:
   - 2026-10-26-edit-guard-is-a-pure-decision-table-over
   - 2026-10-26-change-pipeline-joins-the-pure-model-to
   - 2026-10-26-edit-guard-hook-entry-index-and-bundle
+  - 2026-10-26-edit-guard-reads-the-red-record-change-r
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"
@@ -60,6 +61,9 @@ tests:
   - "tests/hooks/bundle-fresh.test.ts"
   - "tests/cli/hook.test.ts"
   - "tests/pipelines/init-codex.test.ts"
+  - "tests/e2e/change-protocol.test.ts"
+  - "tests/e2e/change-guards.test.ts"
+  - "tests/e2e/change-evidence.test.ts"
 ---
 
 # Spec-First Changes
@@ -147,3 +151,11 @@ A spec-first change reverses the order and enforces it. The requirement is writt
 - [ ] `specguard hook` has `pre-tool-use` (the same logic as the bundle, reading stdin), `build-index` (alias `index`: rebuild and cache the index), `doctor` (print the class of each path, or of a shell command, and what the guard would decide and why, as text or `--json`) and `log` (recent decisions, `--denied` for denials only) <!-- claim: hook-commands -->
 - [ ] A Codex session counts as an agent environment (`CODEX_THREAD_ID` is set), so the approve and lower guards apply, while an explicit `SPECGUARD_HOST_AGENT` setting still wins <!-- claim: hook-codex-agent-env -->
 - [ ] The edit guard treats any edit to an approval already on disk (a history entry whose frontmatter says `kind: approval`) as writing an approval and denies it, because an edit is judged on its new text alone and changing only the hashes in an existing approval would otherwise pass; other history entries stay editable <!-- claim: hook-approval-edit-denied -->
+- [ ] A change walked end to end through the real commands and the real hook process obeys the order spec, approval by a person, tests, red, code, green: the guard denies a capability's code at `enforce` with no change open, then with unapproved requirements, then with no recorded red, allows it once red is recorded, and `change status` shows the change green and waiting for CI, never validated by itself <!-- claim: e2e-full-protocol -->
+- [ ] The red evidence the edit guard reads is written by `change red` itself, in the same file and from the same run record `change status` reads: the file holds the run's per-test verdicts, the hashes the run saw and the test files it locks, so the guard and the stage detection cannot disagree about whether red holds <!-- claim: e2e-hook-follows-red -->
+- [ ] An agent cannot approve its own requirement by any route: `spec approve` refuses an agent environment, `history add` refuses approval entries, the guard denies a hand-written approval file, a rewrite of a change record and the shell forms of approving, and none of them moves a change out of the spec stage <!-- claim: e2e-agent-cannot-approve -->
+- [ ] Editing a locked test or a changed requirement after red sends the change back to the tests stage and the guard denies the code again until `change red` is run anew, which builds a tree with the owned code at base and leaves the working tree as it was; the guard announces the lock when a locked file is edited <!-- claim: e2e-locked-test-edit -->
+- [ ] A refactor change opens only its own capability's code at once and needs no red, a requirement edit under it is reported as changing intent, and a spike may write code first but never reaches validated, not even with a passing CI verdict, and cannot be closed as done <!-- claim: e2e-refactor-spike -->
+- [ ] Two changes open on one capability are judged on the same changed claims and each needs its own red; any one with a valid red opens the code, and closing or abandoning it closes the code again unless the other has red <!-- claim: e2e-parallel-changes -->
+- [ ] A finished change is `provisional` while its proof comes only from local runs and `certified` only from a CI proof note for a clean commit, and `enforce raise --to enforce` is refused on the first and accepted on the second even in a checkout that holds no local proof, after which the guard denies edits made without a change <!-- claim: e2e-certified-needs-ci -->
+- [ ] With a change open and red recorded, the guard answers from its cached index in under 200 ms at the median and 500 ms at the 95th percentile per call (a spawned process, node start-up included; about 50 ms on a quiet machine), for allow and deny alike <!-- claim: e2e-hook-latency -->

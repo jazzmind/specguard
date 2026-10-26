@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-26T05:29:11.170Z",
+  "generated": "2026-10-26T06:22:20.583Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -3581,6 +3581,7 @@
         "src/mcp/tools/change.ts",
         "src/mcp/tools/context.ts",
         "src/mcp/tools/proof-store.ts",
+        "src/pipelines/ci-run.ts",
         "src/pipelines/init.ts",
         "src/pipelines/plugin-manage.ts",
         "src/pipelines/start.ts",
@@ -3620,10 +3621,12 @@
         "extension/src/spec-inventory.test.ts",
         "extension/src/workspace-panel.test.ts",
         "tests/action/run-gates.test.ts",
+        "tests/ci/ci-workflow.test.ts",
         "tests/ci/context.test.ts",
         "tests/ci/github-api.test.ts",
         "tests/ci/pipeline-changes.test.ts",
         "tests/cli/check-base.test.ts",
+        "tests/cli/ci.test.ts",
         "tests/cli/features.test.ts",
         "tests/cli/plugin-json.test.ts",
         "tests/core/ci-workflow.test.ts",
@@ -3646,6 +3649,7 @@
         "tests/mcp/plugin-tools.test.ts",
         "tests/mcp/proof-fetch-tool.test.ts",
         "tests/mcp/server.test.ts",
+        "tests/pipelines/ci-run.test.ts",
         "tests/pipelines/feature-state-collect.test.ts",
         "tests/pipelines/feature-state.test.ts",
         "tests/pipelines/git-ops-changelog.test.ts",
@@ -3692,7 +3696,8 @@
         "2026-10-25-specguard-proves-intent-not-metrics-thre",
         "2026-10-25-0-4-the-host-coding-agent-does-the-model",
         "2026-10-26-ci-trust-approvals-are-records-ci-plumbi",
-        "2026-10-26-edit-guard-hook-entry-index-and-bundle"
+        "2026-10-26-edit-guard-hook-entry-index-and-bundle",
+        "2026-10-26-ci-orchestrator-ci-run-proof-packet-and"
       ],
       "claims": [
         {
@@ -4331,42 +4336,42 @@
             {
               "file": "tests/core/ci-workflow.test.ts",
               "line": 18,
-              "title": "gates pull requests with the checkout depth the changed-units test needs, a comment, and SARIF",
+              "title": "gates pull requests with the checkout depth the changed-units test needs and the proof gate; the scan moved to its own job (Phase 3: asserted differently on purpose)",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 36,
+              "line": 37,
               "title": "does not fail on layers or security findings by default, and tests everything outside a monorepo",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 44,
+              "line": 46,
               "title": "offers a manual browser verify run only when asked, and pins the action as given",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 54,
+              "line": 56,
               "title": "schedules remediation with only the permissions it needs, and explains the token auto-merge needs",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 71,
+              "line": 73,
               "title": "picks the install command from the lockfile",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 83,
+              "line": 85,
               "title": "writes both workflows, reads the repo for the install step, and never overwrites one that exists",
               "origin": "source"
             },
             {
               "file": "tests/core/ci-workflow.test.ts",
-              "line": 101,
+              "line": 103,
               "title": "writes no workflow unless asked",
               "origin": "source"
             }
@@ -5625,17 +5630,414 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "ci-run-ready",
+          "ref": "capabilities/integration-surfaces#ci-run-ready",
+          "text": "`specguard ci run` proves a pull request without a model call: it reads the CI context, fetches the proof notes, runs only the claims whose proofs are stale, missing or changed in the pull request (the rest are carried from the nearest proof note, and every claim with a test runs when there is no usable note or with `--full`), and a pull request whose changed requirements are approved, proven and shown sensitive is `ready`: exit 0, one packet comment found again by the packet marker and updated on later runs, the packet appended to the job summary, and `packet.json`, `packet.md`, `statement.json` and `note.json` written under `.specguard/ci`",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 178,
+              "title": "a pull request that adds a claim, tested, sensitive and approved with a countersigning review is ready, with one packet comment",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-blocks-enforce",
+          "ref": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+          "text": "At a capability at `enforce`, `ci run` exits 13 and the packet is `blocked` when a changed requirement is not approved (an approval added in the pull request counts only when a review by someone other than the author covers it, or `approvals.ci.allowSelf` labels it self-approved), when its tests also pass on the base code, when a changed owned line no claim test reaches, when an existing test became a skip or lost an assertion, when owned code changed with no change record and no changed requirement, or when a covering change is a spike; the packet and the comment name each cause and the fix, and `unknown` blocks as `fail` does",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 202,
+              "title": "the same pull request with a recorded approval no one countersigned is blocked at enforce, and the packet says what is needed",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 222,
+              "title": "a self-approval counts, labelled, only when the repository allows it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 253,
+              "title": "a changed line that no claim test reaches is unrequested code and blocks at enforce, and is silent at observe",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 268,
+              "title": "a test turned into a skip blocks at enforce as test weakening",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 277,
+              "title": "owned code changed with no change record and no changed requirement blocks at enforce",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 286,
+              "title": "a spike change cannot merge at enforce, even when every proof holds",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-observe-silent",
+          "ref": "capabilities/integration-surfaces#ci-run-observe-silent",
+          "text": "A capability at `warn` is shown with its findings and annotated with `::warning` but never fails the run, and a capability at `observe` neither blocks nor annotates: with only such capabilities touched the exit code is 0 and the packet still lists what was found",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 230,
+              "title": "an observe capability stays silent: nothing blocks and nothing is annotated, whatever the approvals",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 240,
+              "title": "a warn capability annotates and does not fail the gate",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-red-by-construction",
+          "ref": "capabilities/integration-surfaces#ci-run-red-by-construction",
+          "text": "Sensitivity is proven by construction, not by commit order: the changed claims' tests run once at head and once in a temporary worktree of head whose owned source files of the change's capabilities are taken from the base commit (files added since removed, the configured dependency directories linked in), selecting the tests by title; a claim is `ok` when a test of it fails on the base code and all pass at head, `fail` when its tests pass on the base code, and `unknown` (never a pass) when no owned code differs, `--no-red` or `--no-tests` is given, the run recorded no test of the claim, or the tree could not be built; the worktree is always removed",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 330,
+              "title": "runs the changed claim tests against the base version of the owned code and sees them fail there and pass at head",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 342,
+              "title": "a test that passes on the base code is reported as not sensitive and blocks at enforce",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 353,
+              "title": "says unknown, never ok, when the red run is skipped",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-note-head",
+          "ref": "capabilities/integration-surfaces#ci-run-note-head",
+          "text": "`ci run` writes the proof note for the checked-out commit (the pull request head, not GitHub's merge ref): the rows fresh at that commit (those earned in the run counted as CI evidence), the approvals carried or earned from reviews, countersign rows, the statement summary, the change verdicts, the packet digest and `sensitivity` on the changed claims' rows, pushed with fetch, re-apply and push; a check run `specguard/proof-note` carrying the note's digest (and `specguard/proof` with the verdict) is created only with `proofStore.verify: check-run`, and then an ancestor note without a matching check run is ignored and its claims re-proved",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 297,
+              "title": "with attestation on, an ancestor note without a matching check run is ignored and its claims are re-proved, and a matching one is carried",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 363,
+              "title": "writes the proof note for the pull request head commit, with countersign rows, and pushes it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 386,
+              "title": "records the check runs that bind the note to its digest when attestation is on",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-affected-only",
+          "ref": "capabilities/integration-surfaces#ci-run-affected-only",
+          "text": "On a later commit of the same pull request only the stale claims (and the changed ones) run again, and the others are carried from the nearest noted ancestor, which the new note names as `carriedFrom`",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 397,
+              "title": "a second commit re-runs only the stale claims and carries the others from the note",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-squash-import",
+          "ref": "capabilities/integration-surfaces#ci-run-squash-import",
+          "text": "On a push or merge-group run, a note recorded for a commit with the same tree (a squash or rebase merge of a pull request that was up to date) is copied to the new commit with `importedFrom: tree-equal`, after `proofStore.verify` is satisfied, and no test runs",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 424,
+              "title": "a squash commit with the pull request head\\'s tree imports its note by tree equality and runs no tests",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-run-degrades",
+          "ref": "capabilities/integration-surfaces#ci-run-degrades",
+          "text": "Every external step degrades instead of failing the job: a pull request from a fork, or a run with no token, posts no comment and pushes no note (the packet goes to the job summary and the artifacts, the note to `note.json`) and still decides by exit code; unreadable reviews, a refused comment, a checkout of the merge ref (no note is written for it), a missing git checkout and v1 specs are reported and carried on, `--dry-run` writes nothing outside `.specguard/ci`, and only a missing base commit (a shallow checkout of a pull request) is an error, exit 1",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 455,
+              "title": "a pull request from a fork posts no comment and pushes no note, and puts the packet in the job summary",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 474,
+              "title": "with no token the gate is still decided by the exit code, and nothing is posted or pushed",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 486,
+              "title": "unreadable reviews are a limit of the packet, never a failure of the job on their own",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 496,
+              "title": "a comment that cannot be posted falls back to the job summary and does not fail the run",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 508,
+              "title": "a dry run writes artifacts only: no comment, no note, no check run",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 521,
+              "title": "a checkout of the merge ref is proven but no note is written for it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 529,
+              "title": "does nothing, successfully, outside a git checkout and on v1 specs",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-commands",
+          "ref": "capabilities/integration-surfaces#ci-commands",
+          "text": "`ci packet [file]` renders a saved `packet.json` through the escaping renderer and refuses a file that is not a proof packet of a supported version; `ci doctor` reports what `ci run` would do here (context, token, rights to comment and push, notes remote, enforce levels, test and coverage configuration) without a network call and never prints the token; `ci run --event <file>` replays a recorded payload and never carries the token",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/cli/ci.test.ts",
+              "line": 20,
+              "title": "lists run, packet and doctor, and the --from-pr option of spec approve",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/ci.test.ts",
+              "line": 31,
+              "title": "ci packet prints a saved packet as markdown, and says what is wrong with a file that is not one",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/ci.test.ts",
+              "line": 43,
+              "title": "ci doctor reports on a repository that has no CI and exits 0",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/ci.test.ts",
+              "line": 53,
+              "title": "ci run --dry-run replays a recorded event from a file, writes the artifacts and nothing to the notes ref",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 541,
+              "title": "re-renders a saved packet as markdown and refuses anything that is not one",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 555,
+              "title": "the doctor says what would happen here without a network and without a token in its output",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/ci-run.test.ts",
+              "line": 572,
+              "title": "a replayed event never carries the token, so a replay writes nothing to GitHub",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "ci-workflow-prove",
+          "ref": "capabilities/integration-surfaces#ci-workflow-prove",
+          "text": "The generated pull request workflow has a `prove` job that checks out the pull request head with full history (not the merge ref) and fetches the proof notes, passes no model API key (the scan runs in a separate `security` job that holds it), pins the installed SpecGuard by the package's major and minor, listens to the merge queue, asks for `contents: write` and `pull-requests: write` (and `checks: write` only when notes are attested), and fails on `prove` instead of the legacy proof thresholds",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 92,
+              "title": "is exactly the documented text for a Node repository",
+              "origin": "source"
+            },
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 97,
+              "title": "checks out the pull request head with full history, not the merge ref, and fetches the proof notes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 105,
+              "title": "passes no model API key to the job that gates the merge, and keeps it on the separate security job",
+              "origin": "source"
+            },
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 118,
+              "title": "asks for checks: write only when proof notes are attested, and always for the rights a note and a comment need",
+              "origin": "source"
+            },
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 124,
+              "title": "runs the prove gate, fails the build on it, and also listens to the merge queue",
+              "origin": "source"
+            },
+            {
+              "file": "tests/ci/ci-workflow.test.ts",
+              "line": 135,
+              "title": "pins the installed SpecGuard by the package minor",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "action-prove-gate",
+          "ref": "capabilities/integration-surfaces#action-prove-gate",
+          "text": "The Action has a `prove` gate that runs `specguard ci run` (`--full`, `--no-push` and `--no-comment` follow the `full`, `notes` and `comment` inputs), trips `fail-on: prove` on any non-zero exit, is added to the default gates only when the repository uses `proofStore`, `enforce`, `change` or `approvals` or has change records or a spec with `enforce:` (input `prove: auto`, `true` or `false`), swaps the default `fail-on` for `missing-specs,drift,prove,results` when it runs (a gitignored ledger is absent from a fresh checkout), echoes the run's own lines and annotations, turns the older comment into a pointer to the proof packet instead of posting a second comment, can fail the job when the note was not pushed (`note-required`), and the `proof` gate reads the effective ledger (the nearest note and the local cache)",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 283,
+              "title": "runs specguard ci run, with the flags the inputs ask for",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 291,
+              "title": "trips prove on a blocked packet (exit 13) or a run that failed, never when it did not run",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 300,
+              "title": "adds prove to the default gates only for a repository that uses the Phase 3 features, and honours the input",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 315,
+              "title": "replaces the legacy ledger thresholds with prove when prove runs, because a gitignored ledger is not in a fresh checkout",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 324,
+              "title": "recognises a repository that uses proof notes, the change protocol or enforce, and none other",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 351,
+              "title": "leaves one comment per pull request: the legacy comment becomes a pointer, and is never posted when there is none",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 375,
+              "title": "end to end with a fake specguard: runs ci run for a repository that uses enforce, fails the job on exit 13, and echoes the run\\'s own lines",
+              "origin": "source"
+            },
+            {
+              "file": "tests/action/run-gates.test.ts",
+              "line": 417,
+              "title": "action.yml exposes the inputs and passes them on",
+              "origin": "source"
+            },
+            {
+              "file": "tests/cli/ci.test.ts",
+              "line": 68,
+              "title": "proof status reads the proofs CI holds in a note when the local ledger is gone, so the proof gate works on a fresh checkout",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 50,
-        "proven": 47,
+        "claims": 61,
+        "proven": 58,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 48,
+        "withTests": 59,
         "incomplete": 0
       }
     },
@@ -5649,6 +6051,7 @@
       "parent": "system",
       "unit": ".",
       "ownedFiles": [
+        "src/ci/claim-hash-at.ts",
         "src/ci/pr-approvals.ts",
         "src/core/approvals.ts",
         "src/pipelines/approve.ts"
@@ -5658,6 +6061,7 @@
         "tests/cli/approve.test.ts",
         "tests/core/approvals.test.ts",
         "tests/mcp/no-approve-tool.test.ts",
+        "tests/pipelines/approve-from-pr.test.ts",
         "tests/pipelines/approve.test.ts",
         "tests/pipelines/history.test.ts"
       ],
@@ -5665,7 +6069,8 @@
       "history": [
         "2026-10-26-intent-approvals-are-history-entries-bou",
         "2026-10-26-example-rows-reach-the-proof-ledger-and",
-        "2026-10-26-ci-trust-approvals-are-records-ci-plumbi"
+        "2026-10-26-ci-trust-approvals-are-records-ci-plumbi",
+        "2026-10-26-ci-orchestrator-ci-run-proof-packet-and"
       ],
       "claims": [
         {
@@ -6309,17 +6714,103 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "approve-from-pr",
+          "ref": "capabilities/intent-approval#approve-from-pr",
+          "text": "`spec approve --from-pr <n>` makes a pull request's review approvals permanent: it reads the pull request's reviews from GitHub (a token in the environment or `gh auth token`), and writes one committed history entry per reviewer with `method: pr` and that reviewer as author, approving each unapproved claim in scope whose hash at the reviewed commit equals its hash now; without targets it looks at every unapproved claim, without `--yes` it only lists what it would record, and it refuses `--as-built` and a number that is not a pull request",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 47,
+              "title": "writes one committed method-pr entry per reviewer, naming the reviewer, for the claims their review covers",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 66,
+              "title": "is a dry run without --yes: it lists what it would record and writes nothing",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-from-pr-qualifying",
+          "ref": "capabilities/intent-approval#approve-from-pr-qualifying",
+          "text": "`--from-pr` uses only qualifying reviews (an approval by a human other than the pull request's author with owner, member or collaborator association, latest decisive review per person) and covers only claims whose wording is the one reviewed: a claim reworded after the review is reported as not covered, and no qualifying review writes nothing and exits 2",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 74,
+              "title": "ignores the author\\'s own review, a bot, a commenter and a reviewer without write access, and writes nothing without a qualifying review",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 82,
+              "title": "a claim reworded after the review is not covered, and the others are",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 91,
+              "title": "skips claims that are already approved, and says nothing is left when all are",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-from-pr-person-only",
+          "ref": "capabilities/intent-approval#approve-from-pr-person-only",
+          "text": "`--from-pr` stays a person-only command (an agent without a terminal is refused exactly as for `spec approve`), and a pull request that cannot be read (no token, an API error) writes nothing and exits 1 with a message that holds no token",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 100,
+              "title": "stays a person-only command, and refuses --as-built, a bad number and a pull request it cannot read",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "approve-from-pr-ci-rechecks",
+          "ref": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+          "text": "`--from-pr` is a convenience and never a way around the review: the entries it writes are still re-checked in CI as records, and count only while a review covers the claim",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/approve-from-pr.test.ts",
+              "line": 113,
+              "title": "is a convenience and never a bypass: CI counts the committed entry only while a review covers it",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 24,
-        "proven": 24,
+        "claims": 28,
+        "proven": 28,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 24,
+        "withTests": 28,
         "incomplete": 0
       }
     },
@@ -8836,10 +9327,12 @@
         "specs/history/2026-10-26-change-model-is-four-pure-modules-stage.md",
         "specs/history/2026-10-26-change-pipeline-joins-the-pure-model-to.md",
         "specs/history/2026-10-26-check-leads-with-the-proof-statement-exi.md",
+        "specs/history/2026-10-26-ci-orchestrator-ci-run-proof-packet-and.md",
         "specs/history/2026-10-26-ci-trust-approvals-are-records-ci-plumbi.md",
         "specs/history/2026-10-26-coverage-and-mutation-evidence-is-attrib.md",
         "specs/history/2026-10-26-edit-guard-hook-entry-index-and-bundle.md",
         "specs/history/2026-10-26-edit-guard-is-a-pure-decision-table-over.md",
+        "specs/history/2026-10-26-edit-guard-reads-the-red-record-change-r.md",
         "specs/history/2026-10-26-example-rows-reach-the-proof-ledger-and.md",
         "specs/history/2026-10-26-example-tables-row-refs-assurance-and-ev.md",
         "specs/history/2026-10-26-intent-approvals-are-history-entries-bou.md",
@@ -12094,6 +12587,9 @@
         "tests/core/spec-frontmatter.test.ts",
         "tests/core/unrequested.test.ts",
         "tests/core/weakening-enforce.test.ts",
+        "tests/e2e/change-evidence.test.ts",
+        "tests/e2e/change-guards.test.ts",
+        "tests/e2e/change-protocol.test.ts",
         "tests/hooks/bundle-fresh.test.ts",
         "tests/hooks/decide.test.ts",
         "tests/hooks/entry.test.ts",
@@ -12113,7 +12609,8 @@
         "2026-10-26-per-capability-enforcement-ratchet-and-i",
         "2026-10-26-edit-guard-is-a-pure-decision-table-over",
         "2026-10-26-change-pipeline-joins-the-pure-model-to",
-        "2026-10-26-edit-guard-hook-entry-index-and-bundle"
+        "2026-10-26-edit-guard-hook-entry-index-and-bundle",
+        "2026-10-26-edit-guard-reads-the-red-record-change-r"
       ],
       "claims": [
         {
@@ -14779,17 +15276,188 @@
           "layers": {
             "unit": "proven"
           }
+        },
+        {
+          "id": "hook-approval-edit-denied",
+          "ref": "capabilities/spec-first-changes#hook-approval-edit-denied",
+          "text": "The edit guard treats any edit to an approval already on disk (a history entry whose frontmatter says `kind: approval`) as writing an approval and denies it, because an edit is judged on its new text alone and changing only the hashes in an existing approval would otherwise pass; other history entries stay editable",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/hooks/entry.test.ts",
+              "line": 213,
+              "title": "denies an edit to an approval already on disk, even one that only changes a hash, and leaves other history alone",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "e2e-full-protocol",
+          "ref": "capabilities/spec-first-changes#e2e-full-protocol",
+          "text": "A change walked end to end through the real commands and the real hook process obeys the order spec, approval by a person, tests, red, code, green: the guard denies a capability's code at `enforce` with no change open, then with unapproved requirements, then with no recorded red, allows it once red is recorded, and `change status` shows the change green and waiting for CI, never validated by itself",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 29,
+              "title": "walks spec, approval, tests, red, code, green and the stage lock, with the hook gating the code at every step",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-hook-follows-red",
+          "ref": "capabilities/spec-first-changes#e2e-hook-follows-red",
+          "text": "The red evidence the edit guard reads is written by `change red` itself, in the same file and from the same run record `change status` reads: the file holds the run's per-test verdicts, the hashes the run saw and the test files it locks, so the guard and the stage detection cannot disagree about whether red holds",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-evidence.test.ts",
+              "line": 45,
+              "title": "a finished change is provisional on local evidence, certified only from CI evidence, and only then can the ratchet go to enforce",
+              "origin": "source"
+            },
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 29,
+              "title": "walks spec, approval, tests, red, code, green and the stage lock, with the hook gating the code at every step",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-agent-cannot-approve",
+          "ref": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+          "text": "An agent cannot approve its own requirement by any route: `spec approve` refuses an agent environment, `history add` refuses approval entries, the guard denies a hand-written approval file, a rewrite of a change record and the shell forms of approving, and none of them moves a change out of the spec stage",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-guards.test.ts",
+              "line": 20,
+              "title": "refuses `history add --kind approval`, and the hook denies a hand-written approval, a record edit and an approve command",
+              "origin": "source"
+            },
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 29,
+              "title": "walks spec, approval, tests, red, code, green and the stage lock, with the hook gating the code at every step",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-locked-test-edit",
+          "ref": "capabilities/spec-first-changes#e2e-locked-test-edit",
+          "text": "Editing a locked test or a changed requirement after red sends the change back to the tests stage and the guard denies the code again until `change red` is run anew, which builds a tree with the owned code at base and leaves the working tree as it was; the guard announces the lock when a locked file is edited",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 29,
+              "title": "walks spec, approval, tests, red, code, green and the stage lock, with the hook gating the code at every step",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-refactor-spike",
+          "ref": "capabilities/spec-first-changes#e2e-refactor-spike",
+          "text": "A refactor change opens only its own capability's code at once and needs no red, a requirement edit under it is reported as changing intent, and a spike may write code first but never reaches validated, not even with a passing CI verdict, and cannot be closed as done",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 126,
+              "title": "lets a refactor edit its own capability at once and no other, and refuses a requirement edit under it",
+              "origin": "source"
+            },
+            {
+              "file": "tests/e2e/change-protocol.test.ts",
+              "line": 159,
+              "title": "lets a spike write code first, but a spike can never reach validated, not even with a passing CI verdict",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-parallel-changes",
+          "ref": "capabilities/spec-first-changes#e2e-parallel-changes",
+          "text": "Two changes open on one capability are judged on the same changed claims and each needs its own red; any one with a valid red opens the code, and closing or abandoning it closes the code again unless the other has red",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-guards.test.ts",
+              "line": 62,
+              "title": "judges both on the same changed claims; any one with a valid red opens the code; closing it closes the code again",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-certified-needs-ci",
+          "ref": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+          "text": "A finished change is `provisional` while its proof comes only from local runs and `certified` only from a CI proof note for a clean commit, and `enforce raise --to enforce` is refused on the first and accepted on the second even in a checkout that holds no local proof, after which the guard denies edits made without a change",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-evidence.test.ts",
+              "line": 45,
+              "title": "a finished change is provisional on local evidence, certified only from CI evidence, and only then can the ratchet go to enforce",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
+        },
+        {
+          "id": "e2e-hook-latency",
+          "ref": "capabilities/spec-first-changes#e2e-hook-latency",
+          "text": "With a change open and red recorded, the guard answers from its cached index in under 200 ms at the median and 500 ms at the 95th percentile per call (a spawned process, node start-up included; about 50 ms on a quiet machine), for allow and deny alike",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/e2e/change-evidence.test.ts",
+              "line": 93,
+              "title": "answers from the cached index well inside the budget, for allow and deny alike",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "e2e": "proven"
+          }
         }
       ],
       "counts": {
-        "claims": 69,
-        "proven": 69,
+        "claims": 78,
+        "proven": 78,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 69,
+        "withTests": 78,
         "incomplete": 0
       }
     },
@@ -18468,18 +19136,18 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 502,
-    "proven": 469,
+    "claims": 526,
+    "proven": 493,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 471,
+    "withTests": 495,
     "incomplete": 0,
     "capabilities": 16,
-    "ownedFiles": 417,
-    "sourceFiles": 318
+    "ownedFiles": 421,
+    "sourceFiles": 320
   },
   "gaps": {
     "intent": [
@@ -18505,20 +19173,13 @@
       }
     ],
     "docsStale": [
-      "conformance-testing",
-      "integration-surfaces",
-      "platform-foundation",
-      "requirement-history",
-      "spec-authoring",
-      "team-server",
-      "traceability-and-drift",
-      "workspaces"
+      "team-server"
     ]
   },
   "statement": {
     "version": 1,
-    "generated": "2026-10-26T05:29:14.129Z",
-    "head": "30ba7a50ab87272d8e979579a2a7fb4f319d2f00",
+    "generated": "2026-10-26T06:22:23.657Z",
+    "head": "2f6cb0f5e4545e6d9072806399072208ca882b1c",
     "policy": {
       "requireApproval": false,
       "requireTestable": false,
@@ -20198,7 +20859,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "agentic-verification: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -23001,7 +23662,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "conformance-testing: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -23847,7 +24508,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "coverage-and-mutation: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -25346,7 +26007,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "documentation-api: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -25370,7 +26031,7 @@
                 "fix": "specguard spec approve integration-surfaces  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/50 claims approved"
+            "summary": "0/61 claims approved"
           },
           "testable": {
             "status": "ok",
@@ -26025,9 +26686,199 @@
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#harness-guard-hook",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (105 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (111 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-observe-silent",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (117 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (97 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-affected-only",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-squash-import",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (100 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-commands",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (124 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 15 warnings"
+            "summary": "0 errors, 22 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -26777,9 +27628,163 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-observe-silent",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-affected-only",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-squash-import",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-commands",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "47 proven, 0 failed, 0 stale, 3 unproven"
+            "summary": "58 proven, 0 failed, 0 stale, 3 unproven"
           }
         },
         "blocking": [],
@@ -28702,14 +29707,479 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-ready",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (105 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-ready",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (111 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-blocks-enforce",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-observe-silent",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-observe-silent",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-observe-silent",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-red-by-construction",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (117 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-red-by-construction",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-note-head",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (97 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-note-head",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-affected-only",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-affected-only",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-affected-only",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-squash-import",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-squash-import",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-squash-import",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-run-degrades",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (100 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-run-degrades",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-commands",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-commands",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-commands",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#ci-workflow-prove",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (81 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#ci-workflow-prove",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#action-prove-gate",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (124 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#action-prove-gate",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 50,
+          "claims": 61,
           "approved": 0,
-          "testable": 50,
-          "proven": 47,
-          "meaningful": 47,
+          "testable": 61,
+          "proven": 58,
+          "meaningful": 58,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -28719,7 +30189,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "integration-surfaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -28743,7 +30213,7 @@
                 "fix": "specguard spec approve intent-approval  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/24 claims approved"
+            "summary": "0/28 claims approved"
           },
           "testable": {
             "status": "ok",
@@ -29009,9 +30479,58 @@
                 "blocking": false,
                 "claim": "capabilities/intent-approval#ci-effective-approvals",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (84 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-qualifying",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-person-only",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 3 warnings"
+            "summary": "0 errors, 4 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -29031,6 +30550,19 @@
           "conforms": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "1 input file(s) have uncommitted changes: specs/capabilities/intent-approval.md",
+                "data": {
+                  "files": [
+                    "specs/capabilities/intent-approval.md"
+                  ]
+                }
+              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -29366,9 +30898,65 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-qualifying",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-person-only",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "24 proven, 0 failed, 0 stale"
+            "summary": "28 proven, 0 failed, 0 stale"
           }
         },
         "blocking": [],
@@ -30234,14 +31822,163 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/intent-approval#approve-from-pr",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (84 words, at most 80.)",
+                "data": {
+                  "rule": "T-LONG",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/intent-approval#approve-from-pr-qualifying",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-qualifying",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-qualifying",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/intent-approval#approve-from-pr-person-only",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-person-only",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-person-only",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/intent-approval#approve-from-pr-ci-rechecks",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 24,
+          "claims": 28,
           "approved": 0,
-          "testable": 24,
-          "proven": 24,
-          "meaningful": 24,
+          "testable": 28,
+          "proven": 28,
+          "meaningful": 28,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -30251,7 +31988,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "intent-approval: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -30742,19 +32479,6 @@
           "conforms": {
             "status": "ok",
             "reasons": [
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/capabilities/platform-foundation.md",
-                "data": {
-                  "files": [
-                    "specs/capabilities/platform-foundation.md"
-                  ]
-                }
-              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -32895,7 +34619,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "platform-foundation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -33216,19 +34940,6 @@
           "conforms": {
             "status": "ok",
             "reasons": [
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/capabilities/proof-store.md",
-                "data": {
-                  "files": [
-                    "specs/capabilities/proof-store.md"
-                  ]
-                }
-              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -34575,7 +36286,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "proof-store: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -34818,13 +36529,11 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "4 input file(s) have uncommitted changes: specs/history/2026-10-26-change-pipeline-joins-the-pure-model-to.md, specs/history/2026-10-26-edit-guard-hook-entry-index-and-bundle.md, specs/history/2026-10-26-migrate-applies-the-plan-idempotently-an.md, ...",
+                "message": "2 input file(s) have uncommitted changes: specs/history/2026-10-26-ci-orchestrator-ci-run-proof-packet-and.md, specs/history/2026-10-26-edit-guard-reads-the-red-record-change-r.md",
                 "data": {
                   "files": [
-                    "specs/history/2026-10-26-change-pipeline-joins-the-pure-model-to.md",
-                    "specs/history/2026-10-26-edit-guard-hook-entry-index-and-bundle.md",
-                    "specs/history/2026-10-26-migrate-applies-the-plan-idempotently-an.md",
-                    "specs/history/2026-10-26-proof-store-reads-and-writes-notes-throu.md"
+                    "specs/history/2026-10-26-ci-orchestrator-ci-run-proof-packet-and.md",
+                    "specs/history/2026-10-26-edit-guard-reads-the-red-record-change-r.md"
                   ]
                 }
               },
@@ -35625,7 +37334,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "requirement-history: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -37885,7 +39594,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "security-and-remediation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -40163,7 +41872,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "spec-authoring: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -40187,7 +41896,7 @@
                 "fix": "specguard spec approve spec-first-changes  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/69 claims approved"
+            "summary": "0/78 claims approved"
           },
           "testable": {
             "status": "ok",
@@ -40940,9 +42649,105 @@
                 "blocking": false,
                 "claim": "capabilities/spec-first-changes#hook-codex-agent-env",
                 "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#hook-approval-edit-denied",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-full-protocol",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-follows-red",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-locked-test-edit",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-refactor-spike",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-parallel-changes",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "clean"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-latency",
+                "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 9 warnings"
+            "summary": "0 errors, 10 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -41940,9 +43745,135 @@
                     "local"
                   ]
                 }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#hook-approval-edit-denied",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-full-protocol",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-follows-red",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-locked-test-edit",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-refactor-spike",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-parallel-changes",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-latency",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               }
             ],
-            "summary": "69 proven, 0 failed, 0 stale"
+            "summary": "78 proven, 0 failed, 0 stale"
           }
         },
         "blocking": [],
@@ -44420,14 +46351,335 @@
                 }
               }
             ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#hook-approval-edit-denied",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#hook-approval-edit-denied",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#hook-approval-edit-denied",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-full-protocol",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-full-protocol",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-full-protocol",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-hook-follows-red",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-follows-red",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-follows-red",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-agent-cannot-approve",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-locked-test-edit",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-locked-test-edit",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-locked-test-edit",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-refactor-spike",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-refactor-spike",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-refactor-spike",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-parallel-changes",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-parallel-changes",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-parallel-changes",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "clean"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-certified-needs-ci",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/spec-first-changes#e2e-hook-latency",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-latency",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/spec-first-changes#e2e-hook-latency",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
           }
         ],
         "metrics": {
-          "claims": 69,
+          "claims": 78,
           "approved": 0,
-          "testable": 69,
-          "proven": 69,
-          "meaningful": 69,
+          "testable": 78,
+          "proven": 78,
+          "meaningful": 78,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -44437,7 +46689,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "spec-first-changes: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -45657,7 +47909,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "team-server: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -46439,7 +48691,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "test-strength: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -49175,7 +51427,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "traceability-and-drift: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -51246,7 +53498,7 @@
             "local"
           ],
           "shas": [
-            "30ba7a50ab87272d8e979579a2a7fb4f319d2f00"
+            "2f6cb0f5e4545e6d9072806399072208ca882b1c"
           ]
         },
         "headline": "workspaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"

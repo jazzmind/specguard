@@ -9,17 +9,20 @@ sources:
   - "src/core/approvals.ts"
   - "src/pipelines/approve.ts"
   - "src/ci/pr-approvals.ts"
+  - "src/ci/claim-hash-at.ts"
 docs: []
 history:
   - 2026-10-26-intent-approvals-are-history-entries-bou
   - 2026-10-26-example-rows-reach-the-proof-ledger-and
   - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
+  - 2026-10-26-ci-orchestrator-ci-run-proof-packet-and
 tests:
   - "tests/core/approvals.test.ts"
   - "tests/pipelines/approve.test.ts"
   - "tests/mcp/no-approve-tool.test.ts"
   - "tests/cli/approve.test.ts"
   - "tests/ci/pr-approvals.test.ts"
+  - "tests/pipelines/approve-from-pr.test.ts"
 ---
 
 # Intent Approval
@@ -61,6 +64,10 @@ Intent approval adds the missing human step. A person approves a requirement at 
 - [ ] A committed `pr` approval entry is verified only when a qualifying review whose login equals the entry's author covers the claim; otherwise it is treated like any recorded entry and needs a countersign where a review is required <!-- claim: ci-pr-entry-needs-same-reviewer -->
 - [ ] Removing a claim is a change of intent: at a capability that requires review a removal needs a review that saw the claim gone, and an uncovered removal is reported as needing review (not when review is not required or `allowSelf` is on); a covered removal is shown as a verified approval <!-- claim: ci-removal-needs-review -->
 - [ ] The approvals the statement may count in CI are exactly the ones that pass these rules, judged for every recorded entry (including entries for claims that did not change) and dropping entries for an earlier wording of a changed claim; when several entries approve the same wording the strongest label is shown <!-- claim: ci-effective-approvals -->
+- [ ] `spec approve --from-pr <n>` makes a pull request's review approvals permanent: it reads the pull request's reviews from GitHub (a token in the environment or `gh auth token`), and writes one committed history entry per reviewer with `method: pr` and that reviewer as author, approving each unapproved claim in scope whose hash at the reviewed commit equals its hash now; without targets it looks at every unapproved claim, without `--yes` it only lists what it would record, and it refuses `--as-built` and a number that is not a pull request <!-- claim: approve-from-pr -->
+- [ ] `--from-pr` uses only qualifying reviews (an approval by a human other than the pull request's author with owner, member or collaborator association, latest decisive review per person) and covers only claims whose wording is the one reviewed: a claim reworded after the review is reported as not covered, and no qualifying review writes nothing and exits 2 <!-- claim: approve-from-pr-qualifying -->
+- [ ] `--from-pr` stays a person-only command (an agent without a terminal is refused exactly as for `spec approve`), and a pull request that cannot be read (no token, an API error) writes nothing and exits 1 with a message that holds no token <!-- claim: approve-from-pr-person-only -->
+- [ ] `--from-pr` is a convenience and never a way around the review: the entries it writes are still re-checked in CI as records, and count only while a review covers the claim <!-- claim: approve-from-pr-ci-rechecks -->
 
 ## Scenarios
 ### Scenario 1: Approve a capability
