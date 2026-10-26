@@ -31,6 +31,8 @@ export interface HistoryMeta {
   approves?: string[];
   /** Approval entries: how the approval was given (`command`, `as-built`, ...). */
   method?: string;
+  /** Decision entries: the policy changes made, each a short line such as `enforce cart observe->warn`. */
+  policy?: string[];
 }
 
 export interface HistoryEntry extends HistoryMeta {
@@ -79,6 +81,7 @@ export function renderHistoryEntry(meta: HistoryMeta, body: string): string {
     ...(meta.affects.length > 0 ? ['affects:', ...meta.affects.map((a) => `  - ${a}`)] : ['affects: []']),
     ...(meta.approves && meta.approves.length > 0 ? ['approves:', ...meta.approves.map((a) => `  - ${q(a)}`)] : []),
     ...(meta.method ? [`method: ${meta.method}`] : []),
+    ...(meta.policy && meta.policy.length > 0 ? ['policy:', ...meta.policy.map((a) => `  - ${q(a)}`)] : []),
     '---',
     '',
   ];
@@ -106,6 +109,7 @@ export function parseHistoryEntry(content: string, file: string): HistoryEntry |
     affects: Array.isArray(doc.affects) ? doc.affects.filter((a): a is string => typeof a === 'string') : [],
     approves: Array.isArray(doc.approves) ? doc.approves.filter((a): a is string => typeof a === 'string') : undefined,
     method: typeof doc.method === 'string' ? doc.method : undefined,
+    policy: Array.isArray(doc.policy) ? doc.policy.filter((a): a is string => typeof a === 'string') : undefined,
     file,
     body: content.slice(m[0].length),
   };

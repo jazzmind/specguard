@@ -66,6 +66,8 @@ import { errorResult, textResult, toolResult, type ToolResult } from './format.j
 import { formatPluginRows, listPlugins } from '../pipelines/plugin-manage.js';
 import { appendActivityLogEntry } from './activity-hook.js';
 import { mcpLimiter, mcpReadOnly, WRITE_TOOLS } from './limits.js';
+import { registerChangeTools } from './tools/change.js';
+import { registerProofStoreTools } from './tools/proof-store.js';
 
 const SERVER_NAME = 'specguard-mcp';
 const SERVER_VERSION = cliVersion();
@@ -1068,6 +1070,11 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
         return toolResult(await planSetStatus(config, plan ?? 'latest', item, status, { note, by, externalRef }));
       }).catch(errorResult),
   );
+
+  // Tool modules of the later slices register through the same filtered method, so CORE_TOOLS and read-only mode apply to them.
+  const ctx = { resolveCwd, withActivityLog };
+  registerChangeTools(server, ctx);
+  registerProofStoreTools(server, ctx);
 
   (server as { registerTool: unknown }).registerTool = register;
   return server;

@@ -18,6 +18,21 @@ describe('history entries [history-core]', () => {
   });
 
   // [claims: capabilities/requirement-history#history-entry-format]
+  it('round-trips the policy list, and an entry without one renders and parses as before [policy]', () => {
+    const meta = { id: '2026-10-25-x', date: '2026-10-25', kind: 'decision' as const, title: 'Raise cart', affects: ['cart'] };
+    const withPolicy = renderHistoryEntry({ ...meta, policy: ['enforce cart observe->warn', 'enforce "quoted" warn->enforce'] }, '# X');
+    expect(withPolicy).toContain('policy:\n  - "enforce cart observe->warn"\n  - ');
+    expect(parseHistoryEntry(withPolicy, '/f.md')?.policy).toEqual(['enforce cart observe->warn', 'enforce "quoted" warn->enforce']);
+    // existing entries: no policy key is written, and none is read back
+    const plain = renderHistoryEntry(meta, '# X');
+    expect(plain).not.toContain('policy');
+    expect(renderHistoryEntry({ ...meta, policy: [] }, '# X')).toBe(plain);
+    expect(parseHistoryEntry(plain, '/f.md')?.policy).toBeUndefined();
+    // a policy that is not a list of strings is ignored, never trusted
+    expect(parseHistoryEntry(plain.replace('---\n\n', 'policy: nope\n---\n\n'), '/f.md')?.policy).toBeUndefined();
+  });
+
+  // [claims: capabilities/requirement-history#history-entry-format]
   it('round-trips frontmatter and body [roundtrip]', () => {
     const text = renderHistoryEntry({ id: '2026-10-15-x', date: '2026-10-15', kind: 'prompt+plan', author: 'Wes', title: 'X: a "title"', affects: ['auth', 'shop'], source: 'claude-code' }, '# X\n\n## Prompt\n\nhello');
     const parsed = parseHistoryEntry(text, '/f.md');

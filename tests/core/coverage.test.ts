@@ -339,6 +339,19 @@ describe('capability coverage [coverage-and-mutation]', () => {
     expect(tests).toMatchObject({ claimable: { reach: true, unspecified: true }, selection: 'tests', testsStale: false });
   });
 
+  // [claims: capabilities/coverage-and-mutation#suite-report-limit]
+  it('a claims-scoped run is claimable by test selection like a capability-scoped one, and is never suite evidence', () => {
+    const base = { capability: 'cart', ownedFiles: ['src/cart.ts'], currentHashes: HASHES };
+    const scope = (selection: 'tests' | 'files') => ({ kind: 'claims' as const, claims: ['cart#fee'], tests: ['t.test.ts::a'], testsHash: 'h1', selection });
+    const tests = capabilityCoverage({ ...base, evidence: evidence({ scope: scope('tests') }), currentTestsHash: 'h1' });
+    expect(tests).toMatchObject({ claimable: { reach: true, unspecified: true }, source: 'capability', selection: 'tests', testsStale: false });
+    const files = capabilityCoverage({ ...base, evidence: evidence({ scope: scope('files') }), currentTestsHash: 'h1' });
+    expect(files).toMatchObject({ claimable: { reach: false, unspecified: false }, source: 'capability', selection: 'files' });
+    // the tests the run selected changed since: the claim is withdrawn
+    const stale = capabilityCoverage({ ...base, evidence: evidence({ scope: scope('tests') }), currentTestsHash: 'h2' });
+    expect(stale).toMatchObject({ claimable: { reach: false, unspecified: false }, testsStale: true });
+  });
+
   // [claims: capabilities/coverage-and-mutation#evidence-staleness]
   it('testsHash mismatch marks testsStale and withdraws the claims', () => {
     const e = evidence({ scope: { kind: 'capability', capability: 'cart', selection: 'tests', tests: ['t.test.ts::a'], testsHash: 'h1' } });

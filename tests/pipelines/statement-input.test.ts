@@ -6,13 +6,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { assessmentKey, saveAssessments } from '../../src/core/drift-assessments.js';
 import { hashFile } from '../../src/core/drift-registry.js';
 import { loadConfig } from '../../src/core/config.js';
+import { approvalsFrom } from '../../src/core/approvals.js';
+import { listHistory } from '../../src/core/history.js';
+import { emptyLedger } from '../../src/core/proof-ledger.js';
+import type { LedgerStore } from '../../src/core/state/ledger-store.js';
 import type { CapabilityInput, ClaimInput } from '../../src/core/proof-statement.js';
 import { runSpecApprove } from '../../src/pipelines/approve.js';
 import { loadTrace } from '../../src/pipelines/check.js';
 import { runCoverageIngest } from '../../src/pipelines/coverage-ingest.js';
 import { runMutationIngest } from '../../src/pipelines/mutation-ingest.js';
 import { ingestVerdicts } from '../../src/pipelines/proof.js';
-import { buildStatementInput, type StatementInputOpts } from '../../src/pipelines/statement-input.js';
+import { baseEvidence, buildStatementInput, type StatementInputOpts } from '../../src/pipelines/statement-input.js';
 import { AUTH_SPEC, gitInit, makeV2Repo } from '../helpers/v2-repo.js';
 import type { TmpRepo } from '../helpers/repo.js';
 
@@ -276,5 +280,72 @@ describe('statement input: git [traceability-and-drift]', () => {
       expect(built.input.head.base).toBeUndefined();
       expect(built.input.capabilities.every((c) => !c.changeMode)).toBe(true);
     }
+  });
+});
+
+describe('statement input: store, approvals and sensitivity seams [traceability-and-drift]', () => {
+  const memoryStore = (): LedgerStore => {
+    const ledger = emptyLedger();
+    return { location: 'memory', read: async () => ledger, update: async (fn) => fn(ledger) };
+  };
+
+  // [claims: capabilities/traceability-and-drift#statement-input-assembly]
+  it('reads the ledger from a given store instead of the ledger file, and leaves redGreen absent without a sensitivity map', async () => {
+    const repo = makeV2Repo();
+    const store = memoryStore();
+    await ingestVerdicts({ runId: 'r1', verdicts: [{ claim: LOGIN, verdict: 'proven', layer: 'unit' }] }, repo.dir, { store, provenance: { origin: 'ci' } });
+    const plain = (await cap(repo, 'auth')).cap;
+    expect(claim(plain, LOGIN).proof.verdict).toBe('unproven'); // no ledger file in the repo
+    const stored = (await cap(repo, 'auth', { store })).cap;
+    expect(claim(stored, LOGIN).proof.verdict).toBe('proven');
+    expect(claim(stored, LOGIN).proofOrigins).toEqual(['ci']);
+    expect(claim(stored, LOGIN).redGreen).toBeUndefined();
+  });
+
+  // [claims: capabilities/traceability-and-drift#statement-input-assembly]
+  it('fills redGreen from the sensitivity map, by claim ref, and only for the refs it names', async () => {
+    const repo = makeV2Repo();
+    const { cap: auth } = await cap(repo, 'auth', { sensitivity: new Map([[LOGIN, 'ok' as const], [LOGOUT, 'fail' as const]]) });
+    expect(claim(auth, LOGIN).redGreen).toBe('ok');
+    expect(claim(auth, LOGOUT).redGreen).toBe('fail');
+    const { cap: shop } = await cap(repo, 'shop', { sensitivity: new Map([[LOGIN, 'ok' as const]]) });
+    expect(shop.claims.every((c) => c.redGreen === undefined)).toBe(true);
+  });
+
+  // [claims: capabilities/traceability-and-drift#statement-input-assembly]
+  it('uses the given approvals instead of the history entries, adds the extra ones, and still knows the repo uses approvals', async () => {
+    const repo = makeV2Repo();
+    const config = await loadConfig(repo.dir);
+    await runSpecApprove(config, { all: true, yes: true, by: 'Ada', actor: { agent: false, tty: true } });
+    const recorded = approvalsFrom(listHistory(config));
+    expect(claim((await cap(repo, 'auth')).cap, LOGIN).approval).toMatchObject({ by: 'Ada' });
+
+    // CI hands over only what its trust rules accepted: nothing here. The entries still show approvals are in use.
+    const none = (await cap(repo, 'auth', { approvals: [] })).cap;
+    expect(none.approvalsInUse).toBe(true);
+    expect(none.claims.every((c) => c.approval === undefined)).toBe(true);
+
+    // One accepted approval, plus a review carried in a note.
+    const loginApproval = recorded.find((a) => a.claim === LOGIN)!;
+    expect(loginApproval).toBeDefined();
+    const logoutNote = { ...recorded.find((a) => a.claim === LOGOUT)!, method: 'pr' as const, by: 'reviewer' };
+    const some = (await cap(repo, 'auth', { approvals: [loginApproval], extraApprovals: [logoutNote] })).cap;
+    expect(claim(some, LOGIN).approval).toMatchObject({ by: 'Ada' });
+    expect(claim(some, LOGOUT).approval).toMatchObject({ method: 'pr', by: 'reviewer' });
+  });
+
+  // [claims: capabilities/traceability-and-drift#statement-input-change-mode]
+  it('exports baseEvidence: the diff against a ref and a reader of files as they were there', async () => {
+    const repo = makeV2Repo();
+    gitInit(repo.dir);
+    repo.write('src/auth/login.ts', 'export const login = 2;\n');
+    const warnings: string[] = [];
+    const base = baseEvidence(repo.dir, 'HEAD', warnings);
+    expect(warnings).toEqual([]);
+    expect(base?.ref).toBe('HEAD');
+    expect(base?.changed.map((c) => c.file)).toContain('src/auth/login.ts');
+    expect(base?.show('src/auth/login.ts')).not.toContain('login = 2');
+    expect(baseEvidence(repo.dir, '--output=x', warnings)).toBeUndefined();
+    expect(warnings.join('\n')).toContain('does not resolve to a commit');
   });
 });

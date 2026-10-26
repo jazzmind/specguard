@@ -22,8 +22,11 @@ sources:
   - "src/core/version.ts"
   - "src/core/sentinels.ts"
   - "src/core/state-ignore.ts"
+  - "src/core/migrate-plan.ts"
+  - "src/cli/commands/migrate.ts"
 tests:
   - "tests/core/config.test.ts"
+  - "tests/core/config-phase3.test.ts"
   - "tests/core/llm.test.ts"
   - "tests/core/llm-layer.test.ts"
   - "tests/core/llm-tiers.test.ts"

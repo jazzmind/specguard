@@ -36,6 +36,16 @@ describe('history add [history-add]', () => {
     expect(listHistory(config)).toHaveLength(1);
   });
 
+  // [claims: capabilities/requirement-history#history-entry-format]
+  it('writes the policy lines of a decision into the entry and leaves other entries without one [policy]', async () => {
+    const config = await loadConfig(repo.dir);
+    await runHistoryAdd(config, { decision: 'Raise cart to warn', title: 'Ratchet cart', affects: ['auth'], policy: ['enforce auth observe->warn'], date: '2026-10-25' });
+    await runHistoryAdd(config, { decision: 'No policy here', title: 'Plain', affects: ['auth'], date: '2026-10-25' });
+    expect(read('specs/history/2026-10-25-ratchet-cart.md')).toContain('policy:\n  - "enforce auth observe->warn"');
+    expect(read('specs/history/2026-10-25-plain.md')).not.toContain('policy:');
+    expect(listHistory(config).find((e) => e.id === '2026-10-25-ratchet-cart')?.policy).toEqual(['enforce auth observe->warn']);
+  });
+
   // [claims: capabilities/requirement-history#history-redaction]
   it('redacts secrets before anything is written [redaction]', async () => {
     const config = await loadConfig(repo.dir);

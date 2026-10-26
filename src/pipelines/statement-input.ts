@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
-import { approvalsFrom, indexApprovals } from '../core/approvals.js';
+import { approvalsFrom, indexApprovals, type Approval } from '../core/approvals.js';
 import { claimHashOf } from '../core/claim-hash.js';
 import { scanSourceForClaimTags, type ClaimTestEntry, type ClaimTestIndex } from '../core/claim-tags.js';
 import { parseClaimRef } from '../core/claims.js';
@@ -37,6 +37,7 @@ import {
   type WeakeningInput,
 } from '../core/proof-statement.js';
 import { expandGlobs, readFile } from '../core/reader.js';
+import type { LedgerStore } from '../core/state/ledger-store.js';
 import { buildSpecGraph, type SpecNode } from '../core/spec-graph.js';
 import { parseSpecContent } from '../core/spec-parser.js';
 import { specsRootDir } from '../core/spec-key.js';
@@ -68,6 +69,20 @@ export interface StatementInputOpts {
   testStatuses?: ReadonlyMap<string, TestStatus>;
   /** Injected for determinism. Default: now. */
   generated?: string;
+  /** Read the proof ledger from here instead of the ledger file (for example the effective ledger of CI notes plus the local cache). */
+  store?: LedgerStore;
+  /**
+   * The approvals that count, replacing the ones read from `specs/history/`. CI passes the approvals its trust rules
+   * accepted, so a recorded entry that no reviewer countersigned does not make a claim approved.
+   */
+  approvals?: Approval[];
+  /** Approvals added to the list above, such as pull-request reviews carried in a proof note. */
+  extraApprovals?: Approval[];
+  /**
+   * Red-green result per local claim ref (`specKey#claim`): `ok` when the claim's tests failed without the change and pass
+   * with it, `fail` when they pass either way. A claim absent from the map has no such evidence. Fills `ClaimInput.redGreen`.
+   */
+  sensitivity?: ReadonlyMap<string, 'ok' | 'fail'>;
 }
 
 export interface AssembledStatementInput {
@@ -163,13 +178,14 @@ async function readTests(config: SpecGuardConfig, root: string, files: string[],
 // Change mode: the diff, and what the base says
 // ---------------------------------------------------------------------------
 
-interface BaseEvidence {
+export interface BaseEvidence {
   ref: string;
   changed: ChangedFile[];
   show(rel: string): string | undefined;
 }
 
-function baseEvidence(root: string, base: string, warnings: string[]): BaseEvidence | undefined {
+/** The diff of the working tree against `base` and a reader of files as they were there; undefined (with a warning) when `base` does not resolve. */
+export function baseEvidence(root: string, base: string, warnings: string[]): BaseEvidence | undefined {
   const sha = resolveBase(root, base);
   if (!sha) {
     warnings.push(`base ref "${base}" does not resolve to a commit: no change was judged`);
@@ -277,8 +293,9 @@ export async function buildStatementInput(
   const specNodes = new Map<string, SpecNode>();
   for (const n of graph.nodes.values()) if (n.kind === 'capability' || n.kind === 'component') specNodes.set(n.specKey, n);
 
-  // Approvals.
-  const approvalList = approvalsFrom(listHistory(config));
+  // Approvals: the history entries, unless the caller supplies the list that counts; extra ones are added.
+  const recorded = approvalsFrom(listHistory(config));
+  const approvalList = [...(opts.approvals ?? recorded), ...(opts.extraApprovals ?? [])];
   const approvals = indexApprovals(approvalList);
 
   // Ledger, judged by hashes alone.
@@ -289,7 +306,7 @@ export async function buildStatementInput(
       const key = localKey(ref);
       if (key && detail) ledger.set(key, detail);
     },
-    { deterministic: true },
+    { deterministic: true, ...(opts.store ? { store: opts.store } : {}) },
   );
 
   // Test files, once.
@@ -381,6 +398,7 @@ export async function buildStatementInput(
         ...(approval ? { approval } : {}),
         ...(!approval && latest ? { lastApprovedHash: latest.hash } : {}),
         ...(change ? { change } : {}),
+        ...(opts.sensitivity?.get(ref) ? { redGreen: opts.sensitivity.get(ref) } : {}),
         required,
         assurance: spec.meta.assurance?.claims[id] ?? spec.meta.assurance?.default ?? 'tested',
         evidence: declared?.kind ?? 'test',
@@ -456,7 +474,8 @@ export async function buildStatementInput(
       ...(coverage ? { coverage } : {}),
       ...(mutation ? { mutation } : {}),
       weakening: weakening as WeakeningInput[],
-      approvalsInUse: approvalList.length > 0,
+      // Entries that do not count (CI withholds them) still mean the repo uses approvals: the claims then read as unapproved.
+      approvalsInUse: recorded.length > 0 || approvalList.length > 0,
       ...(gapOf.get(node.id) ? { intentGap: { codeDate: gapOf.get(node.id)!.codeDate, intentDate: gapOf.get(node.id)!.intentDate } } : {}),
       changeMode: base !== undefined,
     });

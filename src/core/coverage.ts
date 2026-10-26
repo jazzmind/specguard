@@ -397,7 +397,9 @@ export interface FileEvidence {
 
 export type CoverageScope =
   | { kind: 'suite' }
-  | { kind: 'capability'; capability: string; selection: 'tests' | 'files'; tests: string[]; testsHash: string };
+  | { kind: 'capability'; capability: string; selection: 'tests' | 'files'; tests: string[]; testsHash: string }
+  /** A run of only the tests tagged to some claims (a change's added and modified refs), selected by test, or by file when the runner cannot select by title. */
+  | { kind: 'claims'; claims: string[]; tests: string[]; testsHash: string; selection: 'tests' | 'files' };
 
 export type EvidenceOrigin = 'local' | 'ci' | 'server';
 
@@ -630,14 +632,16 @@ export function capabilityCoverage(input: {
     }
   }
 
-  const testsStale =
-    evidence.scope.kind === 'capability' && input.currentTestsHash !== undefined && evidence.scope.testsHash !== input.currentTestsHash;
-  const tested = evidence.scope.kind === 'capability' && evidence.scope.selection === 'tests' && !testsStale;
+  // A claims-scoped run is claimable like a capability-scoped one: it ran only tests that cite claims, so reached code is claimed code.
+  const scoped = evidence.scope.kind === 'suite' ? undefined : evidence.scope;
+  const testsStale = scoped !== undefined && input.currentTestsHash !== undefined && scoped.testsHash !== input.currentTestsHash;
+  const tested = scoped !== undefined && scoped.selection === 'tests' && !testsStale;
 
   const out: CapabilityCoverage = {
     capability: input.capability,
+    // A claims-scoped run is not suite-wide, so it reads as capability evidence.
     source: evidence.scope.kind === 'suite' ? 'suite' : 'capability',
-    ...(evidence.scope.kind === 'capability' ? { selection: evidence.scope.selection } : {}),
+    ...(scoped ? { selection: scoped.selection } : {}),
     evidence: { runId: evidence.runId, origin: evidence.origin, ...(evidence.repoSha ? { repoSha: evidence.repoSha } : {}) },
     owned: owned.length,
     reported: fresh.length,

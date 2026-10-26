@@ -67,6 +67,12 @@ import { resultsIngestCommand } from './commands/results.js';
 import { coverageIngestCommand } from './commands/coverage.js';
 import { mutationIngestCommand } from './commands/mutation.js';
 import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
+import { registerProofCommands } from './commands/proof-store.js';
+import { registerChangeCommands } from './commands/change.js';
+import { registerEnforceCommands } from './commands/enforce.js';
+import { registerHookCommands } from './commands/hook.js';
+import { registerCiCommands } from './commands/ci.js';
+import { registerMigrateCommand } from './commands/migrate.js';
 import { cliVersion, versionInfo } from '../core/version.js';
 
 // One version source: package.json, or the value injected at bundle time (src/core/version.ts).
@@ -553,6 +559,7 @@ program
   .option('--out <file>', 'with --matrix: output path relative to the repo root')
   .option('--drift', 'assess code changes against each capability\'s requirements')
   .option('--since <ref>', 'git ref to diff against: with --drift (default: working tree against HEAD); with the summary, the base the proof statement judges changed claims, coverage and weakening against')
+  .option('--base <ref>', 'alias of --since')
   .option('--explain <capability>', 'the proof statement of one capability: each pillar, the blocking reasons with the command that fixes each, and the advisory ones')
   .option('--strict', 'judge the proof statement as if every proof.require* gate were on (approval, testability, strength, sensitivity, conformance, alignment, CI evidence)')
   .option('--align', 'map spec scenarios and claims to test assertions with the LLM')
@@ -1018,6 +1025,16 @@ workspaceCmd
     for (const line of result.messages) process.stdout.write(`${line}\n`);
     process.exit(result.exitCode);
   });
+
+// --- Phase 3 command groups ------------------------------------------------
+// Each group lives in its own module so a slice adds commands without touching this file. They register after the
+// commands above, so a group that extends an existing command (`proof`) finds it with `program.commands`.
+registerProofCommands(program);
+registerChangeCommands(program);
+registerEnforceCommands(program);
+registerHookCommands(program);
+registerCiCommands(program);
+registerMigrateCommand(program);
 
 export async function main(): Promise<void> {
   // `specguard --version --json` is machine-readable: the extension uses it to detect a CLI/extension mismatch.

@@ -34,10 +34,18 @@ export const SPEC_KINDS: readonly SpecKind[] = ['system', 'capability', 'compone
 import type { ExampleIssue, ExampleTable } from './examples.js';
 import type { LayerRequirements, TestLayer } from './test-layers.js';
 import type { SystemStatement } from './proof-statement.js';
+import type { CoverageFormat } from './coverage.js';
 
 /** How strongly a claim is assured, weakest first. */
 export const ASSURANCE_LEVELS = ['tested', 'property', 'bounded', 'proved-model', 'proved-code'] as const;
 export type Assurance = (typeof ASSURANCE_LEVELS)[number];
+
+/**
+ * How strictly a capability's proof statement gates a change, weakest first: `observe` only reports, `warn` annotates
+ * and allows, `enforce` blocks (in the hooks and in CI). Per-capability policy, so a repo can ratchet one capability at a time.
+ */
+export const ENFORCE_LEVELS = ['observe', 'warn', 'enforce'] as const;
+export type EnforceLevel = (typeof ENFORCE_LEVELS)[number];
 
 /** A capability's `assurance:` frontmatter. Values off the ladder are returned in `unknown`, not dropped. */
 export interface AssuranceRequirements {
@@ -85,6 +93,8 @@ export interface SpecMeta {
   assurance?: AssuranceRequirements;
   /** v2 frontmatter: claims that cannot be automated, each with the kind of evidence and who or what verifies it. Not part of any claim hash. */
   evidence?: Record<string, EvidenceDeclaration>;
+  /** v2 frontmatter: the ratchet level (`enforce: warn`). Absent means the config's `enforce.default`. Policy, not intent: not part of any claim hash. */
+  enforce?: EnforceLevel;
   /** Any metadata key not in the known set, preserved verbatim. */
   extra: Record<string, string>;
 }
@@ -296,11 +306,26 @@ export interface AppTestConfig {
   /** Regexes (source text) marking this app's tests as flag- or environment-gated; added to `testStrength.conditional` for its files. */
   conditional?: string[];
   /**
+   * How this app's test run emits coverage. `test run --coverage` appends `flags` to the command and ingests `reports`
+   * with the run's scope. Absent: no coverage is requested, and changed lines no claim test reaches read as unknown.
+   */
+  coverage?: AppCoverageConfig;
+  /**
    * Several suites for one app, each with its own command and layer (for example vitest for unit and Playwright
    * for e2e). When set they replace the app's single `command`; a suite inherits `cwd`, `reporter` and
    * `timeoutMs` from the app unless it sets its own.
    */
   suites?: TestSuiteConfig[];
+}
+
+/** The `apps[].test.coverage` block. */
+export interface AppCoverageConfig {
+  /** Extra arguments that make the runner write a coverage report, appended to the test command (for example `--coverage`). */
+  flags?: string;
+  /** Report files or globs the run writes, relative to the config root. */
+  reports: string[];
+  /** Report format. Default: detected from each file. */
+  format?: CoverageFormat | 'auto';
 }
 
 /** One suite of an app: a command that writes a report, and the layer its tests belong to. */
@@ -370,6 +395,8 @@ export interface MutationConfig {
   timeoutAsKilled?: boolean;
   /** `full` when the tool lists every killing test (Stryker `disableBail`, PIT full matrix). Default: detected from the report. */
   attribution?: 'full' | 'first-kill';
+  /** Command CI runs to produce mutation evidence, scoped to the changed owned files: `{files}` is replaced by them. Absent: sensitivity relies on red-to-green. */
+  command?: string;
 }
 
 /** How layers of evidence are required and enforced. */
@@ -706,6 +733,106 @@ export interface RemediateConfig {
   };
 }
 
+/** Values of `proofStore.verify`: `check-run` trusts a note only when the CI check run carries its digest; `off` (default) does not check. */
+export const PROOF_STORE_VERIFY = ['off', 'check-run'] as const;
+export const PROOF_STORE_AUTOFETCH = ['session', 'off'] as const;
+
+/** The `proofStore` block: where CI proof notes live in git and how they are read. */
+export interface ProofStoreConfig {
+  /** Notes ref. Default `refs/notes/specguard`. */
+  notesRef?: string;
+  /** Remote notes are fetched from and pushed to. Default `origin`. */
+  remote?: string;
+  /** Commits walked looking for the nearest noted ancestor. Default 500. */
+  maxWalk?: number;
+  /** Authenticate notes against a CI check run. Default `off` (opt-in). */
+  verify?: (typeof PROOF_STORE_VERIFY)[number];
+  /** `session`: the agent plugin fetches notes in the background at session start. Default `session`. */
+  autoFetch?: (typeof PROOF_STORE_AUTOFETCH)[number];
+  /** `proof prune` removes notes of unreachable commits older than this many days. Default 90. */
+  pruneDays?: number;
+}
+
+export const PROOF_STORE_DEFAULTS = {
+  notesRef: 'refs/notes/specguard',
+  remote: 'origin',
+  maxWalk: 500,
+  verify: 'off',
+  autoFetch: 'session',
+  pruneDays: 90,
+} as const satisfies Required<ProofStoreConfig>;
+
+export const RED_ACCEPTS_ERRORS = ['never', 'added-only', 'always'] as const;
+
+/** The `change` block: the spec-first change protocol. */
+export interface ChangeConfig {
+  /** Ref the base of a change is computed from, after `--base` and the change record's own `baseRef`. */
+  baseRef?: string;
+  /** When a test that errors (does not compile or import) counts as red. Default `added-only`: only for an added claim. */
+  redAcceptsErrors?: (typeof RED_ACCEPTS_ERRORS)[number];
+  /** Owned code changed with no open change covering its capability fails at `enforce`. Default true. */
+  requireChangeRecord?: boolean;
+  /** Dependency directories symlinked into the constructed red worktree. Default: by ecosystem (`node_modules`, `.venv`, `vendor`). */
+  worktreeLinks?: string[];
+}
+
+export const CHANGE_DEFAULTS = { redAcceptsErrors: 'added-only', requireChangeRecord: true } as const;
+
+/** The `enforce` block: defaults for the per-capability `enforce:` frontmatter. */
+export interface EnforceConfig {
+  /** Level of a capability that sets none. Default `observe`. */
+  default?: EnforceLevel;
+  /** Level written into a new capability's frontmatter by `change start`. Default: `enforce.default`. */
+  newCapabilities?: EnforceLevel;
+}
+
+export const ENFORCE_DEFAULTS = { default: 'observe' } as const satisfies { default: EnforceLevel };
+
+export const HOOK_ON_ERROR = ['allow', 'deny'] as const;
+
+/** The `hooks` block: the agent edit guards. */
+export interface HooksConfig {
+  /** What a hook that errors, times out or cannot read its index does. `allow` (default) fails open and CI stays the gate; `deny` fails closed in a repo with an `enforce` capability. */
+  onError?: (typeof HOOK_ON_ERROR)[number];
+  /** After a Bash command, report owned files of an `enforce` capability it changed with no qualifying change. Default false. */
+  bashGuard?: boolean;
+}
+
+export const HOOKS_DEFAULTS = { onError: 'allow', bashGuard: false } as const;
+
+export const APPROVAL_REQUIRE_REVIEW = ['enforce', 'always', 'never'] as const;
+
+/** The `approvals` block. */
+export interface ApprovalsConfig {
+  /** How CI trusts approvals. */
+  ci?: {
+    /** When a recorded approval added in a PR needs an approving review from someone other than the author: for capabilities at `enforce` (default), `always`, or `never`. */
+    requireReview?: (typeof APPROVAL_REQUIRE_REVIEW)[number];
+    /** A solo maintainer's recorded approvals count, labelled self-approved, without a second reviewer. Default false. */
+    allowSelf?: boolean;
+  };
+}
+
+export const APPROVALS_CI_DEFAULTS = { requireReview: 'enforce', allowSelf: false } as const;
+
+export const UNREQUESTED_SEVERITY = ['error', 'warn'] as const;
+
+/** The `unrequested` block: code no requirement asked for. */
+export interface UnrequestedConfig {
+  /** Whether changed owned lines that no claim test reaches count as an error (default; it then blocks at `enforce`) or a warning. */
+  severity?: (typeof UNREQUESTED_SEVERITY)[number];
+}
+
+export const UNREQUESTED_DEFAULTS = { severity: 'error' } as const;
+
+/** The `ci` block. */
+export interface CiConfig {
+  /** On pull requests, also run the touched capabilities' full claim tests with coverage to classify incidental lines. Default true. */
+  capabilityCoverage?: boolean;
+}
+
+export const CI_DEFAULTS = { capabilityCoverage: true } as const;
+
 /** The fully parsed `.specguard/config.json`. */
 /**
  * A SpecGuard team server this project can use. The CLI works fully without one: with `mode: auto` (the default)
@@ -762,6 +889,20 @@ export interface SpecGuardConfig {
   coverage?: CoverageConfig;
   /** When mutation evidence counts; see {@link MutationConfig}. */
   mutation?: MutationConfig;
+  /** Proof notes in git; see {@link ProofStoreConfig}. */
+  proofStore?: ProofStoreConfig;
+  /** The change protocol; see {@link ChangeConfig}. */
+  change?: ChangeConfig;
+  /** Defaults for the per-capability ratchet; see {@link EnforceConfig}. */
+  enforce?: EnforceConfig;
+  /** The agent edit guards; see {@link HooksConfig}. */
+  hooks?: HooksConfig;
+  /** How CI trusts approvals; see {@link ApprovalsConfig}. */
+  approvals?: ApprovalsConfig;
+  /** Code no requirement asked for; see {@link UnrequestedConfig}. */
+  unrequested?: UnrequestedConfig;
+  /** CI behaviour; see {@link CiConfig}. */
+  ci?: CiConfig;
   granularity?: GranularityConfig;
   /** Requirement-history settings. */
   history?: { failOnIntentGap?: boolean };

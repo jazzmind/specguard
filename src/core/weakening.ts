@@ -16,6 +16,7 @@ export type WeakeningKind =
   | 'assertions-removed' | 'assertion-weakened' | 'wildcard-added' | 'became-weak'
   | 'snapshot-rewritten' | 'mutation-disable-added' | 'test-env-branch'
   | 'policy-layer-removed' | 'policy-assurance-lowered' | 'policy-evidence-relaxed' | 'policy-example-removed'
+  | 'policy-enforce-lowered'
   | 'config-weakened';
 
 export interface WeakeningFinding {

@@ -8,6 +8,7 @@ status: active
 sources:
   - "src/core/approvals.ts"
   - "src/pipelines/approve.ts"
+  - "src/ci/pr-approvals.ts"
 docs: []
 history:
   - 2026-10-26-intent-approvals-are-history-entries-bou

@@ -9,7 +9,24 @@
 import { TEST_LAYERS } from './test-layers.js';
 import path from 'node:path';
 import { z } from 'zod';
-import type { SpecGuardConfig } from './types.js';
+import {
+  APPROVALS_CI_DEFAULTS,
+  APPROVAL_REQUIRE_REVIEW,
+  CHANGE_DEFAULTS,
+  CI_DEFAULTS,
+  ENFORCE_DEFAULTS,
+  ENFORCE_LEVELS,
+  HOOKS_DEFAULTS,
+  HOOK_ON_ERROR,
+  PROOF_STORE_AUTOFETCH,
+  PROOF_STORE_DEFAULTS,
+  PROOF_STORE_VERIFY,
+  RED_ACCEPTS_ERRORS,
+  UNREQUESTED_DEFAULTS,
+  UNREQUESTED_SEVERITY,
+  type SpecGuardConfig,
+} from './types.js';
+import { COVERAGE_FORMATS } from './coverage.js';
 import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
 import { configureLlm } from './llm-runtime.js';
@@ -32,6 +49,17 @@ const regexSource = z.string().refine(
   },
   { message: 'not a valid regular expression' },
 );
+
+/** A git ref name or remote name that cannot be read as an option (same rule as `resolveBase`). */
+const gitRefName = z.string().regex(/^[\w][\w./@^~{}:+-]*$/, { message: 'not a usable git ref name' });
+const gitRemoteName = z.string().regex(/^[\w][\w.-]*$/, { message: 'not a usable git remote name' });
+const notesRefName = z
+  .string()
+  .regex(/^refs\/notes\/[\w][\w./-]*$/, { message: 'a notes ref starts with refs/notes/' });
+/** A relative path with no `..` segment: it names something inside the repository. */
+const insidePath = z.string().min(1).refine((v) => !v.startsWith('/') && !/^[A-Za-z]:/.test(v) && !v.split(/[\\/]/).includes('..'), {
+  message: 'must be a relative path inside the repository',
+});
 
 const appSourcesSchema = z
   .object({
@@ -74,6 +102,14 @@ const appConfigSchema = z
         passEnv: z.array(z.string()).optional(),
         layers: z.record(z.enum(TEST_LAYERS), z.array(z.string())).optional(),
         conditional: z.array(regexSource).optional(),
+        coverage: z
+          .object({
+            flags: z.string().optional(),
+            reports: z.array(z.string().min(1)).min(1),
+            format: z.enum(['auto', ...COVERAGE_FORMATS]).optional(),
+          })
+          .passthrough()
+          .optional(),
         suites: z
           .array(
             z
@@ -358,8 +394,63 @@ const mutationSchema = z
     minKilled: z.number().int().min(0).optional(),
     timeoutAsKilled: z.boolean().optional(),
     attribution: z.enum(['full', 'first-kill']).optional(),
+    command: z.string().min(1).optional(),
   })
   .passthrough();
+
+// Phase 3 blocks. Each block is optional, so a config without it parses to exactly what it did before; inside a block,
+// every field has its default (the same constants the consumers fall back to when the block is absent).
+// Unknown keys inside a block are kept, like the other blocks, so a newer config still loads on an older SpecGuard.
+
+const proofStoreSchema = z
+  .object({
+    notesRef: notesRefName.default(PROOF_STORE_DEFAULTS.notesRef),
+    remote: gitRemoteName.default(PROOF_STORE_DEFAULTS.remote),
+    maxWalk: z.number().int().min(1).max(100_000).default(PROOF_STORE_DEFAULTS.maxWalk),
+    verify: z.enum(PROOF_STORE_VERIFY).default(PROOF_STORE_DEFAULTS.verify),
+    autoFetch: z.enum(PROOF_STORE_AUTOFETCH).default(PROOF_STORE_DEFAULTS.autoFetch),
+    pruneDays: z.number().int().min(1).default(PROOF_STORE_DEFAULTS.pruneDays),
+  })
+  .passthrough();
+
+const changeSchema = z
+  .object({
+    baseRef: gitRefName.optional(),
+    redAcceptsErrors: z.enum(RED_ACCEPTS_ERRORS).default(CHANGE_DEFAULTS.redAcceptsErrors),
+    requireChangeRecord: z.boolean().default(CHANGE_DEFAULTS.requireChangeRecord),
+    worktreeLinks: z.array(insidePath).optional(),
+  })
+  .passthrough();
+
+const enforceSchema = z
+  .object({
+    default: z.enum(ENFORCE_LEVELS).default(ENFORCE_DEFAULTS.default),
+    newCapabilities: z.enum(ENFORCE_LEVELS).optional(),
+  })
+  .passthrough();
+
+const hooksSchema = z
+  .object({
+    onError: z.enum(HOOK_ON_ERROR).default(HOOKS_DEFAULTS.onError),
+    bashGuard: z.boolean().default(HOOKS_DEFAULTS.bashGuard),
+  })
+  .passthrough();
+
+const approvalsSchema = z
+  .object({
+    ci: z
+      .object({
+        requireReview: z.enum(APPROVAL_REQUIRE_REVIEW).default(APPROVALS_CI_DEFAULTS.requireReview),
+        allowSelf: z.boolean().default(APPROVALS_CI_DEFAULTS.allowSelf),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+const unrequestedSchema = z.object({ severity: z.enum(UNREQUESTED_SEVERITY).default(UNREQUESTED_DEFAULTS.severity) }).passthrough();
+
+const ciSchema = z.object({ capabilityCoverage: z.boolean().default(CI_DEFAULTS.capabilityCoverage) }).passthrough();
 
 const configSchema = z
   .object({
@@ -406,6 +497,13 @@ const configSchema = z
     testability: testabilitySchema.optional(),
     coverage: coverageSchema.optional(),
     mutation: mutationSchema.optional(),
+    proofStore: proofStoreSchema.optional(),
+    change: changeSchema.optional(),
+    enforce: enforceSchema.optional(),
+    hooks: hooksSchema.optional(),
+    approvals: approvalsSchema.optional(),
+    unrequested: unrequestedSchema.optional(),
+    ci: ciSchema.optional(),
     featureState: featureStateSchema.optional(),
     auth: z.object({ profiles: z.array(authProfileSchema) }).passthrough().optional(),
     validate: validateSchema.optional(),
