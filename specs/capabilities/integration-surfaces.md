@@ -59,6 +59,7 @@ tests:
   - "tests/ci/context.test.ts"
   - "tests/ci/github-api.test.ts"
   - "tests/ci/pipeline-changes.test.ts"
+  - "tests/pipelines/init-codex.test.ts"
 docs:
   - "README.md"
   - "docs/ci.md"
@@ -86,6 +87,7 @@ history:
   - 2026-10-25-specguard-proves-intent-not-metrics-thre
   - 2026-10-25-0-4-the-host-coding-agent-does-the-model
   - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
+  - 2026-10-26-edit-guard-hook-entry-index-and-bundle
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -151,6 +153,10 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] A failed GitHub call throws a typed error carrying status (0 for no response), method, path and a rate-limit flag; the token never appears in an error, not even when the server or network layer echoes it, a pagination link that leaves the API root is never followed, and a missing token or malformed repository is refused before any request <!-- claim: github-client-errors-and-token -->
 - [ ] Posting the pull request comment finds the comment holding a marker (on any page) and updates it, or posts a new one, and never throws: a refused write returns `posted: false` with a reason that holds no token <!-- claim: github-comment-upsert -->
 - [ ] Pull request files that run or guard the gates (workflows of any provider, the SpecGuard config, the code owners file, the Action) are listed from file names and statuses alone: adding or editing one is a warning, deleting one or renaming it away is an error, and each file appears once, sorted, with the error winning <!-- claim: pipeline-change-detection -->
+- [ ] The Claude Code plugin guards edits and shell commands with a PreToolUse hook on `Edit|Write|MultiEdit|NotebookEdit|Bash` that runs the committed bundle (`node "${CLAUDE_PLUGIN_ROOT}/hooks/dist/specguard-hook.mjs" pre-tool-use`, timeout 5 s, no `onFailure`, so it fails open), next to the SessionStart status, and it stays silent in a project with no `.specguard/config.json` <!-- claim: plugin-guard-hooks -->
+- [ ] The Codex plugin carries no hooks, so it stays eligible for the public plugin directory; Codex gets the guard only through the repository <!-- claim: codex-plugin-hook-free -->
+- [ ] `specguard init --codex` writes the repository's `.codex/hooks.json` (a PreToolUse hook on `apply_patch`, `Edit`, `Write` and `Bash`, timeout 10 s, using the installed bundle when the package is a local dependency, else a pinned npx command, with `--agent codex`) and `.codex/rules/specguard.rules` (`prefix_rule` forbidding `specguard spec approve` and its npx forms), merges into an existing hooks file without duplicating on a re-run, never overwrites a rules file it does not own or a hooks file it cannot parse, and tells the person to trust the hook in `/hooks`; without the flag no `.codex` file is written <!-- claim: init-codex-files -->
+- [ ] `init --harness claude` and `scaffold` also merge the same guard as a PreToolUse hook into `.claude/settings.json` (the installed bundle when the package is a local dependency, else the resolved runner's `hook pre-tool-use`), once and beside the user's own hooks, and with `hooks.onError: "deny"` the scaffolded hook sets `onFailure: "block"` <!-- claim: harness-guard-hook -->
 
 ## Scenarios
 ### Scenario 1: Bootstrap a project for humans and agents

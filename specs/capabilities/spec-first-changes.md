@@ -18,6 +18,17 @@ sources:
   - "src/core/change-stage.ts"
   - "src/core/enforce.ts"
   - "src/pipelines/enforce.ts"
+  - "src/pipelines/change.ts"
+  - "src/pipelines/change-run.ts"
+  - "src/pipelines/change-store.ts"
+  - "src/pipelines/history.ts"
+  - "src/mcp/tools/change.ts"
+  - "plugins/specguard/skills/specguard-change/SKILL.md"
+  - "src/hooks/entry.ts"
+  - "src/hooks/index-build.ts"
+  - "src/hooks/main.ts"
+  - "src/hooks/picomatch.d.ts"
+  - "scripts/build-hook-bundle.mjs"
 docs: []
 history:
   - 2026-10-26-phase-3-contracts-and-seams
@@ -25,6 +36,8 @@ history:
   - 2026-10-26-proof-packet-and-unrequested-code-check
   - 2026-10-26-per-capability-enforcement-ratchet-and-i
   - 2026-10-26-edit-guard-is-a-pure-decision-table-over
+  - 2026-10-26-change-pipeline-joins-the-pure-model-to
+  - 2026-10-26-edit-guard-hook-entry-index-and-bundle
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"
@@ -39,6 +52,14 @@ tests:
   - "tests/pipelines/enforce.test.ts"
   - "tests/hooks/decide.test.ts"
   - "tests/hooks/stdin.test.ts"
+  - "tests/pipelines/change.test.ts"
+  - "tests/pipelines/change-run.test.ts"
+  - "tests/mcp/change-tools.test.ts"
+  - "tests/hooks/entry.test.ts"
+  - "tests/hooks/index-build.test.ts"
+  - "tests/hooks/bundle-fresh.test.ts"
+  - "tests/cli/hook.test.ts"
+  - "tests/pipelines/init-codex.test.ts"
 ---
 
 # Spec-First Changes
@@ -101,3 +122,27 @@ A spec-first change reverses the order and enforces it. The requirement is writt
 - [ ] Every message the guard shows the agent is one line of at most 300 characters and contains one command <!-- claim: hook-messages-short -->
 - [ ] Codex edits are read from apply_patch text, so every added, updated, deleted and moved path in the patch is guarded like a Claude edit, and a decision that would ask becomes a deny because Codex has no ask <!-- claim: hook-codex-patch-paths -->
 - [ ] An open refactor change allows code edits at every level in any order, and an open spike allows code-first edits, silently at observe and with the cannot-merge message at warn and enforce <!-- claim: hook-change-kinds -->
+- [ ] `specguard change start <capabilities...>` writes exactly one record of declared intent, `.specguard/changes/<id>.json` (kind, capabilities, why, base ref, start commit, branch, linked plans and nothing about stages or runs), and refuses an unknown capability, an empty list or an unknown `--plan` entry without writing anything <!-- claim: change-start-record -->
+- [ ] A change started on the branch its base ref names records the start commit as its base instead of the branch name, so later commits on that branch do not move the base and hide the change; an explicit `--base` that does not resolve fails instead of falling back <!-- claim: change-base-pinned -->
+- [ ] `change status` gathers its facts from git, the specs, the test tags and the run records (changed claims against the base commit, approvals including plan-derived ones, tagged tests and their strength, hashes of the changed claims, tagged test files and owned source, the owned files that differ from base, the newest red and green runs) and moves through spec, tests, red, code, green and validated as the files really change; a test or spec edit after red with code present sends it back, and a refactor needs no spec, tests or red but fails on a changed requirement <!-- claim: change-stages-detected-live -->
+- [ ] Editing a change record cannot advance a stage, and red and green are judged from the content of the run records the runner's report produced, so rewriting a verdict there or removing the record changes the stage and a pointer file only names the record <!-- claim: change-record-not-evidence -->
+- [ ] `change red` runs exactly the tests tagged to the added and modified requirements, in the working tree while owned code still equals base and otherwise in a constructed tree holding the current specs and tests and the owned code as it was at base, never ingests its verdicts into the proof ledger, leaves the user's working tree untouched and removes the temporary tree; it is refused before the spec is approved and tested, and a run in which a test already passes is recorded as not red <!-- claim: change-red-run -->
+- [ ] `change green` is refused until red is valid and owned code exists, records the passing run of the changed requirements' tests (or of every claim of the capabilities for a refactor) and ingests it, reports a failing run as not green, and leaves the change at validated-pending until CI says it passed <!-- claim: change-green-run -->
+- [ ] A plan captured while a change is open is recorded on the open changes of the capabilities it affects (or, when it was recorded against the system as a whole, every open change on the branch), never on a closed change or one on another branch, and a linked plan stands in for the approval of the changed requirements <!-- claim: change-plan-link -->
+- [ ] `change done` is refused unless the change is validated, or forced with a reason that the closed record keeps; `change abandon` needs a reason; a closed record is never edited by any change command and has no next step <!-- claim: change-close-rules -->
+- [ ] A spike may write code before the spec and is never validated; `change convert <id> --to feature` is refused while it has no changed requirement or any changed requirement has no tagged test, and keeps the spike's trail when it succeeds <!-- claim: change-spike-convert -->
+- [ ] Two changes open on one capability and branch warn at start, are judged on the same changed claims, are each judged by their own run records, and a command that acts on one needs it named <!-- claim: change-parallel-shared -->
+- [ ] `change report` builds the proof packet locally and marks it provisional: the requirements that changed in plain words with their local approval, the red-green sensitivity read from the run records, weakened tests, code changed under no change record, and no per-line list of unrequested code when no coverage was ingested <!-- claim: change-report-local -->
+- [ ] The MCP server offers `specguard_change_start`, `_red`, `_green`, `_status` and `_report`, only status and report when read-only, and no tool that approves a requirement or closes, converts or abandons a change; the stage rules bind a tool call exactly as they bind the CLI <!-- claim: change-mcp-tools -->
+- [ ] The hook entry answers a PreToolUse call on stdin with one JSON line and exit code 0: a deny or ask prints `hookSpecificOutput` with `hookEventName`, `permissionDecision` and the one-line reason, an allow that has advice (a warning, the back-at-red notice, a policy-file note) prints `additionalContext` and no `permissionDecision` so it never skips the user's permission prompt, and a plain allow prints nothing; the committed plugin bundle and `specguard hook pre-tool-use` print the same bytes <!-- claim: hook-entry-protocol -->
+- [ ] The guard is silent, and writes and reads nothing, in a directory with no `.specguard/config.json`, for a path outside the repository, and for a tool or event it does not guard; it finds the project from a subdirectory and treats a path reached through a symlink to the repository as inside it <!-- claim: hook-silent-outside-project -->
+- [ ] A payload the entry cannot read, or an internal error, in a SpecGuard project allows the call with a one-line notice that CI still checks (`ERROR_OPEN`), exits 0 and is logged; the entry never throws <!-- claim: hook-entry-fail-open-message -->
+- [ ] With `hooks.onError: "deny"` an error that stops the guard deciding (such as a config that no longer parses) in a project with an `enforce` capability denies with `ERROR_CLOSED`; the default is to allow, and an unreadable payload is always an allow <!-- claim: hook-on-error-deny -->
+- [ ] The ownership index lists the files each capability owns, each capability's spec file, enforce level and source globs, the test globs, the specs and history directories, and every open change with its kind, capabilities, the test files its red run covered (the lock set), its red record's validity and whether its changed claims are approved against its base; closed changes are left out and a record that does not parse becomes a note, not an error <!-- claim: hook-index-contents -->
+- [ ] The index is cached in `.specguard/cache/hook-index.json` under a stat-only fingerprint of the config, every spec and history file, every change record and every red record; it is reused while the fingerprint holds, rebuilt in process the moment a spec, record or the config moves, and not rebuilt for a test or source edit (new source files are matched by the capabilities' globs); a corrupt cache is a miss and the cache is written atomically <!-- claim: hook-index-cache -->
+- [ ] Red validity is checked live: on every call the entry re-hashes the locked test files against the red record's tests hash, so editing a locked test makes red invalid without any index rebuild and restoring the file makes it valid again, and a red record that shows no failing test or ran on code that was not at base is never valid <!-- claim: hook-live-red -->
+- [ ] The hook decides with no model and no network, in about 55 ms on a warm index (node start-up included) and under 200 ms when it has to rebuild the index for a small repository; the committed test allows a generous second <!-- claim: hook-speed -->
+- [ ] Every decision except the silent ones is appended as one JSON line to `.specguard/cache/hooks.jsonl` with its time, session, agent, tool, paths, capabilities, level, code and change, and the log rolls over to `hooks.1.jsonl` past 1 MB, so it is bounded and never in git <!-- claim: hook-decision-log -->
+- [ ] The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs <!-- claim: hook-bundle-fresh -->
+- [ ] `specguard hook` has `pre-tool-use` (the same logic as the bundle, reading stdin), `build-index` (alias `index`: rebuild and cache the index), `doctor` (print the class of each path, or of a shell command, and what the guard would decide and why, as text or `--json`) and `log` (recent decisions, `--denied` for denials only) <!-- claim: hook-commands -->
+- [ ] A Codex session counts as an agent environment (`CODEX_THREAD_ID` is set), so the approve and lower guards apply, while an explicit `SPECGUARD_HOST_AGENT` setting still wins <!-- claim: hook-codex-agent-env -->

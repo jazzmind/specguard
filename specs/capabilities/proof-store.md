@@ -9,16 +9,25 @@ sources:
   - "src/core/proof-note.ts"
   - "src/cli/commands/proof-store.ts"
   - "src/ci/note-verify.ts"
+  - "src/core/proof-store.ts"
+  - "src/pipelines/proof-sources.ts"
+  - "src/pipelines/proof-store-cmd.ts"
+  - "src/mcp/tools/proof-store.ts"
 docs: []
 history:
   - 2026-10-26-phase-3-contracts-and-seams
   - 2026-10-26-proof-note-is-a-pure-json-module-with-ca
   - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
+  - 2026-10-26-proof-store-reads-and-writes-notes-throu
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"
   - "tests/core/proof-note.test.ts"
   - "tests/ci/note-verify.test.ts"
+  - "tests/core/proof-store.test.ts"
+  - "tests/pipelines/proof-sources.test.ts"
+  - "tests/pipelines/proof-store-cmd.test.ts"
+  - "tests/mcp/proof-fetch-tool.test.ts"
 ---
 
 # Proof Store
@@ -51,3 +60,15 @@ The proof store keeps one small note per proven commit in git itself, written by
 - [ ] With `proofStore.verify` `check-run`, a note is verified only when a `specguard/proof-note` check run on its commit, created by the workflow app, carries a `note-sha256:` summary line equal to the note's digest (compared case-insensitively); check runs from any other app never count <!-- claim: note-verify-check-run-digest -->
 - [ ] Check runs that exist but carry another digest, or none that ran on a required branch, give `mismatch`, no check run gives `unverified`, and a failing API call gives `not-checked`, never a pass <!-- claim: note-verify-mismatch-and-branch -->
 - [ ] The check run summary leads with `note-sha256: <digest>` followed by schema version, row count and certification level, and the reader recovers exactly that digest from it <!-- claim: note-verify-summary -->
+- [ ] Every ref, remote and commit name that reaches git is checked first (a notes ref must sit under `refs/notes/`, a remote is a plain name, a commit is a hex name or a safe ref), anything that could be read as an option is refused without running git, git runs only through argument arrays, and credentials in a URL or header never appear in a message <!-- claim: store-git-safe-args -->
+- [ ] Fetching the notes ref reports `no-remote`, `no-ref-on-remote`, `offline` or `auth` as outcomes and never throws, a missing notes ref reads as no notes, a successful fetch is forced and recorded, `proof fetch` can add the notes refspec to the remote's fetch settings once, is quiet and never fails in the background form, and skips a fetch younger than `--if-older` or any background fetch when `proofStore.autoFetch` is `off` <!-- claim: store-fetch-and-configure -->
+- [ ] Writing a note stores exactly the bytes the canonical serialization produced, so the note's digest is the sha256 of the stored blob, creates the ref and pushes without force; a note over 1 MiB is written trimmed with a warning and one over 8 MiB is not written at all <!-- claim: store-write-and-limits -->
+- [ ] Writers never merge notes with git: a push that loses a race is fetched, re-applied on the new tip and pushed again (at most five rounds with jittered backoff), so writers on different commits all land, and a second note for the same commit is merged with the first, then has its statement summary refreshed <!-- claim: store-concurrent-writers -->
+- [ ] The nearest noted ancestor is found by a topological walk bounded by `proofStore.maxWalk` that reports its distance and whether it was cut short, a note on a commit that is not an ancestor is never read, and a note of a newer version, a corrupt note or one filed under another commit is skipped with a warning while the walk goes on to an older note <!-- claim: store-nearest-ancestor -->
+- [ ] In a shallow clone a walk that finds no note reports itself as truncated, and deepening the clone in steps finds the noted ancestor <!-- claim: store-shallow-clone -->
+- [ ] A squash or rebase merge commit finds the note of the pull request head that has the same tree, newest first and optionally only notes newer than a date, without needing the head's commit object <!-- claim: store-squash-import -->
+- [ ] Pruning removes only notes older than the given days on commits no branch, remote branch or tag reaches, lists them without `--yes`, never touches a note on a reachable commit and does nothing in a shallow clone <!-- claim: store-prune-reachable -->
+- [ ] The effective ledger is the local cache together with the nearest ancestor's note: per claim and layer a fresh failure beats a fresh CI proof, which beats a fresh local proof, which beats a stale row, a changed owned file stales the note's row so a fresh local row decides, local rows are always local evidence whatever origin they say (unless the CI job that wrote them asks to keep it), a note that fails its check run is ignored with a warning, no network call is made unless `proofStore.verify` is `check-run`, and the merged view cannot be written back <!-- claim: store-effective-ledger -->
+- [ ] `check` reads the effective ledger when a note is found, names where each capability's evidence came from (`ci note @abc1234 (2 commits back, unverified)`, `local (provisional)` or `mixed: 30 ci, 4 local`) on its statement lines and under `--explain`, can reach certified at HEAD from an ancestor note with no local ledger, ignores notes under `--no-notes`, and for a repo with no notes reads the local file exactly as before <!-- claim: store-evidence-source -->
+- [ ] `proof publish` writes the note for the checked-out commit only in CI (or with `--allow-non-github` in another CI), from the fresh CI-origin rows only, refuses a commit that is not checked out, proof files that differ from the commit and a run with nothing fresh, and `--force-local` writes a provisional local note that is not pushed by default and that readers treat as local evidence <!-- claim: store-publish-ci-only -->
+- [ ] `specguard_proof_fetch` fetches the notes ref over MCP, writes git refs only and never the working tree, is a write tool a read-only server does not offer, and no MCP tool can publish a proof note <!-- claim: store-fetch-tool -->
