@@ -6,4 +6,4 @@ export SPECGUARD_HOST_AGENT
 if [ -n "$SPECGUARD_CLI" ]; then
   exec node "$SPECGUARD_CLI" "$@"
 fi
-exec npx -y -p "specguard-ai@${SPECGUARD_VERSION:-0.4}" specguard "$@"
+exec npx -y -p "specguard-ai@${SPECGUARD_VERSION:-0.6}" specguard "$@"

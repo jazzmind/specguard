@@ -318,7 +318,7 @@ export function mergeHistoryHooks(existing: JsonObject, ctx: WireContext = defau
 const CLAUDE_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit|Bash';
 const CODEX_GUARD_MATCHER = '^(apply_patch|Edit|Write|Bash)$';
 
-/** Minor version the npx fallback pins (`0.4` for 0.4.x): the guard and the CLI that wrote the project agree. */
+/** Minor version the npx fallback pins (`0.6` for 0.6.x): the guard and the CLI that wrote the project agree. */
 const pinnedMinor = (): string => cliVersion().split('.').slice(0, 2).join('.');
 
 /**

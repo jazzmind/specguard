@@ -2,7 +2,7 @@
   "mcpServers": {
     "specguard-mcp": {
       "command": "npx",
-      "args": ["-y", "-p", "specguard-ai@0.4", "specguard-mcp"],
+      "args": ["-y", "-p", "specguard-ai@0.6", "specguard-mcp"],
       "env": { "SPECGUARD_HOST_AGENT": "1" }
     }
   }

@@ -1,6 +1,6 @@
 {
   "name": "specguard",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "description": "Keep specs as the source of truth: draft them from your code, link tests to requirements, and see what is proven. The agent does the model work, so no API key is needed.",
   "author": "jazzmind",
   "license": "MIT",
