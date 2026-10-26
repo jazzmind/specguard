@@ -28,7 +28,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
 import { openRepo, posixRel, selectOneChange, statusLines, statusOf, treeHash, type ChangeFacts, type RepoView } from './change.js';
-import { gitOut, writePointer, type RunKind } from './change-store.js';
+import { gitOut, pointerTests, readRunRecord, writePointer, type RunKind } from './change-store.js';
 import { runTestRun } from './test-run.js';
 
 export interface ChangeRunOpts {
@@ -171,11 +171,17 @@ async function runStage(config: SpecGuardConfig, kind: RunKind, opts: ChangeRunO
   for (const line of run.messages) log(line);
   if (!existsSync(path.join(root, '.specguard', 'runs', `${recordId}.json`))) return fail(result, `${kind} was not recorded: the run produced no record (see above)`, run.exitCode || ExitCode.ValidationFailed);
 
+  // The verdicts come from the run record that was just written; the pointer carries a copy for the hook (see change-store.ts).
+  const written = readRunRecord(root, recordId);
+  if (!written) return fail(result, `${kind} was not recorded: the run record ${recordId} is unreadable`, ExitCode.InternalError);
   await writePointer(root, {
     version: 1,
     changeId: record.id,
     kind,
     runRecord: recordId,
+    runId: written.runId,
+    tests: pointerTests(written),
+    lockedTests: facts.trackedTests,
     mode,
     claimsHash: facts.input.current.claimsHash,
     testsHash: facts.input.current.testsHash,

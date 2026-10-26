@@ -34,7 +34,7 @@ export async function specTagCommand(opts: GlobalOpts & SpecTagOpts): Promise<vo
   outputResult(await runSpecTag(config, opts), opts);
 }
 
-export async function specApproveCommand(opts: GlobalOpts & { targets: string[]; all?: boolean; asBuilt?: boolean; by?: string; note?: string; yes?: boolean }): Promise<void> {
+export async function specApproveCommand(opts: GlobalOpts & { targets: string[]; all?: boolean; asBuilt?: boolean; by?: string; note?: string; yes?: boolean; fromPr?: number }): Promise<void> {
   const config = await loadCliConfig(opts);
   outputResult(await runSpecApprove(config, opts), opts);
 }

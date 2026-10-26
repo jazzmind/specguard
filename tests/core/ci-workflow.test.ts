@@ -16,29 +16,31 @@ const parsed = (text: string): Workflow => parseYaml(text) as Workflow;
 
 describe('generated CI workflows [ci-workflow]', () => {
   // [claims: capabilities/integration-surfaces#init-ci]
-  it('gates pull requests with the checkout depth the changed-units test needs, a comment, and SARIF', () => {
+  it('gates pull requests with the checkout depth the changed-units test needs and the proof gate; the scan moved to its own job (Phase 3: asserted differently on purpose)', () => {
     const wf = parsed(renderPullRequestWorkflow({ install: 'npm ci', affected: true, requireLayers: true }));
-    expect(Object.keys(wf.on)).toEqual(['pull_request', 'push', 'workflow_dispatch']);
-    expect(wf.permissions).toEqual({ contents: 'read', 'pull-requests': 'write', 'security-events': 'write' });
-    const steps = wf.jobs.specguard.steps;
+    expect(Object.keys(wf.on)).toEqual(['pull_request', 'push', 'merge_group', 'workflow_dispatch']);
+    expect(wf.permissions).toEqual({ contents: 'write', 'pull-requests': 'write' });
+    const steps = wf.jobs.prove.steps;
     expect(steps[0]).toMatchObject({ uses: 'actions/checkout@v4', with: { 'fetch-depth': 0 } });
     expect(steps.some((s) => s.run === 'npm ci')).toBe(true);
     const gate = steps.find((s) => s.uses?.startsWith('jazzmind/specguard'));
     expect(gate?.with).toMatchObject({
-      gates: 'check,test,scan,proof,publish',
-      'fail-on': 'missing-specs,proof-failed,proof-stale,proof-incomplete,test',
+      gates: 'check,test,prove,proof,publish',
+      'fail-on': 'missing-specs,proof-incomplete,test,prove',
       affected: 'true',
-      sarif: 'true',
       'github-token': '${{ secrets.GITHUB_TOKEN }}',
     });
+    const scan = wf.jobs.security.steps.find((s) => s.uses?.startsWith('jazzmind/specguard'));
+    expect(scan?.with).toMatchObject({ gates: 'scan', 'fail-on': 'none', sarif: 'true' });
   });
 
   // [claims: capabilities/integration-surfaces#init-ci]
   it('does not fail on layers or security findings by default, and tests everything outside a monorepo', () => {
-    const gate = parsed(renderPullRequestWorkflow()).jobs.specguard.steps.find((s) => s.uses?.startsWith('jazzmind/specguard'));
-    expect(gate?.with?.['fail-on']).toBe('missing-specs,proof-failed,proof-stale,test');
+    const gate = parsed(renderPullRequestWorkflow()).jobs.prove.steps.find((s) => s.uses?.startsWith('jazzmind/specguard'));
+    expect(gate?.with?.['fail-on']).toBe('missing-specs,test,prove');
     expect(gate?.with?.affected).toBe('false');
-    expect(parsed(renderPullRequestWorkflow()).jobs.specguard.steps.some((s) => s.run)).toBe(false); // no install step without a command
+    // No install step without a command: the only shell step fetches the proof notes.
+    expect(parsed(renderPullRequestWorkflow()).jobs.prove.steps.filter((s) => s.run).map((s) => s.run)).toEqual([expect.stringContaining('refs/notes/specguard')]);
   });
 
   // [claims: capabilities/integration-surfaces#init-ci]
@@ -89,7 +91,7 @@ describe('init --ci github [init-ci]', () => {
     expect(first.exitCode).toBe(0);
     expect(first.createdFiles).toEqual(expect.arrayContaining([WORKFLOW_FILES.pullRequest, WORKFLOW_FILES.remediate]));
     const pr = readFileSync(path.join(dir, WORKFLOW_FILES.pullRequest), 'utf8');
-    expect(parsed(pr).jobs.specguard.steps.some((s) => s.run === 'npm ci')).toBe(true);
+    expect(parsed(pr).jobs.prove.steps.some((s) => s.run === 'npm ci')).toBe(true);
     expect(readFileSync(path.join(dir, WORKFLOW_FILES.remediate), 'utf8')).toContain('--auto-merge');
 
     writeFileSync(path.join(dir, WORKFLOW_FILES.pullRequest), '# mine\n');

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 // @ts-expect-error plain ESM script without type declarations
-import { argsFor, averageAlignment, buildComment, COMMENT_MARKER, DEFAULT_FAIL_ON, evaluate, main, metricsOf, parseProofCounts, postComment, previousMetrics, splitList } from '../../action/run-gates.mjs';
+import { argsFor, averageAlignment, buildComment, COMMENT_MARKER, DEFAULT_FAIL_ON, DEFAULT_GATES, evaluate, GATES, main, metricsOf, parseProofCounts, POINTER_BODY, postComment, previousMetrics, PROVE_FAIL_ON, resolveFailOn, resolveGates, splitList, usesPhase3Features } from '../../action/run-gates.mjs';
 
 const root = path.join(__dirname, '..', '..');
 
@@ -270,5 +270,163 @@ describe('remediate mode', () => {
     expect(action.inputs.sarif.default).toBe('false');
     const upload = action.runs.steps.find((st) => st.uses?.startsWith('github/codeql-action/upload-sarif'));
     expect(upload?.if).toContain("inputs.sarif == 'true'");
+  });
+});
+
+describe('the prove gate [action-prove]', () => {
+  const tmp = (): string => mkdtempSync(path.join(os.tmpdir(), 'sg-prove-'));
+  const put = (dir: string, rel: string, text: string): void => {
+    mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    writeFileSync(path.join(dir, rel), text);
+  };
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('runs specguard ci run, with the flags the inputs ask for', () => {
+    expect(GATES).toContain('prove');
+    expect(argsFor('prove', {})).toEqual(['ci', 'run']);
+    expect(argsFor('prove', { SG_FULL: 'true', SG_NOTES: 'false', SG_COMMENT: 'false' })).toEqual(['ci', 'run', '--full', '--no-push', '--no-comment']);
+    expect(argsFor('prove', { SG_FULL: 'false', SG_NOTES: 'true', SG_COMMENT: 'true' })).toEqual(['ci', 'run']);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('trips prove on a blocked packet (exit 13) or a run that failed, never when it did not run', () => {
+    expect(evaluate({ prove: { ran: true, exitCode: 13 } }, ['prove']).tripped).toEqual(['prove']);
+    expect(evaluate({ prove: { ran: true, exitCode: 1 } }, ['prove']).tripped).toEqual(['prove']);
+    expect(evaluate({ prove: { ran: true, exitCode: 0 } }, ['prove']).tripped).toEqual([]);
+    expect(evaluate({ prove: { ran: false, exitCode: 13 } }, ['prove']).tripped).toEqual([]);
+    expect(evaluate({ prove: { ran: true, exitCode: 13 } }, ['none']).tripped).toEqual([]);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('adds prove to the default gates only for a repository that uses the Phase 3 features, and honours the input', () => {
+    const uses = (): boolean => true;
+    const plain = (): boolean => false;
+    expect(resolveGates({}, uses)).toEqual(['status', 'proof', 'prove']);
+    expect(resolveGates({}, plain)).toEqual(['status', 'proof']);
+    expect(resolveGates({ SG_GATES: DEFAULT_GATES, SG_PROVE: 'auto' }, uses)).toEqual(['status', 'proof', 'prove']);
+    // A list the user chose is left alone unless prove is asked for.
+    expect(resolveGates({ SG_GATES: 'check,test' }, uses)).toEqual(['check', 'test']);
+    expect(resolveGates({ SG_GATES: 'check,test', SG_PROVE: 'true' }, plain)).toEqual(['check', 'test', 'prove']);
+    expect(resolveGates({ SG_GATES: 'check,prove', SG_PROVE: 'true' }, plain)).toEqual(['check', 'prove']);
+    expect(resolveGates({ SG_GATES: 'check,prove', SG_PROVE: 'false' }, uses)).toEqual(['check']);
+    expect(resolveGates({ SG_PROVE: 'false' }, uses)).toEqual(['status', 'proof']);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('replaces the legacy ledger thresholds with prove when prove runs, because a gitignored ledger is not in a fresh checkout', () => {
+    expect(PROVE_FAIL_ON).toBe('missing-specs,drift,prove,results');
+    expect(resolveFailOn({}, ['status', 'proof', 'prove'])).toBe(PROVE_FAIL_ON);
+    expect(resolveFailOn({ SG_FAIL_ON: DEFAULT_FAIL_ON }, ['status', 'proof', 'prove'])).toBe(PROVE_FAIL_ON);
+    expect(resolveFailOn({}, ['status', 'proof'])).toBe(DEFAULT_FAIL_ON);
+    expect(resolveFailOn({ SG_FAIL_ON: 'proof-stale,prove' }, ['prove'])).toBe('proof-stale,prove');
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('recognises a repository that uses proof notes, the change protocol or enforce, and none other', () => {
+    const none = tmp();
+    expect(usesPhase3Features(none)).toBe(false);
+    put(none, '.specguard/config.json', '{"apps":[]}');
+    put(none, 'specs/capabilities/a.md', '---\nid: a\nkind: capability\n---\n# A\n');
+    expect(usesPhase3Features(none)).toBe(false);
+
+    for (const key of ['proofStore', 'enforce', 'change', 'approvals']) {
+      const dir = tmp();
+      put(dir, '.specguard/config.json', JSON.stringify({ apps: [], [key]: {} }));
+      expect(usesPhase3Features(dir)).toBe(true);
+    }
+    const spec = tmp();
+    put(spec, '.specguard/config.json', '{"apps":[]}');
+    put(spec, 'specs/capabilities/a.md', '---\nid: a\nkind: capability\nenforce: warn\n---\n# A\n');
+    expect(usesPhase3Features(spec)).toBe(true);
+    const body = tmp();
+    put(body, '.specguard/config.json', '{"apps":[]}');
+    put(body, 'specs/capabilities/a.md', '---\nid: a\n---\n# A\n\nenforce: warn is mentioned in prose\n');
+    expect(usesPhase3Features(body)).toBe(false);
+    const record = tmp();
+    put(record, '.specguard/config.json', '{"apps":[]}');
+    put(record, '.specguard/changes/20261026-x-ab12.json', '{}');
+    expect(usesPhase3Features(record)).toBe(true);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('leaves one comment per pull request: the legacy comment becomes a pointer, and is never posted when there is none', async () => {
+    const dir = tmp();
+    const event = path.join(dir, 'event.json');
+    writeFileSync(event, JSON.stringify({ pull_request: { number: 7 } }));
+    const env = { SG_GITHUB_TOKEN: 't', GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: event, GITHUB_REPOSITORY: 'o/r' };
+    const calls: Array<{ method: string; url: string; body?: string }> = [];
+    const fakeFetch = (existing: unknown[]) => async (url: string, init: { method?: string; body?: string }) => {
+      calls.push({ method: init.method ?? 'GET', url, body: init.body });
+      return { ok: true, status: 200, json: async () => (init.method ? {} : existing) };
+    };
+
+    const none = await postComment(env, () => POINTER_BODY, fakeFetch([{ id: 1, body: 'someone else' }]) as never, { onlyUpdate: true });
+    expect(none).toEqual({ posted: false, reason: 'no earlier comment to update' });
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+
+    calls.length = 0;
+    const had = await postComment(env, () => POINTER_BODY, fakeFetch([{ id: 9, body: `${COMMENT_MARKER}\nold results` }]) as never, { onlyUpdate: true });
+    expect(had).toEqual({ posted: true, updated: true });
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', url: 'https://api.github.com/repos/o/r/issues/comments/9' });
+    expect(JSON.parse(calls.at(-1)?.body ?? '{}').body).toContain('proof packet below');
+    expect(POINTER_BODY).toContain(COMMENT_MARKER);
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('end to end with a fake specguard: runs ci run for a repository that uses enforce, fails the job on exit 13, and echoes the run\'s own lines', () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'sg-bin-'));
+    const bin = path.join(dir, 'specguard');
+    const calls = path.join(dir, 'calls.txt');
+    writeFileSync(
+      bin,
+      `#!/usr/bin/env node
+const args = process.argv.slice(2).filter((a) => a !== '--json');
+require('fs').appendFileSync(${JSON.stringify(calls)}, args.join(' ') + '\\n');
+if (args[0] === 'ci') { console.log(JSON.stringify({ failed: 1, messages: ['[ci] packet: blocked', '::warning title=SpecGuard::shop warns'], gate: 'fail', packet: { verdict: 'blocked' }, note: { written: true, pushed: false } })); process.exit(13); }
+console.log(JSON.stringify({ failed: 0, messages: [] }));
+`,
+    );
+    chmodSync(bin, 0o755);
+    const cwd = tmp();
+    put(cwd, '.specguard/config.json', '{"apps":[],"enforce":{"default":"warn"}}');
+    writeFileSync(calls, '');
+    const summary = path.join(cwd, 'summary.md');
+    const prev = process.cwd();
+    process.chdir(cwd);
+    const log = console.log;
+    const lines: string[] = [];
+    console.log = (...a: unknown[]) => void lines.push(a.join(' '));
+    try {
+      const code = main({ SG_BIN: bin, GITHUB_STEP_SUMMARY: summary } as never);
+      expect(code).toBe(1);
+      expect(readFileSync(calls, 'utf8').trim().split('\n')).toEqual(['status', 'proof status', 'ci run']);
+      expect(readFileSync(summary, 'utf8')).toContain('**Failed on:** prove');
+      expect(lines).toContain('::warning title=SpecGuard::shop warns');
+      expect(JSON.parse(readFileSync(path.join(cwd, '.specguard/ci/prove.json'), 'utf8'))).toMatchObject({ gate: 'prove', exitCode: 13 });
+
+      // The proof note not pushed is reported by default and fails the job only when it is required.
+      writeFileSync(calls, '');
+      expect(main({ SG_BIN: bin, SG_FAIL_ON: 'none', SG_NOTE_REQUIRED: 'false', GITHUB_STEP_SUMMARY: summary } as never)).toBe(0);
+      expect(main({ SG_BIN: bin, SG_FAIL_ON: 'none', SG_NOTE_REQUIRED: 'true', GITHUB_STEP_SUMMARY: summary } as never)).toBe(1);
+    } finally {
+      console.log = log;
+      process.chdir(prev);
+    }
+  });
+
+  // [claims: capabilities/integration-surfaces#action-prove-gate]
+  it('action.yml exposes the inputs and passes them on', () => {
+    const action = parseYaml(readFileSync(path.join(root, 'action.yml'), 'utf8')) as {
+      inputs: Record<string, { default?: string }>;
+      runs: { steps: Array<{ id?: string; env?: Record<string, string> }> };
+    };
+    expect(action.inputs.prove.default).toBe('auto');
+    expect(action.inputs.notes.default).toBe('true');
+    expect(action.inputs.full.default).toBe('false');
+    expect(action.inputs['note-required'].default).toBe('false');
+    // Unchanged on purpose: the legacy default stays, and run-gates swaps it when prove runs.
+    expect(action.inputs['fail-on'].default).toBe(DEFAULT_FAIL_ON);
+    const env = action.runs.steps.find((st) => st.id === 'gates')?.env ?? {};
+    expect(env).toMatchObject({ SG_PROVE: '${{ inputs.prove }}', SG_NOTES: '${{ inputs.notes }}', SG_FULL: '${{ inputs.full }}', SG_NOTE_REQUIRED: '${{ inputs.note-required }}', SG_GITHUB_TOKEN: '${{ inputs.github-token }}' });
   });
 });

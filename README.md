@@ -36,6 +36,42 @@ npx -y -p specguard-ai specguard start
 
 The drafted specs describe what the code does today. They are drafts for you to read and correct, not yet statements of what the system should do.
 
+## The change protocol
+
+A change to a capability goes in one order: **spec, approval by a person, tests, red, code, green, validated.** The requirement is written and approved before it is built, its tests are seen failing before the code exists, and review reads a short proof packet instead of the diff. Every stage is detected from git, the specs, the test tags and the run records, so editing a file cannot move a change forward.
+
+**What an agent does** (the plugin ships a `specguard-change` skill with this loop):
+
+```bash
+specguard change start shop --why "free shipping over fifty dollars"   # one committed record of intent: .specguard/changes/<id>.json
+# edit the requirement in the capability spec, then stop: a person approves it
+# write tests and tag each with the requirement: // [claims: capabilities/shop#free-shipping]
+specguard change red          # runs exactly those tests against the old code; they must fail
+# write the code
+specguard change green        # records the passing run; push, and CI validates
+specguard change status       # the stage, what blocks it, and the one next command
+```
+
+`--refactor` is for changes with no new requirement (code and a green run of the capability's claim tests are enough). `--spike` allows code first but can never merge as a spike; `change convert <id> --to feature` turns it into a feature once its requirements and tests exist. Once red is recorded and code exists, the tagged tests and changed requirements are locked: editing either sends the change back to `tests`, and red must be recorded again.
+
+**What a person does.** Approve the new wording in their own terminal (`specguard spec approve <refs> --yes`: an agent environment is refused, `history add` cannot write approvals, and the edit guard denies hand-written approval files), choose how strict each capability is, and close or give up changes (`change done`, `change abandon`, `change convert`).
+
+**The three enforce levels** are set per capability by `enforce:` in the spec's frontmatter and applied by the edit guard, which runs before every agent edit or shell command:
+
+| Level | Editing a capability's code without a valid change |
+|---|---|
+| `observe` (the default, or `enforce.default` in the config) | allowed, and logged to `.specguard/cache/hooks.jsonl` |
+| `warn` | allowed, with a message that names the command to run |
+| `enforce` | denied, until a change for that capability is approved and has a valid red |
+
+Spec files and tests stay editable at every level. At `enforce`, an open refactor or spike change opens its capability's code at once. The guard fails open (an error allows the edit and says so; `hooks.onError: "deny"` flips that), is silent outside a SpecGuard project, and answers from a cached index in about 50 ms.
+
+**How to turn it on.** A person runs `specguard enforce raise <capability>`: one step up the ladder, and `--to enforce` is accepted only while the capability is certified (`specguard enforce show` says whether each could be raised now; `enforce lower` needs `--why` and is recorded in history). The Claude Code plugin already wires the guard. For Codex run `specguard init --codex`, which writes `.codex/hooks.json` and a rule that forbids approving from a shell, then trust the hooks in `/hooks`. To bring an older repository to this layout, `specguard migrate` lists every step (a dry run), and `--yes` does the ones the tool may do itself.
+
+**Where proofs live.** Local test runs write `.specguard/proofs.json`, `.specguard/runs/` and `.specguard/cache/`, which a repository set up or migrated by SpecGuard keeps out of git, and which count as local evidence only. CI evidence is a git note on the commit under `refs/notes/specguard`, written by `specguard proof publish` (or `specguard ci run`) and read by `check` after `specguard proof fetch`. A capability is `certified` only when its proof comes from such a CI note at a clean commit; the same evidence from a local run is `provisional`. `specguard proof notes` summarizes the nearest note, and `proof prune` removes the notes of commits nothing reaches.
+
+**What the pull request shows.** One comment, kept up to date, with the proof packet: what the requirements now say in plain words, the evidence for each changed requirement (layers, examples, whether its tests fail without the change), each capability's certification, test weakening, code that no requirement asked for, and changes to the pipeline itself. `specguard change report` builds the same packet locally, marked provisional, and `specguard ci run` builds it in CI and posts it.
+
 ## The Problem
 
 Coding agents write code fast. Specifications, tests, security analysis, and documentation lag behind — or never exist at all. When they do exist, they're written once and immediately go stale. The gap between what the code does and what it's supposed to do grows with every PR.

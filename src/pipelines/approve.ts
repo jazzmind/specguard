@@ -18,6 +18,9 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
+import { githubApi, type ApiReview } from '../ci/github-api.js';
+import { makeHashAt } from '../ci/claim-hash-at.js';
+import { qualifyingReviews, REVIEW_STATES, reviewCovers, type QualifyingReview, type ReviewFact } from '../ci/pr-approvals.js';
 import { approvalsFrom, formatApproved, indexApprovals, type Approval } from '../core/approvals.js';
 import { claimHashOf } from '../core/claim-hash.js';
 import { formatClaimRef } from '../core/claims.js';
@@ -66,6 +69,20 @@ export interface SpecApproveOpts {
   yes?: boolean;
   /** Who is running the command. Default: from the environment. */
   actor?: { agent: boolean; tty: boolean };
+  /**
+   * A pull request number: approve the claims a reviewer already approved there, one committed `method: pr` entry per
+   * reviewer naming that reviewer. The reviews are read from GitHub (a token in the environment, or `gh auth token`).
+   * Without a target it looks at every unapproved claim.
+   */
+  fromPr?: number;
+  /** Injected reader of a pull request's author and reviews (tests); default reads GitHub. */
+  loadPr?: (pr: number) => Promise<PullRequestReviews>;
+}
+
+/** What `--from-pr` needs of a pull request. */
+export interface PullRequestReviews {
+  author: string;
+  reviews: ApiReview[];
 }
 
 /**
@@ -162,6 +179,125 @@ function resolveTarget(claims: ClaimState[], target: string): { hits: ClaimState
   return { hits: [], error: `no capability or claim ${target}` };
 }
 
+/** `owner/name` from `GITHUB_REPOSITORY` or the `origin` remote URL (https or ssh form); undefined for anything else. */
+function repoOf(config: SpecGuardConfig): string | undefined {
+  const fromEnv = process.env.GITHUB_REPOSITORY?.trim();
+  if (fromEnv && /^[\w.-]+\/[\w.-]+$/.test(fromEnv)) return fromEnv;
+  try {
+    const url = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: config.rootDir ?? process.cwd(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const m = /[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url);
+    return m ? `${m[1]}/${m[2]}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A token for reading reviews: the environment first, then the `gh` login. Never printed. */
+function tokenOf(): string | undefined {
+  const env = process.env.SG_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (env) return env;
+  try {
+    return execFileSync('gh', ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadPullRequest(config: SpecGuardConfig, pr: number): Promise<PullRequestReviews> {
+  const repo = repoOf(config);
+  if (!repo) throw new Error('cannot tell which GitHub repository this is: set GITHUB_REPOSITORY or add an origin remote');
+  const token = tokenOf();
+  if (!token) throw new Error('no GitHub token: set GH_TOKEN or SG_GITHUB_TOKEN, or log in with `gh auth login`');
+  const apiUrl = (process.env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, '');
+  const reviews = await githubApi(token, apiUrl).listReviews(repo, pr);
+  const res = await fetch(`${apiUrl}/repos/${repo}/pulls/${pr}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'specguard-approve' } });
+  if (!res.ok) throw new Error(`GitHub answered HTTP ${res.status} for pull request ${pr}`);
+  const author = ((await res.json()) as { user?: { login?: unknown } } | null)?.user?.login;
+  if (typeof author !== 'string' || author === '') throw new Error(`pull request ${pr} has no author in GitHub's answer`);
+  return { author, reviews };
+}
+
+const factOf = (r: ApiReview): ReviewFact => {
+  const state = String(r.state).toUpperCase();
+  return {
+    id: r.id,
+    login: r.user?.login ?? '',
+    isBot: r.user?.type === 'Bot',
+    state: (REVIEW_STATES as readonly string[]).includes(state) ? (state as ReviewFact['state']) : 'COMMENTED',
+    commitId: r.commit_id,
+    submittedAt: r.submitted_at,
+    association: r.author_association ?? 'NONE',
+  };
+};
+
+/**
+ * `spec approve --from-pr <n>`: make a pull request's review approvals permanent. A claim a qualifying reviewer (an
+ * approving review by someone other than the author, with write access) covers at its current wording gets a committed
+ * `method: pr` entry naming that reviewer. CI re-checks every such entry against the same review, so this is a
+ * convenience for people and never a way around the review.
+ */
+async function approveFromPr(config: SpecGuardConfig, opts: SpecApproveOpts, scope: Array<ClaimState & { approval?: Approval }>, result: PipelineResult): Promise<PipelineResult> {
+  const pr = opts.fromPr!;
+  if (!Number.isInteger(pr) || pr < 1) return fail(result, ExitCode.ValidationFailed, `--from-pr needs a pull request number, got ${String(opts.fromPr)}`);
+  if (opts.asBuilt) return fail(result, ExitCode.ValidationFailed, '--as-built and --from-pr are different methods: use one');
+  let loaded: PullRequestReviews;
+  try {
+    loaded = await (opts.loadPr ?? ((n: number) => loadPullRequest(config, n)))(pr);
+  } catch (err) {
+    return fail(result, ExitCode.InternalError, `could not read pull request ${pr}: ${err instanceof Error ? err.message.split('\n')[0] : 'unknown error'}. Nothing was written.`);
+  }
+  const reviews = qualifyingReviews(loaded.reviews.map(factOf), loaded.author);
+  if (reviews.length === 0) return fail(result, ExitCode.ValidationFailed, `pull request ${pr} has no qualifying review (an approval by someone other than ${loaded.author}, with write access). Nothing was written.`);
+  const hashAt = makeHashAt(config, await buildSpecGraph(config));
+  const newestFirst = [...reviews].sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt) || b.id - a.id);
+
+  const byReviewer = new Map<string, { review: QualifyingReview; claims: Array<ClaimState & { approval?: Approval }> }>();
+  const pending = scope.filter((c) => !c.approval);
+  const uncovered: string[] = [];
+  for (const c of pending) {
+    const review = newestFirst.find((r) => reviewCovers(r, c.ref, hashAt, c.claimHash));
+    if (!review) {
+      uncovered.push(c.ref);
+      continue;
+    }
+    const key = review.login.toLowerCase();
+    const slot = byReviewer.get(key) ?? { review, claims: [] };
+    slot.claims.push(c);
+    byReviewer.set(key, slot);
+  }
+  result.skipped = scope.length - pending.length;
+  for (const ref of uncovered) result.messages.push(`  not covered by a review at its current wording: ${ref}`);
+  const covered = [...byReviewer.values()].reduce((n, v) => n + v.claims.length, 0);
+  if (covered === 0) {
+    result.messages.push(pending.length === 0 ? `nothing to approve: ${scope.length} claim(s) in scope, all already approved` : `no unapproved claim is covered by a review of pull request ${pr}`);
+    return result;
+  }
+  if (!opts.yes) {
+    for (const { review, claims } of byReviewer.values()) for (const c of claims) result.messages.push(`  ${c.ref}  (${review.login}, review ${review.id})`);
+    result.messages.push(`would record ${covered} approval(s) from ${byReviewer.size} reviewer(s) of pull request ${pr}; rerun with --yes`);
+    return result;
+  }
+  for (const { review, claims } of byReviewer.values()) {
+    const capabilities = [...new Set(claims.map((c) => c.capabilityId))];
+    const approves = claims.map((c) => formatApproved(c.ref, c.claimHash));
+    const tag = createHash('sha256').update(`${review.login}\n${pr}\n${approves.join('\n')}`).digest('hex').slice(0, 6);
+    const id = await writeHistory(config, {
+      kind: 'approval',
+      title: `Approval ${tag}: ${capabilities.join(', ')}`,
+      decision: `${review.login} approved ${claims.length} requirement(s) in ${capabilities.join(', ')} in review ${review.id} of pull request ${pr}, at the wording they have now. Recorded from GitHub by the person running spec approve --from-pr; CI checks it against the same review.`,
+      affects: capabilities,
+      approves,
+      method: 'pr',
+      author: review.login,
+      source: 'spec-approve',
+    }, (l) => result.messages.push(l));
+    result.created += 1;
+    result.items.push({ key: id, status: 'created', path: path.join(historyDir(config), `${id}.md`) });
+    result.messages.push(`recorded ${claims.length} claim(s) approved by ${review.login} (pr, review ${review.id}); entry ${id}`);
+  }
+  return result;
+}
+
 export async function runSpecApprove(config: SpecGuardConfig, opts: SpecApproveOpts = {}): Promise<PipelineResult> {
   const result = emptyResult('spec-approve');
   const actor = opts.actor ?? { agent: detectHostAgent(), tty: Boolean(process.stdin.isTTY) };
@@ -169,13 +305,13 @@ export async function runSpecApprove(config: SpecGuardConfig, opts: SpecApproveO
     return fail(result, ExitCode.InternalError, 'approvals must be given by a person in their own terminal: run `specguard spec approve` yourself, not through an agent or script');
   }
   const targets = opts.targets ?? [];
-  if (!opts.all && targets.length === 0) {
+  if (!opts.all && targets.length === 0 && opts.fromPr === undefined) {
     return fail(result, ExitCode.InternalError, 'name what to approve: capability ids or claim refs, or pass --all');
   }
 
   const status = await approvalStatus(config);
   let scope: typeof status.claims;
-  if (opts.all) {
+  if (opts.all || (targets.length === 0 && opts.fromPr !== undefined)) {
     scope = status.claims;
   } else {
     const picked = new Set<string>();
@@ -188,6 +324,8 @@ export async function runSpecApprove(config: SpecGuardConfig, opts: SpecApproveO
     if (errors.length > 0) return fail(result, ExitCode.ValidationFailed, `${errors.join('; ')}. Nothing was written.`);
     scope = status.claims.filter((c) => picked.has(c.ref));
   }
+
+  if (opts.fromPr !== undefined) return approveFromPr(config, opts, scope, result);
 
   const pending = scope.filter((c) => !c.approval);
   result.skipped = scope.length - pending.length;

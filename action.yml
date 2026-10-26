@@ -1,5 +1,5 @@
 name: 'SpecGuard'
-description: 'Run SpecGuard spec-driven QA gates (status, check, drift, proofs, alignment, test runs and result ingestion, browser verification, security scan) and upload the evidence.'
+description: 'Run SpecGuard spec-driven QA gates (status, check, drift, proofs, alignment, test runs and result ingestion, the pull request proof gate, browser verification, security scan) and upload the evidence.'
 author: 'jazzmind'
 branding:
   icon: 'shield'
@@ -41,13 +41,17 @@ inputs:
     default: '.'
   gates:
     description: >-
-      Comma-separated gates to run, in order: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan, publish.
+      Comma-separated gates to run: status, drift, proof, align, results, validate, security, deps, check, test, prove, verify, scan, publish.
+      "prove" runs `specguard ci run`: it proves what a pull request changed, posts the proof packet and writes the proof note.
+      With the default value, "prove" is added when the repository uses proof notes, the change protocol or `enforce:` (see `prove`).
     required: false
     default: 'status,proof'
   fail-on:
     description: >-
       Comma-separated thresholds that fail the job: missing-specs, drift, proof-failed, proof-stale,
-      proof-unexercised, proof-unproven, proof-incomplete, align-below:<percent>, results, validate, security, deps, check, test, verify, scan, publish, none.
+      proof-unexercised, proof-unproven, proof-incomplete, align-below:<percent>, results, validate, security, deps, check, test, prove, verify, scan, publish, none.
+      When the "prove" gate runs and this is left at its default, the default becomes missing-specs,drift,prove,results: with the proof
+      ledger gitignored a fresh checkout has none to read, and "prove" judges the proofs CI holds in notes.
     required: false
     default: 'missing-specs,drift,proof-failed,proof-stale,results'
   results:
@@ -74,6 +78,25 @@ inputs:
     description: 'Token for the team server. Pass it from a secret; it is given to SpecGuard as SPECGUARD_TOKEN.'
     required: false
     default: ''
+  prove:
+    description: >-
+      "auto" (default): add the "prove" gate when `gates` is left at its default and the repository uses `proofStore`, `enforce`,
+      `change` or `approvals` in its config, `enforce:` in a spec, or has change records. "true": always run it. "false": never.
+      It needs the pull request head checked out (not the merge ref) with full history, and `contents: write` to push notes.
+    required: false
+    default: 'auto'
+  notes:
+    description: '"false": the "prove" gate writes the proof note to the local notes ref only and pushes nothing (it then needs no `contents: write`).'
+    required: false
+    default: 'true'
+  full:
+    description: '"true": the "prove" gate runs every claim that has a test, not just the stale or changed ones.'
+    required: false
+    default: 'false'
+  note-required:
+    description: '"true": the job fails when the "prove" gate could not push the proof note (a ruleset blocks the notes ref, no write permission). Default: it is reported and the job goes on.'
+    required: false
+    default: 'false'
   affected:
     description: '"true": the "test" gate runs only the workspace units whose files changed and the units that depend on them.'
     required: false
@@ -192,6 +215,10 @@ runs:
         SG_AFFECTED_SINCE: ${{ inputs.affected-since }}
         SG_BASE_REF: ${{ github.event.pull_request.base.sha }}
         SG_COMMENT: ${{ inputs.comment }}
+        SG_PROVE: ${{ inputs.prove }}
+        SG_NOTES: ${{ inputs.notes }}
+        SG_FULL: ${{ inputs.full }}
+        SG_NOTE_REQUIRED: ${{ inputs.note-required }}
         SG_SARIF: ${{ inputs.sarif }}
         SG_GITHUB_TOKEN: ${{ inputs.github-token }}
         SG_SERVER_URL: ${{ inputs.server-url }}

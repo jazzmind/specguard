@@ -229,11 +229,17 @@ const git = (root: string, args: string[]): string | undefined => {
   }
 };
 
-/** A red record's test ids are `file::title`; the file part, repo-relative POSIX. */
-function redFiles(tests: unknown): string[] {
+/**
+ * The test files red locks. `change red` names them (`lockedTests`: exactly the files `testsHash` covers); a record
+ * without that list (hand-written, or from an older writer) falls back to the files of its tests, whose ids are
+ * `file::title`. Repo-relative POSIX.
+ */
+function redFiles(record: Record<string, unknown>): string[] {
+  const listed = record.lockedTests;
+  if (Array.isArray(listed) && listed.every((f) => typeof f === 'string')) return [...new Set(listed as string[])].sort();
   const files = new Set<string>();
-  if (!Array.isArray(tests)) return [];
-  for (const t of tests) {
+  if (!Array.isArray(record.tests)) return [];
+  for (const t of record.tests) {
     const id = isRecord(t) && typeof t.id === 'string' ? t.id : '';
     const file = id.split('::')[0]!.replace(/\\/g, '/').replace(/^\.\//, '');
     if (file) files.add(file);
@@ -242,10 +248,11 @@ function redFiles(tests: unknown): string[] {
 }
 
 /**
- * What the index says about one red record, from the record alone: the tests the red run covered are the change's lock
- * set (the run was exactly the tests tagged to its changed claims), and red holds while those files still hash to the
- * recorded `testsHash`. It does not re-derive the changed claims, so a spec edited after red is caught by `change status`
- * and CI, not here.
+ * What the index says about one red record, from the record alone. The record is the pointer `change red` writes
+ * (`.specguard/cache/changes/<id>/red.json`, see `change-store.ts`): the hashes of the files the run saw, the verdicts
+ * of the tests it ran and the test files it locks. Red holds while those files still hash to the recorded `testsHash`,
+ * the run saw the owned code at base and at least one test failed. It does not re-derive the changed claims, so a spec
+ * edited after red is caught by `change status` and CI, not here.
  */
 function redFacts(root: string, id: string): Pick<IndexedChange, 'lockedTests' | 'red' | 'redSane'> {
   let record: unknown;
@@ -255,7 +262,7 @@ function redFacts(root: string, id: string): Pick<IndexedChange, 'lockedTests' |
     return { lockedTests: [] };
   }
   if (!isRecord(record) || record.changeId !== id || typeof record.testsHash !== 'string') return { lockedTests: [] };
-  const lockedTests = redFiles(record.tests);
+  const lockedTests = redFiles(record);
   const tests = Array.isArray(record.tests) ? record.tests : [];
   const failed = tests.some((t) => isRecord(t) && (t.status === 'fail' || t.status === 'error'));
   const sane = failed && lockedTests.length > 0 && record.ownedHash === record.baseOwnedHash;

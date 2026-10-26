@@ -28096,7 +28096,7 @@ var init_change_claims = __esm({
 
 // src/hooks/entry.ts
 var import_picomatch2 = __toESM(require_picomatch2(), 1);
-import { appendFileSync, mkdirSync as mkdirSync2, realpathSync as realpathSync2, renameSync as renameSync2, statSync as statSync4, existsSync as existsSync2 } from "node:fs";
+import { appendFileSync, mkdirSync as mkdirSync2, readFileSync as readFileSync3, realpathSync as realpathSync2, renameSync as renameSync2, statSync as statSync4, existsSync as existsSync2 } from "node:fs";
 import path10 from "node:path";
 
 // src/hooks/decide.ts
@@ -28777,10 +28777,12 @@ var git = (root, args) => {
     return void 0;
   }
 };
-function redFiles(tests) {
+function redFiles(record2) {
+  const listed = record2.lockedTests;
+  if (Array.isArray(listed) && listed.every((f) => typeof f === "string")) return [...new Set(listed)].sort();
   const files = /* @__PURE__ */ new Set();
-  if (!Array.isArray(tests)) return [];
-  for (const t of tests) {
+  if (!Array.isArray(record2.tests)) return [];
+  for (const t of record2.tests) {
     const id = isRecord(t) && typeof t.id === "string" ? t.id : "";
     const file2 = id.split("::")[0].replace(/\\/g, "/").replace(/^\.\//, "");
     if (file2) files.add(file2);
@@ -28795,7 +28797,7 @@ function redFacts(root, id) {
     return { lockedTests: [] };
   }
   if (!isRecord(record2) || record2.changeId !== id || typeof record2.testsHash !== "string") return { lockedTests: [] };
-  const lockedTests = redFiles(record2.tests);
+  const lockedTests = redFiles(record2);
   const tests = Array.isArray(record2.tests) ? record2.tests : [];
   const failed = tests.some((t) => isRecord(t) && (t.status === "fail" || t.status === "error"));
   const sane = failed && lockedTests.length > 0 && record2.ownedHash === record2.baseOwnedHash;
@@ -29084,8 +29086,18 @@ function findProjectRoot(start) {
     dir = parent;
   }
 }
+function approvalOnDisk(root, rel) {
+  try {
+    return /^kind:\s*["']?approval["']?\s*$/m.test(readFileSync3(path10.join(root, rel), "utf8").slice(0, 4096));
+  } catch {
+    return false;
+  }
+}
 function decideForEvent(event, root, index) {
-  const classes = event.paths.map((p) => classify(p, index, matchGlob));
+  const classes = event.paths.map((p) => {
+    const cls = classify(p, index, matchGlob);
+    return cls.kind === "history" && !cls.approvalLike && approvalOnDisk(root, p) ? { ...cls, approvalLike: true } : cls;
+  });
   return { classes, decision: decide(event, classes, index, { redValid: liveRedValidity(root, index) }) };
 }
 function renderPreToolUse(d) {

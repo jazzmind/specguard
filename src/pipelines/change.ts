@@ -55,7 +55,6 @@ import type { CoverageEvidence } from '../core/coverage.js';
 import { CHANGE_DEFAULTS, emptyResult, type EnforceLevel, type ParsedSpec, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
 import { cliVersion } from '../core/version.js';
 import { diffConfigPolicy, diffSpecPolicy, scanAddedSource, snapshotRewrites, type WeakeningFinding } from '../core/weakening.js';
-import type { RunRecord } from './test-run.js';
 import { hashFiles, readCoverageEvidence } from './coverage-ingest.js';
 import {
   actorName,
@@ -66,7 +65,9 @@ import {
   loadChanges,
   openOnBranch,
   pickChange,
+  pointerTests,
   readPointer,
+  readRunRecord,
   saveChange,
   type RunKind,
   type RunPointer,
@@ -304,21 +305,12 @@ export interface GatherOpts {
   ci?: StageInput['ci'];
 }
 
-function readRunRecord(root: string, id: string): RunRecord | undefined {
-  try {
-    const raw = JSON.parse(readFileSync(path.join(root, '.specguard', 'runs', `${id}.json`), 'utf8')) as Partial<RunRecord>;
-    return Array.isArray(raw.tests) && typeof raw.runId === 'string' ? (raw as RunRecord) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /** The red or green record of a run: the verdicts come from the run record's content, the hashes from the pointer taken when it ran. */
 function runRecordOf(root: string, kind: RunKind, p: RunPointer | undefined): RedRecord | GreenRecord | undefined {
   if (!p) return undefined;
   const run = readRunRecord(root, p.runRecord);
   if (!run) return undefined;
-  const tests = run.tests.map((t) => ({ id: `${t.file}::${t.title}`, claims: t.refs, status: (t.verdict === 'missing' ? 'error' : t.verdict) as RedRecord['tests'][number]['status'] }));
+  const tests = pointerTests(run);
   const common = { version: 1 as const, changeId: p.changeId, runId: run.runId, at: run.finishedAt ?? p.at, claimsHash: p.claimsHash, testsHash: p.testsHash, ownedHash: p.ownedHash, tests };
   return kind === 'red' ? { ...common, mode: p.mode, baseOwnedHash: p.baseOwnedHash, origin: 'local' } : common;
 }
@@ -616,7 +608,7 @@ export async function runChangeStatus(config: SpecGuardConfig, opts: ChangeStatu
   for (const entry of got.changes) {
     result.messages.push(...statusLines(entry));
     result.created += 1;
-    result.items.push({ key: entry.id, status: entry.stage === 'validated' ? 'ok' : 'skipped', message: entry.closed ? `closed (${entry.closed.reason})` : `${entry.stage}: ${entry.next}` });
+    result.items.push({ key: entry.id, status: entry.done.includes('validated') ? 'ok' : 'skipped', message: entry.closed ? `closed (${entry.closed.reason})` : `${entry.stage}: ${entry.next}` });
   }
   for (const e of got.errors) {
     result.failed += 1;
@@ -662,10 +654,11 @@ export async function runChangeDone(config: SpecGuardConfig, opts: { id?: string
   if (record.closed) return fail(result, closedMessage(record));
   const status = await statusOf(await openRepo(config), record, { base: opts.base, ci: opts.ci });
   if (!status.ok) return fail(result, status.error);
-  const validated = status.entry.stage === 'validated';
+  // `stage: validated` with a NOT_VALIDATED block means green and waiting for CI: only a satisfied last stage is validated.
+  const validated = status.entry.done.includes('validated');
   if (!validated && !opts.force) {
     result.messages.push(...statusLines(status.entry));
-    return fail(result, `change ${record.id} is at ${status.entry.stage}, not validated: finish it (next: ${status.entry.next}), or close it anyway with --force --why <text>`, ExitCode.ValidationFailed);
+    return fail(result, `change ${record.id} is at ${status.entry.stage === 'validated' ? 'green and waiting for CI' : status.entry.stage}, not validated: finish it (next: ${status.entry.next}), or close it anyway with --force --why <text>`, ExitCode.ValidationFailed);
   }
   if (!validated && !opts.why?.trim()) return fail(result, '--force needs --why <text>: a forced close is labelled in the packet');
   const at = (opts.now ?? new Date()).toISOString();

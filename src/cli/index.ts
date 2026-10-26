@@ -722,9 +722,10 @@ specCmd
   .option('--as-built', 'accept what the code already does; refused for a capability that owns no source files')
   .option('--by <name>', 'who is approving (default: git user.name)')
   .option('--note <text>', 'why, recorded with the approval')
+  .option('--from-pr <n>', "record the approvals a reviewer already gave in pull request <n> (read from GitHub), one committed entry per reviewer; CI re-checks them against the same review")
   .option('--yes', 'write the approval')
-  .action(async (targets: string[], opts: { all?: boolean; asBuilt?: boolean; by?: string; note?: string; yes?: boolean }, cmd: Command) => {
-    await specApproveCommand(withGlobals(cmd, { ...opts, targets }));
+  .action(async (targets: string[], opts: { all?: boolean; asBuilt?: boolean; by?: string; note?: string; yes?: boolean; fromPr?: string }, cmd: Command) => {
+    await specApproveCommand(withGlobals(cmd, { ...opts, targets, fromPr: opts.fromPr === undefined ? undefined : Number(opts.fromPr) }));
   });
 
 specCmd

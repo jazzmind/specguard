@@ -5,7 +5,10 @@
  * - `.specguard/changes/<id>.json`, one committed record per change (declared intent only, see `change-record.ts`);
  * - `.specguard/cache/changes/<id>/{red,green}.json`, gitignored pointers that name the run record of the newest red
  *   and green run plus the hashes taken when it ran. A pointer never says a stage was reached: the stage is detected
- *   from the run record's content and the current files (`change.ts`).
+ *   from the run record's content and the current files (`change.ts`). The pointer also carries a copy of the run's
+ *   per-test verdicts and the locked test files, which is exactly what the edit-guard hook (`src/hooks/index-build.ts`)
+ *   reads, so the hook needs neither the run record nor this module. The copy is made from the run record in the same
+ *   call that writes the pointer (`pointerTests`), never typed twice.
  *
  * Git is only ever called through `execFileSync` with an argument array.
  *
@@ -17,6 +20,7 @@ import path from 'node:path';
 
 import { CHANGE_ID_PATTERN, CHANGES_DIR, parseChangeRecord, serializeChangeRecord, type ChangeRecord } from '../core/change-record.js';
 import { writeFile } from '../core/writer.js';
+import type { RunRecord } from './test-run.js';
 
 const GIT_BUFFER = 64 * 1024 * 1024;
 
@@ -103,12 +107,39 @@ export interface RunPointer {
   kind: RunKind;
   /** Id of the run record under `.specguard/runs/` (`<changeId>-red`). The verdicts are read from there. */
   runRecord: string;
+  /** `runId` of that record, so the pointer and the hook's view of red name one run. */
+  runId?: string;
+  /** The run's verdicts as `RedRecord.tests` (copied from the run record by `pointerTests`); the hook reads this shape. */
+  tests?: PointerTest[];
+  /** Test files whose content `testsHash` covers, repo-relative POSIX: the files the hook locks once red holds. */
+  lockedTests?: string[];
   mode: 'working-tree' | 'constructed';
   claimsHash: string;
   testsHash: string;
   ownedHash: string;
   baseOwnedHash: string;
   at: string;
+}
+
+/** One test of a run as `RedRecord.tests` and the hook's red record hold it: `file::title`, the refs it proves, a verdict. */
+export interface PointerTest {
+  id: string;
+  claims: string[];
+  status: 'pass' | 'fail' | 'skip' | 'error';
+}
+
+/** A run record's tests in the shape of `RedRecord.tests`. A `missing` verdict (no report row matched) reads as `error`. */
+export const pointerTests = (run: RunRecord): PointerTest[] =>
+  run.tests.map((t) => ({ id: `${t.file}::${t.title}`, claims: t.refs, status: t.verdict === 'missing' ? 'error' : t.verdict }));
+
+/** The run record `.specguard/runs/<id>.json`, or undefined when it is missing or not a record. */
+export function readRunRecord(root: string, id: string): RunRecord | undefined {
+  try {
+    const raw = JSON.parse(readFileSync(path.join(root, '.specguard', 'runs', `${id}.json`), 'utf8')) as Partial<RunRecord>;
+    return Array.isArray(raw.tests) && typeof raw.runId === 'string' ? (raw as RunRecord) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export const pointerFile = (root: string, id: string, kind: RunKind): string => path.join(root, '.specguard', 'cache', 'changes', id, `${kind}.json`);

@@ -38,6 +38,7 @@ import { specsRootDir } from '../core/spec-key.js';
 import { ENFORCE_LEVELS, emptyResult, type EnforceLevel, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
 import { loadTrace } from './check.js';
+import { loadEffectiveLedger, noteApprovalsAsApprovals, readOnlyStore, type EffectiveLedger } from './proof-sources.js';
 import { writeHistory } from './history.js';
 import { buildStatementInput } from './statement-input.js';
 
@@ -87,13 +88,24 @@ function personName(config: SpecGuardConfig): string {
   return git('user.name') || git('user.email') || os.userInfo().username;
 }
 
-/** The proof statement of every capability, built the way `check` builds it. */
+/**
+ * The proof statement of every capability, built the way `check` builds it: the CI proof notes in git are part of the
+ * evidence, so a person who only has the checkout (no local test run) sees the same certification `check` shows.
+ */
 export async function certificationOf(config: SpecGuardConfig): Promise<Map<string, CapabilityStatement>> {
   const root = config.rootDir ?? process.cwd();
-  const { model } = await loadTrace(config);
+  let eff: EffectiveLedger | undefined;
+  try {
+    const loaded = await loadEffectiveLedger(config);
+    if (loaded.note) eff = loaded;
+  } catch {
+    /* unreadable notes: the local ledger alone, as before */
+  }
+  const store = eff ? readOnlyStore(eff) : undefined;
+  const { model } = await loadTrace(config, store ? { store } : {});
   const gaps = intentGaps(root, model.nodes, listHistory(config), path.relative(root, specsRootDir(config)).split(path.sep).join('/'));
   model.gaps = { intent: gaps, docsStale: [] };
-  const assembled = await buildStatementInput(config, { model, gaps }, {});
+  const assembled = await buildStatementInput(config, { model, gaps }, eff && store ? { store, extraApprovals: noteApprovalsAsApprovals(eff) } : {});
   return new Map(computeStatement(assembled.input).capabilities.map((c) => [c.capability, c]));
 }
 

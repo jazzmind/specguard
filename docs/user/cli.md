@@ -63,9 +63,44 @@ Each subcommand maps directly to a SpecGuard pipeline. The table below shows eve
 | `drift` | Detects drift between specs and the current state of your code or API | `--since`, `--spec` |
 | `matrix` | Produces a coverage matrix across all specs | `--out`, `--format` |
 | `status` | Shows an at-a-glance summary of spec coverage across your project | _(none)_ |
-| `check` | Spec health for the whole system. The summary starts with one `STATEMENT:` line per capability (approved, testable, aligned and conforms, each `ok`, `FAIL` or `??`) and a system line, then the ownership, test and proof lines | `--explain <capability>`, `--strict`, `--since <ref>`, `--json` |
+| `check` | Spec health for the whole system. The summary starts with one `STATEMENT:` line per capability (approved, testable, aligned and conforms, each `ok`, `FAIL` or `??`) and a system line, then the ownership, test and proof lines | `--explain <capability>`, `--strict`, `--since <ref>` (or `--base <ref>`), `--no-notes`, `--json` |
+| `spec approve [targets...]` | A person approves requirements as stating what the system should do, recorded as a committed history entry. A dry run unless `--yes`; refused inside an agent environment | `--all`, `--as-built`, `--by`, `--note`, `--yes` |
+| `spec approvals` | Per capability, how many requirements are approved and which are not | _(none)_ |
+| `change start <capabilities...>` | Opens a spec-first change: one committed record of intent under `.specguard/changes/` | `--refactor`, `--spike`, `--why`, `--base`, `--plan` |
+| `change status [id]` | Where a change stands (spec, tests, red, code, green, validated), what blocks it and the one next command; every open change on the branch without an id | `--base`, `--json` |
+| `change list` | Open changes with their derived stage | `--all` |
+| `change red [id]` | Runs exactly the tests of the changed requirements against the base code and records the run; they must fail. Provisional: CI proves it again | `--base` |
+| `change green [id]` | Runs those tests against the current code and records the run | `--base` |
+| `change report [id]` | The proof packet for a change, built locally and marked provisional | `--base`, `--json` |
+| `change convert [id]` | Turns a spike into a feature once it has changed requirements and tagged tests | `--to feature` |
+| `change done [id]` | Closes a validated change; an earlier close is labelled in the packet | `--force --why <text>` |
+| `change abandon [id]` | Closes a change without finishing it; the guard and CI then ignore it | `--why <text>` (required) |
+| `enforce show [capabilities...]` | Each capability's enforce level (`observe`, `warn` or `enforce`), where it comes from, and whether it could be raised now | _(none)_ |
+| `enforce raise <capabilities...>` | Raises the level one step, or to `--to`. Moving to `enforce` needs the capability to be certified (exit 13 otherwise). A person runs it, never an agent | `--to`, `--by` |
+| `enforce lower <capabilities...>` | Lowers the level; recorded in history because it weakens policy. A person runs it, never an agent | `--to`, `--why` (required), `--by` |
+| `hook pre-tool-use` | The agent edit guard: reads the host's tool call as JSON on stdin and prints its decision. Fails open, silent outside a SpecGuard project | `--agent claude\|codex` |
+| `hook doctor [paths...]` | Prints what the guard would decide for a path or a shell command, and why | `--tool`, `--bash`, `--agent` |
+| `hook log` | The guard's recent decisions, newest last | `--denied`, `--limit` |
+| `hook build-index` | Rebuilds the ownership index the guard reads | _(none)_ |
+| `proof fetch` | Fetches the CI proof notes (`refs/notes/specguard`) so `check` sees what CI proved | `--configure`, `--quiet`, `--if-older <duration>` |
+| `proof publish` | Writes the proof note for HEAD from fresh evidence and pushes it. CI only; `--force-local` writes a provisional note on this machine | `--commit`, `--no-push`, `--force-local`, `--allow-non-github` |
+| `proof notes [commit]` | Summarizes the nearest proof note: rows by verdict, its statement, and where this checkout's evidence comes from | _(none)_ |
+| `proof prune` | Lists proof notes of commits no branch or tag reaches (removes them with `--yes`) | `--days`, `--yes`, `--push` |
+| `ci run` | The CI gate: proves the pull request or commit, posts the proof packet, writes the proof note; exits 13 when an enforce capability blocks | `--event`, `--dry-run`, `--full`, `--no-tests`, `--no-red`, `--no-push`, `--no-comment`, `--out` |
+| `ci packet [file]` | Renders a saved `packet.json` as the pull request markdown | _(none)_ |
+| `ci doctor` | Checks the environment, permissions and what `ci run` would do here, with no network | `--event` |
+| `migrate` | Brings a repository to the current layout. A dry run that lists every step; `--yes` applies those the tool may do itself (it never approves, commits or pushes) | `--yes`, `--consolidate`, `--allow-dirty`, `--json` |
+| `test run [files...]` | Runs the configured tests and ingests the results into the proof ledger; with `--claims` runs exactly the tests tagged to those requirements | `--claims <refs...>`, `--record <id>`, `--coverage`, `--app` |
+| `coverage ingest <files...>` | Normalizes lcov, JaCoCo, Cobertura or Go coverage reports into evidence | `--format`, `--capability`, `--selection`, `--run-id`, `--origin` |
+| `mutation ingest <files...>` | Normalizes a Stryker report or PIT `mutations.xml` into evidence | `--format`, `--run-id`, `--origin` |
+| `agent pending` | Lists the model requests waiting for the host coding agent (exit 12 when there are any) | `--full` |
+| `agent answer <hash>` | Records the answer to a pending request | `--file`, `--stdin` |
 
-`check --explain <capability>` lists that capability's pillars, the blocking reasons first with the command that fixes each, then the advisory ones. `check --strict` judges the statement as if every `proof.require*` gate were on, whatever the config says. `check --since <ref>` also compares changed claims, coverage and weakened tests with that ref. With `--json` the result carries the full `statement`.
+`check --explain <capability>` lists that capability's pillars, the blocking reasons first with the command that fixes each, then the advisory ones. `check --strict` judges the statement as if every `proof.require*` gate were on, whatever the config says. `check --since <ref>` also compares changed claims, coverage and weakened tests with that ref. With `--json` the result carries the full `statement`. `check` also reads the CI proof notes in git (see `proof fetch`); `--no-notes` ignores them and reads the local proof cache alone.
+
+### The change protocol
+
+`change`, `enforce` and `hook` implement the order spec, approval, tests, red, code, green, validated (see "The change protocol" in the README). `change red` and `change green` are thin wrappers over `test run --claims <refs> --record <id>`. `change convert`, `change done --force` and `change abandon` change what CI will accept, so they are CLI-only and the guard denies them to an agent. Commands that take an optional `[id]` act on the one open change on the branch, and ask you to name one when there are several. `proof publish` and `ci run` write CI evidence; a capability is `certified` only from such a note, and the same proof from a local run is `provisional`.
 
 > **Tip:** Run `specguard <subcommand> --help` to see the full flag reference for any individual command.
 
@@ -84,7 +119,8 @@ Each subcommand maps directly to a SpecGuard pipeline. The table below shows eve
 | `4` | Missing specs — uncovered features were found by `status` |
 | `5` | Security issues found |
 | `7` | Heal failed — tests are still broken after the maximum number of retries |
-| `13` | Not certified — `check` found a blocking reason in the proof statement. Only returned when a `proof.require*` gate (or `--strict`) is on, and after codes 2, 3 and 4 |
+| `12` | Waiting for the agent — a step needs a model answer; run `specguard agent pending`, answer, and run the same command again |
+| `13` | Not certified — `check` found a blocking reason in the proof statement. Only returned when a `proof.require*` gate (or `--strict`) is on, and after codes 2, 3 and 4. Also returned by `enforce raise --to enforce` for a capability that is not certified, and by `ci run` when an `enforce` capability blocks |
 
 ### Example: failing a CI job on drift
 

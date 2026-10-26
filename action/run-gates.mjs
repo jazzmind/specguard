@@ -7,9 +7,14 @@
  * `fail-on`. The decision logic is exported so it can be unit tested.
  *
  * Environment (set by action.yml):
- *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps, check, test, verify, scan, publish
+ *   SG_GATES       comma list: status, drift, proof, align, results, validate, security, deps, check, test, prove, verify, scan, publish
  *   SG_FAIL_ON     comma list: missing-specs, drift, proof-failed, proof-stale, proof-unexercised,
- *                  proof-unproven, proof-incomplete, align-below:<pct>, results, validate, security, deps, check, test, verify, scan, publish, none
+ *                  proof-unproven, proof-incomplete, align-below:<pct>, results, validate, security, deps, check, test, prove, verify, scan, publish, none
+ *   SG_PROVE       "auto" (default): add the `prove` gate to the default gates when the repo uses proof notes, the change
+ *                  protocol or per-capability `enforce:`; "true": always run it; "false": never
+ *   SG_NOTES       "false": `prove` writes the proof note to the local notes ref only (no push)
+ *   SG_FULL        "true": `prove` runs every claim, not just the stale or changed ones
+ *   SG_NOTE_REQUIRED "true": the job fails when `prove` could not push the proof note
  *   SG_RESULTS     reporter files or globs for `results ingest`, comma or newline separated
  *   SG_RUN_ID      ledger run id for `results ingest`
  *   SG_DRIFT_SINCE git ref for `drift --since`
@@ -23,15 +28,78 @@
  *   SG_BIN         specguard binary (default: specguard)
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps', 'check', 'test', 'verify', 'scan', 'publish'];
+export const GATES = ['status', 'drift', 'proof', 'align', 'results', 'validate', 'security', 'deps', 'check', 'test', 'prove', 'verify', 'scan', 'publish'];
 export const DEFAULT_FAIL_ON = 'missing-specs,drift,proof-failed,proof-stale,results';
+/** The default gates (action.yml), and the thresholds that replace the legacy default when `prove` runs. */
+export const DEFAULT_GATES = 'status,proof';
+export const PROVE_FAIL_ON = 'missing-specs,drift,prove,results';
 
 /** Exit codes the CLI uses (src/core/exit-codes.ts). */
-const EXIT = { InternalError: 1, ValidationFailed: 2, DriftDetected: 3, MissingSpecs: 4, SecurityIssues: 5, HealFailed: 7, BudgetExceeded: 8 };
+const EXIT = { InternalError: 1, ValidationFailed: 2, DriftDetected: 3, MissingSpecs: 4, SecurityIssues: 5, HealFailed: 7, BudgetExceeded: 8, NotCertified: 13 };
+
+const FRONTMATTER_ENFORCE = /^enforce:\s*['"]?(observe|warn|enforce)['"]?\s*$/m;
+
+/**
+ * Whether the repository uses what `specguard ci run` judges: a `proofStore`, `enforce`, `change` or `approvals` block in
+ * the config, a committed change record, or a spec that sets `enforce:` in its frontmatter. Reads only; a repo that uses
+ * none of them keeps the legacy gates and sees nothing new.
+ */
+export function usesPhase3Features(dir = '.') {
+  try {
+    const config = JSON.parse(readFileSync(path.join(dir, '.specguard', 'config.json'), 'utf8'));
+    if (['proofStore', 'enforce', 'change', 'approvals'].some((k) => config?.[k] !== undefined)) return true;
+  } catch {
+    return false;
+  }
+  try {
+    if (readdirSync(path.join(dir, '.specguard', 'changes')).some((f) => f.endsWith('.json'))) return true;
+  } catch {
+    /* no change records */
+  }
+  let seen = 0;
+  const walk = (d) => {
+    for (const name of readdirSync(d)) {
+      if (seen > 2000) return false;
+      const full = path.join(d, name);
+      const st = statSync(full);
+      if (st.isDirectory()) {
+        if (name !== 'history' && walk(full)) return true;
+      } else if (name.endsWith('.md')) {
+        seen += 1;
+        const text = readFileSync(full, 'utf8').slice(0, 4000);
+        const end = text.startsWith('---') ? text.indexOf('\n---', 3) : -1;
+        if (end > 0 && FRONTMATTER_ENFORCE.test(text.slice(0, end))) return true;
+      }
+    }
+    return false;
+  };
+  try {
+    return existsSync(path.join(dir, 'specs')) && walk(path.join(dir, 'specs'));
+  } catch {
+    return false;
+  }
+}
+
+/** The gates to run: the requested list, with `prove` added or removed as SG_PROVE says. */
+export function resolveGates(env, usesPhase3 = usesPhase3Features) {
+  const requested = splitList(env.SG_GATES || DEFAULT_GATES);
+  const mode = (env.SG_PROVE || 'auto').toLowerCase();
+  if (mode === 'false') return requested.filter((g) => g !== 'prove');
+  if (requested.includes('prove')) return requested;
+  if (mode === 'true') return [...requested, 'prove'];
+  const isDefault = requested.join(',') === DEFAULT_GATES;
+  return isDefault && usesPhase3() ? [...requested, 'prove'] : requested;
+}
+
+/** The thresholds to apply: the user's, with the legacy default swapped for the `prove` one when `prove` ran. */
+export function resolveFailOn(env, gates) {
+  const given = env.SG_FAIL_ON || DEFAULT_FAIL_ON;
+  return given === DEFAULT_FAIL_ON && gates.includes('prove') ? PROVE_FAIL_ON : given;
+}
 
 export function splitList(value) {
   return String(value ?? '')
@@ -109,6 +177,7 @@ export function evaluate(runs, failOn) {
         break;
       case 'check':
       case 'test':
+      case 'prove': // 13 is a blocked proof packet; any other non-zero exit is the gate failing to run, which also fails the job
       case 'verify':
       case 'scan':
       case 'publish':
@@ -160,6 +229,8 @@ export function argsFor(gate, env) {
       const since = env.SG_AFFECTED_SINCE || env.SG_BASE_REF;
       return ['test', 'run', ...(env.SG_AFFECTED === 'true' ? ['--affected', ...(since ? ['--since', since] : [])] : []), ...(env.SG_RUN_ID ? ['--run-id', env.SG_RUN_ID] : [])];
     }
+    case 'prove':
+      return ['ci', 'run', ...(env.SG_FULL === 'true' ? ['--full'] : []), ...(env.SG_NOTES === 'false' ? ['--no-push'] : []), ...(env.SG_COMMENT === 'false' ? ['--no-comment'] : [])];
     case 'verify':
       return ['verify', '--all', ...(env.SG_VALIDATE_URL ? ['--url', env.SG_VALIDATE_URL] : [])];
     case 'scan':
@@ -192,6 +263,8 @@ function summaryLine(gate, run) {
 }
 
 export const COMMENT_MARKER = '<!-- specguard-pr-comment -->';
+/** What the old comment becomes when the proof packet comment replaces it: one comment per pull request carries the verdict. */
+export const POINTER_BODY = `${COMMENT_MARKER}\n## SpecGuard\n\nThe proof packet below is this pull request's SpecGuard result.\n`;
 const METRICS_RE = /<!-- specguard-metrics: (\{.*?\}) -->/;
 
 /** Numbers worth showing for a run: what `check`, `proof` and `scan` printed. Absent when the gate did not run. */
@@ -247,7 +320,7 @@ export function buildComment(runs, tripped, notes, previous) {
 }
 
 /** Post the comment, or update the one this action left earlier. Never throws: a comment is a convenience. */
-export async function postComment(env, makeBody, fetchImpl = globalThis.fetch) {
+export async function postComment(env, makeBody, fetchImpl = globalThis.fetch, opts = {}) {
   try {
     const token = env.SG_GITHUB_TOKEN;
     if (!token || !env.GITHUB_EVENT_PATH || env.GITHUB_EVENT_NAME !== 'pull_request' || !env.GITHUB_REPOSITORY) return { posted: false, reason: 'not a pull request run with a token' };
@@ -258,6 +331,8 @@ export async function postComment(env, makeBody, fetchImpl = globalThis.fetch) {
     const listed = await fetchImpl(`${api}/${number}/comments?per_page=100`, { headers });
     if (!listed.ok) return { posted: false, reason: `listing comments: HTTP ${listed.status}` };
     const existing = (await listed.json()).find((c) => typeof c.body === 'string' && c.body.includes(COMMENT_MARKER));
+    // With `onlyUpdate` (the proof packet comment replaced this one) an old comment is rewritten as a pointer; none is posted.
+    if (opts.onlyUpdate && !existing) return { posted: false, reason: 'no earlier comment to update' };
     const body = makeBody(previousMetrics(existing?.body));
     const res = existing
       ? await fetchImpl(`${api}/comments/${existing.id}`, { method: 'PATCH', headers, body: JSON.stringify({ body }) })
@@ -286,13 +361,14 @@ export function lastRun() {
 }
 
 export function main(env = process.env) {
-  const gates = splitList(env.SG_GATES || 'status,proof');
-  const unknown = gates.filter((g) => !GATES.includes(g));
+  const requested = splitList(env.SG_GATES || DEFAULT_GATES);
+  const unknown = requested.filter((g) => !GATES.includes(g));
   if (unknown.length > 0) {
     console.error(`unknown gate(s): ${unknown.join(', ')}. Known: ${GATES.join(', ')}`);
     return 2;
   }
-  const failOn = splitList(env.SG_FAIL_ON || DEFAULT_FAIL_ON);
+  const gates = resolveGates(env);
+  const failOn = splitList(resolveFailOn(env, gates));
   const bin = env.SG_BIN || 'specguard';
   const outDir = path.join('.specguard', 'ci');
   mkdirSync(outDir, { recursive: true });
@@ -313,6 +389,13 @@ export function main(env = process.env) {
     const parsed = parseJsonResult(res.stdout);
     const exitCode = res.status ?? 1;
     runs[gate] = { ran: true, exitCode, messages: parsed?.messages ?? [], note: `${parsed ? `${parsed.failed ?? 0} failed` : 'no JSON'}` };
+    if (gate === 'prove') {
+      // `ci run --json` prints one JSON line; its progress lines and annotations are shown here, where the runner reads them.
+      for (const line of runs[gate].messages) if (typeof line === 'string') console.log(line);
+      runs[gate].note = parsed?.packet ? `packet: ${parsed.packet.verdict}` : runs[gate].note;
+      runs[gate].gate = parsed?.gate;
+      runs[gate].noteWritten = parsed?.note;
+    }
     writeFileSync(path.join(outDir, `${gate}.json`), `${JSON.stringify({ gate, args, exitCode, result: parsed }, null, 2)}\n`);
     if (gate === 'align') {
       try {
@@ -326,6 +409,7 @@ export function main(env = process.env) {
   }
 
   const { tripped, notes } = evaluate(runs, failOn);
+  if (env.SG_NOTE_REQUIRED === 'true' && runs.prove?.ran && runs.prove.noteWritten?.pushed !== true) tripped.push('prove-note (the proof note was not pushed)');
   last = { runs, tripped, notes };
   const summary = [
     '## SpecGuard',
@@ -350,7 +434,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const code = main();
   if (process.env.SG_COMMENT === 'true' && last) {
     const { runs, tripped, notes } = last;
-    const res = await postComment(process.env, (previous) => buildComment(runs, tripped, notes, previous));
+    // `ci run` posts the proof packet under its own marker; the old comment is only ever rewritten as a pointer to it.
+    const proved = runs.prove?.ran === true;
+    const res = await postComment(process.env, proved ? () => POINTER_BODY : (previous) => buildComment(runs, tripped, notes, previous), globalThis.fetch, { onlyUpdate: proved });
     console.log(res.posted ? `pull request comment ${res.updated ? 'updated' : 'posted'}` : `no pull request comment: ${res.reason}`);
   }
   process.exit(code);

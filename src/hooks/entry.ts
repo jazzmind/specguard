@@ -13,7 +13,7 @@
  *
  * Spec: specs/capabilities/spec-first-changes.md
  */
-import { appendFileSync, mkdirSync, realpathSync, renameSync, statSync, existsSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import picomatch from 'picomatch';
 
@@ -78,8 +78,22 @@ export function findProjectRoot(start: string): string | null {
   }
 }
 
+/** Whether the history entry already on disk is an approval (its frontmatter says `kind: approval`). Unreadable means no. */
+function approvalOnDisk(root: string, rel: string): boolean {
+  try {
+    return /^kind:\s*["']?approval["']?\s*$/m.test(readFileSync(path.join(root, rel), 'utf8').slice(0, 4096));
+  } catch {
+    return false;
+  }
+}
+
 export function decideForEvent(event: HookEvent, root: string, index: CachedHookIndex): { classes: PathClass[]; decision: HookDecision } {
-  const classes = event.paths.map((p) => classify(p, index, matchGlob));
+  const classes = event.paths.map((p): PathClass => {
+    const cls = classify(p, index, matchGlob);
+    // An edit is judged on its new text alone, so changing the hashes inside an approval already on disk would pass:
+    // any change to an existing approval is treated as writing one.
+    return cls.kind === 'history' && !cls.approvalLike && approvalOnDisk(root, p) ? { ...cls, approvalLike: true } : cls;
+  });
   return { classes, decision: decide(event, classes, index, { redValid: liveRedValidity(root, index) }) };
 }
 

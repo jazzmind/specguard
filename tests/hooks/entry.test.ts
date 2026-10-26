@@ -209,4 +209,23 @@ describe('the hook entry, spawned as the plugin runs it [spec-first-changes]', (
     expect(readFileSync(path.join(repo.dir, '.specguard/cache/hooks.1.jsonl'), 'utf8').length).toBeGreaterThan(1_000_000);
     expect(readLog(repo)).toHaveLength(1);
   });
+
+  // [claims: capabilities/spec-first-changes#hook-approval-edit-denied]
+  it('denies an edit to an approval already on disk, even one that only changes a hash, and leaves other history alone', () => {
+    const repo = hookRepo({ shop: 'observe' });
+    const approval = 'specs/history/2026-10-26-approval-aaaaaa-shop.md';
+    repo.write(approval, '---\nid: 2026-10-26-approval-aaaaaa-shop\ndate: 2026-10-26\nkind: approval\nmethod: command\napproves:\n  - "capabilities/shop#cart-totals@0123456789abcdef"\n---\n\nApproved.\n');
+    const decision = 'specs/history/2026-10-26-a-decision.md';
+    repo.write(decision, '---\nid: 2026-10-26-a-decision\ndate: 2026-10-26\nkind: decision\n---\n\nWhy.\n');
+
+    const edit = (rel: string) =>
+      claudePayload(repo, { tool: 'Edit', input: { file_path: path.join(repo.dir, rel), old_string: '0123456789abcdef', new_string: 'fedcba9876543210' } });
+    const denied = runBundle(edit(approval));
+    expect(denied.status).toBe(0);
+    expect(denied.json?.hookSpecificOutput.permissionDecision).toBe('deny');
+
+    const allowed = runBundle(edit(decision));
+    expect(allowed.status).toBe(0);
+    expect(allowed.json?.hookSpecificOutput.permissionDecision).toBeUndefined();
+  });
 });
