@@ -26,7 +26,9 @@ import { writeFile } from '../core/writer.js';
 import { runAlign } from './align.js';
 import { runCapabilityDrift } from './drift-capability.js';
 import { appendProofCoverage, walkClaimVerdicts } from './proof.js';
+import { evidenceSourceLabel, loadEffectiveLedger, noteApprovalsAsApprovals, readOnlyStore, type EffectiveLedger } from './proof-sources.js';
 import { buildStatementInput } from './statement-input.js';
+import type { LedgerStore } from '../core/state/ledger-store.js';
 import { collectSourceFiles } from './spec-synth.js';
 
 export type CheckView = 'summary' | 'coverage' | 'gaps' | 'matrix' | 'drift' | 'align';
@@ -46,6 +48,8 @@ export interface CheckOpts {
   strict?: boolean;
   /** Pipeline name to report under, so `status` and friends keep their `--json` identity. */
   as?: string;
+  /** Read the local proof cache alone: ignore the CI proof notes in git (`--no-notes`). */
+  noNotes?: boolean;
 }
 
 /** True when the repo has at least one spec that declares a `kind` (v2). */
@@ -56,8 +60,22 @@ export async function isV2Repo(config: SpecGuardConfig): Promise<boolean> {
 
 const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n / d) * 100));
 
-/** The trace model with proof verdicts from the ledger and the repo's source files. */
-export async function loadTrace(config: SpecGuardConfig): Promise<{ model: TraceModel; verdicts: Map<string, EffectiveVerdict>; sourceFiles: string[] }> {
+/**
+ * The effective ledger `check` reads, or undefined when the local file ledger is all there is: with no note to read the
+ * file is used as it always was, so a repo without notes behaves exactly as before.
+ */
+async function effectiveFor(config: SpecGuardConfig, opts: CheckOpts): Promise<{ eff?: EffectiveLedger; warnings: string[] }> {
+  if (opts.noNotes) return { warnings: [] };
+  try {
+    const eff = await loadEffectiveLedger(config);
+    return { ...(eff.note ? { eff } : {}), warnings: eff.warnings };
+  } catch (err) {
+    return { warnings: [`proof notes could not be read: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+}
+
+/** The trace model with proof verdicts from the ledger (or the given store) and the repo's source files. */
+export async function loadTrace(config: SpecGuardConfig, opts: { store?: LedgerStore } = {}): Promise<{ model: TraceModel; verdicts: Map<string, EffectiveVerdict>; sourceFiles: string[] }> {
   const verdicts = new Map<string, EffectiveVerdict>();
   const details: NonNullable<Parameters<typeof buildTraceModel>[1]>['details'] = new Map();
   await walkClaimVerdicts(config, (ref, verdict, detail) => {
@@ -66,9 +84,19 @@ export async function loadTrace(config: SpecGuardConfig): Promise<{ model: Trace
     const key = `${parsed.specKey}#${parsed.claimId}`;
     verdicts.set(key, verdict);
     if (detail) details.set(key, { layers: detail.layers, required: detail.required, missing: detail.missing });
-  });
+  }, opts.store ? { store: opts.store } : {});
   const sourceFiles = (await collectSourceFiles(config)).map((f) => f.rel);
   return { model: await buildTraceModel(config, { verdicts, details, sourceFiles }), verdicts, sourceFiles };
+}
+
+/** `STATEMENT:` lines with the evidence source after each capability, and the note the proofs came from after the system line. */
+function withSources(lines: string[], statement: SystemStatement, eff: EffectiveLedger | undefined): string[] {
+  if (!eff?.note) return lines;
+  return lines.map((line, i) => {
+    const cap = statement.capabilities[i];
+    if (cap) return cap.evidence.source ? `${line} · ${cap.evidence.source}` : line;
+    return `${line} · proofs from note @${eff.note!.commit.slice(0, 7)}`;
+  });
 }
 
 const specNodes = (m: TraceModel): TraceNode[] => m.nodes.filter((n) => n.kind === 'capability' || n.kind === 'component');
@@ -82,7 +110,9 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
   const result = emptyResult(opts.as ?? 'check');
   const log = (line: string): void => void result.messages.push(line);
   const root = config.rootDir ?? process.cwd();
-  const { model, sourceFiles } = await loadTrace(config);
+  const { eff, warnings: noteWarnings } = await effectiveFor(config, opts);
+  const store = eff ? readOnlyStore(eff) : undefined;
+  const { model, sourceFiles } = await loadTrace(config, store ? { store } : {});
   if (view === 'summary' && opts.explain !== undefined && !specNodes(model).some((n) => n.id === opts.explain || n.specKey === opts.explain)) {
     result.failed = 1;
     result.exitCode = ExitCode.InternalError;
@@ -96,9 +126,17 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
   let statement: SystemStatement | undefined;
   let statementWarnings: string[] = [];
   if (view === 'summary') {
-    const assembled = await buildStatementInput(config, { model, gaps }, { strict: opts.strict, base: opts.since });
-    statementWarnings = assembled.warnings;
+    const assembled = await buildStatementInput(config, { model, gaps }, { strict: opts.strict, base: opts.since, ...(eff && store ? { store, extraApprovals: noteApprovalsAsApprovals(eff) } : {}) });
+    statementWarnings = [...assembled.warnings, ...noteWarnings];
     statement = computeStatement(assembled.input);
+    // Where each capability's evidence came from, when a CI note is part of it.
+    if (eff) {
+      const specKeys = new Map(model.nodes.map((n) => [n.id, n.specKey]));
+      for (const cap of statement.capabilities) {
+        const source = evidenceSourceLabel(eff, specKeys.get(cap.capability) ?? cap.capability);
+        if (source !== undefined) cap.evidence.source = source;
+      }
+    }
     model.statement = statement;
     result.statement = statement;
   }
@@ -106,13 +144,14 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
 
   const errors = model.issues.filter((i) => i.level === 'error');
   const orphans = specNodes(model).filter((n) => n.ownedFiles.length === 0 && n.status !== 'planned');
-  if (statement && opts.explain === undefined) result.messages.push(...headlineLines(statement));
+  if (statement && opts.explain === undefined) result.messages.push(...withSources(headlineLines(statement), statement, eff));
   for (const w of statementWarnings) log(`  [warn] ${w}`);
   for (const issue of model.issues) log(`  [${issue.level === 'error' ? 'error' : 'warn'}] ${issue.code}: ${issue.message}`);
 
   if (statement && opts.explain !== undefined) {
     const cap = statement.capabilities.find((c) => c.capability === opts.explain || model.nodes.some((n) => n.id === c.capability && n.specKey === opts.explain))!;
     result.messages.push(...explainCapability(cap, { head: statement.head, policy: statement.policy }));
+    if (cap.evidence.source) result.messages.push(`Evidence source: ${cap.evidence.source}`);
     // Scoped to the one capability: its own level, counts and exit code.
     const counts = { certified: 0, provisional: 0, 'not-certified': 0, planned: 0 };
     counts[cap.level] += 1;
@@ -209,7 +248,7 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
       } else {
         log('ORPHANS: 0');
       }
-      await appendProofCoverage(config, log);
+      await appendProofCoverage(config, log, store ? { store } : {});
       for (const gap of gaps) {
         log(`  [intent-gap] ${gap.id}: code changed ${gap.codeDate}; last recorded intent ${gap.intentDate || 'none'}`);
       }

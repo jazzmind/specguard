@@ -1,7 +1,10 @@
 /**
  * Generated run state. These files are rewritten by pipeline runs, differ per
  * machine (or per run), and do not belong in version control. Configuration,
- * rules, plans, replay recordings, and the proof ledger are not listed.
+ * rules, plans and replay recordings are not listed. The proof ledger
+ * (`.specguard/proofs.json`) is a local cache: what CI proved lives in git
+ * notes (see the proof-store capability), so new repos ignore it. A repo that
+ * already tracks it or `.specguard/trace.json` is moved by `specguard migrate`.
  *
  * Spec: specs/capabilities/platform-foundation.md
  */
@@ -19,6 +22,7 @@ export const GENERATED_STATE_PATHS = [
   '.specguard/security.json',
   '.specguard/llm-usage.json',
   '.specguard/trace.json',
+  '.specguard/proofs.json',
   '.specguard/rollup.json',
   '.specguard/security/scan.sarif',
   '.specguard/cache/',

@@ -69,14 +69,14 @@ export class AgentWorkPendingError extends SpecGuardError {
 /**
  * Whether this process runs inside a coding agent, so the agent can do the model work.
  * `SPECGUARD_HOST_AGENT=1` forces it on and `=0` off. Claude Code is recognised on its own (it sets
- * `CLAUDECODE=1` for the commands it runs). Other agents have no documented marker, so the Codex and Cursor
- * plugin configs and skills set `SPECGUARD_HOST_AGENT=1` themselves.
+ * `CLAUDECODE=1` for the commands it runs) and so is Codex (`CODEX_THREAD_ID` is set for the commands it runs). Other
+ * agents have no documented marker, so the Cursor plugin config and skills set `SPECGUARD_HOST_AGENT=1` themselves.
  */
 export function detectHostAgent(env: NodeJS.ProcessEnv = process.env): boolean {
   const forced = env.SPECGUARD_HOST_AGENT;
   if (forced === '1' || forced === 'true') return true;
   if (forced === '0' || forced === 'false') return false;
-  return Boolean(env.CLAUDECODE);
+  return Boolean(env.CLAUDECODE || env.CODEX_THREAD_ID);
 }
 
 // ---------------------------------------------------------------------------

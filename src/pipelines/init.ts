@@ -26,7 +26,7 @@ import {
   type LanguageId,
   type LanguageProfile,
 } from '../core/language-profiles.js';
-import { scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
+import { scaffoldCodexFiles, scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
 import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
 import { detectMonorepo, testCommandFor, type Ecosystem, type MonorepoInfo, type WorkspacePackage } from '../core/monorepo.js';
 import { unitsFromMonorepo } from '../core/workspace-units.js';
@@ -50,6 +50,8 @@ export interface InitOpts {
   updateHooks?: boolean;
   /** Wire the requirement-history hooks into `.claude/settings.local.json`. */
   historyHooks?: boolean;
+  /** Write the repository's Codex wiring: `.codex/hooks.json` (the edit guard) and `.codex/rules/specguard.rules` (forbids approving requirements from a shell). */
+  codex?: boolean;
   /** Write CI workflows for this provider (`github`): a pull request gate with a comment, and scheduled remediation. */
   ci?: 'github';
   /** With `ci`: enable auto-merge of dependency fixes that keep every proof. */
@@ -281,6 +283,16 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
     result.messages.push('  note     --history-hooks needs --harness claude (the hooks go in .claude/settings.local.json)');
   }
 
+  if (opts.codex) {
+    const codex = await scaffoldCodexFiles({ cwd, runner: opts.runner, runnerPath: opts.runnerPath, updateHooks: opts.updateHooks });
+    result.createdFiles.push(...codex.created);
+    result.skippedFiles.push(...codex.skipped);
+    result.created += codex.created.length;
+    result.updated += codex.updated.length;
+    result.skipped += codex.skipped.length;
+    result.messages.push(...codex.messages);
+  }
+
   if (opts.ci === 'github') {
     const has = (f: string): boolean => existsSync(path.join(cwd, f));
     const workflowOpts = { install: installCommandFor(has), affected: has('.specguard/workspace.json') && /"kind":\s*"package"/.test(readFileSync(path.join(cwd, '.specguard/workspace.json'), 'utf8')), verify: true };
@@ -303,7 +315,7 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   }
 
   result.messages.unshift(
-    `specguard init (language: ${profile.id}, framework: ${framework}${opts.harness ? `, harness: ${opts.harness}` : ''})`,
+    `specguard init (language: ${profile.id}, framework: ${framework}${opts.harness ? `, harness: ${opts.harness}` : ''}${opts.codex ? ', codex' : ''})`,
   );
   result.exitCode = ExitCode.Success;
   return result;

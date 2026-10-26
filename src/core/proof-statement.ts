@@ -336,7 +336,14 @@ export interface CapabilityStatement {
     diffCoverage: number | null;
     mutationScore: number | null;
   };
-  evidence: { origins: Origin[]; shas: string[]; coverageRunId?: string; mutationTool?: string };
+  evidence: {
+    origins: Origin[];
+    shas: string[];
+    coverageRunId?: string;
+    mutationTool?: string;
+    /** Where the proof rows came from when a CI note is read: `ci note @abc1234 (2 commits back, unverified)`, `local (provisional)` or `mixed: 30 ci, 4 local`. Absent without a note. */
+    source?: string;
+  };
   /** One-line headline. */
   headline: string;
   /** Honest limits of the evidence used (for example mutation attribution); present only when there are any. */

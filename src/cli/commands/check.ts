@@ -23,6 +23,8 @@ export interface CheckCliOpts extends GlobalOpts {
   explain?: string;
   /** Judge the proof statement as if every `proof.require*` gate were on. */
   strict?: boolean;
+  /** `--no-notes` (commander sets `notes` to false): ignore the CI proof notes in git. */
+  notes?: boolean;
   out?: string;
   /** Show what the team's server knows next to this working tree's proofs. */
   team?: boolean;
@@ -43,7 +45,7 @@ export async function checkCommand(opts: CheckCliOpts): Promise<void> {
     if (opts.explain !== undefined || opts.strict) result.messages.push('The proof statement (--explain, --strict) needs functional capability specs.');
     outputResult(result, opts);
   }
-  const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since ?? opts.base, spec: opts.spec, explain: opts.explain, strict: opts.strict });
+  const result = await runCheck(config, { view, csv: opts.csv, out: opts.out, since: opts.since ?? opts.base, spec: opts.spec, explain: opts.explain, strict: opts.strict, ...(opts.notes === false ? { noNotes: true } : {}) });
   if (opts.team) result.messages.push(...(await teamLines(config)));
   outputResult(result, opts);
 }

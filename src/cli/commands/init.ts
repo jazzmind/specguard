@@ -24,6 +24,8 @@ export interface InitOpts {
   runnerPath?: string;
   updateHooks?: boolean;
   historyHooks?: boolean;
+  /** Write `.codex/hooks.json` and `.codex/rules/specguard.rules`. */
+  codex?: boolean;
   ci?: string;
   autoMerge?: boolean;
 }
@@ -58,6 +60,7 @@ export async function initCommand(opts: InitOpts): Promise<void> {
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
     historyHooks: opts.historyHooks,
+    codex: opts.codex,
     ci: checkCi(opts.ci),
     autoMerge: opts.autoMerge,
   });
@@ -96,6 +99,7 @@ export async function scaffoldCommand(opts: ScaffoldCmdOpts): Promise<void> {
     runnerPath: opts.runnerPath,
     updateHooks: opts.updateHooks,
     historyHooks: opts.historyHooks,
+    hookOnError: config.hooks?.onError,
   });
 
   process.stdout.write(`specguard scaffold (language: ${profile.id}, harness: ${opts.harness ?? 'both'})\n`);

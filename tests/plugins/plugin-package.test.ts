@@ -45,7 +45,7 @@ describe('the SpecGuard plugin for Claude Code and Codex [integration-surfaces]'
       expect(fm.name).toBe(name);
       expect(fm.description.length).toBeGreaterThan(40);
     }
-    expect(readdirSync(path.join(plugin, 'skills')).sort()).toEqual(['specguard', 'specguard-agent-work']);
+    expect(readdirSync(path.join(plugin, 'skills')).sort()).toEqual(['specguard', 'specguard-agent-work', 'specguard-change']);
     for (const file of readdirSync(path.join(plugin, 'commands'))) expect(frontmatter(path.join(plugin, 'commands', file)).description).toBeTruthy();
     expect(readdirSync(path.join(plugin, 'commands')).sort()).toEqual(['check.md', 'start.md']);
 
@@ -72,7 +72,7 @@ describe('the SpecGuard plugin for Claude Code and Codex [integration-surfaces]'
   // [claims: capabilities/integration-surfaces#plugin-distribution]
   it('prints a status at session start only in a project that uses SpecGuard, and never fails the session', () => {
     const hooks = json(path.join(plugin, 'hooks', 'hooks.json')).hooks;
-    expect(Object.keys(hooks)).toEqual(['SessionStart']);
+    expect(Object.keys(hooks).sort()).toEqual(['PreToolUse', 'SessionStart']);
     expect(hooks.SessionStart[0].hooks[0].command).toContain('${CLAUDE_PLUGIN_ROOT}');
     const script = path.join(plugin, 'scripts', 'session-status.sh');
     accessSync(script, constants.X_OK);
@@ -91,5 +91,22 @@ describe('the SpecGuard plugin for Claude Code and Codex [integration-surfaces]'
     const failing = spawnSync(script, { cwd: project, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', SPECGUARD_CLI: broken } });
     expect(failing.status).toBe(0);
     expect(existsSync(path.join(project, '.specguard', 'config.json'))).toBe(true);
+  });
+
+  // [claims: capabilities/integration-surfaces#plugin-guard-hooks]
+  it('guards edits and shell commands with the committed bundle, which needs no install step and is silent outside a SpecGuard project', () => {
+    const pre = json(path.join(plugin, 'hooks', 'hooks.json')).hooks.PreToolUse;
+    expect(pre).toHaveLength(1);
+    expect(pre[0].matcher).toBe('Edit|Write|MultiEdit|NotebookEdit|Bash');
+    expect(pre[0].hooks).toEqual([{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/dist/specguard-hook.mjs" pre-tool-use', timeout: 5 }]);
+    expect(pre[0].hooks[0].onFailure).toBeUndefined(); // fails open: a crashed or slow guard never blocks the agent
+    const bundle = path.join(plugin, 'hooks', 'dist', 'specguard-hook.mjs');
+    expect(existsSync(bundle)).toBe(true);
+
+    const bare = mkdtempSync(path.join(os.tmpdir(), 'sg-bare-guard-'));
+    const payload = JSON.stringify({ cwd: bare, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: path.join(bare, 'a.ts'), content: 'x' } });
+    const r = spawnSync(process.execPath, [bundle, 'pre-tool-use'], { input: payload, encoding: 'utf8', env: { PATH: process.env.PATH ?? '' } });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
   });
 });

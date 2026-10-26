@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      // The committed, bundled hook (built by scripts/build-hook-bundle.mjs; tests/hooks/bundle-fresh.test.ts keeps it current).
+      'plugins/specguard/hooks/dist/**',
       'extension/dist/**',
       'extension/node_modules/**',
       'extension/webview/**',

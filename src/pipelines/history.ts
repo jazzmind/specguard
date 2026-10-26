@@ -27,6 +27,7 @@ import { buildSpecGraph } from '../core/spec-graph.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
+import { currentBranch, linkPlanToOpenChanges, loadChanges } from './change-store.js';
 
 export interface HistoryAddOpts {
   prompt?: string;
@@ -290,8 +291,28 @@ export function planFromHook(input: Record<string, unknown>): string | undefined
 }
 
 /**
+ * Record a just-captured plan on the open changes it belongs to (the capabilities it affects, or every open change on
+ * this branch when it was recorded against the system as a whole), so the change can derive plan approvals from it.
+ * Best effort: the plan entry is already written, so a failure here is swallowed like every hook failure.
+ */
+async function linkOpenChanges(config: SpecGuardConfig, id: string): Promise<void> {
+  try {
+    const root = rootOf(config);
+    if (loadChanges(root).records.every((r) => r.closed)) return;
+    const entry = listHistory(config).find((e) => e.id === id);
+    if (!entry) return;
+    const graph = await buildSpecGraph(config);
+    const wholeSystem = entry.affects.length === 1 && graph.system?.id === entry.affects[0];
+    await linkPlanToOpenChanges(root, id, { affects: entry.affects, wholeSystem, branch: currentBranch(root) });
+  } catch {
+    /* linking never disturbs the session */
+  }
+}
+
+/**
  * PostToolUse hook on ExitPlanMode: write one committed entry holding the
- * approved plan and that session's prompts since the last capture.
+ * approved plan and that session's prompts since the last capture, and record
+ * it on the open changes it belongs to.
  * Returns the entry id, or undefined when there was nothing to capture.
  */
 export async function capturePlan(config: SpecGuardConfig, stdin: string): Promise<string | undefined> {
@@ -317,6 +338,7 @@ export async function capturePlan(config: SpecGuardConfig, stdin: string): Promi
     kind: prompts.length > 0 ? 'prompt+plan' : 'plan',
     source: 'claude-code',
   });
+  await linkOpenChanges(config, id);
   captured[session] = prompts.length > 0 ? Math.max(...prompts.map((p) => p.ts)) : Date.now();
   await writeFile(path.join(root, CAPTURED), JSON.stringify(captured, null, 2) + '\n');
   return id;

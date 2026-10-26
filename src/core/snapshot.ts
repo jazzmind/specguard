@@ -67,6 +67,8 @@ export const SnapshotSchema = z
     trace: TraceSchema,
     /** Proof rows by claim ref. */
     ledger: z.record(z.string(), ProofRowSchema),
+    /** Where the proof rows came from: the local cache, a CI proof note, or both. Absent on older snapshots. */
+    proofSource: z.looseObject({ kind: z.enum(['note', 'local', 'mixed']), noteCommit: z.string().optional(), verified: z.string().optional() }).optional(),
     /** Newest remediation plan, when there is one. */
     plans: z.array(RemediationPlanSchema),
     contracts: z.looseObject({ nodes: z.array(z.looseObject({})), edges: z.array(z.looseObject({})) }).optional(),

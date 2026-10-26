@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The plugin's self-contained hook bundle is committed (no install step); `npm run build:hook` rebuilds it.
+!plugins/specguard/hooks/dist/
 .tmp/
 *.log
 .env

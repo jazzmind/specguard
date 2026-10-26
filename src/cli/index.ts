@@ -165,9 +165,10 @@ program
   .option('--runner-path <file>', 'specguard CLI entry for --runner path')
   .option('--update-hooks', 'apply a differing existing MCP entry/hook instead of printing its diff')
   .option('--history-hooks', 'record prompts and approved plans as requirement history (hooks go in .claude/settings.local.json)')
+  .option('--codex', "write the repo's Codex wiring: .codex/hooks.json (the edit guard) and .codex/rules/specguard.rules (forbids approving requirements from a shell)")
   .option('--ci <provider>', 'also write CI workflows: github = a pull request gate that comments its results, and scheduled remediation')
   .option('--auto-merge', 'with --ci: let remediation auto-merge dependency fixes that keep every proof (needs a protected branch)')
-  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean; ci?: string; autoMerge?: boolean }) => {
+  .action(async (opts: { withPlaywright?: boolean; language?: string; harness?: string; single?: boolean; runner?: string; runnerPath?: string; updateHooks?: boolean; historyHooks?: boolean; codex?: boolean; ci?: string; autoMerge?: boolean }) => {
     await initCommand({
       withPlaywright: opts.withPlaywright,
       language: opts.language,
@@ -177,6 +178,7 @@ program
       runnerPath: opts.runnerPath,
       updateHooks: opts.updateHooks,
       historyHooks: opts.historyHooks,
+      codex: opts.codex,
       ci: opts.ci,
       autoMerge: opts.autoMerge,
     });
@@ -576,6 +578,7 @@ program
   .option('--base <ref>', 'alias of --since')
   .option('--explain <capability>', 'the proof statement of one capability: each pillar, the blocking reasons with the command that fixes each, and the advisory ones')
   .option('--strict', 'judge the proof statement as if every proof.require* gate were on (approval, testability, strength, sensitivity, conformance, alignment, CI evidence)')
+  .option('--no-notes', 'read the local proof cache alone: ignore the CI proof notes in git')
   .option('--align', 'map spec scenarios and claims to test assertions with the LLM')
   .option('--spec <id>', 'restrict to one capability')
   .option('--team', 'also show what the team server has proven (CI), set against this working tree')

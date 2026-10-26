@@ -25,6 +25,7 @@ import { cliVersion } from '../core/version.js';
 import { writeFile } from '../core/writer.js';
 import { loadTrace } from './check.js';
 import { ledgerPath } from './proof.js';
+import { loadEffectiveLedger, proofSourceKind, readOnlyStore } from './proof-sources.js';
 import { readPlan } from './security-plan.js';
 
 export const DEFAULT_SNAPSHOT_FILE = '.specguard/publish/snapshot.json';
@@ -68,8 +69,11 @@ export async function buildSnapshot(config: SpecGuardConfig, opts: PublishOpts =
   const files: Record<string, string> = {};
   for (const file of markdownUnder(specsDir)) files[posix(root, file)] = redact.text(fs.readFileSync(file, 'utf8'));
 
-  const { model } = await loadTrace(config);
-  const ledger = await fileLedgerStore(ledgerPath(root, config.paths?.proofLedger)).read();
+  // With a CI proof note the snapshot carries the effective ledger (note rows plus local ones); without one, the local file as before.
+  const effective = await loadEffectiveLedger(config).catch(() => undefined);
+  const store = effective?.note ? readOnlyStore(effective) : undefined;
+  const { model } = await loadTrace(config, store ? { store } : {});
+  const ledger = effective?.note ? effective.ledger : await fileLedgerStore(ledgerPath(root, config.paths?.proofLedger)).read();
   const plan = readPlan(config, 'latest');
   const contracts = await loadContractGraph(root).catch(() => null);
 
@@ -88,6 +92,7 @@ export async function buildSnapshot(config: SpecGuardConfig, opts: PublishOpts =
     files,
     trace: model as unknown as Snapshot['trace'],
     ledger: ledger.proofs as unknown as Snapshot['ledger'],
+    ...(effective?.note ? { proofSource: { kind: proofSourceKind(effective), noteCommit: effective.note.commit, verified: effective.note.verified } } : { proofSource: { kind: 'local' as const } }),
     plans: plan ? [plan as Snapshot['plans'][number]] : [],
     ...(contracts ? { contracts: contracts as unknown as Snapshot['contracts'] } : {}),
   };

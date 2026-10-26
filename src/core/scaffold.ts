@@ -9,6 +9,7 @@
  * carry a `<!-- specguard-managed: true -->` marker and are only overwritten
  * when present; CLAUDE.md is updated via sentinels; JSON configs are deep-merged.
  */
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import type { LanguageProfile } from './language-profiles.js';
@@ -16,6 +17,7 @@ import { readFile, fileExists } from './reader.js';
 import { writeFile } from './writer.js';
 import { applyTargetSections } from './sentinels.js';
 import { NPX_CLI, NPX_RUNNER, resolveRunner, type ResolvedRunner, type RunnerChoice } from './runner.js';
+import { cliVersion } from './version.js';
 
 export type Harness = 'claude' | 'cursor' | 'both';
 
@@ -30,6 +32,8 @@ export interface ScaffoldOpts {
   updateHooks?: boolean;
   /** Also wire the requirement-history hooks into `.claude/settings.local.json` (personal, not committed). */
   historyHooks?: boolean;
+  /** `hooks.onError` of the project: with `deny`, the scaffolded guard hook also sets `onFailure: "block"` so a crashed or timed-out guard blocks. */
+  hookOnError?: 'allow' | 'deny';
 }
 
 export interface ScaffoldResult {
@@ -239,6 +243,10 @@ export interface WireContext {
   update: boolean;
   /** Receives a diff for every existing entry left alone. */
   notes: string[];
+  /** The command the agent edit guard runs; default `<runner.cli> hook pre-tool-use`. */
+  guardCommand?: string;
+  /** Scaffold the guard with `onFailure: "block"` (`hooks.onError: "deny"`). */
+  guardFailClosed?: boolean;
 }
 
 interface HookSpec {
@@ -248,6 +256,10 @@ interface HookSpec {
   /** Substring that identifies our entry among the user's own hooks. */
   marker: string;
   command: string;
+  /** Seconds the host waits for the command. */
+  timeout?: number;
+  /** Claude Code: `block` makes a hook that crashes or times out block the tool call (fail closed). */
+  onFailure?: 'block';
 }
 
 /**
@@ -273,7 +285,10 @@ function ensureHook(hooks: JsonObject, spec: HookSpec, where: string, ctx: WireC
     }
   }
   if (!found) {
-    list.push({ ...(spec.matcher ? { matcher: spec.matcher } : {}), hooks: [{ type: 'command', command: spec.command }] });
+    list.push({
+      ...(spec.matcher ? { matcher: spec.matcher } : {}),
+      hooks: [{ type: 'command', command: spec.command, ...(spec.timeout ? { timeout: spec.timeout } : {}), ...(spec.onFailure ? { onFailure: spec.onFailure } : {}) }],
+    });
   }
   hooks[spec.event] = list;
 }
@@ -297,6 +312,67 @@ export function mergeHistoryHooks(existing: JsonObject, ctx: WireContext = defau
   for (const spec of historyHookSpecs(ctx.runner)) ensureHook(hooks, spec, '.claude/settings.local.json', ctx);
   next.hooks = hooks;
   return next;
+}
+
+/** Edit tools and Bash: what the guard looks at. */
+const CLAUDE_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit|Bash';
+const CODEX_GUARD_MATCHER = '^(apply_patch|Edit|Write|Bash)$';
+
+/** Minor version the npx fallback pins (`0.4` for 0.4.x): the guard and the CLI that wrote the project agree. */
+const pinnedMinor = (): string => cliVersion().split('.').slice(0, 2).join('.');
+
+/**
+ * The command that runs the agent edit guard. A local install ships the self-contained bundle (fast, no CLI start-up);
+ * otherwise the resolved runner runs `hook pre-tool-use`, and npx is the last resort.
+ */
+export function guardHookCommand(cwd: string, runner: ResolvedRunner, agent: 'claude' | 'codex'): string {
+  const bundle = 'node_modules/specguard-ai/dist/hooks/specguard-hook.mjs';
+  const flag = agent === 'codex' ? ' --agent codex' : '';
+  if (existsSync(path.join(cwd, bundle))) {
+    return agent === 'claude' ? `node "$CLAUDE_PROJECT_DIR"/${bundle} pre-tool-use` : `node ${bundle} pre-tool-use${flag}`;
+  }
+  if (runner.source === 'npx') return `npx -y -p specguard-ai@${pinnedMinor()} specguard hook pre-tool-use${flag}`;
+  return `${runner.cli} hook pre-tool-use${flag}`;
+}
+
+/** The agent edit guard as a hook (PreToolUse), shared by the Claude settings and the Codex hooks file. */
+export function guardHookSpecs(command: string, agent: 'claude' | 'codex', failClosed = false): HookSpec[] {
+  return [
+    {
+      event: 'PreToolUse',
+      matcher: agent === 'codex' ? CODEX_GUARD_MATCHER : CLAUDE_GUARD_MATCHER,
+      marker: 'pre-tool-use',
+      command,
+      timeout: agent === 'codex' ? 10 : 5,
+      ...(failClosed && agent === 'claude' ? { onFailure: 'block' as const } : {}),
+    },
+  ];
+}
+
+/** Merge the edit guard into a Codex `hooks.json` (`.codex/hooks.json`). */
+export function mergeCodexHooks(existing: JsonObject, ctx: WireContext, command: string): JsonObject {
+  const next: JsonObject = { ...existing };
+  const hooks = { ...(next.hooks as JsonObject | undefined) };
+  for (const spec of guardHookSpecs(command, 'codex')) ensureHook(hooks, spec, '.codex/hooks.json', ctx);
+  next.hooks = hooks;
+  return next;
+}
+
+/** Marker of a `.codex/rules/*.rules` file SpecGuard owns (Starlark comment). */
+export const CODEX_RULES_MARKER = '# specguard-managed: true';
+
+/** Codex execpolicy rules: a shell command that approves requirements is forbidden to the agent. */
+export function buildCodexRules(): string {
+  const justification = "Approving requirements is a person's decision. Ask them to run it in their own terminal.";
+  const rule = (pattern: string[]): string => `prefix_rule(pattern=[${pattern.map((p) => JSON.stringify(p)).join(', ')}], decision="forbidden", justification=${JSON.stringify(justification)})`;
+  return [
+    CODEX_RULES_MARKER,
+    '# Written by `specguard init --codex`. Edit freely: remove the marker line above to keep your edits on regeneration.',
+    rule(['specguard', 'spec', 'approve']),
+    rule(['npx', '-p', 'specguard-ai', 'specguard', 'spec', 'approve']),
+    rule(['npx', '-y', '-p', 'specguard-ai', 'specguard', 'spec', 'approve']),
+    '',
+  ].join('\n');
 }
 
 function defaultWire(): WireContext {
@@ -403,6 +479,10 @@ export function mergeClaudeSettings(existing: JsonObject, ctx: WireContext = def
     });
   }
   hooks.PostToolUse = postToolUse;
+
+  // The agent edit guard: a PreToolUse hook that is silent and allows outside a SpecGuard project and fails open.
+  const guard = ctx.guardCommand ?? `${ctx.runner.cli} hook pre-tool-use`;
+  for (const spec of guardHookSpecs(guard, 'claude', ctx.guardFailClosed)) ensureHook(hooks, spec, '.claude/settings.json', ctx);
   next.hooks = hooks;
 
   return next;
@@ -469,11 +549,12 @@ async function writeManaged(
   content: string,
   result: ScaffoldResult,
   cwd: string,
+  marker: string = MANAGED_MARKER,
 ): Promise<void> {
   const rel = path.relative(cwd, absPath);
   if (await fileExists(absPath)) {
     const current = await readFile(absPath);
-    if (!current.includes(MANAGED_MARKER)) {
+    if (!current.includes(marker)) {
       result.skipped.push(absPath);
       result.messages.push(`  skipped  ${rel} (user-authored, no managed marker)`);
       return;
@@ -557,7 +638,13 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
     result.messages.push(`  [warn] ${err instanceof Error ? err.message : String(err)}; using the npx fallback`);
     runner = NPX_RUNNER;
   }
-  const wire: WireContext = { runner, update: opts.updateHooks === true, notes: [] };
+  const wire: WireContext = {
+    runner,
+    update: opts.updateHooks === true,
+    notes: [],
+    guardCommand: guardHookCommand(cwd, runner, 'claude'),
+    guardFailClosed: opts.hookOnError === 'deny',
+  };
   result.messages.push(`  runner   ${runner.comment}`);
 
   const wantClaude = harness === 'claude' || harness === 'both';
@@ -626,5 +713,30 @@ export async function scaffoldHarnessFiles(opts: ScaffoldOpts): Promise<Scaffold
   }
 
   result.messages.push(...wire.notes);
+  return result;
+}
+
+/**
+ * `specguard init --codex`: the repository's Codex wiring. `.codex/hooks.json` carries the edit guard (Codex runs it once
+ * the project and its hooks are trusted, `/hooks`) and `.codex/rules/specguard.rules` forbids the agent to approve
+ * requirements from a shell. The Codex plugin itself stays hook-free so it remains listable. Merges, never overwrites a
+ * user's file.
+ */
+export async function scaffoldCodexFiles(opts: { cwd: string; runner?: RunnerChoice['runner']; runnerPath?: string; updateHooks?: boolean }): Promise<ScaffoldResult> {
+  const { cwd } = opts;
+  const result: ScaffoldResult = { created: [], updated: [], skipped: [], messages: [] };
+  let runner: ResolvedRunner;
+  try {
+    runner = resolveRunner(cwd, { runner: opts.runner, runnerPath: opts.runnerPath });
+  } catch (err) {
+    result.messages.push(`  [warn] ${err instanceof Error ? err.message : String(err)}; using the npx fallback`);
+    runner = NPX_RUNNER;
+  }
+  const wire: WireContext = { runner, update: opts.updateHooks === true, notes: [] };
+  const command = guardHookCommand(cwd, runner, 'codex');
+  await mergeJsonFile(path.join(cwd, '.codex', 'hooks.json'), (existing) => mergeCodexHooks(existing, wire, command), result, cwd);
+  await writeManaged(path.join(cwd, '.codex', 'rules', 'specguard.rules'), buildCodexRules(), result, cwd, CODEX_RULES_MARKER);
+  result.messages.push(...wire.notes);
+  result.messages.push('  note     Codex runs project hooks only after you trust them: open /hooks in Codex and trust this project\'s SpecGuard hook');
   return result;
 }

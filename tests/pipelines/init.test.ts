@@ -23,10 +23,12 @@ describe('generated state ignore', () => {
   });
 
   // [claims: capabilities/integration-surfaces#init-bootstrap]
-  it('never ignores config, rules, plans, or the proof ledger', () => {
-    for (const keep of ['.specguard/config.json', '.specguard/plans/', '.specguard/rules/', '.specguard/proofs.json', '.specguard/replay/']) {
+  it('never ignores config, rules, plans or replay recordings, and ignores the local proof cache and the trace', () => {
+    for (const keep of ['.specguard/config.json', '.specguard/plans/', '.specguard/rules/', '.specguard/replay/']) {
       expect(GENERATED_STATE_PATHS).not.toContain(keep);
     }
+    expect(GENERATED_STATE_PATHS).toContain('.specguard/proofs.json');
+    expect(GENERATED_STATE_PATHS).toContain('.specguard/trace.json');
   });
 
   // [claims: capabilities/integration-surfaces#init-bootstrap]
