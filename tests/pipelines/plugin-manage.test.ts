@@ -150,6 +150,6 @@ describe('plugin surfaces [plugin-surfaces]', () => {
   it('keeps plugin_list out of the default MCP tool set, which is capped, and registers it with the extra tools', async () => {
     const { CORE_TOOLS } = await import('../../src/mcp/server.js');
     expect(CORE_TOOLS.has('specguard_plugin_list')).toBe(false);
-    expect(CORE_TOOLS.size).toBeLessThanOrEqual(17); // 16 plus specguard_agent_work; the verify/security/contracts/workspace tools move to plugins
+    expect(CORE_TOOLS.size).toBeLessThanOrEqual(23); // 16 core + agent_work + 5 change tools + proof_fetch; the verify/security/contracts/workspace tools move to plugins
   });
 });

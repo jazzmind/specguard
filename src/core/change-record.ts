@@ -9,7 +9,7 @@
  */
 import { z } from 'zod/v4';
 
-import type { Approval } from './approvals.js';
+import { shortHash, type Approval } from './approvals.js';
 import type { ChangedClaim } from './change-claims.js';
 import type { HistoryEntry } from './history.js';
 
@@ -74,25 +74,93 @@ export const ChangeRecordSchema: z.ZodType<ChangeRecord> = z.looseObject({
     .optional(),
 });
 
-/** `YYYYMMDD-<slug>-<4 hex>` from a date, the text the slug is made from, and a source of 4 hex characters. */
-export function newChangeId(_date: Date, _slugSource: string, _random: () => string): string {
-  throw new Error('not implemented: newChangeId');
+const SLUG_MAX = 40;
+
+/** Lower-case words joined by hyphens, at most {@link SLUG_MAX} characters, never empty. */
+function slugOf(text: string): string {
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, SLUG_MAX)
+    .replace(/-+$/g, '');
+  return slug || 'change';
 }
 
-export function parseChangeRecord(_text: string, _file: string): { ok: true; record: ChangeRecord } | { ok: false; error: string } {
-  throw new Error('not implemented: parseChangeRecord');
+/**
+ * `YYYYMMDD-<slug>-<4 hex>` from a date (UTC), the text the slug is made from, and a source of 4 hex characters.
+ * Throws when the date is invalid or `random()` does not give 4 hex characters: an id is a file name, so it is never
+ * repaired silently.
+ */
+export function newChangeId(date: Date, slugSource: string, random: () => string): string {
+  if (Number.isNaN(date.getTime())) throw new Error('newChangeId: invalid date');
+  const suffix = random().toLowerCase();
+  if (!/^[0-9a-f]{4}$/.test(suffix)) throw new Error(`newChangeId: random() must give 4 hex characters, got "${suffix}"`);
+  const day = date.toISOString().slice(0, 10).replace(/-/g, '');
+  return `${day}-${slugOf(slugSource)}-${suffix}`;
+}
+
+export function parseChangeRecord(text: string, file: string): { ok: true; record: ChangeRecord } | { ok: false; error: string } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    return { ok: false, error: `${file}: not valid JSON (${(err as Error).message})` };
+  }
+  const parsed = ChangeRecordSchema.safeParse(raw);
+  if (!parsed.success) {
+    const detail = parsed.error.issues.map((i) => `${i.path.join('.') || '(record)'}: ${i.message}`).join('; ');
+    return { ok: false, error: `${file}: not a change record (${detail})` };
+  }
+  return { ok: true, record: parsed.data };
+}
+
+/** Known keys, in the order a person reads them. Anything else a newer SpecGuard added follows, sorted. */
+const RECORD_KEYS = ['version', 'id', 'kind', 'capabilities', 'why', 'createdAt', 'createdBy', 'baseRef', 'startSha', 'branch', 'plans', 'convertedFrom', 'closed'];
+const CONVERTED_KEYS = ['kind', 'at', 'by'];
+const CLOSED_KEYS = ['at', 'by', 'reason', 'note', 'validatedAt'];
+
+/** Plain-data copy with every object's keys sorted, `undefined` dropped. */
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === 'object') return ordered(value as Record<string, unknown>, []);
+  return value;
+}
+
+function ordered(obj: Record<string, unknown>, first: string[], nested: Record<string, string[]> = {}): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const put = (key: string): void => {
+    const v = obj[key];
+    if (v === undefined) return;
+    out[key] = nested[key] && v && typeof v === 'object' && !Array.isArray(v) ? ordered(v as Record<string, unknown>, nested[key]) : sortDeep(v);
+  };
+  for (const key of first) put(key);
+  for (const key of Object.keys(obj).filter((k) => !first.includes(k)).sort()) put(key);
+  return out;
 }
 
 /** Stable key order, 2-space JSON, trailing newline. Same input, same bytes. */
-export function serializeChangeRecord(_r: ChangeRecord): string {
-  throw new Error('not implemented: serializeChangeRecord');
+export function serializeChangeRecord(r: ChangeRecord): string {
+  const body = ordered(r as unknown as Record<string, unknown>, RECORD_KEYS, { convertedFrom: CONVERTED_KEYS, closed: CLOSED_KEYS });
+  return `${JSON.stringify(body, null, 2)}\n`;
 }
 
 /**
  * Plan-derived approvals (computed, never written): for a change whose `plans` are non-empty, every changed
  * non-removed ref of its capabilities gets `{ method: 'plan', by: plan.author, entry: plan.id }`. `plans` are the linked
  * history entries, already limited by the caller to those dated on or after the base commit.
+ *
+ * With several plans the newest speaks for every ref (later date, then later id), so each ref gets one approval. A
+ * ref with no current hash cannot be approved at a hash and is skipped.
  */
-export function derivePlanApprovals(_record: ChangeRecord, _plans: HistoryEntry[], _changed: ChangedClaim[]): Approval[] {
-  throw new Error('not implemented: derivePlanApprovals');
+export function derivePlanApprovals(record: ChangeRecord, plans: HistoryEntry[], changed: ChangedClaim[]): Approval[] {
+  if (record.plans.length === 0 || plans.length === 0) return [];
+  const plan = [...plans].sort((a, b) => (a.date === b.date ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.date < b.date ? -1 : 1)).at(-1)!;
+  const caps = new Set(record.capabilities);
+  const out: Approval[] = [];
+  for (const c of changed) {
+    if (c.change === 'removed' || !c.hash || !caps.has(c.capability)) continue;
+    out.push({ claim: c.ref, hash: shortHash(c.hash), method: 'plan', by: plan.author ?? 'unknown', date: plan.date, entry: plan.id });
+  }
+  return out;
 }

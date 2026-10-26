@@ -47,6 +47,7 @@ Intent approval adds the missing human step. A person approves a requirement at 
 - [ ] `spec approvals` reports, per capability, how many claims are approved out of how many, and lists the unapproved claim refs; `--json` prints the same data as JSON <!-- claim: approvals-report -->
 - [ ] An approval may name an example row (`specKey#claimId/rowId@<first 16 hex of the row hash>`): a claim and each of its rows are approved separately, so approving a claim never approves its rows and the other way round, `spec approve cap#claim` approves the claim and all its current rows in one entry, `cap#claim/row` approves only that row, and a claim without an examples table has no row entries <!-- claim: approval-rows -->
 - [ ] The approval index offers `latest(ref)`, the newest approval of a ref at any hash, so a claim approved earlier and changed since can be told apart from one never approved <!-- claim: approval-latest -->
+- [ ] `history add` never writes an approval: it refuses `--kind approval` and any approves list with a message pointing to `spec approve`, so the only way to record an approval is the person-run command and its guards <!-- claim: no-approval-via-history-add -->
 
 ## Scenarios
 ### Scenario 1: Approve a capability

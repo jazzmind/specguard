@@ -8,8 +8,9 @@
  */
 import { claimHashOf } from './claim-hash.js';
 import type { ChangedFile } from './diff-lines.js';
+import { defaultEnforce, effectiveEnforce, enforceRank } from './enforce.js';
 import { requiredLayersFor, type TestLayer } from './test-layers.js';
-import { ASSURANCE_LEVELS, type ParsedSpec } from './types.js';
+import { ASSURANCE_LEVELS, type EnforceLevel, type ParsedSpec } from './types.js';
 
 export type WeakeningKind =
   | 'test-removed' | 'tag-removed' | 'skip-added' | 'conditional-added' | 'focus-added'
@@ -39,12 +40,35 @@ const CONFIG_FILE = '.specguard/config.json';
 /**
  * Policy relaxed between two versions of one capability spec. Each finding is an intent change that no
  * claim hash covers: a required layer dropped, assurance lowered, evidence moved to a human or an agent,
- * or an example row deleted while the claim text stayed the same. New and deleted specs are not judged.
+ * the `enforce:` level lowered or removed, or an example row deleted while the claim text stayed the same.
+ * New and deleted specs are not judged. `enforceDefault` is the config's `enforce.default`: a removed
+ * `enforce:` falls back to it, so removing the line is a lowering only when it drops below that level.
  */
-export function diffSpecPolicy(before: ParsedSpec | undefined, after: ParsedSpec | undefined, projectLayers: TestLayer[]): WeakeningFinding[] {
+export function diffSpecPolicy(
+  before: ParsedSpec | undefined,
+  after: ParsedSpec | undefined,
+  projectLayers: TestLayer[],
+  enforceDefault?: EnforceLevel,
+): WeakeningFinding[] {
   if (!before || !after) return [];
   const findings: WeakeningFinding[] = [];
   const file = after.filePath;
+
+  const cfg = { default: defaultEnforce({ default: enforceDefault }) };
+  const enforceBefore = effectiveEnforce(before.meta, cfg);
+  const enforceAfter = effectiveEnforce(after.meta, cfg);
+  if (enforceRank(enforceAfter) < enforceRank(enforceBefore)) {
+    const removed = before.meta.enforce !== undefined && after.meta.enforce === undefined;
+    findings.push({
+      kind: 'policy-enforce-lowered',
+      severity: 'error',
+      file,
+      claims: after.claims.filter((c) => c.id).map((c) => `${after.specKey}#${c.id}`),
+      before: enforceBefore,
+      after: enforceAfter,
+      message: `${after.specKey}: enforce level was ${removed ? 'removed' : 'lowered'} from ${enforceBefore} to ${enforceAfter}, so less is blocked when this capability changes`,
+    });
+  }
   const afterById = new Map(after.claims.filter((c) => c.id).map((c) => [c.id!, c]));
   for (const claim of before.claims) {
     const id = claim.id;

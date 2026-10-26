@@ -20,9 +20,11 @@ import { SpecFrontmatterError } from './errors.js';
 import { parseExampleTables } from './examples.js';
 import {
   ASSURANCE_LEVELS,
+  ENFORCE_LEVELS,
   SPEC_KINDS,
   type Assurance,
   type AssuranceRequirements,
+  type EnforceLevel,
   type EvidenceDeclaration,
   type ParsedSpec,
   type SpecKind,
@@ -180,6 +182,12 @@ export function parseFrontmatter(content: string, file = '(spec)'): { meta: Spec
       meta.assurance = parseAssurance(value);
     } else if (key === 'evidence') {
       meta.evidence = parseEvidence(value, file);
+    } else if (key === 'enforce') {
+      // A value off the ladder is kept in `extra` (never thrown), so a typo does not make the spec unreadable;
+      // the capability then takes the configured default level.
+      const level = typeof value === 'string' ? value.trim() : undefined;
+      if (level !== undefined && (ENFORCE_LEVELS as readonly string[]).includes(level)) meta.enforce = level as EnforceLevel;
+      else meta.extra.enforce = typeof value === 'object' ? JSON.stringify(value) : String(value);
     } else if (key === 'kind') {
       if (typeof value !== 'string' || !(SPEC_KINDS as readonly string[]).includes(value)) {
         throw new SpecFrontmatterError(file, `'kind' must be one of ${SPEC_KINDS.join(', ')}`);

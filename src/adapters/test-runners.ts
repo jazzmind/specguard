@@ -45,7 +45,22 @@ export interface TestRunOpts {
   keepReport?: boolean;
   /** Credentials from `WITHHELD_ENV` (and the configured model key) the test command may see: the app's `test.passEnv`. */
   passEnv?: string[];
+  /** Run only the tests with these titles, when the adapter can select by title (see `titleFlags`). Combined with `selection`. */
+  titles?: string[];
+  /** What the adapter needs besides titles (the file and method of a Java test); see {@link TitleContext}. */
+  titleTests?: TitleTarget[];
+  /** Extra arguments for the command, such as a coverage run's flags. Never quoted: they are the project's own configuration. */
+  extraFlags?: string;
 }
+
+/**
+ * How far a run was narrowed.
+ * - `tests`: the runner was told which tests to run, by title.
+ * - `files`: only files (or packages) were selected, because the runner cannot select by title or a title could not be
+ *   expressed safely; the run holds other tests of those files too.
+ * - `suite`: no selection at all.
+ */
+export type RunSelection = 'tests' | 'files' | 'suite';
 
 export interface TestRunReport {
   tests: TestCaseResult[];
@@ -60,10 +75,13 @@ export interface TestRunReport {
   reportFiles: string[];
   /** The command that ran. */
   command: string;
+  /** How far the run was narrowed. */
+  selection: RunSelection;
 }
 
 interface PreparedRun {
   command: string;
+  selection: RunSelection;
   env: Record<string, string>;
   /** The generated report file, when the adapter injected flags. */
   file?: string;
@@ -78,7 +96,30 @@ export interface TestRunnerAdapter {
   reporterFlags(file: string): { flags: string; env?: Record<string, string>; redirectStdout?: boolean };
   /** Flags that restrict the run to files or packages. */
   selectionFlags(selection: string[]): string;
+  /**
+   * Flags that restrict the run to the tests with exactly these titles, quoted for the shell, or `undefined` when this
+   * runner cannot do it safely: no title support, a title the runner cannot express (a name that is not an identifier),
+   * a list longer than a command line allows, or an argument the shell cannot be given. Callers treat `undefined` as
+   * unknown and fall back to files, never as a pass.
+   */
+  titleFlags(titles: string[], ctx?: TitleContext): string | undefined;
   parse(text: string): TestCaseResult[];
+}
+
+/** One test as the adapters that select by class and method need it. */
+export interface TitleTarget {
+  /** Root-relative or absolute path of the test file. */
+  file: string;
+  title: string;
+  /** Java and Kotlin: the method name, which differs from `title` under `@DisplayName`. */
+  method?: string;
+}
+
+/** What `titleFlags` may need besides the titles. */
+export interface TitleContext {
+  tests?: TitleTarget[];
+  /** The configured test command, to tell Gradle from Maven. */
+  command?: string;
 }
 
 /**
@@ -100,6 +141,84 @@ const q = (value: string): string => quoteArg(value);
 
 const fileArgs = (selection: string[]) => selection.map(q).join(' ');
 
+/** The longest title flag SpecGuard will build: cmd.exe stops at 8191 characters, Linux at 128 KiB per argument. */
+export function maxTitleFlagLength(platform: NodeJS.Platform = process.platform): number {
+  return platform === 'win32' ? 6000 : 100_000;
+}
+
+/** Escape text for a regular expression (JavaScript, and Go's RE2, which accept the same punctuation escapes). */
+export function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+function uniqueTitles(titles: string[]): string[] {
+  return [...new Set(titles.filter((t) => t.length > 0))];
+}
+
+/** Quote every argument for the shell, or `undefined` when one cannot be quoted or the whole is too long. */
+function titleFlag(parts: string[]): string | undefined {
+  try {
+    const flags = parts.map(q).join(' ');
+    return flags.length > maxTitleFlagLength() ? undefined : flags;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `-t`/`--grep` pattern: each title is matched at the end of the full name, which a runner builds from the describe
+ * blocks and the title joined by spaces, and starts at the name or after a space. A title that is the tail of another
+ * (`works` and `never works`) can select an extra test; callers judge the result rows by file and title, so extras are ignored.
+ */
+function fullNamePattern(titles: string[]): string | undefined {
+  const unique = uniqueTitles(titles);
+  if (unique.length === 0) return undefined;
+  return `(?:^|\\s)(?:${unique.map(escapeRegex).join('|')})$`;
+}
+
+const jsTitleFlags = (flag: string) => (titles: string[]): string | undefined => {
+  const pattern = fullNamePattern(titles);
+  return pattern === undefined ? undefined : titleFlag([flag, pattern]);
+};
+
+const PY_IDENT = /^[\p{L}_][\p{L}\p{N}_]*$/u;
+const PY_KEYWORDS = new Set(['and', 'or', 'not']);
+const GO_TEST_NAME = /^Test[\p{L}\p{N}_]*$/u;
+const RUST_PATH = /^[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*$/;
+const JAVA_IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+/** `className` of a Java or Kotlin file, fully qualified when it sits under `src/<set>/java|kotlin/`. */
+function javaClass(file: string, qualified: boolean): string | undefined {
+  const posix = file.split('\\').join('/');
+  const base = posix.replace(/\.(?:java|kt)$/, '');
+  if (base === posix) return undefined;
+  const name = base.slice(base.lastIndexOf('/') + 1);
+  if (!JAVA_IDENT.test(name)) return undefined;
+  if (!qualified) return name;
+  const root = /(?:^|\/)src\/[^/]+\/(?:java|kotlin)\/(.+)$/.exec(base);
+  const full = root ? root[1].split('/').join('.') : undefined;
+  return full && full.split('.').every((part) => JAVA_IDENT.test(part)) ? full : `*${name}`;
+}
+
+/** Group `titles` by class for JUnit selection; undefined when a title has no known file or method. */
+function javaMethods(titles: string[], ctx: TitleContext | undefined, qualified: boolean): Map<string, string[]> | undefined {
+  const unique = uniqueTitles(titles);
+  if (unique.length === 0 || !ctx?.tests) return undefined;
+  const byClass = new Map<string, string[]>();
+  for (const title of unique) {
+    const targets = ctx.tests.filter((t) => t.title === title);
+    if (targets.length === 0) return undefined;
+    for (const target of targets) {
+      const cls = javaClass(target.file, qualified);
+      if (!cls || !target.method || !JAVA_IDENT.test(target.method)) return undefined;
+      const methods = byClass.get(cls) ?? [];
+      if (!methods.includes(target.method)) methods.push(target.method);
+      byClass.set(cls, methods);
+    }
+  }
+  return byClass;
+}
+
 export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
   vitest: {
     id: 'vitest',
@@ -107,6 +226,7 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     extension: 'json',
     reporterFlags: (file) => ({ flags: `--reporter=json --outputFile=${q(file)}` }),
     selectionFlags: fileArgs,
+    titleFlags: jsTitleFlags('-t'),
     parse: (text) => parseVitestResults(text, 'vitest'),
   },
   jest: {
@@ -115,6 +235,7 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     extension: 'json',
     reporterFlags: (file) => ({ flags: `--json --outputFile=${q(file)}` }),
     selectionFlags: fileArgs,
+    titleFlags: jsTitleFlags('-t'),
     parse: (text) => parseVitestResults(text, 'jest'),
   },
   playwright: {
@@ -123,6 +244,7 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     extension: 'json',
     reporterFlags: (file) => ({ flags: '--reporter=json', env: { PLAYWRIGHT_JSON_OUTPUT_NAME: file } }),
     selectionFlags: fileArgs,
+    titleFlags: jsTitleFlags('--grep'),
     parse: parsePlaywrightResults,
   },
   pytest: {
@@ -131,6 +253,12 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     extension: 'xml',
     reporterFlags: (file) => ({ flags: `--junitxml=${q(file)}` }),
     selectionFlags: fileArgs,
+    // `-k` matches names by substring, so `test_a` can also select `test_ab`: callers judge rows by file and title.
+    titleFlags: (titles) => {
+      const unique = uniqueTitles(titles);
+      if (unique.length === 0 || !unique.every((t) => PY_IDENT.test(t) && !PY_KEYWORDS.has(t))) return undefined;
+      return titleFlag(['-k', unique.join(' or ')]);
+    },
     parse: parseJunitResults,
   },
   junit: {
@@ -141,6 +269,19 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     // configure `resultsFile` (a glob such as target/surefire-reports/TEST-*.xml).
     reporterFlags: () => ({ flags: '' }),
     selectionFlags: () => '',
+    // Maven (`-Dtest=Class#m1+m2`) or, when the command says gradle, `--tests`. Both need the class and method of each test.
+    titleFlags: (titles, ctx) => {
+      const gradle = /\bgradlew?\b/i.test(ctx?.command ?? '');
+      const byClass = javaMethods(titles, ctx, gradle);
+      if (!byClass) return undefined;
+      if (gradle) {
+        const parts: string[] = [];
+        for (const [cls, methods] of byClass) for (const method of methods) parts.push('--tests', `${cls}.${method}`);
+        return titleFlag(parts);
+      }
+      const selector = [...byClass].map(([cls, methods]) => `${cls}#${methods.join('+')}`).join(',');
+      return titleFlag([`-Dtest=${selector}`, '-Dsurefire.failIfNoSpecifiedTests=false', '-DfailIfNoTests=false']);
+    },
     parse: parseJunitResults,
   },
   go: {
@@ -149,6 +290,11 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
     extension: 'jsonl',
     reporterFlags: () => ({ flags: '-json', redirectStdout: true }),
     selectionFlags: (selection) => selection.map(q).join(' '),
+    titleFlags: (titles) => {
+      const unique = uniqueTitles(titles);
+      if (unique.length === 0 || !unique.every((t) => GO_TEST_NAME.test(t))) return undefined;
+      return titleFlag(['-run', `^(${unique.join('|')})$`]);
+    },
     parse: parseGoResults,
   },
   cargo: {
@@ -162,6 +308,12 @@ export const ADAPTERS: Record<RunnerId, TestRunnerAdapter> = {
       redirectStdout: true,
     }),
     selectionFlags: () => '',
+    // Name filters for the test binary (after `--`): a substring match, `a` also selects `ab`.
+    titleFlags: (titles) => {
+      const unique = uniqueTitles(titles);
+      if (unique.length === 0 || !unique.every((t) => RUST_PATH.test(t))) return undefined;
+      return titleFlag(unique);
+    },
     parse: parseCargoResults,
   },
 };
@@ -210,30 +362,43 @@ export function withFlags(command: string, flags: string): string {
   return `${command} ${flags}`;
 }
 
+const LIBTEST_SEPARATOR = /\s--(\s|$)/;
+
+/** Arguments for the Rust test binary: after the command's own ` -- `, or after one added here. */
+function withLibtestArgs(command: string, args: string): string {
+  if (!args) return command;
+  return LIBTEST_SEPARATOR.test(command) ? `${command} ${args}` : `${command} -- ${args}`;
+}
+
 /** Build the command line, environment, and report file for one run. Pure. */
 export function prepareRun(adapter: TestRunnerAdapter, opts: TestRunOpts, runDir: string): PreparedRun {
   const base = opts.command ?? adapter.defaultCommand;
-  const selection = opts.selection && opts.selection.length > 0 ? adapter.selectionFlags(opts.selection) : '';
+  const files = opts.selection && opts.selection.length > 0 ? adapter.selectionFlags(opts.selection) : '';
+  const wantsTitles = (opts.titles?.length ?? 0) > 0;
+  const titles = wantsTitles ? adapter.titleFlags(opts.titles ?? [], { tests: opts.titleTests, command: opts.command }) : undefined;
+  const extra = opts.extraFlags?.trim() ?? '';
+  const selection: RunSelection = titles ? 'tests' : files ? 'files' : 'suite';
   if (opts.resultsFile) {
     // The configured command already writes the report: run it as written.
-    return {
-      command: selection ? withFlags(base, selection) : base,
-      env: { SPECGUARD_RESULTS_FILE: path.resolve(opts.cwd, opts.resultsFile) },
-    };
+    const env = { SPECGUARD_RESULTS_FILE: path.resolve(opts.cwd, opts.resultsFile) };
+    if (adapter.id === 'cargo') {
+      return { command: withLibtestArgs(withFlags(base, [files, extra].filter(Boolean).join(' ')), titles ?? ''), env, selection };
+    }
+    return { command: withFlags(base, [extra, titles, files].filter(Boolean).join(' ')), env, selection };
   }
   const file = path.join(runDir, `results.${adapter.extension}`);
   const rep = adapter.reporterFlags(file);
   let command: string;
   if (adapter.id === 'cargo') {
-    // cargo puts selection before `--`, reporter flags after it.
-    command = `${base}${selection ? ` ${selection}` : ''} ${rep.flags}`.trim();
+    // cargo puts selection before `--`, reporter flags and test-binary filters after it.
+    command = `${base}${files || extra ? ` ${[files, extra].filter(Boolean).join(' ')}` : ''} ${rep.flags}${titles ? ` ${titles}` : ''}`.trim();
   } else if (adapter.id === 'go') {
-    command = `${base.replace(/\s+\.\/\.\.\.\s*$/, '')} ${rep.flags} ${selection || './...'}`.trim();
+    command = `${base.replace(/\s+\.\/\.\.\.\s*$/, '')} ${[rep.flags, extra, titles].filter(Boolean).join(' ')} ${files || './...'}`.trim();
   } else {
-    command = withFlags(base, [rep.flags, selection].filter(Boolean).join(' '));
+    command = withFlags(base, [rep.flags, extra, titles, files].filter(Boolean).join(' '));
   }
   if (rep.redirectStdout) command = `${command} > ${q(file)}`;
-  return { command, env: rep.env ?? {}, file };
+  return { command, env: rep.env ?? {}, file, selection };
 }
 
 /**
@@ -359,6 +524,7 @@ export async function runTests(adapterId: RunnerId, opts: TestRunOpts): Promise<
     timedOut,
     reportFiles: read,
     command: prepared.command,
+    selection: prepared.selection,
     ...(parsed ? {} : { parseError: error ?? (candidates.length === 0 ? 'no results file matched' : 'results file was not written') }),
   };
   try {
@@ -375,5 +541,5 @@ function toContainerPath(text: string, cwd: string): string {
 }
 
 function failedReport(command: string, message: string): TestRunReport {
-  return { tests: [], exitCode: 1, raw: message, parsed: false, timedOut: false, parseError: message, reportFiles: [], command };
+  return { tests: [], exitCode: 1, raw: message, parsed: false, timedOut: false, parseError: message, reportFiles: [], command, selection: 'suite' };
 }

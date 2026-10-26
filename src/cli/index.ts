@@ -284,11 +284,25 @@ testCmd
   .option('--unit <keys...>', 'workspaces: run only these units')
   .option('--affected', 'workspaces: run only the units whose files changed, and the units that depend on them')
   .option('--since <ref>', 'with --affected: git ref to compare against (default: working tree against HEAD)')
+  .option('--claims <refs...>', 'run exactly the tests tagged to these claim refs (by title where the runner can, else their files)')
+  .option('--coverage', "add each app's test.coverage.flags and record its report paths (ingest them with `coverage ingest`)")
+  .option('--record <id>', 'write .specguard/runs/<id>.json: what ran, per-test verdicts, head commit and an owned-source hash')
   .argument('[files...]', 'run only these test files')
   .action(
     async (
       files: string[],
-      opts: { app?: string; runId?: string; ledger?: string; unexercised?: boolean; unit?: string[]; affected?: boolean; since?: string },
+      opts: {
+        app?: string;
+        runId?: string;
+        ledger?: string;
+        unexercised?: boolean;
+        unit?: string[];
+        affected?: boolean;
+        since?: string;
+        claims?: string[];
+        coverage?: boolean;
+        record?: string;
+      },
       cmd: Command,
     ) => {
       await testRunCommand(withGlobals(cmd, { ...opts, units: opts.unit, selection: files.length > 0 ? files : undefined }));

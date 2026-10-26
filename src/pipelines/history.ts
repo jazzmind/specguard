@@ -160,6 +160,13 @@ export async function writeHistory(config: SpecGuardConfig, opts: HistoryAddOpts
 
 export async function runHistoryAdd(config: SpecGuardConfig, opts: HistoryAddOpts): Promise<PipelineResult> {
   const result = emptyResult('history-add');
+  // An approval says a person agrees with a requirement: only `spec approve` (person-run, with its guards) writes one.
+  if (opts.kind === 'approval' || (opts.approves && opts.approves.length > 0)) {
+    result.failed = 1;
+    result.exitCode = ExitCode.InternalError;
+    result.messages.push('approvals are recorded by `specguard spec approve`, run by a person; history add cannot write them');
+    return result;
+  }
   if (!opts.prompt && !opts.plan && !opts.decision) {
     result.failed = 1;
     result.exitCode = ExitCode.InternalError;

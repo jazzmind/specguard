@@ -47,6 +47,17 @@ describe('history add [history-add]', () => {
   });
 
   // [claims: capabilities/requirement-history#history-redaction]
+  // [claims: capabilities/intent-approval#no-approval-via-history-add]
+  it('refuses to write an approval: only spec approve records one [no-approval]', async () => {
+    const config = await loadConfig(repo.dir);
+    const viaKind = await runHistoryAdd(config, { kind: 'approval', decision: 'approve everything', affects: [] });
+    expect(viaKind.failed).toBe(1);
+    expect(viaKind.messages.join('\n')).toContain('spec approve');
+    const viaList = await runHistoryAdd(config, { decision: 'x', approves: ['capabilities/shop#total@0123456789abcdef'], affects: [] });
+    expect(viaList.failed).toBe(1);
+    expect(listHistory(config).filter((e) => e.kind === 'approval')).toEqual([]);
+  });
+
   it('redacts secrets before anything is written [redaction]', async () => {
     const config = await loadConfig(repo.dir);
     await runHistoryAdd(config, { prompt: 'use key sk-abcdefghijklmnopqrstuvwx and mail wes@example.com', affects: [], date: '2026-10-15' });

@@ -185,3 +185,32 @@ describe('assurance and evidence frontmatter [assurance-evidence]', () => {
     expect(hash('assurance: property\nevidence:\n  a-claim: { kind: manual, verifier: "Lead" }')).toBe(hash('status: active'));
   });
 });
+
+describe('enforce frontmatter [spec-first-changes]', () => {
+  const spec = (front: string) => `---\nid: x\nkind: capability\n${front}\n---\n# X\n\n## Problem & Value\n\nV.\n\n## Requirements\n- [ ] A claim <!-- claim: a-claim -->\n`;
+
+  // [claims: capabilities/spec-first-changes#enforce-default-observe]
+  it('enforce reads observe, warn or enforce into meta.enforce, and is absent when the spec sets none', () => {
+    for (const level of ['observe', 'warn', 'enforce'] as const) {
+      expect(parseFrontmatter(spec(`enforce: ${level}`))?.meta.enforce).toBe(level);
+    }
+    expect(parseFrontmatter(spec('status: active'))?.meta.enforce).toBeUndefined();
+  });
+
+  // [claims: capabilities/spec-first-changes#enforce-unknown-collected]
+  it('a value off the ladder is kept in extra and never throws, so a typo does not make the spec unreadable', () => {
+    const meta = parseFrontmatter(spec('enforce: strict'))?.meta;
+    expect(meta?.enforce).toBeUndefined();
+    expect(meta?.extra.enforce).toBe('strict');
+    expect(parseFrontmatter(spec('enforce: { level: warn }'))?.meta.extra.enforce).toBe('{"level":"warn"}');
+    expect(parseFrontmatter(spec('enforce: 3'))?.meta.extra.enforce).toBe('3');
+  });
+
+  // [claims: capabilities/spec-first-changes#enforce-not-hashed]
+  it('enforce does not enter the claim hash, so raising or lowering it never stales an approval', async () => {
+    const { claimHashOf } = await import('../../src/core/claim-hash.js');
+    const hash = (front: string) => claimHashOf(parseSpecContent(spec(front), '/r/specs/x.md', '/r/specs'), 'a-claim');
+    expect(hash('enforce: enforce')).toBe(hash('enforce: observe'));
+    expect(hash('enforce: warn')).toBe(hash('status: active'));
+  });
+});
