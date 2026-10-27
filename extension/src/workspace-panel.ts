@@ -15,6 +15,9 @@ import {
 } from './workspace-state.js';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
 import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
+import { configDirFor } from './project-config.js';
+import { projectHealth } from './project-health.js';
+import { warmProjectConfigs } from './workspace-state.js';
 
 // ---------------------------------------------------------------------------
 // Panel singleton
@@ -22,6 +25,8 @@ import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 
 let _panel: vscode.WebviewPanel | undefined;
 let _context: vscode.ExtensionContext | undefined;
+let _refreshId = 0;
+let _catalogFiles = new Map<string, string[]>();
 
 type PanelMsg =
   | { type: 'ready' }
@@ -30,6 +35,7 @@ type PanelMsg =
   | { type: 'refreshAll' }
   | { type: 'syncNow' }
   | { type: 'setIgnore'; key: string; ignore: boolean }
+  | { type: 'openCatalog'; key: string; index: number }
   | { type: 'switchRepo'; absPath: string; key: string };
 
 /** Commands other parts of the extension use to drive an open panel. */
@@ -84,6 +90,12 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
 async function handleMessage(msg: PanelMsg): Promise<void> {
   if (!_panel) return;
 
+  if (msg.type === 'openCatalog') {
+    const file = Number.isInteger(msg.index) ? _catalogFiles.get(msg.key)?.[msg.index] : undefined;
+    if (file) await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(file));
+    return;
+  }
+
   if (msg.type === 'ready') {
     refreshStatus(_panel.webview);
     return;
@@ -127,19 +139,24 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
   }
 }
 
-function refreshStatus(webview: vscode.Webview): void {
+async function refreshStatus(webview: vscode.Webview): Promise<void> {
+  const id = ++_refreshId;
+  await warmProjectConfigs();
   const manifest = loadWorkspaceManifest();
   const contracts = loadContractsSummary();
   const activeRoot = getActiveWorkspaceRoot();
 
   // Annotate which repo is currently active so the webview can highlight it
+  const version = String(_context?.extension.packageJSON.version ?? 'unknown');
   const annotated = manifest
     ? {
         ...manifest,
-        repos: manifest.repos.map((r) => ({ ...r, _isActive: r.absPath === activeRoot })),
+        repos: await Promise.all(manifest.repos.map(async (r) => ({ ...r, _isActive: r.absPath === activeRoot, health: await projectHealth(r.absPath, configDirFor(r.absPath), version, manifest.catalog) }))),
       }
     : null;
 
+  if (id !== _refreshId) return;
+  _catalogFiles = new Map(annotated?.repos.map((r) => [r.key, r.health.catalog?.files.map((f) => f.path) ?? []]) ?? []);
   webview.postMessage({ type: 'statusData', manifest: annotated, contracts });
 }
 
@@ -251,6 +268,13 @@ export function buildHtml(_webview: vscode.Webview): string {
   .dot.yellow { background: var(--vscode-testing-iconFailed, #d29922); }
   .dot.gray   { background: var(--vscode-disabledForeground, #6e7681); }
   .active-label { font-size: 10px; opacity: .6; font-style: italic; }
+  .health-line { font-size: 12px; margin-top: 7px; line-height: 1.5; overflow-wrap: anywhere; }
+  .health-line small { display: block; color: var(--vscode-descriptionForeground); }
+  .catalog-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+  .catalog-table th,.catalog-table td { text-align: left; vertical-align: top; padding: 10px; border-bottom: 1px solid var(--vscode-panel-border); overflow-wrap: anywhere; }
+  .catalog-table small { display: block; margin-top: 5px; color: var(--vscode-descriptionForeground); }
+  .catalog-table button { margin: 3px; }
+  .table-wrap { overflow-x: auto; }
 
   /* ── Contracts bar ── */
   .contracts-bar {
@@ -441,6 +465,7 @@ export function buildHtml(_webview: vscode.Webview): string {
     document.getElementById('status-content').innerHTML =
       toolbarHtml +
       statsHtml +
+      catalogTable(repos) +
       \`<div class="section-title">Repos</div><div class="repo-grid">\${activeCardsHtml}</div>\` +
       ignoredCardsHtml +
       contractsBarHtml;
@@ -456,23 +481,46 @@ export function buildHtml(_webview: vscode.Webview): string {
       ? \`data-act="switch" data-abs="\${attr(repo.absPath)}" data-key="\${attr(repo.key)}"\`
       : '';
     return \`
-      <div class="repo-card \${activeClass} \${ignoredClass}" \${clickAttr} title="\${repo.absPath}">
+      <div class="repo-card \${activeClass} \${ignoredClass}" \${clickAttr} title="\${attr(repo.absPath)}">
         <div class="repo-header">
-          <span class="repo-name">\${repo.key}</span>
-          <span class="badge \${roleClass}">\${repo.role}</span>
+          <span class="repo-name">\${attr(repo.key)}</span>
+          <span class="badge \${roleClass}">\${attr(repo.role)}</span>
           \${repo._isActive ? '<span class="active-label">active</span>' : ''}
         </div>
         \${rollupLine(repo)}
+        \${healthLines(repo.health)}
         <div class="repo-meta">
           <span class="spec-count"><span class="dot \${dotClass}"></span>\${specLabel}</span>
-          \${repo.description ? \`<span style="opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="\${repo.description}">\${repo.description}</span>\` : ''}
+          \${repo.description ? \`<span style="opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="\${attr(repo.description)}">\${attr(repo.description)}</span>\` : ''}
         </div>
         <div class="repo-meta">
-          \${ignored ? \`<span style="opacity:.6">\${repo.ignoreReason || 'ignored'}</span>\` : '<span></span>'}
+          \${ignored ? \`<span style="opacity:.6">\${attr(repo.ignoreReason || 'ignored')}</span>\` : '<span></span>'}
           <a href="#" data-act="ignore" data-key="\${attr(repo.key)}" data-ignore="\${ignored ? 'false' : 'true'}">\${ignored ? 'Include' : 'Ignore'}</a>
         </div>
       </div>
     \`;
+  }
+
+  function healthLines(h) {
+    if (!h) return '';
+    const short = s => s ? attr(s.slice(0, 10)) : 'not recorded';
+    const setup = h.setupVersion ? 'v' + attr(h.setupVersion) + (h.setupCurrent ? ' · current' : ' · differs from installed version') : 'not initialized';
+    const check = h.checkedWith ? 'v' + attr(h.checkedWith) + (h.checkVersionCurrent ? ' · current' : ' · recheck with installed version') : 'not recorded · run Refresh all repos';
+    return '<div class="health-line"><strong>SpecGuard setup:</strong> ' + setup + '<small>Installed extension v' + attr(h.extensionVersion) + '</small></div>' +
+      '<div class="health-line"><strong>Spec check engine:</strong> ' + check + '</div>' +
+      '<div class="health-line"><strong>Code:</strong> ' + short(h.codeRevision) + (h.dirty ? ' · working changes' : h.dirty === null ? ' · Git state unknown' : '') + '<small>Last spec check: ' + short(h.checkedRevision) + ' · ' + (h.codeCurrent ? 'same clean revision' : 'revision freshness needs checking') + '</small></div>' +
+      '<div class="health-line"><strong>Spec format:</strong> ' + (h.specFormat === 'capability' ? 'v2 functional specs' : h.specFormat === 'legacy' ? 'v1 legacy per-file specs' : 'no current specs') + '</div>' +
+      (h.counts ? '<div class="health-line">Last check: ' + h.counts.proven + '/' + h.counts.claims + ' claims proven · ' + h.counts.failed + ' failed · ' + h.counts.stale + ' stale</div>' : '') +
+      (h.error ? '<div class="health-line">' + attr(h.error) + '</div>' : '');
+  }
+
+  function catalogTable(repos) {
+    return '<div class="section-title">Feature catalogs across repositories</div><p>Links use the current catalog and spec files. Content alignment requires review; matching links alone do not verify it.</p><div class="table-wrap"><table class="catalog-table"><thead><tr><th>Repository</th><th>Catalog files</th><th>Spec links</th><th>Current catalog revision</th></tr></thead><tbody>' + repos.map(repo => {
+      const c = repo.health && repo.health.catalog;
+      if (!c) return '<tr><td>' + attr(repo.key) + '</td><td colspan="3">No feature catalog configured</td></tr>';
+      const files = c.files.map((f,i) => '<button class="btn secondary" data-act="openCatalog" data-key="' + attr(repo.key) + '" data-index="' + i + '">' + attr(f.name) + '</button><small>schema ' + attr(f.version) + ' · ' + f.features + ' features</small>').join('');
+      return '<tr><td>' + attr(repo.key) + (repo.ignore ? '<small>ignored</small>' : '') + '</td><td>' + (files || 'No catalog files') + '<small>' + attr(c.directory) + '</small></td><td>' + (c.error ? attr(c.error) : c.linked + '/' + c.features + ' features linked to specs' + (c.missing.length ? '<small>Missing: ' + attr(c.missing.join(', ')) + '</small>' : '')) + '<small>Content alignment: not verified</small></td><td>' + attr(c.revision || 'unavailable') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
   }
 
   /** One line of what the last workspace check recorded for the repo. */
@@ -501,6 +549,7 @@ export function buildHtml(_webview: vscode.Webview): string {
     else if (d.act === 'runContracts') runContracts();
     else if (d.act === 'refreshAll') refreshAll();
     else if (d.act === 'syncNow') syncNow();
+    else if (d.act === 'openCatalog') vscode.postMessage({type:'openCatalog',key:d.key,index:Number(d.index)});
   });
 
   // ── Drift streaming ────────────────────────────────────────────────────────

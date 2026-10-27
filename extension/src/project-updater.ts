@@ -7,10 +7,10 @@
  * (CLAUDE.md, skills, /goal command, AGENTS.md, MCP wiring) by invoking the
  * bundled CLI's `scaffold` command — the single, language-aware source of
  * truth for these files. Files lacking the `<!-- specguard-managed: true -->`
- * marker are treated as user-authored and never overwritten.
+ * marker are skipped, except CLAUDE.md whose SpecGuard sections are merged.
  *
  * The `specguard.updateProject` command bypasses the version check and
- * always runs a full sync.
+ * offers a preview before a full sync.
  */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -72,25 +72,20 @@ export async function checkAndOfferUpdate(
 
   const fromLabel = storedVersion ? `v${storedVersion}` : 'not set up';
   const action = await vscode.window.showInformationMessage(
-    `SpecGuard project files are outdated (${fromLabel} → v${currentVersion}). Regenerate CLAUDE.md, skills, and /goal command?`,
-    'Update',
+    `SpecGuard setup ${fromLabel} → v${currentVersion}. Review the update: your CLAUDE.md rules outside SpecGuard sections are preserved; marked skills and AGENTS.md are replaced.`,
+    'Review update',
     'Skip',
     `Don't ask for v${currentVersion}`,
   );
 
-  if (action === 'Update') {
-    await syncProjectFiles(workspaceRoot, currentVersion);
-    vscode.window.showInformationMessage(
-      `SpecGuard: project files updated to v${currentVersion}.`,
-      'Open AGENTS.md',
-    ).then((btn) => {
-      if (btn === 'Open AGENTS.md') {
-        void vscode.commands.executeCommand(
-          'vscode.open',
-          vscode.Uri.file(path.join(workspaceRoot, 'AGENTS.md')),
-        );
-      }
-    });
+  if (action === 'Review update') {
+    if (!(await confirmUpdate(workspaceRoot))) return;
+    try {
+      const result = await syncProjectFiles(workspaceRoot, currentVersion);
+      void vscode.window.showInformationMessage(`SpecGuard: setup updated to v${currentVersion} (${result.updated.length} changed, ${result.skipped.length} skipped).`);
+    } catch (error) {
+      void vscode.window.showErrorMessage(`SpecGuard setup update failed: ${(error as Error).message}`);
+    }
   } else if (action === `Don't ask for v${currentVersion}`) {
     await context.globalState.update(skipKey, true);
   }
@@ -113,10 +108,16 @@ export async function forceUpdateProjectFiles(
   }
 
   const currentVersion = (context.extension.packageJSON as { version: string }).version;
-  const result = await syncProjectFiles(workspaceRoot, currentVersion);
+  if (!(await confirmUpdate(workspaceRoot))) return;
+  let result: SyncResult;
+  try { result = await syncProjectFiles(workspaceRoot, currentVersion); }
+  catch (error) {
+    void vscode.window.showErrorMessage(`SpecGuard setup update failed: ${(error as Error).message}`);
+    return;
+  }
 
   const updatedList = result.updated.map((f) => `  • ${f}`).join('\n');
-  const skippedList = result.skipped.map((f) => `  • ${f} (user-authored, skipped)`).join('\n');
+  const skippedList = result.skipped.map((f) => `  • ${f} (left unchanged)`).join('\n');
   const summary = [
     result.updated.length > 0 ? `Updated:\n${updatedList}` : '',
     result.skipped.length > 0 ? `Skipped:\n${skippedList}` : '',
@@ -134,6 +135,29 @@ export async function forceUpdateProjectFiles(
   });
 }
 
+/** Explain exactly which content the CLI preserves, replaces or skips. */
+export function updatePreview(workspaceRoot: string): string[] {
+  const lines = ['CLAUDE.md: update only SpecGuard sections; preserve your surrounding Claude rules.'];
+  for (const rel of MANAGED_FILES.filter((f) => f !== 'CLAUDE.md')) {
+    const file = path.join(workspaceRoot, rel);
+    if (!fs.existsSync(file)) { lines.push(`${rel}: create missing file.`); continue; }
+    try {
+      const marked = fs.readFileSync(file, 'utf8').includes('<!-- specguard-managed: true -->');
+      lines.push(marked ? `${rel}: REPLACE the entire SpecGuard-managed file; custom edits inside it will be overwritten.` : `${rel}: preserve unchanged (user-authored; no managed marker).`);
+    } catch { lines.push(`${rel}: could not read; inspect before updating.`); }
+  }
+  lines.push('JSON settings/MCP: merge SpecGuard entries, preserve unrelated rules and servers; malformed files and conflicting existing wiring are left unchanged.');
+  return lines;
+}
+
+async function confirmUpdate(root: string): Promise<boolean> {
+  const picked = await vscode.window.showInformationMessage('Update SpecGuard-managed setup files?', {
+    modal: true,
+    detail: updatePreview(root).join('\n\n'),
+  }, 'Update SpecGuard files');
+  return picked === 'Update SpecGuard files';
+}
+
 // ---------------------------------------------------------------------------
 // Internal
 // ---------------------------------------------------------------------------
@@ -146,14 +170,15 @@ interface SyncResult {
 /**
  * Regenerate the managed harness files by invoking the bundled CLI's
  * `scaffold` command. The CLI is the single source of truth — it generates
- * language-aware files (from `.specguard/config.json`'s `language`) for both
- * the Claude Code and Cursor harnesses, and never clobbers user content.
+ * language-aware files for both harnesses. CLAUDE.md sections are merged; marked
+ * standalone files are replaced, as explained in the update preview.
  */
 async function syncProjectFiles(workspaceRoot: string, version: string): Promise<SyncResult> {
   const cliPath = await resolveCliPath(workspaceRoot);
   const lines: string[] = [];
   const handle = spawnCli(cliPath, ['scaffold', '--harness', 'both'], workspaceRoot, (l) => lines.push(l));
-  await handle.promise;
+  const exitCode = await handle.promise;
+  if (exitCode !== 0) throw new Error(`scaffold exited ${exitCode ?? 'without a status'}. The setup version was not advanced. ${lines.slice(-4).join(' ')}`);
 
   // Parse the CLI's `created`/`updated`/`skipped` log lines for the summary.
   const updated: string[] = [];

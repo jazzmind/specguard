@@ -262,6 +262,7 @@ async function survey(cwd: string): Promise<Survey> {
     tracked: {
       proofs: inGit && isTracked(root, LEDGER_REL),
       trace: inGit && isTracked(root, TRACE_REL),
+      activityLog: inGit && isTracked(root, '.specguard/activity-log.json'),
       publishSnapshot: false,
     },
     gitignoreBlock: !hasBlock ? 'missing' : applyIgnoreBlock(gitignore) === gitignore ? 'current' : 'outdated',
@@ -578,6 +579,7 @@ const APPLIERS: Array<[MigrateStepId, (c: Ctx) => Promise<boolean>]> = [
   ['gitignore', applyGitignore],
   ['untrack-ledger', (c) => applyUntrack(c, LEDGER_REL)],
   ['untrack-trace', (c) => applyUntrack(c, TRACE_REL)],
+  ['untrack-activity-log', (c) => applyUntrack(c, '.specguard/activity-log.json')],
   ['provisional-rows', applyProvisional],
   ['archive-v1', applyArchive],
   ['drop-v1-ledger', applyDropV1Ledger],

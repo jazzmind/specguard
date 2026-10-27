@@ -9,6 +9,7 @@ import { registerMcpForCursor } from './mcp-registration.js';
 import { openDashboardPanel, openAndRun } from './dashboard/panel.js';
 import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot, getWorkspaceManifestRoot } from './workspace-state.js';
 import { forceUpdateProjectFiles } from './project-updater.js';
+import { openOutputs } from './output-panel.js';
 import { openWorkspacePanel, registerWorkspacePanelCommands } from './workspace-panel.js';
 import { resolveCliCommand } from './dashboard/cli.js';
 import { shellQuote } from './safe-spawn.js';
@@ -21,6 +22,10 @@ export function registerCommands(
   coverageProvider: CoverageProvider,
   statusBarItem: vscode.StatusBarItem | undefined,
 ): void {
+  context.subscriptions.push(vscode.commands.registerCommand('specguard.openOutputs', async (kind: string) => {
+    const root = getActiveWorkspaceRoot();
+    if (root && (kind === 'specs' || kind === 'tests' || kind === 'docs')) await openOutputs(root, kind);
+  }));
   // --- specguard.switchProject ----------------------------------------------
   context.subscriptions.push(
     vscode.commands.registerCommand('specguard.switchProject', async () => {

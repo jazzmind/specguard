@@ -10,6 +10,7 @@ import { gatherFacts, MIGRATE_PERSON_PENDING, runMigrate } from '../../src/pipel
 import { gitInit } from '../helpers/v2-repo.js';
 import { draftCapabilities, git, ledgerRow, ledgerText, makeV01Repo, makeV02Repo, repoHash, treeHash } from '../helpers/migrate-repos.js';
 import { makeRepo } from '../helpers/repo.js';
+import { appendActivityLogEntry } from '../../src/mcp/activity-hook.js';
 
 const PLAN = { consolidate: false, fetchNotes: false, workflow: false };
 const readJson = (file: string): Record<string, any> => JSON.parse(readFileSync(file, 'utf8'));
@@ -29,6 +30,24 @@ const backupDir = (dir: string): string | undefined => {
 };
 
 describe('migrate: a v0.2/0.3 repository [platform-foundation]', () => {
+  // [claims: capabilities/platform-foundation#migrate-apply-untracks-state, capabilities/integration-surfaces#activity-log-never-committed]
+  it('repairs a tracked activity log once and stays clean when logging resumes after the migration commit', async () => {
+    const repo = makeV02Repo();
+    repo.write('.specguard/activity-log.json', '[]');
+    git(repo.dir, 'add', '.specguard/activity-log.json');
+    git(repo.dir, 'commit', '-qm', 'legacy activity log');
+    const dry = await runMigrate({ cwd: repo.dir });
+    expect(dry.steps.find((s) => s.id === 'untrack-activity-log')?.state).toBe('todo');
+    expect(git(repo.dir, 'ls-files', '.specguard/activity-log.json').trim()).toBe('.specguard/activity-log.json');
+    const applied = await runMigrate({ cwd: repo.dir, yes: true });
+    expect(applied.applied).toContain('untrack-activity-log');
+    expect(git(repo.dir, 'ls-files', '.specguard/activity-log.json').trim()).toBe('');
+    expect(readFileSync(path.join(repo.dir, '.specguard/activity-log.json'), 'utf8')).toBe('[]');
+    git(repo.dir, 'add', '-A');
+    git(repo.dir, 'commit', '-qm', 'stop tracking runtime state');
+    appendActivityLogEntry(repo.dir, { pipeline: 'post-commit', status: 'pass', source: 'mcp' });
+    expect(git(repo.dir, 'status', '--porcelain').trim()).toBe('');
+  });
   // [claims: capabilities/platform-foundation#migrate-dry-run-changes-nothing]
   it('reads the facts and prints the plan without changing anything', async () => {
     const repo = makeV02Repo();

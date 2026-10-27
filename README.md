@@ -1308,8 +1308,9 @@ The verdict is PRESERVED only when no baseline-passing test fails or disappears,
 
 See [development and release commands](docs/development.md) for installing this
 checkout, local builds and checks, and publishing. `make help` groups the commands
-by workflow; `make deps` installs development dependencies, while
-`make install-cli` and `make vsix-install` install the local tools for use.
+by workflow and includes example flows. `make install-dev` sets up development
+dependencies; `make install` builds and installs both local tools.
+`make build-vsix` packages the extension without installing it.
 
 This project is in active development. The core pipelines were extracted from production use and generalised. PRs welcome — especially:
 

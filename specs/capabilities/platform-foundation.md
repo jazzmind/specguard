@@ -22,12 +22,16 @@ sources:
   - "src/core/version.ts"
   - "src/core/sentinels.ts"
   - "src/core/state-ignore.ts"
+  - "src/core/activity-ignore.ts"
   - "src/core/migrate-plan.ts"
   - "src/cli/commands/migrate.ts"
   - "src/pipelines/migrate.ts"
   - "src/legacy/index.ts"
   - "src/core/overlay.ts"
 tests:
+  - "tests/core/activity-ignore.test.ts"
+  - "tests/core/contracts-phase3.test.ts"
+  - "extension/src/dashboard/activity-log.test.ts"
   - "tests/core/config.test.ts"
   - "tests/core/config-phase3.test.ts"
   - "tests/core/llm.test.ts"
@@ -71,6 +75,7 @@ history:
   - 2026-10-26-migrate-applies-the-plan-idempotently-an
   - 2026-10-26-overlay-spec-sources-specs-kept-outside
   - 2026-10-27-host-agent-tests-isolate-the-inherited-c
+  - 2026-10-27-keep-runtime-activity-logging-out-of-com
 ---
 
 # Platform Foundation
@@ -90,6 +95,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - A monorepo owner declares several apps in one config, each with its own language, spec directory and test runner.
 
 ## Requirements
+- [ ] For activity logs that Git does not track, persistence honors an existing ignore rule or adds a literal, project-specific rule to Git's local `info/exclude`, including nested folders, symlinked paths and linked worktrees, without editing versioned files or the Git index; repeated appends after commits leave an otherwise clean repository clean, exclusions are idempotent, and a failure to establish an ignore rule skips optional persistence rather than creating an unignored file <!-- claim: activity-log-git-clean -->
 - [ ] Configuration is found by searching upward from the working directory for `.specguard/config.json`, stopping at the repository boundary so a repo without its own config never inherits a parent repo's; no config, and no overlay covering the directory, yields a not-found error that names the search start and suggests `specguard init` <!-- claim: config-discovery -->
 - [ ] Configuration is validated against one schema: invalid JSON or an invalid field fails with a readable invalid-config error, unknown keys and `_comment` are tolerated, and the directory that holds `.specguard/` is exposed to every pipeline as the root <!-- claim: config-validation -->
 - [ ] A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error <!-- claim: config-extends -->
@@ -118,14 +124,14 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] A redaction hook fails closed: it must be a synchronous function returning a string of at most 2,000,000 characters, and a throw, a promise or any other result raises an error instead of letting text through that the project's own rules never saw <!-- claim: redaction-hook-fails-closed -->
 - [ ] A redaction hook module is a file inside the project: a URL, an absolute path elsewhere, `..` and a symlink that leaves the project are refused before it is imported <!-- claim: hook-path-inside-project -->
 - [ ] The migration planner detects the repository's format from facts alone: per-file specs left in place mean v0.1 (even beside drafted capability specs), capability specs with tracked proofs or trace, a missing or outdated ignore block, or local rows claiming a CI origin mean v0.2-0.3, capability specs with everything current mean v0.6, and no specs of either kind mean none. <!-- claim: migrate-detect-format -->
-- [ ] The migration plan always lists every step in one fixed order with a state (todo, done, skip, person or agent), a description, and the exact paths and commands involved; each step's state follows from the facts, so a half-migrated repo shows only what is left, and steps the repository cannot take (no git) are skipped with a "Blocked:" reason. <!-- claim: migrate-ordered-plan -->
+- [ ] The migration plan always lists every step in one fixed order (including `untrack-activity-log` after `untrack-trace`) with a state (todo, done, skip, person or agent), a description, and the exact paths and commands involved; each step's state follows from the facts, so a half-migrated repo shows only what is left, and steps the repository cannot take (no git) are skipped with a "Blocked:" reason. <!-- claim: migrate-ordered-plan -->
 - [ ] Steps that need a human are labelled person and carry the exact command to run, and the planner never lists the as-built approval (or any approve command) as a step the tool runs; it is skipped only when every claim is already approved. <!-- claim: migrate-person-steps -->
 - [ ] The migration dry-run text names the detected format, every step with its state, changed paths and commands, what is left for the person, and the flags to apply with, and states that it changed nothing. <!-- claim: migrate-dry-run -->
 - [ ] Every migration dry run lists what is never touched (capability spec text and claims, test files apart from claim tags, source, specs/history, existing approvals, other workflows, git history and remotes), and no planned change edits or deletes those. <!-- claim: migrate-never-touches -->
 - [ ] The default route for a v0.1 repository, whatever its spec count, is to archive the per-file specs and redraft capability specs as built; consolidating is listed as the alternative and, when asked for, replaces the archive, draft, tag and ledger steps with `spec consolidate`. <!-- claim: migrate-v1-route -->
 - [ ] A repository that is already current (and one with no specs) plans every step as done or skip, so the migration is a no-op success. <!-- claim: migrate-noop-current -->
 - [ ] `specguard migrate` reads the repository without changing it and, by default, only prints the plan: the facts come from the git index, the ignore block, the proof ledger, spec frontmatter and the migration's state file; a dry run writes no file (no state, no backup) and leaves the git index and status as they were, and exits 0 only when nothing is left, 12 while agent work is pending, and 14 while steps remain for the tool or a person <!-- claim: migrate-dry-run-changes-nothing -->
-- [ ] `migrate --yes` refreshes the managed ignore block and stops tracking the generated proof ledger and trace files with `git rm --cached`, keeping both on disk; it never commits, never pushes and never adds a file to the index, so the only staged changes are the removals it names <!-- claim: migrate-apply-untracks-state -->
+- [ ] `migrate --yes` refreshes the managed ignore block and stops tracking the generated proof ledger, trace and any legacy tracked activity log with `git rm --cached`, keeping their contents on disk; it never commits, never pushes and never adds a file to the index, so the only staged changes are the removals it names <!-- claim: migrate-apply-untracks-state -->
 - [ ] Committed proof rows whose origin is absent or `ci` become origin `local` with an `imported: tracked-ledger@<sha>` marker, because a committed row earned no CI trust; rows that were already local keep their bytes, and the untouched ledger is saved first under `.specguard/cache/migrate/<timestamp>/` next to a manifest of what was applied and how to undo it <!-- claim: migrate-rows-provisional -->
 - [ ] Per-file (v1) specs are archived under `specs/_archive/v1/` with `git mv` (history follows them) or a plain move without git, never over an existing archived file; proof rows keyed to the archived specs move out of the local ledger into the backup, and a markdown file without `kind:` counts as a per-file spec only when it has acceptance criteria or a `module:`, so a stray note is never moved <!-- claim: migrate-archive-v1-keeps-history -->
 - [ ] Steps that need the host agent (drafting capability specs, tagging tests, or `spec consolidate` with `--consolidate`) are printed as exact commands and never run by migrate; the run exits 12 and records its progress in `.specguard/cache/migrate/state.json`, so a repository that has archived its per-file specs and drafted none yet still reads as v0.1, and rerunning `migrate --yes` resumes, treating the tag step as done once a capability's tests carry its claim tags, until the migration is marked complete <!-- claim: migrate-resumable -->

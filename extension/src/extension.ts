@@ -5,7 +5,7 @@
  * and the status bar item. MCP registration for Cursor is also wired here.
  */
 import * as vscode from 'vscode';
-import { CoverageProvider } from './sidebar.js';
+import { CoverageProvider, WorkspaceProvider } from './sidebar.js';
 import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
@@ -76,6 +76,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Coverage tree view
   coverageProvider = new CoverageProvider();
+  context.subscriptions.push(vscode.window.createTreeView('specguard.workspaceView', {
+    treeDataProvider: new WorkspaceProvider(coverageProvider),
+    showCollapseAll: true,
+  }));
   const treeView = vscode.window.createTreeView('specguard.coverageView', {
     treeDataProvider: coverageProvider,
     showCollapseAll: true,

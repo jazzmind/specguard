@@ -1,8 +1,10 @@
 # SpecGuard — build, test and release targets.
 #
 #   make build      build the CLI (dist/) and the VS Code extension (extension/dist)
-#   make ci         every gate the CI and release workflows run
-#   make vsix       package extension/specguard-<version>.vsix for a local install
+#   make install-dev  install development dependencies
+#   make install      build and install the CLI and VS Code extension locally
+#   make ci           local CLI and extension validation gates
+#   make build-vsix   package extension/specguard-<version>.vsix for a local install
 #   make publish    tag vX.Y.Z and push it: the Release workflow publishes (see below)
 #
 # The CLI version in package.json is the single version source; `make bump V=x.y.z` moves both packages.
@@ -37,30 +39,42 @@ SG      := $(NODE) --import tsx src/cli/index.ts
 # VS Code may be installed on macOS without its optional shell command. Override for another editor.
 CODE ?= $(shell command -v code 2>/dev/null || for app in "/Applications/Visual Studio Code.app" "$(HOME)/Applications/Visual Studio Code.app"; do if [ -x "$$app/Contents/Resources/app/bin/code" ]; then printf '%s\n' "$$app/Contents/Resources/app/bin/code"; break; fi; done)
 
-.PHONY: help install deps install-cli build build-cli build-ext build-hook typecheck lint test test-ext ci check prove audit \
-        vsix vsix-install clean bump release-check publish publish-dry publish-ext watch
+.PHONY: help install install-dev install-cli install-vsix build build-cli build-ext build-hook build-vsix typecheck lint test test-ext ci check prove audit \
+        clean bump release-check publish publish-dry publish-ext watch
 
 help: ## Show commands grouped by workflow (see docs/development.md for examples)
+	@printf '%s\n' 'Example flows:' \
+	  '  Install and run this checkout locally:' \
+	  '    make install-dev' \
+	  '    make install' \
+	  '    specguard --help' \
+	  '' \
+	  '  Develop and validate changes:' \
+	  '    make install-dev' \
+	  '    make build-hook && make ci && make prove' \
+	  '' \
+	  '  Publish a new version (replace x.y.z with the next unused version):' \
+	  '    make bump V=x.y.z' \
+	  '    make build-hook && make ci && make prove' \
+	  '    # Commit the release changes and push main, then:' \
+	  '    make publish  # waits for GitHub CI on this commit before tagging' \
+	  '    make watch    # follows publishing progress'
 	@awk 'BEGIN {FS = ":.*## "} /^##@ / {printf "\n%s\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-##@ Local usage — install this checkout (run make deps first)
+##@ Local usage — install this checkout (run make install-dev first)
+install: install-cli install-vsix ## Build and install both the CLI and VS Code extension for local use
+
 install-cli: build-cli ## Build and install this checkout's CLI globally (npm install --global .)
 	$(NPM) install --global .
 
-vsix: build-ext ## Build and package extension/specguard-<version>.vsix for local use
-	cd $(EXT) && rm -f specguard-$(VERSION).vsix && $(NPX) vsce package --no-dependencies
-	@echo "built $(VSIX)"
-
-vsix-install: vsix ## Build, package and install into VS Code; override the executable with CODE=/path/to/code
+install-vsix: build-vsix ## Build, package and install into VS Code; override the executable with CODE=/path/to/code
 	@test -n "$(CODE)" || { echo "VS Code was not found. Install its 'code' shell command or set CODE=/path/to/code."; exit 1; }
 	"$(CODE)" --install-extension "$(VSIX)" --force
 
 ##@ Local development — dependencies and build output
-deps: ## Install locked dependencies in the root, extension and webview (npm ci)
+install-dev: ## Set up development: install locked dependencies in the root, extension and webview (npm ci)
 	$(NPM) ci
 	cd $(EXT) && $(NPM) ci && $(NPM) --prefix webview ci
-
-install: deps ## Alias for deps: sets up development dependencies
 
 build: build-cli build-ext ## Build dist/ (CLI) and extension/dist/ plus extension/media/ (VS Code)
 
@@ -69,6 +83,10 @@ build-cli: ## Compile the CLI and build the standalone agent hook into dist/
 
 build-ext: ## Bundle the webview, embedded CLI and extension host
 	cd $(EXT) && $(NPM) run build
+
+build-vsix: build-ext ## Build and package extension/specguard-<version>.vsix without installing it
+	cd $(EXT) && rm -f specguard-$(VERSION).vsix && $(NPX) vsce package --no-dependencies
+	@echo "built $(VSIX)"
 
 build-hook: ## Regenerate the committed agent hook after changing its sources or dependencies
 	$(NPM) run build:hook
@@ -115,7 +133,7 @@ bump: ## Set both package versions and lockfiles without tagging: make bump V=x.
 	cd $(EXT) && $(NPM) install --package-lock-only --ignore-scripts
 	@echo "now at $(V): run 'make prove', commit, push, then 'make publish'"
 
-release-check: ## Check clean main, origin/main, unused version/tag, package sync and successful GitHub CI
+release-check: ## Check release prerequisites; watch queued/running CI for this commit until it passes or fails
 	@set -e; \
 	[ "$$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "not on main"; exit 1; }; \
 	[ -z "$$(git status --porcelain)" ] || { echo "the working tree has uncommitted changes"; git status --short; exit 1; }; \
@@ -125,8 +143,7 @@ release-check: ## Check clean main, origin/main, unused version/tag, package syn
 	[ "$$(npm view specguard-ai@$(VERSION) version 2>/dev/null)" != "$(VERSION)" ] || { echo "specguard-ai@$(VERSION) is already on npm: make bump V=<next>"; exit 1; }; \
 	$(NODE) $(EXT)/scripts/sync-version.mjs --check; \
 	if command -v gh >/dev/null; then \
-	  c=$$(GH_TOKEN="$$(gh auth token --user $(GH_USER) 2>/dev/null)" gh run list --branch main --workflow CI --commit "$$(git rev-parse HEAD)" --limit 1 --json conclusion --jq '.[0].conclusion' 2>/dev/null || true); \
-	  [ "$$c" = success ] || { echo "CI has not passed on this commit (status: $${c:-none})"; exit 1; }; \
+	  $(NODE) scripts/wait-for-ci.mjs "$$(git rev-parse HEAD)" "$(GH_USER)"; \
 	fi; \
 	echo "ok to release $(TAG)"
 

@@ -108,6 +108,7 @@ describe('Phase 3 contract modules [phase3-contracts]', () => {
     keepsExporting(migratePlan, ['MIGRATE_STEP_IDS', 'REPO_FORMATS', 'detectFormat', 'planMigration']);
   });
 
+  // [claims: capabilities/platform-foundation#migrate-ordered-plan]
   it('declare the constants with the design\'s values', () => {
     expect(proofNote.NOTE_SCHEMA).toBe('specguard.proof-note');
     expect(proofNote.NOTE_VERSION).toBe(1);
@@ -125,7 +126,11 @@ describe('Phase 3 contract modules [phase3-contracts]', () => {
     expect(decide.HOOK_MESSAGE_MAX).toBe(300);
     expect(prApprovals.QUALIFYING_ASSOCIATIONS).toEqual(['OWNER', 'MEMBER', 'COLLABORATOR']);
     expect(migratePlan.REPO_FORMATS).toEqual(['none', 'v0.1', 'v0.2-0.3', 'v0.6']);
-    expect(migratePlan.MIGRATE_STEP_IDS).toHaveLength(14);
+    expect(migratePlan.MIGRATE_STEP_IDS).toEqual([
+      'archive-v1', 'draft', 'tag', 'drop-v1-ledger',
+      'gitignore', 'untrack-ledger', 'untrack-trace', 'untrack-activity-log', 'provisional-rows',
+      'config', 'notes-fetch', 'workflow', 'hooks', 'as-built-approval', 'first-ci-note',
+    ]);
   });
 
   it.each(stubs)('%s is a stub that names itself, or implemented', (name, call) => {

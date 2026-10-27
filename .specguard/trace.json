@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-27T15:28:38.809Z",
+  "generated": "2026-10-27T20:27:53.630Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -3489,6 +3489,7 @@
         "Makefile",
         "action.yml",
         "action/run-gates.mjs",
+        "extension/scripts/build.mjs",
         "extension/src/api/adapters.test.ts",
         "extension/src/api/adapters.ts",
         "extension/src/api/client.ts",
@@ -3504,8 +3505,10 @@
         "extension/src/cli-version.ts",
         "extension/src/code-workspace.ts",
         "extension/src/commands.ts",
+        "extension/src/core-bridge.d.ts",
         "extension/src/coverage-label.test.ts",
         "extension/src/coverage-label.ts",
+        "extension/src/dashboard/activity-log.test.ts",
         "extension/src/dashboard/activity-log.ts",
         "extension/src/dashboard/cli.test.ts",
         "extension/src/dashboard/cli.ts",
@@ -3520,7 +3523,12 @@
         "extension/src/dashboard/protocol.test.ts",
         "extension/src/dashboard/protocol.ts",
         "extension/src/extension.ts",
+        "extension/src/host-bundle.test.ts",
         "extension/src/mcp-registration.ts",
+        "extension/src/output-inventory.test.ts",
+        "extension/src/output-inventory.ts",
+        "extension/src/output-panel.test.ts",
+        "extension/src/output-panel.ts",
         "extension/src/pipelines-view.ts",
         "extension/src/plugins-model.test.ts",
         "extension/src/plugins-model.ts",
@@ -3528,9 +3536,13 @@
         "extension/src/plugins-view.ts",
         "extension/src/project-config.test.ts",
         "extension/src/project-config.ts",
+        "extension/src/project-health.test.ts",
+        "extension/src/project-health.ts",
+        "extension/src/project-updater.test.ts",
         "extension/src/project-updater.ts",
         "extension/src/safe-spawn.test.ts",
         "extension/src/safe-spawn.ts",
+        "extension/src/sidebar.test.ts",
         "extension/src/sidebar.ts",
         "extension/src/spec-inventory.test.ts",
         "extension/src/spec-inventory.ts",
@@ -3562,6 +3574,7 @@
         "plugins/specguard/skills/specguard-agent-work/SKILL.md",
         "plugins/specguard/skills/specguard-change/SKILL.md",
         "plugins/specguard/skills/specguard/SKILL.md",
+        "scripts/wait-for-ci.mjs",
         "src/ci/context.ts",
         "src/ci/github-api.ts",
         "src/ci/pipeline-changes.ts",
@@ -3615,14 +3628,21 @@
         "extension/src/api/local-server.test.ts",
         "extension/src/cli-version.test.ts",
         "extension/src/coverage-label.test.ts",
+        "extension/src/dashboard/activity-log.test.ts",
         "extension/src/dashboard/cli.test.ts",
         "extension/src/dashboard/coverage-parse.test.ts",
         "extension/src/dashboard/flow-events.test.ts",
         "extension/src/dashboard/matrix-model.test.ts",
         "extension/src/dashboard/protocol.test.ts",
+        "extension/src/host-bundle.test.ts",
+        "extension/src/output-inventory.test.ts",
+        "extension/src/output-panel.test.ts",
         "extension/src/plugins-model.test.ts",
         "extension/src/project-config.test.ts",
+        "extension/src/project-health.test.ts",
+        "extension/src/project-updater.test.ts",
         "extension/src/safe-spawn.test.ts",
+        "extension/src/sidebar.test.ts",
         "extension/src/spec-inventory.test.ts",
         "extension/src/workspace-panel.test.ts",
         "tests/action/run-gates.test.ts",
@@ -3635,6 +3655,7 @@
         "tests/cli/features.test.ts",
         "tests/cli/overlay.test.ts",
         "tests/cli/plugin-json.test.ts",
+        "tests/core/activity-ignore.test.ts",
         "tests/core/ci-workflow.test.ts",
         "tests/core/cli.test.ts",
         "tests/core/env.test.ts",
@@ -3644,6 +3665,7 @@
         "tests/core/make.test.ts",
         "tests/core/mcp-server.test.ts",
         "tests/core/neutral.test.ts",
+        "tests/core/release-ci.test.ts",
         "tests/core/runner.test.ts",
         "tests/core/scaffold.test.ts",
         "tests/core/version.test.ts",
@@ -3665,6 +3687,7 @@
         "tests/pipelines/host-agent-flow.test.ts",
         "tests/pipelines/init-codex.test.ts",
         "tests/pipelines/init.test.ts",
+        "tests/pipelines/migrate.test.ts",
         "tests/pipelines/plugin-manage.test.ts",
         "tests/pipelines/security-scan.test.ts",
         "tests/plugins/catalog.test.ts",
@@ -3709,13 +3732,167 @@
         "2026-10-26-edit-guard-hook-entry-index-and-bundle",
         "2026-10-26-ci-orchestrator-ci-run-proof-packet-and",
         "2026-10-26-overlay-spec-sources-specs-kept-outside",
-        "2026-10-27-portable-ci-fixtures-and-grouped-local-d"
+        "2026-10-27-portable-ci-fixtures-and-grouped-local-d",
+        "2026-10-27-consistent-install-and-build-targets-wor",
+        "2026-10-27-workspace-first-extension-navigation-ver",
+        "2026-10-27-keep-runtime-activity-logging-out-of-com"
       ],
       "claims": [
         {
+          "id": "activity-log-never-committed",
+          "ref": "capabilities/integration-surfaces#activity-log-never-committed",
+          "text": "SpecGuard never stages runtime `.specguard/activity-log.json` files, including nested projects and explicit generated, dependency or code-fix scopes; a legacy tracked log can be untracked once by migration while retaining its local history, after which post-commit activity remains local",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 15,
+              "title": "stays clean after repeated real commits whose post-commit hook appends activity",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/git-ops-scope.test.ts",
+              "line": 6,
+              "title": "never stages runtime activity, including nested paths, Windows separators and explicit scopes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/migrate.test.ts",
+              "line": 33,
+              "title": "repairs a tracked activity log once and stays clean when logging resumes after the migration commit",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "extension-navigation-order",
+          "ref": "capabilities/integration-surfaces#extension-navigation-order",
+          "text": "The VS Code sidebar defaults to Workspace, Coverage, Pipelines and Plugins in that order; Workspace has its own independent tree and remains usable when the active repo has no coverage or its coverage load fails",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/sidebar.test.ts",
+              "line": 14,
+              "title": "declares Workspace, Coverage, Pipelines, Plugins in order and makes workspace independent of coverage",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "extension-workspace-alignment",
+          "ref": "capabilities/integration-surfaces#extension-workspace-alignment",
+          "text": "The workspace dashboard lists every repo's configured feature catalog files, schema versions, content revision, feature-to-current-spec link coverage and missing links; it separately shows the installed extension version, last harness setup version, spec format, current Git revision and working changes, and the revision and engine version of the last spec check; absent or differing check evidence is shown as needing a refresh, and catalog links alone never claim verified content alignment",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/project-health.test.ts",
+              "line": 25,
+              "title": "separates setup/check versions and clean checked Git revision from current catalog link coverage",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-health.test.ts",
+              "line": 36,
+              "title": "notices dirty code, a new commit, a different checker version and changed catalog content",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-health.test.ts",
+              "line": 49,
+              "title": "reports unsupported catalogs and absent historical versions without calling them aligned",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/workspace-panel.test.ts",
+              "line": 25,
+              "title": "renders current catalogs and separate setup, checker and Git versions without calling links verified",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "extension-output-browser",
+          "ref": "capabilities/integration-surfaces#extension-output-browser",
+          "text": "Clicking Specs, Tests or Docs in Outputs opens a searchable inventory inside VS Code, using configured directories, colocated tests and overlay spec roots while excluding archived specs and dependency/build output; files open in the editor, and authenticated team-server specs and docs can be listed and read through the existing API, with local files still available when the server cannot answer",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/host-bundle.test.ts",
+              "line": 7,
+              "title": "loads the packaged host and its output-browser dependencies in Node without activating the editor",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/output-inventory.test.ts",
+              "line": 15,
+              "title": "lists all configured specs, colocated tests and custom docs, excluding retired specs and dependencies",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/output-inventory.test.ts",
+              "line": 24,
+              "title": "reads specs and inherited settings from an overlay while finding code tests in the real repo",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/output-panel.test.ts",
+              "line": 13,
+              "title": "lists local and team-server docs and opens authenticated remote markdown inside VS Code",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/output-panel.test.ts",
+              "line": 27,
+              "title": "escapes file metadata and includes accessible search and a nonce-only script",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/sidebar.test.ts",
+              "line": 22,
+              "title": "opens each output inventory inside the editor even when there are no generated files yet",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "extension-setup-preview",
+          "ref": "capabilities/integration-surfaces#extension-setup-preview",
+          "text": "Before updating agent setup files, the extension explains and previews per file that CLAUDE.md retains custom rules outside SpecGuard sections, entire marked skills/commands and AGENTS.md are replaced, unmarked standalone files are skipped, and unrelated JSON settings/MCP entries are retained; cancelling runs nothing, and a failed scaffold never records a successful setup version",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/project-updater.test.ts",
+              "line": 17,
+              "title": "discloses CLAUDE section preservation, marked-file replacement and unmarked-file preservation before running",
+              "origin": "source"
+            },
+            {
+              "file": "extension/src/project-updater.test.ts",
+              "line": 33,
+              "title": "never advances the setup version or reports success after scaffold fails",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
           "id": "make-workflows",
           "ref": "capabilities/integration-surfaces#make-workflows",
-          "text": "`make help` groups commands by local usage, development, validation and publishing, distinguishes dependency setup (`deps`, with `install` retained as an alias) from installing this checkout's CLI (`install-cli`), and explains the build outputs and publishing effects; dependency setup uses `npm ci` for the root, extension and webview, and builds use those installed dependencies; `vsix-install` packages and installs into VS Code using `code` on PATH, a standard macOS app location, or an explicit `CODE` executable; local packaging never tags or publishes",
+          "text": "`make help` groups commands by local usage, development, validation and publishing, includes example flows for installing and running locally, developing and publishing, and explains outputs and publishing effects; `install` builds and installs this checkout's CLI and VS Code extension through `install-cli` and `install-vsix`, `install-dev` sets up locked dependencies with `npm ci` in the root, extension and webview, and `build-vsix` packages without installing; builds use installed dependencies, `install-vsix` finds `code` on PATH, in a standard macOS app location, or through an explicit `CODE` executable, and local installation and packaging never tag or publish",
           "proof": "proven",
           "tests": [
             {
@@ -3726,14 +3903,80 @@
             },
             {
               "file": "tests/core/make.test.ts",
-              "line": 25,
-              "title": "packages locally without release operations and keeps install as a dependency setup alias",
+              "line": 27,
+              "title": "separates development setup, local installation and packaging",
               "origin": "source"
             },
             {
               "file": "tests/core/make.test.ts",
-              "line": 35,
+              "line": 43,
               "title": "installs the expected VSIX with an explicit editor executable whose path contains spaces",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
+        {
+          "id": "release-waits-for-ci",
+          "ref": "capabilities/integration-surfaces#release-waits-for-ci",
+          "text": "`make release-check` and `make publish` check the latest CI workflow run on `main` for the exact commit being released, using `GH_USER` when GitHub CLI is available; a queued, requested, waiting, pending or running run is watched to completion with visible progress and proceeds only after confirmed success for that commit, while a failed, cancelled, interrupted, missing or unreadable run blocks release with an explanation before any tag or push",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/make.test.ts",
+              "line": 60,
+              "title": "runs the same CI-wait prerequisite for release-check and publish before tagging",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/make.test.ts",
+              "line": 68,
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 22,
+              "title": "selects the latest CI run for the exact main commit using the configured account",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 31,
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 40,
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 48,
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 56,
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 62,
+              "title": "reports a missing run and refuses runs for another commit or with an invalid ID",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 70,
+              "title": "reports authentication and API failures without exposing the token",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/release-ci.test.ts",
+              "line": 78,
+              "title": "rejects unreadable API output and an invalid commit without allowing a release",
               "origin": "source"
             }
           ],
@@ -4849,13 +5092,13 @@
             },
             {
               "file": "tests/pipelines/git-ops-scope.test.ts",
-              "line": 13,
+              "line": 23,
               "title": "dependency scope stages only the listed manifest and lockfiles",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/git-ops-scope.test.ts",
-              "line": 22,
+              "line": 32,
               "title": "code-fix scope stages only the named files, and traversal never passes",
               "origin": "source"
             }
@@ -6308,14 +6551,14 @@
         }
       ],
       "counts": {
-        "claims": 65,
-        "proven": 62,
+        "claims": 71,
+        "proven": 68,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 63,
+        "withTests": 69,
         "incomplete": 0
       }
     },
@@ -7103,6 +7346,7 @@
       "unit": ".",
       "ownedFiles": [
         "src/cli/commands/migrate.ts",
+        "src/core/activity-ignore.ts",
         "src/core/agent-work.ts",
         "src/core/config.ts",
         "src/core/errors.ts",
@@ -7125,12 +7369,15 @@
         "src/pipelines/migrate.ts"
       ],
       "tests": [
+        "extension/src/dashboard/activity-log.test.ts",
         "tests/cli/migrate.test.ts",
         "tests/cli/overlay.test.ts",
+        "tests/core/activity-ignore.test.ts",
         "tests/core/agent-work.test.ts",
         "tests/core/config-overlay.test.ts",
         "tests/core/config-phase3.test.ts",
         "tests/core/config.test.ts",
+        "tests/core/contracts-phase3.test.ts",
         "tests/core/errors.test.ts",
         "tests/core/exit-codes.test.ts",
         "tests/core/hardening.test.ts",
@@ -7174,9 +7421,57 @@
         "2026-10-26-migration-planning-is-a-pure-idempotent",
         "2026-10-26-migrate-applies-the-plan-idempotently-an",
         "2026-10-26-overlay-spec-sources-specs-kept-outside",
-        "2026-10-27-host-agent-tests-isolate-the-inherited-c"
+        "2026-10-27-host-agent-tests-isolate-the-inherited-c",
+        "2026-10-27-keep-runtime-activity-logging-out-of-com"
       ],
       "claims": [
+        {
+          "id": "activity-log-git-clean",
+          "ref": "capabilities/platform-foundation#activity-log-git-clean",
+          "text": "For activity logs that Git does not track, persistence honors an existing ignore rule or adds a literal, project-specific rule to Git's local `info/exclude`, including nested folders, symlinked paths and linked worktrees, without editing versioned files or the Git index; repeated appends after commits leave an otherwise clean repository clean, exclusions are idempotent, and a failure to establish an ignore rule skips optional persistence rather than creating an unignored file",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "extension/src/dashboard/activity-log.test.ts",
+              "line": 9,
+              "title": "persists, reconciles and clears extension activity without dirtying a clean repo",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 15,
+              "title": "stays clean after repeated real commits whose post-commit hook appends activity",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 34,
+              "title": "ignores a nested project with literal spaces and brackets without changing versioned files or the index",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 47,
+              "title": "supports linked worktrees whose .git is a file",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 57,
+              "title": "invalidates its cached exclusion when a repository ignore rule changes",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/activity-ignore.test.ts",
+              "line": 72,
+              "title": "notices when a previously non-Git project becomes a repository",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
         {
           "id": "config-discovery",
           "ref": "capabilities/platform-foundation#config-discovery",
@@ -7989,7 +8284,7 @@
             },
             {
               "file": "tests/pipelines/git-ops-scope.test.ts",
-              "line": 34,
+              "line": 44,
               "title": "strips the quotes git puts around a renamed path with spaces",
               "origin": "source"
             }
@@ -8358,9 +8653,15 @@
         {
           "id": "migrate-ordered-plan",
           "ref": "capabilities/platform-foundation#migrate-ordered-plan",
-          "text": "The migration plan always lists every step in one fixed order with a state (todo, done, skip, person or agent), a description, and the exact paths and commands involved; each step's state follows from the facts, so a half-migrated repo shows only what is left, and steps the repository cannot take (no git) are skipped with a \"Blocked:\" reason.",
+          "text": "The migration plan always lists every step in one fixed order (including `untrack-activity-log` after `untrack-trace`) with a state (todo, done, skip, person or agent), a description, and the exact paths and commands involved; each step's state follows from the facts, so a half-migrated repo shows only what is left, and steps the repository cannot take (no git) are skipped with a \"Blocked:\" reason.",
           "proof": "proven",
           "tests": [
+            {
+              "file": "tests/core/contracts-phase3.test.ts",
+              "line": 111,
+              "title": "declare the constants with the design\\'s values",
+              "origin": "source"
+            },
             {
               "file": "tests/core/migrate-plan.test.ts",
               "line": 74,
@@ -8561,13 +8862,13 @@
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 32,
+              "line": 51,
               "title": "reads the facts and prints the plan without changing anything",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 234,
+              "line": 253,
               "title": "works in a directory that is not a git repository",
               "origin": "source"
             }
@@ -8579,7 +8880,7 @@
         {
           "id": "migrate-apply-untracks-state",
           "ref": "capabilities/platform-foundation#migrate-apply-untracks-state",
-          "text": "`migrate --yes` refreshes the managed ignore block and stops tracking the generated proof ledger and trace files with `git rm --cached`, keeping both on disk; it never commits, never pushes and never adds a file to the index, so the only staged changes are the removals it names",
+          "text": "`migrate --yes` refreshes the managed ignore block and stops tracking the generated proof ledger, trace and any legacy tracked activity log with `git rm --cached`, keeping their contents on disk; it never commits, never pushes and never adds a file to the index, so the only staged changes are the removals it names",
           "proof": "proven",
           "tests": [
             {
@@ -8590,7 +8891,13 @@
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 60,
+              "line": 33,
+              "title": "repairs a tracked activity log once and stays clean when logging resumes after the migration commit",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/migrate.test.ts",
+              "line": 79,
               "title": "with --yes untracks the generated proof files, keeps them on disk, ignores them, and never commits or approves",
               "origin": "source"
             }
@@ -8607,7 +8914,7 @@
           "tests": [
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 94,
+              "line": 113,
               "title": "marks committed proof rows provisional with an imported marker, keeps a backup, and leaves local rows alone",
               "origin": "source"
             }
@@ -8624,19 +8931,19 @@
           "tests": [
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 261,
+              "line": 280,
               "title": "archives per-file specs with git mv so history follows them, and moves their ledger rows to the backup",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 356,
+              "line": 375,
               "title": "never overwrites an archived spec",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 368,
+              "line": 387,
               "title": "archives with a plain move when there is no git, and reads v1 specs through the legacy barrel",
               "origin": "source"
             }
@@ -8659,13 +8966,13 @@
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 287,
+              "line": 306,
               "title": "prints the drafting and tagging commands for the host agent, exits 12, and resumes from its state file",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 342,
+              "line": 361,
               "title": "--consolidate prints `spec consolidate` for the agent, moves no spec itself, and still does the tool steps",
               "origin": "source"
             }
@@ -8688,7 +8995,7 @@
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 113,
+              "line": 132,
               "title": "a second --yes is a no-op success, even on the tree the first run left dirty",
               "origin": "source"
             }
@@ -8711,13 +9018,13 @@
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 129,
+              "line": 148,
               "title": "refuses a dirty working tree, and --allow-dirty applies without touching the uncommitted source",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 383,
+              "line": 402,
               "title": "refuses a fresh start on a dirty tree, and starts once the tree is committed",
               "origin": "source"
             }
@@ -8734,13 +9041,13 @@
           "tests": [
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 167,
+              "line": 186,
               "title": "adds only the config keys that are absent, as text, and never rewrites what the user wrote",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 198,
+              "line": 217,
               "title": "adds guard hooks only to a settings file that already has SpecGuard hooks, and only once",
               "origin": "source"
             }
@@ -8757,19 +9064,19 @@
           "tests": [
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 60,
+              "line": 79,
               "title": "with --yes untracks the generated proof files, keeps them on disk, ignores them, and never commits or approves",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 150,
+              "line": 169,
               "title": "never touches source, tests, capability specs or history",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/migrate.test.ts",
-              "line": 234,
+              "line": 253,
               "title": "works in a directory that is not a git repository",
               "origin": "source"
             }
@@ -9194,14 +9501,14 @@
         }
       ],
       "counts": {
-        "claims": 55,
-        "proven": 55,
+        "claims": 56,
+        "proven": 56,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 0,
-        "withTests": 55,
+        "withTests": 56,
         "incomplete": 0
       }
     },
@@ -9250,7 +9557,7 @@
           "tests": [
             {
               "file": "tests/core/contracts-phase3.test.ts",
-              "line": 140,
+              "line": 145,
               "title": "the note schema accepts a complete note, rejects a wrong schema, a missing field and a bad approval hash, and keeps unknown fields",
               "origin": "source"
             }
@@ -9267,7 +9574,7 @@
           "tests": [
             {
               "file": "tests/core/contracts-phase3.test.ts",
-              "line": 168,
+              "line": 173,
               "title": "notes default to refs/notes/specguard on origin with the 1 MiB and 8 MiB limits, and are not checked against a CI run unless asked",
               "origin": "source"
             }
@@ -10055,9 +10362,13 @@
         "specs/history/2026-10-26-proof-store-reads-and-writes-notes-throu.md",
         "specs/history/2026-10-26-test-strength-is-a-static-reading-of-tes.md",
         "specs/history/2026-10-26-title-scoped-test-selection-and-claim-sc.md",
+        "specs/history/2026-10-27-check-traces-record-the-engine-version-u.md",
+        "specs/history/2026-10-27-consistent-install-and-build-targets-wor.md",
         "specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md",
         "specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md",
+        "specs/history/2026-10-27-keep-runtime-activity-logging-out-of-com.md",
         "specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md",
+        "specs/history/2026-10-27-workspace-first-extension-navigation-ver.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -10574,7 +10885,8 @@
         "2026-10-22-header-role-fix-and-spec-level-security",
         "2026-10-22-security-vuln-ignore-json-suppression-fi",
         "2026-10-22-security-spec-review-findings-containing",
-        "2026-10-22-extension-runs-the-cli-under-the-host-ex"
+        "2026-10-22-extension-runs-the-cli-under-the-host-ex",
+        "2026-10-27-keep-runtime-activity-logging-out-of-com"
       ],
       "claims": [
         {
@@ -13335,7 +13647,7 @@
           "tests": [
             {
               "file": "tests/core/contracts-phase3.test.ts",
-              "line": 178,
+              "line": 183,
               "title": "the change record schema accepts a record, and rejects an id that could leave the changes directory, no capability and an unknown kind",
               "origin": "source"
             }
@@ -13352,7 +13664,7 @@
           "tests": [
             {
               "file": "tests/core/contracts-phase3.test.ts",
-              "line": 199,
+              "line": 204,
               "title": "enforcement levels are observe, warn and enforce from weakest to strongest, and the default is observe",
               "origin": "source"
             }
@@ -17544,9 +17856,27 @@
         "2026-10-22-security-no-data-classification-requirem",
         "2026-10-22-security-no-access-control-requirement-o",
         "2026-10-26-proof-statement-is-a-pure-composition-wi",
-        "2026-10-26-check-leads-with-the-proof-statement-exi"
+        "2026-10-26-check-leads-with-the-proof-statement-exi",
+        "2026-10-27-check-traces-record-the-engine-version-u"
       ],
       "claims": [
+        {
+          "id": "check-engine-provenance",
+          "ref": "capabilities/traceability-and-drift#check-engine-provenance",
+          "text": "A saved check trace records the checking tool's name, package version and Node version in an additive `tool` field beside its existing checked-commit statement, keeping trace version 1; readers of an older trace with no tool field treat the engine version as unknown",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/pipelines/check.test.ts",
+              "line": 19,
+              "title": "records the checking engine version beside the checked commit for workspace freshness",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
         {
           "id": "status-coverage-report",
           "ref": "capabilities/traceability-and-drift#status-coverage-report",
@@ -17666,7 +17996,7 @@
           "tests": [
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 79,
+              "line": 90,
               "title": "writes the matrix as JSON or CSV with one row per claim [matrix]",
               "origin": "source"
             },
@@ -17736,7 +18066,7 @@
           "tests": [
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 68,
+              "line": 79,
               "title": "gaps lists untested claims and non-proven claims [gaps]",
               "origin": "source"
             }
@@ -17976,7 +18306,7 @@
           "tests": [
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 92,
+              "line": 103,
               "title": "status, gap-analysis and matrix delegate with their own names and exit codes [aliases]",
               "origin": "source"
             }
@@ -18010,25 +18340,25 @@
           "tests": [
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 23,
+              "line": 34,
               "title": "summary reports ownership, tests and proofs, exits 4 for unowned files [summary]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 50,
+              "line": 61,
               "title": "exits 0 once every source file has an owner [clean-exit]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 59,
+              "line": 70,
               "title": "exits 2 and names the rule on a graph error [graph-error]",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/check.test.ts",
-              "line": 141,
+              "line": 152,
               "title": "counts each graph error once in the failed total [failed-count]",
               "origin": "source"
             }
@@ -18959,14 +19289,14 @@
         }
       ],
       "counts": {
-        "claims": 42,
-        "proven": 39,
+        "claims": 43,
+        "proven": 40,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 39,
+        "withTests": 40,
         "incomplete": 0
       }
     },
@@ -19928,18 +20258,18 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 544,
-    "proven": 511,
+    "claims": 552,
+    "proven": 519,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 513,
+    "withTests": 521,
     "incomplete": 0,
     "capabilities": 16,
-    "ownedFiles": 430,
-    "sourceFiles": 324
+    "ownedFiles": 448,
+    "sourceFiles": 336
   },
   "gaps": {
     "intent": [
@@ -19960,14 +20290,13 @@
       }
     ],
     "docsStale": [
-      "requirement-history",
       "team-server"
     ]
   },
   "statement": {
     "version": 1,
-    "generated": "2026-10-27T15:28:42.641Z",
-    "head": "dbce5ef2315891583733e34a62d271e6872e2a38",
+    "generated": "2026-10-27T20:27:57.098Z",
+    "head": "4cf50436892e2e60f0917bb64079a3949e98542a",
     "policy": {
       "requireApproval": false,
       "requireTestable": false,
@@ -21647,7 +21976,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "agentic-verification: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -24450,7 +24779,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "conformance-testing: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -25296,7 +25625,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "coverage-and-mutation: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -26795,7 +27124,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "documentation-api: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -26819,11 +27148,56 @@
                 "fix": "specguard spec approve integration-surfaces  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/65 claims approved"
+            "summary": "0/71 claims approved"
           },
           "testable": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#activity-log-never-committed",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-navigation-order",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-workspace-alignment",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-output-browser",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-setup-preview",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
               {
                 "code": "LINT_WARNING",
                 "pillar": "testable",
@@ -26831,9 +27205,9 @@
                 "gate": "requireTestable",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#make-workflows",
-                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (90 words, at most 80.)",
                 "data": {
-                  "rule": "T-COMPOUND",
+                  "rule": "T-LONG",
                   "matches": []
                 }
               },
@@ -26844,6 +27218,15 @@
                 "gate": "requireTestable",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#release-waits-for-ci",
                 "message": "no test layer is required for this claim and the project declares no default"
               },
               {
@@ -27840,12 +28223,99 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "3 input file(s) have uncommitted changes: Makefile, specs/capabilities/integration-surfaces.md, tests/core/make.test.ts",
+                "message": "29 input file(s) have uncommitted changes: Makefile, extension/scripts/build.mjs, extension/src/commands.ts, ...",
                 "data": {
                   "files": [
                     "Makefile",
-                    "specs/capabilities/integration-surfaces.md",
-                    "tests/core/make.test.ts"
+                    "extension/scripts/build.mjs",
+                    "extension/src/commands.ts",
+                    "extension/src/core-bridge.d.ts",
+                    "extension/src/dashboard/activity-log.test.ts",
+                    "extension/src/dashboard/activity-log.ts",
+                    "extension/src/extension.ts",
+                    "extension/src/host-bundle.test.ts",
+                    "extension/src/output-inventory.test.ts",
+                    "extension/src/output-inventory.ts",
+                    "extension/src/output-panel.test.ts",
+                    "extension/src/output-panel.ts",
+                    "extension/src/project-health.test.ts",
+                    "extension/src/project-health.ts",
+                    "extension/src/project-updater.test.ts",
+                    "extension/src/project-updater.ts",
+                    "extension/src/sidebar.test.ts",
+                    "extension/src/sidebar.ts",
+                    "extension/src/workspace-panel.test.ts",
+                    "extension/src/workspace-panel.ts"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#activity-log-never-committed",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-navigation-order",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-workspace-alignment",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-output-browser",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-setup-preview",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
                   ]
                 }
               },
@@ -27856,6 +28326,20 @@
                 "gate": "requireConforms",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#release-waits-for-ci",
                 "message": "proof was earned on a local run, not in CI",
                 "data": {
                   "origins": [
@@ -28718,11 +29202,181 @@
                 }
               }
             ],
-            "summary": "62 proven, 0 failed, 0 stale, 3 unproven"
+            "summary": "68 proven, 0 failed, 0 stale, 3 unproven"
           }
         },
         "blocking": [],
         "claims": [
+          {
+            "ref": "capabilities/integration-surfaces#activity-log-never-committed",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#activity-log-never-committed",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#activity-log-never-committed",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#extension-navigation-order",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-navigation-order",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-navigation-order",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#extension-workspace-alignment",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-workspace-alignment",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-workspace-alignment",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#extension-output-browser",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-output-browser",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-output-browser",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#extension-setup-preview",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-setup-preview",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#extension-setup-preview",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
           {
             "ref": "capabilities/integration-surfaces#make-workflows",
             "pillars": {
@@ -28739,9 +29393,9 @@
                 "gate": "requireTestable",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#make-workflows",
-                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "message": "T-LONG: The claim is too long to read as one behaviour. (90 words, at most 80.)",
                 "data": {
-                  "rule": "T-COMPOUND",
+                  "rule": "T-LONG",
                   "matches": []
                 }
               },
@@ -28761,6 +29415,40 @@
                 "gate": "requireConforms",
                 "blocking": false,
                 "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "ref": "capabilities/integration-surfaces#release-waits-for-ci",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#release-waits-for-ci",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#release-waits-for-ci",
                 "message": "proof was earned on a local run, not in CI",
                 "data": {
                   "origins": [
@@ -31297,11 +31985,11 @@
           }
         ],
         "metrics": {
-          "claims": 65,
+          "claims": 71,
           "approved": 0,
-          "testable": 65,
-          "proven": 62,
-          "meaningful": 62,
+          "testable": 71,
+          "proven": 68,
+          "meaningful": 68,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -31311,7 +31999,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "integration-surfaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -33097,7 +33785,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "intent-approval: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -33121,7 +33809,7 @@
                 "fix": "specguard spec approve platform-foundation  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/55 claims approved"
+            "summary": "0/56 claims approved"
           },
           "testable": {
             "status": "fail",
@@ -33140,6 +33828,31 @@
                     "sensible"
                   ]
                 }
+              },
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "clean",
+                    "clean"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "no test layer is required for this claim and the project declares no default"
               },
               {
                 "code": "NO_LAYERS_DECLARED",
@@ -33746,7 +34459,7 @@
                 "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "1 errors, 8 warnings"
+            "summary": "1 errors, 9 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -33772,11 +34485,32 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: specs/capabilities/platform-foundation.md, tests/core/agent-work.test.ts",
+                "message": "9 input file(s) have uncommitted changes: extension/src/dashboard/activity-log.test.ts, specs/capabilities/platform-foundation.md, src/core/activity-ignore.ts, ...",
                 "data": {
                   "files": [
+                    "extension/src/dashboard/activity-log.test.ts",
                     "specs/capabilities/platform-foundation.md",
-                    "tests/core/agent-work.test.ts"
+                    "src/core/activity-ignore.ts",
+                    "src/core/migrate-plan.ts",
+                    "src/pipelines/migrate.ts",
+                    "tests/core/activity-ignore.test.ts",
+                    "tests/core/contracts-phase3.test.ts",
+                    "tests/pipelines/git-ops-scope.test.ts",
+                    "tests/pipelines/migrate.test.ts"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
                   ]
                 }
               },
@@ -34551,11 +35285,61 @@
                 }
               }
             ],
-            "summary": "55 proven, 0 failed, 0 stale"
+            "summary": "56 proven, 0 failed, 0 stale"
           }
         },
         "blocking": [],
         "claims": [
+          {
+            "ref": "capabilities/platform-foundation#activity-log-git-clean",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "T-SUBJECTIVE: A subjective term with no number or example to test against.",
+                "data": {
+                  "rule": "T-SUBJECTIVE",
+                  "matches": [
+                    "clean",
+                    "clean"
+                  ]
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/platform-foundation#activity-log-git-clean",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
           {
             "ref": "capabilities/platform-foundation#config-discovery",
             "pillars": {
@@ -36552,11 +37336,11 @@
           }
         ],
         "metrics": {
-          "claims": 55,
+          "claims": 56,
           "approved": 0,
-          "testable": 54,
-          "proven": 55,
-          "meaningful": 55,
+          "testable": 55,
+          "proven": 56,
+          "meaningful": 56,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -36566,7 +37350,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "platform-foundation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -36893,11 +37677,10 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: specs/capabilities/proof-store.md, tests/pipelines/proof-store-cmd.test.ts",
+                "message": "1 input file(s) have uncommitted changes: tests/core/contracts-phase3.test.ts",
                 "data": {
                   "files": [
-                    "specs/capabilities/proof-store.md",
-                    "tests/pipelines/proof-store-cmd.test.ts"
+                    "tests/core/contracts-phase3.test.ts"
                   ]
                 }
               },
@@ -38247,7 +39030,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "proof-store: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -38490,11 +39273,13 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md, specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md",
+                "message": "4 input file(s) have uncommitted changes: specs/history/2026-10-27-check-traces-record-the-engine-version-u.md, specs/history/2026-10-27-consistent-install-and-build-targets-wor.md, specs/history/2026-10-27-keep-runtime-activity-logging-out-of-com.md, ...",
                 "data": {
                   "files": [
-                    "specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md",
-                    "specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md"
+                    "specs/history/2026-10-27-check-traces-record-the-engine-version-u.md",
+                    "specs/history/2026-10-27-consistent-install-and-build-targets-wor.md",
+                    "specs/history/2026-10-27-keep-runtime-activity-logging-out-of-com.md",
+                    "specs/history/2026-10-27-workspace-first-extension-navigation-ver.md"
                   ]
                 }
               },
@@ -39295,7 +40080,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "requirement-history: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -39815,6 +40600,20 @@
           "conforms": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "2 input file(s) have uncommitted changes: specs/capabilities/security-and-remediation.md, src/core/git-scope.ts",
+                "data": {
+                  "files": [
+                    "specs/capabilities/security-and-remediation.md",
+                    "src/core/git-scope.ts"
+                  ]
+                }
+              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -41555,7 +42354,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "security-and-remediation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -43833,7 +44632,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "spec-authoring: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -44734,12 +45533,10 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "3 input file(s) have uncommitted changes: scripts/build-hook-bundle.mjs, specs/capabilities/spec-first-changes.md, tests/hooks/bundle-fresh.test.ts",
+                "message": "1 input file(s) have uncommitted changes: tests/core/contracts-phase3.test.ts",
                 "data": {
                   "files": [
-                    "scripts/build-hook-bundle.mjs",
-                    "specs/capabilities/spec-first-changes.md",
-                    "tests/hooks/bundle-fresh.test.ts"
+                    "tests/core/contracts-phase3.test.ts"
                   ]
                 }
               },
@@ -48652,7 +49449,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "spec-first-changes: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -49872,7 +50669,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "team-server: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -50654,7 +51451,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "test-strength: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -50678,11 +51475,20 @@
                 "fix": "specguard spec approve traceability-and-drift  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/42 claims approved"
+            "summary": "0/43 claims approved"
           },
           "testable": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/traceability-and-drift#check-engine-provenance",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
               {
                 "code": "LINT_WARNING",
                 "pillar": "testable",
@@ -51260,6 +52066,35 @@
                 "fix": "specguard test run"
               },
               {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "3 input file(s) have uncommitted changes: specs/capabilities/traceability-and-drift.md, src/pipelines/check.ts, tests/pipelines/check.test.ts",
+                "data": {
+                  "files": [
+                    "specs/capabilities/traceability-and-drift.md",
+                    "src/pipelines/check.ts",
+                    "tests/pipelines/check.test.ts"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/traceability-and-drift#check-engine-provenance",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              },
+              {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
                 "outcome": "note",
@@ -51806,11 +52641,45 @@
                 }
               }
             ],
-            "summary": "39 proven, 0 failed, 0 stale, 3 unproven"
+            "summary": "40 proven, 0 failed, 0 stale, 3 unproven"
           }
         },
         "blocking": [],
         "claims": [
+          {
+            "ref": "capabilities/traceability-and-drift#check-engine-provenance",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/traceability-and-drift#check-engine-provenance",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/traceability-and-drift#check-engine-provenance",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
           {
             "ref": "capabilities/traceability-and-drift#status-coverage-report",
             "pillars": {
@@ -53376,11 +54245,11 @@
           }
         ],
         "metrics": {
-          "claims": 42,
+          "claims": 43,
           "approved": 0,
-          "testable": 42,
-          "proven": 39,
-          "meaningful": 39,
+          "testable": 43,
+          "proven": 40,
+          "meaningful": 40,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -53390,7 +54259,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "traceability-and-drift: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -53987,6 +54856,19 @@
                 "claim": "capabilities/workspaces#workspace-drift",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
+              },
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "1 input file(s) have uncommitted changes: extension/src/workspace-panel.test.ts",
+                "data": {
+                  "files": [
+                    "extension/src/workspace-panel.test.ts"
+                  ]
+                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -55593,7 +56475,7 @@
             "local"
           ],
           "shas": [
-            "dbce5ef2315891583733e34a62d271e6872e2a38"
+            "4cf50436892e2e60f0917bb64079a3949e98542a"
           ]
         },
         "headline": "workspaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -55609,5 +56491,10 @@
       "planned": 0
     },
     "exitCode": 0
+  },
+  "tool": {
+    "name": "specguard-ai",
+    "version": "0.6.0",
+    "node": "v24.16.0"
   }
 }

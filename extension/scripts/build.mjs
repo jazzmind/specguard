@@ -28,6 +28,7 @@ const watch = process.argv.includes('--watch');
 // jsonc-parser's default entry is a UMD build whose runtime require('./impl/format') esbuild cannot follow,
 // so the bundle crashes at startup. Point it at the ESM build instead.
 const jsoncEsm = (from) => createRequire(from).resolve('jsonc-parser/lib/esm/main.js');
+const activityIgnore = path.resolve(extRoot, '..', 'src', 'core', 'activity-ignore.ts');
 
 const common = { bundle: true, platform: 'node', sourcemap: true, logLevel: 'info' };
 
@@ -50,9 +51,10 @@ const targets = {
     ...common,
     entryPoints: [path.resolve(extRoot, 'src', 'extension.ts')],
     external: ['vscode'],
-    alias: { 'jsonc-parser': jsoncEsm(path.resolve(extRoot, 'package.json')) },
+    alias: { 'jsonc-parser': jsoncEsm(path.resolve(extRoot, 'package.json')), 'specguard-core/activity-ignore': activityIgnore },
     outfile: path.resolve(extRoot, 'dist', 'extension.js'),
-    define: { __EXPECTED_CLI_VERSION__: version },
+    define: { 'import.meta.url': '__importMetaUrl', __EXPECTED_CLI_VERSION__: version },
+    banner: { js: "const __importMetaUrl=require('url').pathToFileURL(__filename).href;" },
   },
 };
 
@@ -61,6 +63,10 @@ if (!options) {
   console.error(`usage: node scripts/build.mjs <${Object.keys(targets).join('|')}> [--watch]`);
   process.exit(2);
 }
+
+// Tests can verify the real host bundle in isolation without replacing an active extension's files.
+const outIndex = process.argv.indexOf('--out');
+if (outIndex !== -1 && process.argv[outIndex + 1]) options.outfile = path.resolve(process.argv[outIndex + 1]);
 
 if (watch) {
   const ctx = await context(options);

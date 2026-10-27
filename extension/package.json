@@ -1,7 +1,7 @@
 {
   "name": "specguard",
   "displayName": "SpecGuard",
-  "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
+  "description": "Living Specification QA agent \u2014 spec coverage, drift detection, test generation, and security analysis in your IDE.",
   "version": "0.6.0",
   "publisher": "WesSonnenreich",
   "repository": {
@@ -208,7 +208,7 @@
       },
       {
         "command": "specguard.plugins.add",
-        "title": "SpecGuard: Add npm Plugin…",
+        "title": "SpecGuard: Add npm Plugin\u2026",
         "icon": "$(add)"
       },
       {
@@ -265,7 +265,7 @@
         },
         {
           "command": "specguard.initWorkspace",
-          "when": "view == specguard.coverageView && specguard.hasWorkspaceManifest == false",
+          "when": "view == specguard.workspaceView && specguard.hasWorkspaceManifest == false",
           "group": "navigation@3"
         },
         {
@@ -286,6 +286,16 @@
         {
           "command": "specguard.plugins.refresh",
           "when": "view == specguard.pluginsView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "specguard.workspaceStatus",
+          "when": "view == specguard.workspaceView",
+          "group": "navigation@0"
+        },
+        {
+          "command": "specguard.refreshWorkspace",
+          "when": "view == specguard.workspaceView && specguard.hasWorkspaceManifest == true",
           "group": "navigation@1"
         }
       ],
@@ -338,6 +348,13 @@
     },
     "views": {
       "specguard-sidebar": [
+        {
+          "id": "specguard.workspaceView",
+          "name": "Workspace",
+          "icon": "$(globe)",
+          "tooltip": "Repositories, feature catalogs and alignment",
+          "type": "tree"
+        },
         {
           "id": "specguard.coverageView",
           "name": "Coverage",

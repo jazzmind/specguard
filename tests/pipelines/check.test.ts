@@ -11,10 +11,21 @@ import { writeFileSync } from 'node:fs';
 import { runHistoryAdd } from '../../src/pipelines/history.js';
 import { makeRepo } from '../helpers/repo.js';
 import { AUTH_SPEC, gitCommit, gitInit, makeV2Repo } from '../helpers/v2-repo.js';
+import { versionInfo } from '../../src/core/version.js';
 
 const cfg = async (dir: string) => loadConfig(dir);
 
 describe('check [check]', () => {
+  // [claims: capabilities/traceability-and-drift#check-engine-provenance]
+  it('records the checking engine version beside the checked commit for workspace freshness', async () => {
+    const repo = makeV2Repo();
+    gitInit(repo.dir);
+    await runCheck(await cfg(repo.dir));
+    const trace = JSON.parse(readFileSync(path.join(repo.dir, '.specguard/trace.json'), 'utf8'));
+    expect(trace.tool).toEqual(versionInfo());
+    expect(trace.statement.head).toMatch(/^[a-f0-9]{40}$/);
+    expect(trace.version).toBe(1);
+  });
   it('recognises v2 repos and leaves v1 repos alone [is-v2]', async () => {
     expect(await isV2Repo(await cfg(makeV2Repo().dir))).toBe(true);
     expect(await isV2Repo(await cfg(makeRepo().dir))).toBe(false);

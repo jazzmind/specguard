@@ -56,6 +56,7 @@ history:
   - 2026-10-22-security-vuln-ignore-json-suppression-fi
   - 2026-10-22-security-spec-review-findings-containing
   - 2026-10-22-extension-runs-the-cli-under-the-host-ex
+  - 2026-10-27-keep-runtime-activity-logging-out-of-com
 ---
 
 # Security Scanning and Remediation

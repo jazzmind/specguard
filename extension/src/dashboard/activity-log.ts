@@ -13,6 +13,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ensureActivityLogIgnored } from 'specguard-core/activity-ignore';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -178,6 +179,7 @@ export class ActivityLogService {
 
   private _overwriteFile(): void {
     try {
+      if (!ensureActivityLogIgnored(this.workspaceRoot)) return;
       const dir = path.dirname(this.logFile);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(this.logFile, JSON.stringify(this.entries, null, 2), 'utf-8');
@@ -209,6 +211,7 @@ export class ActivityLogService {
 
   private _persistEntry(entry: ActivityEntry): void {
     try {
+      if (!ensureActivityLogIgnored(this.workspaceRoot)) return;
       const dir = path.dirname(this.logFile);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 

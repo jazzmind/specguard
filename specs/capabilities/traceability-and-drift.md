@@ -53,6 +53,7 @@ history:
   - 2026-10-22-security-no-access-control-requirement-o
   - 2026-10-26-proof-statement-is-a-pure-composition-wi
   - 2026-10-26-check-leads-with-the-proof-statement-exi
+  - 2026-10-27-check-traces-record-the-engine-version-u
 ---
 
 # Traceability and Drift
@@ -70,6 +71,7 @@ This capability computes that answer on demand and without opinion. It links spe
 - A QA engineer runs `specguard align` to learn which spec scenarios and claims no test actually exercises.
 
 ## Requirements
+- [ ] A saved check trace records the checking tool's name, package version and Node version in an additive `tool` field beside its existing checked-commit statement, keeping trace version 1; readers of an older trace with no tool field treat the engine version as unknown <!-- claim: check-engine-provenance -->
 - [ ] Status reports, for every configured app, how many non-test source files have an owning spec and how many have a test, and lists the files without a spec; test files are never counted as source files that need their own spec. <!-- claim: status-coverage-report -->
 - [ ] Status exits with the missing-specs code (4) when any source file lacks a spec and 0 otherwise, never calls the LLM and never writes files; an app with no matching source files is not an error. <!-- claim: status-exit-code -->
 - [ ] A spec counts as having a test when a test carries one of its claim tags or a test file matches its name, with the claim tag taking precedence over the file-name fallback. <!-- claim: no-test-by-claim-tag -->

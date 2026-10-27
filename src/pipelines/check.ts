@@ -30,6 +30,7 @@ import { evidenceSourceLabel, loadEffectiveLedger, noteApprovalsAsApprovals, rea
 import { buildStatementInput } from './statement-input.js';
 import type { LedgerStore } from '../core/state/ledger-store.js';
 import { collectSourceFiles } from './spec-synth.js';
+import { versionInfo } from '../core/version.js';
 
 export type CheckView = 'summary' | 'coverage' | 'gaps' | 'matrix' | 'drift' | 'align';
 
@@ -140,7 +141,7 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
     model.statement = statement;
     result.statement = statement;
   }
-  await writeFile(path.join(root, TRACE_FILE), JSON.stringify(model, null, 2) + '\n');
+  await writeFile(path.join(root, TRACE_FILE), JSON.stringify({ ...model, tool: versionInfo() }, null, 2) + '\n');
 
   const errors = model.issues.filter((i) => i.level === 'error');
   const orphans = specNodes(model).filter((n) => n.ownedFiles.length === 0 && n.status !== 'planned');

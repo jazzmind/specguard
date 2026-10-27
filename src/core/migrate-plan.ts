@@ -17,7 +17,7 @@ export interface RepoFacts {
   /** Spec files without `kind:` frontmatter (outside _archive). */
   v1Specs: string[];
   v2Specs: string[];
-  tracked: { proofs: boolean; trace: boolean; publishSnapshot: boolean };
+  tracked: { proofs: boolean; trace: boolean; activityLog?: boolean; publishSnapshot: boolean };
   gitignoreBlock: 'missing' | 'outdated' | 'current';
   hasApprovals: boolean;
   notes: { localRef: boolean; fetchRefspec: boolean };
@@ -35,7 +35,7 @@ export interface RepoFacts {
 export const MIGRATE_STEP_IDS = [
   // v0.1 only
   'archive-v1', 'draft', 'tag', 'drop-v1-ledger',
-  'gitignore', 'untrack-ledger', 'untrack-trace', 'provisional-rows',
+  'gitignore', 'untrack-ledger', 'untrack-trace', 'untrack-activity-log', 'provisional-rows',
   'config', 'notes-fetch', 'workflow', 'hooks',
   // printed only
   'as-built-approval',
@@ -75,7 +75,7 @@ const NOTES_REFSPEC = '+refs/notes/specguard:refs/notes/specguard';
 const APPROVE = 'specguard spec approve --all --as-built --yes';
 
 function hasCurrentLayout(f: RepoFacts): boolean {
-  return !f.tracked.proofs && !f.tracked.trace && f.gitignoreBlock === 'current' && f.ledgerOriginCi === 0;
+  return !f.tracked.proofs && !f.tracked.trace && !f.tracked.activityLog && f.gitignoreBlock === 'current' && f.ledgerOriginCi === 0;
 }
 
 /**
@@ -195,6 +195,12 @@ function build(f: RepoFacts, opts: Opts, format: RepoFormat): Record<MigrateStep
   };
   untrack('untrack-ledger', LEDGER, f.tracked.proofs, 'proofs now live in git notes');
   untrack('untrack-trace', TRACE, f.tracked.trace, 'generated per run');
+  if (!git) put('untrack-activity-log', 'skip', 'Blocked: this is not a Git repository, so no activity log is tracked.');
+  else if (!f.tracked.activityLog) put('untrack-activity-log', 'done', 'The runtime activity log is not tracked.');
+  else put('untrack-activity-log', 'todo', 'Stop tracking the runtime activity log; keep its content on disk so post-commit logging cannot dirty the repository again.', {
+    commands: ['git rm --cached --quiet -- .specguard/activity-log.json'],
+    changes: [{ path: '.specguard/activity-log.json', op: 'untrack' }],
+  });
 
   // provisional-rows
   if (f.ledgerRows === 0) put('provisional-rows', 'skip', 'No proof rows in the local cache.');

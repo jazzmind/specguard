@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { createSecretRedactor } from '../core/redact.js';
+import { ensureActivityLogIgnored } from '../core/activity-ignore.js';
 
 export type ActivityStatus = 'running' | 'pass' | 'fail' | 'error' | 'info';
 export type ActivitySource = 'extension' | 'mcp' | 'cli';
@@ -34,6 +35,7 @@ export function appendActivityLogEntry(
   entry: Omit<ActivityEntry, 'id' | 'timestamp'>,
 ): void {
   try {
+    if (!ensureActivityLogIgnored(workspaceRoot)) return;
     const logFile = path.join(workspaceRoot, '.specguard', 'activity-log.json');
     const dir = path.dirname(logFile);
 

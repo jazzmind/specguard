@@ -53,7 +53,13 @@ export function isSafeToStage(rel: string, safeRoots: string[]): boolean {
   const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
   if (normalized.startsWith('../') || path.posix.isAbsolute(normalized)) return false;
   if (isSecretLike(normalized)) return false;
+  if (isActivityLog(normalized)) return false;
   return safeRoots.some((root) => normalized.startsWith(root));
+}
+
+/** Runtime telemetry is never a commit artifact, even in an explicitly selected change scope. */
+function isActivityLog(rel: string): boolean {
+  return /(^|\/)\.specguard\/activity-log\.json$/i.test(rel);
 }
 
 /**
@@ -97,6 +103,7 @@ export type ChangeScope =
 export function inScope(rel: string, scope: ChangeScope, safeRoots: string[] = DEFAULT_SAFE_ROOTS): boolean {
   const normalized = path.posix.normalize(rel.replace(/\\/g, '/'));
   if (normalized.startsWith('../') || path.posix.isAbsolute(normalized)) return false;
+  if (isActivityLog(normalized)) return false;
   if (scope.type === 'generated') return isSafeToStage(normalized, safeRoots);
   return scope.files.some((f) => path.posix.normalize(f) === normalized);
 }

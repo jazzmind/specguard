@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { inScope, parsePorcelain, partitionByScope } from '../../src/core/git-scope.js';
+import { inScope, isSafeToStage, parsePorcelain, partitionByScope } from '../../src/core/git-scope.js';
 
 describe('git-ops change scopes', () => {
+  // [claims: capabilities/integration-surfaces#activity-log-never-committed]
+  it('never stages runtime activity, including nested paths, Windows separators and explicit scopes', () => {
+    for (const file of ['.specguard/activity-log.json', 'apps/web/.specguard/activity-log.json', 'apps\\web\\.specguard\\activity-log.json']) {
+      expect(isSafeToStage(file, ['.specguard/', 'apps/'])).toBe(false);
+      expect(inScope(file, { type: 'generated' }, ['.specguard/', 'apps/'])).toBe(false);
+      expect(inScope(file, { type: 'code-fix', files: [file] })).toBe(false);
+      expect(inScope(file, { type: 'dependency', files: [file] })).toBe(false);
+    }
+    expect(isSafeToStage('.specguard/config.json', ['.specguard/'])).toBe(true);
+  });
   it('parses -z porcelain output with renames and spaces', () => {
     // claim: porcelain-parse
     const out = ' M tests/a b.test.ts\0R  docs/new.md\0docs/old.md\0?? .specguard/x.json\0';

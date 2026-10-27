@@ -16,7 +16,6 @@ import {
   coveragePercent,
   coverageRowDescription,
   coverageRowLabel,
-  docsOutputDescription,
   layersRow,
   outputBasis,
   specsOutputDescription,
@@ -95,7 +94,6 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
    */
   private readonly _coverageSection = this._makeSection('coverage', 'Coverage', 'shield');
   private readonly _outputsSection = this._makeSection('outputs', 'Outputs', 'package');
-  private readonly _workspaceSection = this._makeSection('workspace', 'Workspace', 'globe');
 
   private _makeSection(id: string, label: string, iconId: string): CoverageTreeItem {
     const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.Expanded, 'section');
@@ -112,8 +110,6 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       : 'Coverage';
     // Drives the "Initialize Workspace" button: shown only while there is no manifest to show.
     void vscode.commands.executeCommand('setContext', 'specguard.hasWorkspaceManifest', Boolean(getWorkspaceManifestRoot()));
-    const manifest = loadWorkspaceManifest();
-    this._workspaceSection.label = manifest ? `Workspace — ${manifest.name}` : 'Workspace';
   }
 
   refresh(): Promise<void> {
@@ -129,7 +125,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     if (!element) {
       if (this._noConfig) {
         this._labelSections();
-        return getWorkspaceManifestRoot() ? [this._workspaceSection] : [];
+        return [];
       }
       if (this._loading) {
         return [new CoverageTreeItem('Loading…', vscode.TreeItemCollapsibleState.None, 'loading')];
@@ -137,10 +133,10 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       if (this._error) {
         // The workspace rollup is read from files, so it still shows when this project's own coverage failed.
         this._labelSections();
-        return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error'), ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];
+        return [new CoverageTreeItem(`Error: ${this._error}`, vscode.TreeItemCollapsibleState.None, 'error')];
       }
       this._labelSections();
-      return [this._coverageSection, this._outputsSection, ...(getWorkspaceManifestRoot() ? [this._workspaceSection] : [])];
+      return [this._coverageSection, this._outputsSection];
     }
 
     // Coverage section
@@ -166,11 +162,6 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     // Outputs section
     if (element === this._outputsSection) {
       return this._buildOutputItems();
-    }
-
-    // Workspace section
-    if (element === this._workspaceSection) {
-      return this._buildWorkspaceItems();
     }
 
     // Workspace repos group (collapsible, default expanded)
@@ -223,9 +214,20 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     return [];
   }
 
+  getWorkspaceChildren(element?: CoverageTreeItem): CoverageTreeItem[] {
+    if (element) return this.getChildren(element);
+    this._labelSections();
+    return this._buildWorkspaceItems();
+  }
+
   private _buildWorkspaceItems(): CoverageTreeItem[] {
     const manifest = loadWorkspaceManifest();
-    if (!manifest) return [];
+    if (!manifest) {
+      const init = new CoverageTreeItem('Initialize Workspace', vscode.TreeItemCollapsibleState.None, 'output-item');
+      init.description = 'Group and inspect your repositories';
+      init.command = { command: 'specguard.initWorkspace', title: 'Initialize Workspace' };
+      return [init];
+    }
 
     const { repos, manifestRoot } = manifest;
 
@@ -403,61 +405,22 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
     const items: CoverageTreeItem[] = [];
 
-    // Spec count — click opens specs/ folder
     const basis = outputBasis(this._apps);
-    const totalSpecs = this._apps.reduce((s, a) => s + a.specCount, 0);
-    const specItem = new CoverageTreeItem(`Specs: ${totalSpecs}`, vscode.TreeItemCollapsibleState.None, 'output-item');
-    specItem.iconPath = new vscode.ThemeIcon('book');
-    specItem.description = totalSpecs > 0 ? specsOutputDescription(basis) : 'run reverse or import';
-    specItem.tooltip = 'Click to open specs directory';
-    // Specs and the trace live next to the config: in the overlay repo when that is where the project's specs are kept.
     const stateDir = configDirFor(root);
-    const specsDir = path.join(stateDir, 'specs');
-    if (fs.existsSync(specsDir)) {
-      specItem.command = {
-        command: 'revealFileInOS',
-        title: 'Open specs folder',
-        arguments: [vscode.Uri.file(specsDir)],
-      };
-    }
-    items.push(specItem);
-
-    // Test count — click opens the generated tests directory
+    const totalSpecs = this._apps.reduce((s, a) => s + a.specCount, 0);
     const totalTests = this._apps.reduce((s, a) => s + a.testCount, 0);
-    const testItem = new CoverageTreeItem(`Tests: ${totalTests}`, vscode.TreeItemCollapsibleState.None, 'output-item');
-    testItem.description = testsOutputDescription(totalTests, basis);
-    testItem.iconPath = new vscode.ThemeIcon(totalTests > 0 ? 'pass-filled' : 'circle-outline');
-    testItem.tooltip = 'Click to open tests directory';
-    const testsDir = path.join(root, 'tests');
-    if (fs.existsSync(testsDir)) {
-      testItem.command = {
-        command: 'revealFileInOS',
-        title: 'Open tests folder',
-        arguments: [vscode.Uri.file(testsDir)],
-      };
+    for (const [kind, label, icon, description] of [
+      ['specs', `Specs: ${totalSpecs}`, 'book', specsOutputDescription(basis)],
+      ['tests', `Tests: ${totalTests}`, 'beaker', testsOutputDescription(totalTests, basis)],
+      ['docs', 'Docs', 'file-text', 'local and team-server documents'],
+    ]) {
+      const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.None, 'output-item');
+      item.iconPath = new vscode.ThemeIcon(icon);
+      item.description = description;
+      item.tooltip = `Browse all ${kind} inside VS Code`;
+      item.command = { command: 'specguard.openOutputs', title: `Browse ${kind}`, arguments: [kind] };
+      items.push(item);
     }
-    items.push(testItem);
-
-    // Docs — count files in docs/user/, click opens folder
-    const docsDir = path.join(root, 'docs', 'user');
-    let docCount = 0;
-    try {
-      if (fs.existsSync(docsDir)) {
-        docCount = fs.readdirSync(docsDir).filter((f) => f.endsWith('.md')).length;
-      }
-    } catch { /* ignore */ }
-    const docItem = new CoverageTreeItem(`Docs: ${docCount}`, vscode.TreeItemCollapsibleState.None, 'output-item');
-    docItem.iconPath = new vscode.ThemeIcon(docCount > 0 ? 'file-text' : 'circle-outline');
-    docItem.description = docsOutputDescription(docCount, basis);
-    docItem.tooltip = 'Click to open docs directory';
-    if (docCount > 0 && fs.existsSync(docsDir)) {
-      docItem.command = {
-        command: 'revealFileInOS',
-        title: 'Open docs folder',
-        arguments: [vscode.Uri.file(docsDir)],
-      };
-    }
-    items.push(docItem);
 
     // Traceability matrix — click opens the JSON file
     const traceJson = path.join(stateDir, '.specguard', 'trace.json');
@@ -565,4 +528,12 @@ function runCli(cliPath: string, args: string[], cwd: string): Promise<string> {
     }
     return text;
   });
+}
+
+/** Workspace is an independent top-level drawer and stays usable when coverage fails. */
+export class WorkspaceProvider implements vscode.TreeDataProvider<CoverageTreeItem> {
+  readonly onDidChangeTreeData;
+  constructor(private readonly coverage: CoverageProvider) { this.onDidChangeTreeData = coverage.onDidChangeTreeData; }
+  getTreeItem(item: CoverageTreeItem): vscode.TreeItem { return item; }
+  getChildren(item?: CoverageTreeItem): CoverageTreeItem[] { return this.coverage.getWorkspaceChildren(item); }
 }

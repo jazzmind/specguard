@@ -218,6 +218,7 @@ export interface RepoRollupSummary {
 
 export interface WorkspaceManifestData {
   name: string;
+  catalog?: string;
   /** The `.code-workspace` the manifest follows, when linked. */
   codeWorkspace?: string;
   /** When the rollup was last computed. */
@@ -289,6 +290,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
     type Entry = { path?: string; role?: string; description?: string; ignore?: boolean; ignoreReason?: string; kind?: string };
     const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
       name?: string;
+      catalog?: string;
       repos?: Record<string, Entry>;
       units?: Record<string, Entry>;
       source?: { codeWorkspace?: string };
@@ -326,6 +328,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
 
     return {
       name,
+      ...(typeof raw.catalog === 'string' ? { catalog: path.resolve(manifestRoot, raw.catalog) } : {}),
       repos,
       manifestRoot,
       ...(raw.source?.codeWorkspace ? { codeWorkspace: path.resolve(manifestRoot, raw.source.codeWorkspace) } : {}),
