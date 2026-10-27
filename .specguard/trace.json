@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-26T14:34:24.549Z",
+  "generated": "2026-10-27T14:27:56.873Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -10014,6 +10014,7 @@
         "specs/history/2026-10-26-proof-store-reads-and-writes-notes-throu.md",
         "specs/history/2026-10-26-test-strength-is-a-static-reading-of-tes.md",
         "specs/history/2026-10-26-title-scoped-test-selection-and-claim-sc.md",
+        "specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -13278,7 +13279,8 @@
         "2026-10-26-edit-guard-is-a-pure-decision-table-over",
         "2026-10-26-change-pipeline-joins-the-pure-model-to",
         "2026-10-26-edit-guard-hook-entry-index-and-bundle",
-        "2026-10-26-edit-guard-reads-the-red-record-change-r"
+        "2026-10-26-edit-guard-reads-the-red-record-change-r",
+        "2026-10-27-hook-bundle-build-is-layout-independent"
       ],
       "claims": [
         {
@@ -15867,7 +15869,7 @@
         {
           "id": "hook-bundle-fresh",
           "ref": "capabilities/spec-first-changes#hook-bundle-fresh",
-          "text": "The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs",
+          "text": "The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs, and the rebuild depends only on the sources, the dependency versions and the esbuild version, so an npm install and a pnpm install produce byte-identical bundles",
           "proof": "proven",
           "tests": [
             {
@@ -19880,7 +19882,7 @@
     "withTests": 512,
     "incomplete": 0,
     "capabilities": 16,
-    "ownedFiles": 426,
+    "ownedFiles": 427,
     "sourceFiles": 324
   },
   "gaps": {
@@ -19902,15 +19904,13 @@
       }
     ],
     "docsStale": [
-      "integration-surfaces",
-      "requirement-history",
       "team-server"
     ]
   },
   "statement": {
     "version": 1,
-    "generated": "2026-10-26T14:34:28.028Z",
-    "head": "013c088f818282b960db7d1a28919fb694c0ec22",
+    "generated": "2026-10-27T14:28:00.969Z",
+    "head": "f876e5f14278325fcffaf19be286779f16e6dd94",
     "policy": {
       "requireApproval": false,
       "requireTestable": false,
@@ -21590,7 +21590,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "agentic-verification: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -24393,7 +24393,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "conformance-testing: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -25239,7 +25239,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "coverage-and-mutation: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -26738,7 +26738,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "documentation-api: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -27754,36 +27754,6 @@
                 "claim": "capabilities/integration-surfaces#extension-plugins-view",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
-              },
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "18 input file(s) have uncommitted changes: extension/src/dashboard/coverage-parse.ts, extension/src/dashboard/host.ts, extension/src/extension.ts, ...",
-                "data": {
-                  "files": [
-                    "extension/src/dashboard/coverage-parse.ts",
-                    "extension/src/dashboard/host.ts",
-                    "extension/src/extension.ts",
-                    "extension/src/project-config.test.ts",
-                    "extension/src/project-config.ts",
-                    "extension/src/project-updater.ts",
-                    "extension/src/sidebar.ts",
-                    "extension/src/workspace-state.ts",
-                    "plugins/specguard/scripts/session-status.sh",
-                    "specs/capabilities/integration-surfaces.md",
-                    "src/cli/commands/helpers.ts",
-                    "src/cli/commands/init.ts",
-                    "src/cli/commands/overlay.ts",
-                    "src/cli/index.ts",
-                    "src/pipelines/start.ts",
-                    "tests/cli/overlay.test.ts",
-                    "tests/hooks/overlay.test.ts",
-                    "tests/plugins/session-status.test.ts"
-                  ]
-                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -31186,7 +31156,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "integration-surfaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -32972,7 +32942,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "intent-approval: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -33641,30 +33611,6 @@
           "conforms": {
             "status": "ok",
             "reasons": [
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "12 input file(s) have uncommitted changes: specs/capabilities/platform-foundation.md, src/core/config.ts, src/core/errors.ts, ...",
-                "data": {
-                  "files": [
-                    "specs/capabilities/platform-foundation.md",
-                    "src/core/config.ts",
-                    "src/core/errors.ts",
-                    "src/core/overlay.ts",
-                    "src/core/types.ts",
-                    "src/pipelines/migrate.ts",
-                    "tests/cli/overlay.test.ts",
-                    "tests/core/config-overlay.test.ts",
-                    "tests/core/overlay.test.ts",
-                    "tests/core/workspace-sync-overlay.test.ts",
-                    "tests/helpers/overlay-fixture.ts",
-                    "tests/hooks/overlay.test.ts"
-                  ]
-                }
-              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -36451,7 +36397,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "platform-foundation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -38118,7 +38064,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "proof-store: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -38361,10 +38307,10 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/history/2026-10-26-overlay-spec-sources-specs-kept-outside.md",
+                "message": "1 input file(s) have uncommitted changes: specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md",
                 "data": {
                   "files": [
-                    "specs/history/2026-10-26-overlay-spec-sources-specs-kept-outside.md"
+                    "specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md"
                   ]
                 }
               },
@@ -39165,7 +39111,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "requirement-history: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -41425,7 +41371,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "security-and-remediation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -43703,7 +43649,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "spec-authoring: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -44604,12 +44550,11 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "3 input file(s) have uncommitted changes: src/cli/commands/hook.ts, src/hooks/entry.ts, src/hooks/index-build.ts",
+                "message": "2 input file(s) have uncommitted changes: scripts/build-hook-bundle.mjs, specs/capabilities/spec-first-changes.md",
                 "data": {
                   "files": [
-                    "src/cli/commands/hook.ts",
-                    "src/hooks/entry.ts",
-                    "src/hooks/index-build.ts"
+                    "scripts/build-hook-bundle.mjs",
+                    "specs/capabilities/spec-first-changes.md"
                   ]
                 }
               },
@@ -48522,7 +48467,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "spec-first-changes: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -49742,7 +49687,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "team-server: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -50524,7 +50469,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "test-strength: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -51128,20 +51073,6 @@
                 "claim": "capabilities/traceability-and-drift#gap-exit-code",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
-              },
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: src/cli/commands/check.ts, src/cli/commands/status.ts",
-                "data": {
-                  "files": [
-                    "src/cli/commands/check.ts",
-                    "src/cli/commands/status.ts"
-                  ]
-                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -53274,7 +53205,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "traceability-and-drift: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -53871,25 +53802,6 @@
                 "claim": "capabilities/workspaces#workspace-drift",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
-              },
-              {
-                "code": "DIRTY_TREE",
-                "pillar": "conforms",
-                "outcome": "note",
-                "gate": "requireConforms",
-                "blocking": false,
-                "message": "7 input file(s) have uncommitted changes: specs/capabilities/workspaces.md, src/cli/commands/workspace.ts, src/core/workspace-heuristics.ts, ...",
-                "data": {
-                  "files": [
-                    "specs/capabilities/workspaces.md",
-                    "src/cli/commands/workspace.ts",
-                    "src/core/workspace-heuristics.ts",
-                    "src/core/workspace-rollup.ts",
-                    "src/core/workspace-sync.ts",
-                    "src/core/workspace.ts",
-                    "tests/core/workspace-sync-overlay.test.ts"
-                  ]
-                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -55496,7 +55408,7 @@
             "local"
           ],
           "shas": [
-            "013c088f818282b960db7d1a28919fb694c0ec22"
+            "f876e5f14278325fcffaf19be286779f16e6dd94"
           ]
         },
         "headline": "workspaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"

@@ -1823,7 +1823,7 @@ var require_picomatch2 = __commonJS({
   }
 });
 
-// node_modules/tinyglobby/node_modules/fdir/dist/index.mjs
+// node_modules/fdir/dist/index.mjs
 import { createRequire } from "module";
 import { basename, dirname, normalize, relative, resolve, sep } from "path";
 import * as nativeFs from "fs";
@@ -1949,7 +1949,7 @@ function sync(root, options) {
 }
 var __require2, SLASHES_REGEX, WINDOWS_ROOT_DIR_REGEX, pushDirectory, pushDirectoryFilter, empty$2, pushFileFilterAndCount, pushFileFilter, pushFileCount, pushFile, empty$1, getArray, getArrayGroup, groupFiles, empty, resolveSymlinksAsync, resolveSymlinks, onlyCountsSync, groupsSync, defaultSync, limitFilesSync, onlyCountsAsync, defaultAsync, limitFilesAsync, groupsAsync, readdirOpts, walkAsync, walkSync, Queue, Counter, Aborter, Walker, APIBuilder, pm, Builder;
 var init_dist = __esm({
-  "node_modules/tinyglobby/node_modules/fdir/dist/index.mjs"() {
+  "node_modules/fdir/dist/index.mjs"() {
     __require2 = /* @__PURE__ */ createRequire(import.meta.url);
     SLASHES_REGEX = /[\\/]/g;
     WINDOWS_ROOT_DIR_REGEX = /^[a-z]:[\\/]$/i;
@@ -6879,11 +6879,19 @@ var init_types2 = __esm({
   }
 });
 
+// node_modules/fast-xml-parser/src/fxp.js
+var init_fxp = __esm({
+  "node_modules/fast-xml-parser/src/fxp.js"() {
+    "use strict";
+  }
+});
+
 // src/core/coverage.ts
 var COVERAGE_FORMATS, COVERAGE_MAX_BYTES;
 var init_coverage = __esm({
   "src/core/coverage.ts"() {
     "use strict";
+    init_fxp();
     COVERAGE_FORMATS = ["lcov", "jacoco", "cobertura", "go"];
     COVERAGE_MAX_BYTES = 10 * 1024 * 1024;
   }
