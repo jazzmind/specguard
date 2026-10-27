@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-27T14:27:56.873Z",
+  "generated": "2026-10-27T15:28:38.809Z",
   "system": {
     "id": "system",
     "title": "SpecGuard",
@@ -3486,6 +3486,7 @@
       "ownedFiles": [
         ".agents/plugins/marketplace.json",
         ".claude-plugin/marketplace.json",
+        "Makefile",
         "action.yml",
         "action/run-gates.mjs",
         "extension/src/api/adapters.test.ts",
@@ -3640,6 +3641,7 @@
         "tests/core/exit-codes.test.ts",
         "tests/core/extension.test.ts",
         "tests/core/hardening.test.ts",
+        "tests/core/make.test.ts",
         "tests/core/mcp-server.test.ts",
         "tests/core/neutral.test.ts",
         "tests/core/runner.test.ts",
@@ -3678,6 +3680,7 @@
         "README.md",
         "docs/ci-remediate.md",
         "docs/ci.md",
+        "docs/development.md",
         "docs/examples/feature-catalog.config.json",
         "docs/examples/specguard-remediate.yml",
         "docs/feature-catalog.md",
@@ -3705,9 +3708,39 @@
         "2026-10-26-ci-trust-approvals-are-records-ci-plumbi",
         "2026-10-26-edit-guard-hook-entry-index-and-bundle",
         "2026-10-26-ci-orchestrator-ci-run-proof-packet-and",
-        "2026-10-26-overlay-spec-sources-specs-kept-outside"
+        "2026-10-26-overlay-spec-sources-specs-kept-outside",
+        "2026-10-27-portable-ci-fixtures-and-grouped-local-d"
       ],
       "claims": [
+        {
+          "id": "make-workflows",
+          "ref": "capabilities/integration-surfaces#make-workflows",
+          "text": "`make help` groups commands by local usage, development, validation and publishing, distinguishes dependency setup (`deps`, with `install` retained as an alias) from installing this checkout's CLI (`install-cli`), and explains the build outputs and publishing effects; dependency setup uses `npm ci` for the root, extension and webview, and builds use those installed dependencies; `vsix-install` packages and installs into VS Code using `code` on PATH, a standard macOS app location, or an explicit `CODE` executable; local packaging never tags or publishes",
+          "proof": "proven",
+          "tests": [
+            {
+              "file": "tests/core/make.test.ts",
+              "line": 13,
+              "title": "lists each public command once, grouped by usage, development, validation and publishing",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/make.test.ts",
+              "line": 25,
+              "title": "packages locally without release operations and keeps install as a dependency setup alias",
+              "origin": "source"
+            },
+            {
+              "file": "tests/core/make.test.ts",
+              "line": 35,
+              "title": "installs the expected VSIX with an explicit editor executable whose path contains spaces",
+              "origin": "source"
+            }
+          ],
+          "layers": {
+            "unit": "proven"
+          }
+        },
         {
           "id": "cli-routing-and-flags",
           "ref": "capabilities/integration-surfaces#cli-routing-and-flags",
@@ -6275,14 +6308,14 @@
         }
       ],
       "counts": {
-        "claims": 64,
-        "proven": 61,
+        "claims": 65,
+        "proven": 62,
         "failed": 0,
         "stale": 0,
         "unexercised": 0,
         "error": 0,
         "unproven": 3,
-        "withTests": 62,
+        "withTests": 63,
         "incomplete": 0
       }
     },
@@ -7140,7 +7173,8 @@
         "2026-10-25-0-4-the-host-coding-agent-does-the-model",
         "2026-10-26-migration-planning-is-a-pure-idempotent",
         "2026-10-26-migrate-applies-the-plan-idempotently-an",
-        "2026-10-26-overlay-spec-sources-specs-kept-outside"
+        "2026-10-26-overlay-spec-sources-specs-kept-outside",
+        "2026-10-27-host-agent-tests-isolate-the-inherited-c"
       ],
       "claims": [
         {
@@ -7707,49 +7741,49 @@
           "tests": [
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 62,
+              "line": 63,
               "title": "writes a request with the answer schema and raises AgentWorkPendingError instead of calling a model",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 78,
+              "line": 79,
               "title": "serves the answer the agent recorded, validated by the pipeline schema, and clears the request",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 89,
+              "line": 90,
               "title": "sets an answer that fails the schema aside, records why on the request, and asks again",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 108,
+              "line": 109,
               "title": "handles text requests, and masks credentials in the request it writes",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 120,
+              "line": 121,
               "title": "is chosen on its own for a keyed provider with no key inside an agent, and never when a key exists or it is switched off",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 145,
+              "line": 146,
               "title": "leaves calls that opt out (hooks) alone, and refuses image calls it cannot hand over",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 161,
+              "line": 162,
               "title": "detects an agent: Claude Code on its own, others by SPECGUARD_HOST_AGENT, either way switch-off-able",
               "origin": "source"
             },
             {
               "file": "tests/core/agent-work.test.ts",
-              "line": 169,
+              "line": 170,
               "title": "accepts answers by unique hash prefix, tolerates a code fence, and rejects a malformed answer",
               "origin": "source"
             }
@@ -9204,7 +9238,8 @@
         "2026-10-26-phase-3-contracts-and-seams",
         "2026-10-26-proof-note-is-a-pure-json-module-with-ca",
         "2026-10-26-ci-trust-approvals-are-records-ci-plumbi",
-        "2026-10-26-proof-store-reads-and-writes-notes-throu"
+        "2026-10-26-proof-store-reads-and-writes-notes-throu",
+        "2026-10-27-portable-ci-fixtures-and-grouped-local-d"
       ],
       "claims": [
         {
@@ -9619,19 +9654,19 @@
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 138,
+              "line": 152,
               "title": "fetch brings the notes a CI job pushed; a quiet fetch says nothing; --if-older skips a fresh fetch; autoFetch off skips the background form",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 169,
+              "line": 183,
               "title": "with no notes on the remote fetch says CI has not written any yet and succeeds; an unreachable remote fails, and a quiet one does not",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 185,
+              "line": 199,
               "title": "notes summarizes the nearest note, the note on a commit, and says so when there is none",
               "origin": "source"
             }
@@ -9683,7 +9718,7 @@
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 123,
+              "line": 137,
               "title": "a second publish for the same commit merges into the note rather than replacing it, and refreshes the statement",
               "origin": "source"
             }
@@ -9769,7 +9804,13 @@
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 208,
+              "line": 38,
+              "title": "creates the main branch used by pruning fixtures even when Git defaults to master",
+              "origin": "source"
+            },
+            {
+              "file": "tests/pipelines/proof-store-cmd.test.ts",
+              "line": 222,
               "title": "prune lists notes of unreachable old commits without --yes, removes them with it, and keeps notes on branches",
               "origin": "source"
             }
@@ -9868,25 +9909,25 @@
           "tests": [
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 38,
+              "line": 52,
               "title": "refuses outside CI, and with a CI that is not GitHub unless it is allowed; nothing is written",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 53,
+              "line": 67,
               "title": "in CI writes and pushes the note for HEAD with only the CI-origin rows, the file hashes once, and the run it came from",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 74,
+              "line": 88,
               "title": "--force-local writes a provisional note that is not pushed and that readers treat as local evidence",
               "origin": "source"
             },
             {
               "file": "tests/pipelines/proof-store-cmd.test.ts",
-              "line": 97,
+              "line": 111,
               "title": "refuses a commit that is not checked out, a tree whose proof files differ from the commit, and a run with nothing fresh",
               "origin": "source"
             }
@@ -10015,6 +10056,8 @@
         "specs/history/2026-10-26-test-strength-is-a-static-reading-of-tes.md",
         "specs/history/2026-10-26-title-scoped-test-selection-and-claim-sc.md",
         "specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md",
+        "specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md",
+        "specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md",
         "src/cli/commands/history.ts",
         "src/core/history.ts",
         "src/core/intent-gap.ts",
@@ -13280,7 +13323,8 @@
         "2026-10-26-change-pipeline-joins-the-pure-model-to",
         "2026-10-26-edit-guard-hook-entry-index-and-bundle",
         "2026-10-26-edit-guard-reads-the-red-record-change-r",
-        "2026-10-27-hook-bundle-build-is-layout-independent"
+        "2026-10-27-hook-bundle-build-is-layout-independent",
+        "2026-10-27-portable-ci-fixtures-and-grouped-local-d"
       ],
       "claims": [
         {
@@ -15869,18 +15913,30 @@
         {
           "id": "hook-bundle-fresh",
           "ref": "capabilities/spec-first-changes#hook-bundle-fresh",
-          "text": "The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs, and the rebuild depends only on the sources, the dependency versions and the esbuild version, so an npm install and a pnpm install produce byte-identical bundles",
+          "text": "The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs, and the rebuild depends only on the sources, the dependency versions and the esbuild version, so hoisted npm, nested npm and pnpm installs produce byte-identical working bundles even when invoked outside the repository; distinct versions of a bundled package remain distinct",
           "proof": "proven",
           "tests": [
             {
               "file": "tests/hooks/bundle-fresh.test.ts",
-              "line": 14,
+              "line": 57,
+              "title": "builds identical working bundles with hoisted npm, nested npm and pnpm dependencies",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/bundle-fresh.test.ts",
+              "line": 64,
+              "title": "keeps distinct versions and their labels when normalizing nested npm and pnpm layouts",
+              "origin": "source"
+            },
+            {
+              "file": "tests/hooks/bundle-fresh.test.ts",
+              "line": 72,
               "title": "equals a fresh build of the sources (run `npm run build:hook` after changing src/hooks or what they import)",
               "origin": "source"
             },
             {
               "file": "tests/hooks/bundle-fresh.test.ts",
-              "line": 21,
+              "line": 79,
               "title": "is one self-contained file: it imports only node built-ins",
               "origin": "source"
             }
@@ -19872,17 +19928,17 @@
   "unowned": [],
   "issues": [],
   "totals": {
-    "claims": 543,
-    "proven": 510,
+    "claims": 544,
+    "proven": 511,
     "failed": 0,
     "stale": 0,
     "unexercised": 0,
     "error": 0,
     "unproven": 33,
-    "withTests": 512,
+    "withTests": 513,
     "incomplete": 0,
     "capabilities": 16,
-    "ownedFiles": 427,
+    "ownedFiles": 430,
     "sourceFiles": 324
   },
   "gaps": {
@@ -19894,7 +19950,7 @@
       },
       {
         "id": "requirement-history",
-        "codeDate": "2026-10-26",
+        "codeDate": "2026-10-27",
         "intentDate": "2026-10-22"
       },
       {
@@ -19904,13 +19960,14 @@
       }
     ],
     "docsStale": [
+      "requirement-history",
       "team-server"
     ]
   },
   "statement": {
     "version": 1,
-    "generated": "2026-10-27T14:28:00.969Z",
-    "head": "f876e5f14278325fcffaf19be286779f16e6dd94",
+    "generated": "2026-10-27T15:28:42.641Z",
+    "head": "dbce5ef2315891583733e34a62d271e6872e2a38",
     "policy": {
       "requireApproval": false,
       "requireTestable": false,
@@ -21590,7 +21647,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "agentic-verification: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -24393,7 +24450,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "conformance-testing: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -25239,7 +25296,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "coverage-and-mutation: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -26738,7 +26795,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "documentation-api: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -26762,11 +26819,33 @@
                 "fix": "specguard spec approve integration-surfaces  (for code that already works as intended: specguard spec approve --all --as-built --yes, run by a person)"
               }
             ],
-            "summary": "0/64 claims approved"
+            "summary": "0/65 claims approved"
           },
           "testable": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
               {
                 "code": "LINT_WARNING",
                 "pillar": "testable",
@@ -27675,7 +27754,7 @@
                 "message": "no test layer is required for this claim and the project declares no default"
               }
             ],
-            "summary": "0 errors, 25 warnings"
+            "summary": "0 errors, 26 warnings"
           },
           "aligned": {
             "status": "unknown",
@@ -27754,6 +27833,35 @@
                 "claim": "capabilities/integration-surfaces#extension-plugins-view",
                 "message": "no test run has proven this claim",
                 "fix": "specguard test run"
+              },
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "3 input file(s) have uncommitted changes: Makefile, specs/capabilities/integration-surfaces.md, tests/core/make.test.ts",
+                "data": {
+                  "files": [
+                    "Makefile",
+                    "specs/capabilities/integration-surfaces.md",
+                    "tests/core/make.test.ts"
+                  ]
+                }
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
               },
               {
                 "code": "LOCAL_EVIDENCE",
@@ -28610,11 +28718,58 @@
                 }
               }
             ],
-            "summary": "61 proven, 0 failed, 0 stale, 3 unproven"
+            "summary": "62 proven, 0 failed, 0 stale, 3 unproven"
           }
         },
         "blocking": [],
         "claims": [
+          {
+            "ref": "capabilities/integration-surfaces#make-workflows",
+            "pillars": {
+              "approved": "ok",
+              "testable": "ok",
+              "aligned": "unknown",
+              "conforms": "ok"
+            },
+            "reasons": [
+              {
+                "code": "LINT_WARNING",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "T-COMPOUND: More than one behaviour in one claim; split it so each can be proven alone. (4 clauses, at most 3.)",
+                "data": {
+                  "rule": "T-COMPOUND",
+                  "matches": []
+                }
+              },
+              {
+                "code": "NO_LAYERS_DECLARED",
+                "pillar": "testable",
+                "outcome": "note",
+                "gate": "requireTestable",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "no test layer is required for this claim and the project declares no default"
+              },
+              {
+                "code": "LOCAL_EVIDENCE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "claim": "capabilities/integration-surfaces#make-workflows",
+                "message": "proof was earned on a local run, not in CI",
+                "data": {
+                  "origins": [
+                    "local"
+                  ]
+                }
+              }
+            ]
+          },
           {
             "ref": "capabilities/integration-surfaces#cli-routing-and-flags",
             "pillars": {
@@ -31142,11 +31297,11 @@
           }
         ],
         "metrics": {
-          "claims": 64,
+          "claims": 65,
           "approved": 0,
-          "testable": 64,
-          "proven": 61,
-          "meaningful": 61,
+          "testable": 65,
+          "proven": 62,
+          "meaningful": 62,
           "lineCoverage": null,
           "diffCoverage": null,
           "mutationScore": null
@@ -31156,7 +31311,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "integration-surfaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -32942,7 +33097,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "intent-approval: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -33611,6 +33766,20 @@
           "conforms": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "2 input file(s) have uncommitted changes: specs/capabilities/platform-foundation.md, tests/core/agent-work.test.ts",
+                "data": {
+                  "files": [
+                    "specs/capabilities/platform-foundation.md",
+                    "tests/core/agent-work.test.ts"
+                  ]
+                }
+              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -36397,7 +36566,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "platform-foundation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -36718,6 +36887,20 @@
           "conforms": {
             "status": "ok",
             "reasons": [
+              {
+                "code": "DIRTY_TREE",
+                "pillar": "conforms",
+                "outcome": "note",
+                "gate": "requireConforms",
+                "blocking": false,
+                "message": "2 input file(s) have uncommitted changes: specs/capabilities/proof-store.md, tests/pipelines/proof-store-cmd.test.ts",
+                "data": {
+                  "files": [
+                    "specs/capabilities/proof-store.md",
+                    "tests/pipelines/proof-store-cmd.test.ts"
+                  ]
+                }
+              },
               {
                 "code": "LOCAL_EVIDENCE",
                 "pillar": "conforms",
@@ -38064,7 +38247,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "proof-store: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -38273,7 +38456,7 @@
                 "outcome": "note",
                 "gate": "never",
                 "blocking": false,
-                "message": "code changed 2026-10-26, after the intent was last changed 2026-10-22"
+                "message": "code changed 2026-10-27, after the intent was last changed 2026-10-22"
               }
             ],
             "summary": "no coverage evidence"
@@ -38307,10 +38490,11 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "1 input file(s) have uncommitted changes: specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md",
+                "message": "2 input file(s) have uncommitted changes: specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md, specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md",
                 "data": {
                   "files": [
-                    "specs/history/2026-10-27-hook-bundle-build-is-layout-independent.md"
+                    "specs/history/2026-10-27-host-agent-tests-isolate-the-inherited-c.md",
+                    "specs/history/2026-10-27-portable-ci-fixtures-and-grouped-local-d.md"
                   ]
                 }
               },
@@ -39111,7 +39295,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "requirement-history: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -41371,7 +41555,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "security-and-remediation: NOT CERTIFIED - approved FAIL testable FAIL aligned ?? conforms ok"
@@ -43649,7 +43833,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "spec-authoring: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -44550,11 +44734,12 @@
                 "outcome": "note",
                 "gate": "requireConforms",
                 "blocking": false,
-                "message": "2 input file(s) have uncommitted changes: scripts/build-hook-bundle.mjs, specs/capabilities/spec-first-changes.md",
+                "message": "3 input file(s) have uncommitted changes: scripts/build-hook-bundle.mjs, specs/capabilities/spec-first-changes.md, tests/hooks/bundle-fresh.test.ts",
                 "data": {
                   "files": [
                     "scripts/build-hook-bundle.mjs",
-                    "specs/capabilities/spec-first-changes.md"
+                    "specs/capabilities/spec-first-changes.md",
+                    "tests/hooks/bundle-fresh.test.ts"
                   ]
                 }
               },
@@ -48467,7 +48652,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "spec-first-changes: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -49687,7 +49872,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "team-server: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -50469,7 +50654,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "test-strength: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms ok"
@@ -53205,7 +53390,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "traceability-and-drift: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"
@@ -55408,7 +55593,7 @@
             "local"
           ],
           "shas": [
-            "f876e5f14278325fcffaf19be286779f16e6dd94"
+            "dbce5ef2315891583733e34a62d271e6872e2a38"
           ]
         },
         "headline": "workspaces: NOT CERTIFIED - approved FAIL testable ok aligned ?? conforms FAIL"

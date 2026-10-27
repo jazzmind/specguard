@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { loadConfig } from '../../src/core/config.js';
 import { ExitCode } from '../../src/core/exit-codes.js';
@@ -35,6 +35,20 @@ const noteOf = async (repo: TmpRepo, commit: string) => {
 };
 
 describe('proof publish [proof-store]', () => {
+  // [claims: capabilities/proof-store#store-prune-reachable]
+  it('creates the main branch used by pruning fixtures even when Git defaults to master', () => {
+    vi.stubEnv('GIT_CONFIG_COUNT', '1');
+    vi.stubEnv('GIT_CONFIG_KEY_0', 'init.defaultBranch');
+    vi.stubEnv('GIT_CONFIG_VALUE_0', 'master');
+    try {
+      const repo = makeV2Repo();
+      gitInit(repo.dir);
+      expect(sh(repo.dir, 'branch', '--show-current')).toBe('main');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   // [claims: capabilities/proof-store#store-publish-ci-only]
   it('refuses outside CI, and with a CI that is not GitHub unless it is allowed; nothing is written', async () => {
     const repo = await repoWith({ login: 'ci', logout: 'ci' });

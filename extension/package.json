@@ -420,7 +420,7 @@
     }
   },
   "scripts": {
-    "build:webview": "npm --prefix webview install && npm --prefix webview run build",
+    "build:webview": "npm --prefix webview run build",
     "build:host": "node scripts/build.mjs host",
     "build:cli": "node scripts/build.mjs cli",
     "build": "npm run build:webview && npm run build:cli && npm run build:host",

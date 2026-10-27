@@ -70,6 +70,7 @@ history:
   - 2026-10-26-migration-planning-is-a-pure-idempotent
   - 2026-10-26-migrate-applies-the-plan-idempotently-an
   - 2026-10-26-overlay-spec-sources-specs-kept-outside
+  - 2026-10-27-host-agent-tests-isolate-the-inherited-c
 ---
 
 # Platform Foundation

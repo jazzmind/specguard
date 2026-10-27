@@ -57,7 +57,7 @@ jobs:
         working-directory: extension
         run: |
           npm ci
-          npm --prefix webview install
+          npm --prefix webview ci
           node scripts/sync-version.mjs "${{ steps.version.outputs.version }}"
           npm run lint
           npm test
@@ -111,7 +111,7 @@ jobs:
         working-directory: .
         run: npm ci
       - run: npm ci
-      - run: npm --prefix webview install
+      - run: npm --prefix webview ci
       - name: The extension takes the tag version
         run: node scripts/sync-version.mjs "${{ needs.verify.outputs.version }}"
       - name: Build (the bundled CLI and the host both embed this version)

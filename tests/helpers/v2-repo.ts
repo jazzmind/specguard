@@ -39,10 +39,10 @@ export function gitCommit(dir: string, message: string, date?: string): void {
   execFileSync('git', ['commit', '-q', '-m', message], { cwd: dir, stdio: 'ignore', env });
 }
 
-/** Initialise a git repo with everything committed, so diffs have a base. */
+/** Initialise on main regardless of the machine's Git defaults, with a committed diff base. */
 export function gitInit(dir: string, date?: string): void {
   const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' });
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   git('config', 'user.email', 't@example.com');
   git('config', 'user.name', 't');
   gitCommit(dir, 'base', date);

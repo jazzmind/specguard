@@ -32,72 +32,90 @@ VERSION := $(shell PATH="$(PATH)" node -p "require('./package.json').version" 2>
 TAG     := v$(VERSION)
 EXT     := extension
 VSIX    := $(EXT)/specguard-$(VERSION).vsix
-SG      := $(NPX) tsx src/cli/index.ts
+SG      := $(NODE) --import tsx src/cli/index.ts
 
-.PHONY: help install build build-cli build-ext typecheck lint test test-ext ci check prove audit \
+# VS Code may be installed on macOS without its optional shell command. Override for another editor.
+CODE ?= $(shell command -v code 2>/dev/null || for app in "/Applications/Visual Studio Code.app" "$(HOME)/Applications/Visual Studio Code.app"; do if [ -x "$$app/Contents/Resources/app/bin/code" ]; then printf '%s\n' "$$app/Contents/Resources/app/bin/code"; break; fi; done)
+
+.PHONY: help install deps install-cli build build-cli build-ext build-hook typecheck lint test test-ext ci check prove audit \
         vsix vsix-install clean bump release-check publish publish-dry publish-ext watch
 
-help: ## Show the targets
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+help: ## Show commands grouped by workflow (see docs/development.md for examples)
+	@awk 'BEGIN {FS = ":.*## "} /^##@ / {printf "\n%s\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-install: ## Install dependencies exactly as CI does (npm ci in the root, extension and webview)
-	$(NPM) ci
-	cd $(EXT) && $(NPM) ci && $(NPM) --prefix webview install
+##@ Local usage — install this checkout (run make deps first)
+install-cli: build-cli ## Build and install this checkout's CLI globally (npm install --global .)
+	$(NPM) install --global .
 
-build: build-cli build-ext ## Build the CLI and the extension
-
-build-cli: ## Compile the CLI to dist/
-	$(NPM) run build
-
-build-ext: ## Bundle the extension (webview, bundled CLI, host)
-	cd $(EXT) && $(NPM) run build
-
-typecheck: ## Typecheck the CLI
-	$(NPM) run typecheck
-
-lint: ## Lint the CLI and typecheck the extension
-	$(NPM) run lint
-	cd $(EXT) && $(NPM) run lint
-
-test: ## CLI tests
-	$(NPM) test
-
-test-ext: ## Extension tests
-	cd $(EXT) && $(NPM) test
-
-ci: typecheck lint test build test-ext build-ext ## Every gate CI and the release run
-	$(NODE) $(EXT)/scripts/sync-version.mjs --check
-
-check: ## SpecGuard's own spec health
-	$(SG) check
-
-prove: ## Re-run the tests as proof, then check (do this after changing code, specs or the lockfile)
-	$(SG) test run
-	$(SG) check
-
-audit: ## npm audit in the root and the extension
-	$(NPM) audit
-	cd $(EXT) && $(NPM) audit
-
-vsix: build-ext ## Package the extension: extension/specguard-<version>.vsix
+vsix: build-ext ## Build and package extension/specguard-<version>.vsix for local use
 	cd $(EXT) && rm -f specguard-$(VERSION).vsix && $(NPX) vsce package --no-dependencies
 	@echo "built $(VSIX)"
 
-vsix-install: vsix ## Package and install the extension into VS Code
-	code --install-extension $(VSIX) --force
+vsix-install: vsix ## Build, package and install into VS Code; override the executable with CODE=/path/to/code
+	@test -n "$(CODE)" || { echo "VS Code was not found. Install its 'code' shell command or set CODE=/path/to/code."; exit 1; }
+	"$(CODE)" --install-extension "$(VSIX)" --force
 
-clean: ## Remove build output
+##@ Local development — dependencies and build output
+deps: ## Install locked dependencies in the root, extension and webview (npm ci)
+	$(NPM) ci
+	cd $(EXT) && $(NPM) ci && $(NPM) --prefix webview ci
+
+install: deps ## Alias for deps: sets up development dependencies
+
+build: build-cli build-ext ## Build dist/ (CLI) and extension/dist/ plus extension/media/ (VS Code)
+
+build-cli: ## Compile the CLI and build the standalone agent hook into dist/
+	$(NPM) run build
+
+build-ext: ## Bundle the webview, embedded CLI and extension host
+	cd $(EXT) && $(NPM) run build
+
+build-hook: ## Regenerate the committed agent hook after changing its sources or dependencies
+	$(NPM) run build:hook
+
+clean: ## Remove CLI and extension dist/ output
 	$(NPM) run clean
 	rm -rf $(EXT)/dist
 
-bump: ## Set the version in both packages and lockfiles: make bump V=0.3.1
+##@ Validation — run before committing or releasing
+typecheck: ## Typecheck the CLI without writing build output
+	$(NPM) run typecheck
+
+lint: ## Lint the repository and typecheck the extension host
+	$(NPM) run lint
+	cd $(EXT) && $(NPM) run lint
+
+test: ## Run CLI tests, including committed hook freshness
+	$(NPM) test
+
+test-ext: ## Run extension host tests
+	cd $(EXT) && $(NPM) test
+
+ci: typecheck lint test build test-ext ## Run local CLI/extension gates and verify their versions (dependencies must be installed)
+	$(NODE) $(EXT)/scripts/sync-version.mjs --check
+	@test "$$($(NODE) $(EXT)/dist/cli.js --version)" = "$(VERSION)" || { echo "bundled CLI version differs from $(VERSION)"; exit 1; }
+	$(NODE) $(EXT)/dist/cli.js --version --json
+
+check: ## Report SpecGuard's own ownership, requirements, proofs and drift
+	$(SG) check
+
+prove: ## Run tests and record proof, then check spec health; use after code, specs or lockfile changes
+	$(SG) test run
+	$(SG) check
+
+audit: ## Check root and extension dependency advisories (npm audit)
+	$(NPM) audit
+	cd $(EXT) && $(NPM) audit
+
+##@ Publishing — prepare, inspect and publish releases
+bump: ## Set both package versions and lockfiles without tagging: make bump V=x.y.z
 	@test -n "$(V)" || { echo "usage: make bump V=x.y.z"; exit 2; }
 	$(NPM) version $(V) --no-git-tag-version
 	$(NODE) $(EXT)/scripts/sync-version.mjs $(V)
 	cd $(EXT) && $(NPM) install --package-lock-only --ignore-scripts
 	@echo "now at $(V): run 'make prove', commit, push, then 'make publish'"
 
-release-check: ## The checks `make publish` makes before it tags
+release-check: ## Check clean main, origin/main, unused version/tag, package sync and successful GitHub CI
 	@set -e; \
 	[ "$$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "not on main"; exit 1; }; \
 	[ -z "$$(git status --porcelain)" ] || { echo "the working tree has uncommitted changes"; git status --short; exit 1; }; \
@@ -112,7 +130,7 @@ release-check: ## The checks `make publish` makes before it tags
 	fi; \
 	echo "ok to release $(TAG)"
 
-publish-dry: ## Show what would be published, without publishing
+publish-dry: ## Preview npm package contents and the release tag; does not publish or run release gates
 	$(NPM) pack --dry-run 2>&1 | tail -5
 	@echo "would tag $(TAG) and push it"
 
@@ -120,17 +138,17 @@ publish-dry: ## Show what would be published, without publishing
 # specguard-ai to npm, the extension to the Marketplace (only when the repo variable PUBLISH_EXTENSION is "true")
 # and creates the GitHub release. npm publishing uses trusted publishing (OIDC, set up once on npmjs.com for
 # jazzmind/specguard, release.yml): no npm token. The extension needs the VSCE_PAT secret.
-publish: release-check ## Tag vX.Y.Z (from package.json) and push it, which publishes. Asks first; YES=1 skips the prompt
+publish: release-check ## Confirm, tag and push vX.Y.Z; Actions publishes npm and optionally the extension (YES=1 skips prompt)
 	@echo; echo "This publishes specguard-ai $(VERSION) to npm. It cannot be undone."
 	@if [ "$(YES)" != 1 ]; then read -r -p "Type $(TAG) to continue: " a; [ "$$a" = "$(TAG)" ] || { echo aborted; exit 1; }; fi
 	git tag -a $(TAG) -m "SpecGuard $(VERSION)"
 	git push origin $(TAG)
 	@echo "pushed $(TAG): watch it with 'make watch' or on the repo's Actions tab"
 
-publish-ext: ## Publish only the VS Code extension for an existing tag via Actions: make publish-ext TAG=v0.3.0
+publish-ext: ## Start extension publishing for an existing tag: make publish-ext TAG=vX.Y.Z
 	@test -n "$(filter v%,$(TAG))" || { echo "usage: make publish-ext TAG=v0.3.0"; exit 2; }
 	$(GH) workflow run publish-extension.yml -f tag=$(TAG)
 	@echo "started: watch it with 'make watch' or on the repo's Actions tab"
 
-watch: ## Follow the latest Release / Publish-extension run
+watch: ## Follow the latest GitHub Actions run (CI, Release or Publish extension)
 	$(GH) run watch $$($(GH) run list --limit 1 --json databaseId --jq '.[0].databaseId')

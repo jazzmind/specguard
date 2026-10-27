@@ -19,6 +19,7 @@ history:
   - 2026-10-26-proof-note-is-a-pure-json-module-with-ca
   - 2026-10-26-ci-trust-approvals-are-records-ci-plumbi
   - 2026-10-26-proof-store-reads-and-writes-notes-throu
+  - 2026-10-27-portable-ci-fixtures-and-grouped-local-d
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"

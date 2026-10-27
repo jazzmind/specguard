@@ -6,6 +6,7 @@ parent: system
 value: People, coding agents and other systems can drive SpecGuard from wherever they work (terminal, agent harness, CI or IDE) and extend it without forking it.
 status: active
 sources:
+  - "Makefile"
   - "src/cli/index.ts"
   - "src/cli/commands/helpers.ts"
   - "src/cli/commands/init.ts"
@@ -38,6 +39,7 @@ sources:
   - "src/cli/commands/overlay.ts"
   - "plugins/specguard/scripts/session-status.sh"
 tests:
+  - "tests/core/make.test.ts"
   - "tests/action/run-gates.test.ts"
   - "tests/mcp/*.test.ts"
   - "tests/core/cli.test.ts"
@@ -71,6 +73,7 @@ tests:
   - "tests/hooks/overlay.test.ts"
   - "tests/plugins/session-status.test.ts"
 docs:
+  - "docs/development.md"
   - "README.md"
   - "docs/ci.md"
   - "docs/ci-remediate.md"
@@ -100,6 +103,7 @@ history:
   - 2026-10-26-edit-guard-hook-entry-index-and-bundle
   - 2026-10-26-ci-orchestrator-ci-run-proof-packet-and
   - 2026-10-26-overlay-spec-sources-specs-kept-outside
+  - 2026-10-27-portable-ci-fixtures-and-grouped-local-d
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -119,6 +123,7 @@ This capability is the set of surfaces through which people, agents and systems 
 - A developer runs `specguard quality` and `specguard commit` to lint and commit only SpecGuard-generated files.
 
 ## Requirements
+- [ ] `make help` groups commands by local usage, development, validation and publishing, distinguishes dependency setup (`deps`, with `install` retained as an alias) from installing this checkout's CLI (`install-cli`), and explains the build outputs and publishing effects; dependency setup uses `npm ci` for the root, extension and webview, and builds use those installed dependencies; `vsix-install` packages and installs into VS Code using `code` on PATH, a standard macOS app location, or an explicit `CODE` executable; local packaging never tags or publishes <!-- claim: make-workflows -->
 - [ ] The `specguard` command routes each subcommand to its pipeline and prints help for every subcommand; `--version` prints the package version and `--version --json` prints one JSON line with name, version and Node version; an unknown subcommand exits non-zero with a usage hint; global options `--config <path>` (a file, a directory, or a path containing `/.specguard/`), `--json` (machine-readable result with the exit code, human output suppressed) and `--record` reach every command <!-- claim: cli-routing-and-flags -->
 - [ ] Exit codes are typed and stable (0 success, 1 internal or usage error, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 LLM budget exceeded, 12 waiting for the host agent); a SpecGuard error prints its message to stderr and exits with its own code, an unexpected error exits 1, a refused LLM call for budget forces exit 8, and model requests still waiting for the host agent force exit 12 and print what is waiting and how to answer it, even when the command went on to print its own summary; a missing config exits 1 with the instruction to run `specguard init`, and `.specguard/.env` variables are loaded before commands run without overwriting existing environment variables, a placeholder key value an older init wrote being ignored <!-- claim: exit-codes-and-env -->
 - [ ] `init` creates only `.specguard/config.json` (no `llm` block) and `specs/README.md`, asks for no API key and writes no key file, detects the language and test framework (Playwright forced by `--with-playwright`), matches code kept at the repo root when there is no `src/` folder (every code file except tests, type declarations and tool configs), never overwrites existing files and reports created and skipped paths; it adds a managed git-ignore block for generated state and prints the untrack command when git already tracks such files; agent files are written only when `--harness` names a harness <!-- claim: init-bootstrap -->

@@ -65,7 +65,7 @@ jobs:
         working-directory: extension
         run: |
           npm ci
-          npm --prefix webview install
+          npm --prefix webview ci
 
       - name: Typecheck host
         working-directory: extension

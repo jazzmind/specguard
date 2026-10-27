@@ -40,6 +40,7 @@ history:
   - 2026-10-26-edit-guard-hook-entry-index-and-bundle
   - 2026-10-26-edit-guard-reads-the-red-record-change-r
   - 2026-10-27-hook-bundle-build-is-layout-independent
+  - 2026-10-27-portable-ci-fixtures-and-grouped-local-d
 tests:
   - "tests/core/contracts-phase3.test.ts"
   - "tests/core/config-phase3.test.ts"
@@ -148,7 +149,7 @@ A spec-first change reverses the order and enforces it. The requirement is writt
 - [ ] Red validity is checked live: on every call the entry re-hashes the locked test files against the red record's tests hash, so editing a locked test makes red invalid without any index rebuild and restoring the file makes it valid again, and a red record that shows no failing test or ran on code that was not at base is never valid <!-- claim: hook-live-red -->
 - [ ] The hook decides with no model and no network, in about 55 ms on a warm index (node start-up included) and under 200 ms when it has to rebuild the index for a small repository; the committed test allows a generous second <!-- claim: hook-speed -->
 - [ ] Every decision except the silent ones is appended as one JSON line to `.specguard/cache/hooks.jsonl` with its time, session, agent, tool, paths, capabilities, level, code and change, and the log rolls over to `hooks.1.jsonl` past 1 MB, so it is bounded and never in git <!-- claim: hook-decision-log -->
-- [ ] The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs, and the rebuild depends only on the sources, the dependency versions and the esbuild version, so an npm install and a pnpm install produce byte-identical bundles <!-- claim: hook-bundle-fresh -->
+- [ ] The plugin ships the guard as one committed self-contained file that imports only node built-ins, so it needs no install step, and a test rebuilds it from the sources and fails when the committed bundle differs, and the rebuild depends only on the sources, the dependency versions and the esbuild version, so hoisted npm, nested npm and pnpm installs produce byte-identical working bundles even when invoked outside the repository; distinct versions of a bundled package remain distinct <!-- claim: hook-bundle-fresh -->
 - [ ] `specguard hook` has `pre-tool-use` (the same logic as the bundle, reading stdin), `build-index` (alias `index`: rebuild and cache the index), `doctor` (print the class of each path, or of a shell command, and what the guard would decide and why, as text or `--json`) and `log` (recent decisions, `--denied` for denials only) <!-- claim: hook-commands -->
 - [ ] A Codex session counts as an agent environment (`CODEX_THREAD_ID` is set), so the approve and lower guards apply, while an explicit `SPECGUARD_HOST_AGENT` setting still wins <!-- claim: hook-codex-agent-env -->
 - [ ] The edit guard treats any edit to an approval already on disk (a history entry whose frontmatter says `kind: approval`) as writing an approval and denies it, because an edit is judged on its new text alone and changing only the hashes in an existing approval would otherwise pass; other history entries stay editable <!-- claim: hook-approval-edit-denied -->

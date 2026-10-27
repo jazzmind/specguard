@@ -117,6 +117,7 @@ const sgCanonicalDeps = {
 // esbuild prints paths relative to the working directory in its module comments: build from the repository root.
 process.chdir(root);
 const result = await build({
+  absWorkingDir: root,
   entryPoints: ['src/hooks/main.ts'],
   bundle: true,
   platform: 'node',
@@ -132,27 +133,19 @@ const result = await build({
 });
 
 /** Rewrite the module labels esbuild embedded (the `// path` comments and the __commonJS keys) from layout
- * specific paths - node_modules/.pnpm/<name>@<version>[_peers]/node_modules/<name>/... under pnpm - to the
- * canonical node_modules/<name>/<subpath> form, so both installers produce identical bytes. */
+ * specific paths (nested npm dependencies and pnpm virtual-store paths) to the canonical
+ * node_modules/<name>/<subpath> form, so both installers produce identical bytes. */
 function normalizeModuleLabels(text) {
   const labels = new Set();
   for (const m of text.matchAll(/^\/\/ (node_modules\/\S+)$/gm)) labels.add(m[1]);
   for (const m of text.matchAll(/"(node_modules\/[^"]+)"\(exports/g)) labels.add(m[1]);
   const entries = [];
   for (const label of labels) {
-    const store = label.match(/^node_modules\/\.pnpm\/([^/]+)\/node_modules\/(.+)$/);
-    const rest = store ? store[2] : label.slice('node_modules/'.length);
-    const depth = rest.startsWith('@') ? 2 : 1;
-    const parts = rest.split('/');
-    const name = parts.slice(0, depth).join('/');
-    let version = null;
-    if (store) {
-      const at = store[1].startsWith('@') ? store[1].indexOf('@', 1) : store[1].indexOf('@');
-      version = at === -1 ? null : store[1].slice(at + 1).split('_')[0];
-    } else {
-      version = versionOf(path.join(root, 'node_modules', name));
-    }
-    entries.push({ label, name, sub: parts.slice(depth).join('/'), version });
+    // The final node_modules segment owns the module. npm can nest fdir under tinyglobby;
+    // treating tinyglobby as its package leaks the installation layout into the bundle.
+    const info = packageInfo(path.join(root, label));
+    if (!info) continue;
+    entries.push({ label, name: info.name, sub: info.sub, version: versionOf(info.pkgRoot) });
   }
   // If one package name really has two versions in the tree, disambiguate the labels with @<version>.
   const versionSets = new Map();

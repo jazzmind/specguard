@@ -59,7 +59,7 @@ jobs:
         working-directory: .
         run: npm ci
       - run: npm ci
-      - run: npm --prefix webview install
+      - run: npm --prefix webview ci
       - run: node scripts/sync-version.mjs "${{ steps.version.outputs.version }}"
       - name: Build (the bundled CLI and the host both embed this version)
         run: npm run build

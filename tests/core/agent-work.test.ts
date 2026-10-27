@@ -48,6 +48,7 @@ beforeEach(() => {
   resetPending();
   delete process.env[KEY];
   delete process.env.CLAUDECODE;
+  delete process.env.CODEX_THREAD_ID;
   delete process.env.SPECGUARD_HOST_AGENT;
   root = mkdtempSync(path.join(os.tmpdir(), 'sg-host-'));
   configure();

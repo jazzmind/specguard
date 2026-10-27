@@ -1306,6 +1306,11 @@ The verdict is PRESERVED only when no baseline-passing test fails or disappears,
 
 ## Contributing
 
+See [development and release commands](docs/development.md) for installing this
+checkout, local builds and checks, and publishing. `make help` groups the commands
+by workflow; `make deps` installs development dependencies, while
+`make install-cli` and `make vsix-install` install the local tools for use.
+
 This project is in active development. The core pipelines were extracted from production use and generalised. PRs welcome — especially:
 
 - Framework adapters for test generation (pytest, JUnit, Cypress)
