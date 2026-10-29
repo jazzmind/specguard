@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -80,7 +81,7 @@ describe('workspace defaults and secure repo overrides', () => {
   it('uses the endpoint shown in editor settings instead of an old dotenv endpoint', async () => {
     fs.writeFileSync(path.join(temp, '.specguard/.env'), 'OPENAI_BASE_URL=https://old-endpoint.test\n');
     await saveSettings(undefined, { llm: { provider: 'openai', model: 'shared-model', apiKeyEnv: 'OPENAI_API_KEY' } });
-    expect((await runtimeEnvironment(state.root)).OPENAI_BASE_URL).toBe('');
+    expect((await runtimeEnvironment(state.root)).OPENAI_BASE_URL).toBeUndefined();
     await saveSettings(undefined, { llm: { provider: 'openai', model: 'shared-model', apiKeyEnv: 'OPENAI_API_KEY', baseUrl: 'https://new-endpoint.test/v1' } });
     expect((await runtimeEnvironment(state.root)).OPENAI_BASE_URL).toBe('https://new-endpoint.test/v1');
   });
@@ -117,3 +118,20 @@ describe('workspace defaults and secure repo overrides', () => {
     expect(snapshot).not.toContain('legacy-token');
   });
 });
+
+// [claims: capabilities/integration-surfaces#overlay-clients, capabilities/platform-foundation#config-editor-ai-defaults]
+it('starts the real bundled CLI for overlay discovery and plugin listing with Anthropic workspace defaults', async () => {
+  fs.writeFileSync(path.join(temp, '.specguard/config.json'), JSON.stringify({ apps: [{ name: 'app', repo: '.', specDir: 'specs', sources: {}, framework: 'vitest', testOutput: 'tests/' }], llm: DEFAULT_AI }));
+  await saveSettings(undefined, { llm: { ...DEFAULT_AI, provider: 'anthropic' } });
+  vi.stubEnv('OPENAI_BASE_URL', 'https://legacy.test/v1');
+  vi.stubEnv('LITELLM_BASE_URL', 'https://legacy-gateway.test');
+  const env = await runtimeEnvironment(temp);
+  expect(env.OPENAI_BASE_URL).toBeUndefined();
+  expect(env.LITELLM_BASE_URL).toBeUndefined();
+  const cli = path.join(temp, 'cli.cjs');
+  execFileSync(process.execPath, [path.resolve(__dirname, '../scripts/build.mjs'), 'cli', '--out', cli], { stdio: 'pipe' });
+  for (const args of [['overlay', 'resolve', temp, '--json'], ['plugin', 'list', '--json']]) {
+    const output = execFileSync(process.execPath, [cli, ...args], { cwd: temp, env, encoding: 'utf8' });
+    expect(() => JSON.parse(output)).not.toThrow();
+  }
+}, 30_000);

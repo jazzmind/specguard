@@ -90,3 +90,22 @@ describe('web UI [ui]', () => {
     expect(calls).toContain('/specguard/api/v1/projects/beta/capabilities');
   });
 });
+
+// [claims: capabilities/team-server#project-onboarding]
+it('opens the empty project directory and token page without requesting capabilities', async () => {
+  for (const hash of ['', '#/tokens']) {
+    const elements = new Map<string, { innerHTML: string; className: string; value: string; onclick?: unknown }>();
+    const el = (id: string) => { if (!elements.has(id)) elements.set(id, { innerHTML: '', className: '', value: '' }); return elements.get(id)!; };
+    const calls: string[] = [];
+    const ctx = {
+      document: { getElementById: el, querySelector: () => ({ getAttribute: () => '/team' }) },
+      location: { hash, search: '' }, URLSearchParams, window: {}, encodeURIComponent, decodeURIComponent, Array,
+      fetch: async (url: string) => { calls.push(url); return { ok: true, json: async () => url.endsWith('/tokens') ? { tokens: [] } : { projects: [], default: null } }; },
+    };
+    vm.runInNewContext(renderUi('/team').match(/<script>([\s\S]*)<\/script>/)![1], ctx);
+    await new Promise(r => setTimeout(r, 20));
+    expect(calls.some(p => p.endsWith('/capabilities'))).toBe(false);
+    if (hash) expect(calls).toContain('/team/api/v1/tokens');
+    else expect([...elements.values()].some(e => e.innerHTML.includes('No projects yet'))).toBe(true);
+  }
+});

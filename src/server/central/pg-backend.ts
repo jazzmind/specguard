@@ -27,6 +27,7 @@ const MAX_RETRIES = 12;
 
 /** Run once, in order; each statement is idempotent. */
 const MIGRATIONS: string[] = [
+  `CREATE TABLE IF NOT EXISTS sg_projects (name TEXT PRIMARY KEY)`,
   `CREATE TABLE IF NOT EXISTS sg_snapshots (
      id text PRIMARY KEY, project text NOT NULL, branch text, commit_sha text, created_at text NOT NULL,
      origin text NOT NULL, bytes integer NOT NULL, body text NOT NULL)`,
@@ -275,6 +276,13 @@ export async function pgBackend(db: Db): Promise<Backend> {
   await migrate(db);
   return {
     kind: 'postgres',
+    projects: {
+      async list() { return (await db.query<{ name: string }>('SELECT name FROM sg_projects ORDER BY name')).rows.map(r => r.name); },
+      async create(name) {
+        if (!PROJECT_NAME.test(name)) throw new Error('invalid project name');
+        await db.query('INSERT INTO sg_projects (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name]);
+      },
+    },
     snapshots: snapshotStore(db),
     plans: (project) => planStore(db, project),
     cache: (project) => contentCache(db, project),

@@ -343,3 +343,38 @@ describe('team server: spec files [central-spec-file]', () => {
     expect((await call(base, '/api/v1/projects/demo/specs/ghost', { headers: BOB })).status).toBe(404);
   });
 });
+
+// [claims: capabilities/team-server#project-onboarding]
+it('creates a durable empty project before publishing and scopes the project directory', async () => {
+  const { base, backend } = await start({ basePath: '/team' });
+  expect((await call(base, '/api/v1/projects', { headers: ADA })).json.projects).toEqual([]);
+  const created = await call(base, '/api/v1/projects', { method: 'POST', headers: { ...ADA, 'x-requested-with': 'specguard' }, body: { name: 'new-app' } });
+  expect(created.status, created.text).toBe(201);
+  expect(await backend.projects.list()).toEqual(['new-app']);
+  expect((await call(base, '/api/v1/projects', { headers: ADA })).json.projects).toEqual([{ name: 'new-app', kind: 'pending' }]);
+  expect((await call(base, '/api/v1/projects', { method: 'POST', headers: { ...BOB, 'x-requested-with': 'specguard' }, body: { name: 'denied' } })).status).toBe(403);
+  expect((await call(base, '/api/v1/projects', { method: 'POST', headers: { ...ADA, 'x-requested-with': 'specguard' }, body: { name: '../bad' } })).status).toBe(400);
+  const token = await adminMint(base, { owner: 'ci:new-app', name: 'editor', role: 'viewer', project: 'new-app' });
+  expect((await call(base, '/api/v1/projects', { headers: bearer(token) })).json.projects.map((p: any) => p.name)).toEqual(['new-app']);
+  expect((await call(base, '/api/v1/projects/new-app/system', { headers: bearer(token) })).status).toBe(200);
+  expect((await call(base, '/', { headers: ADA })).text).toContain('function viewProjects()');
+  expect((await call(base, '/api/v1/tokens', { headers: ADA })).status).toBe(200);
+});
+
+// [claims: capabilities/team-server#app-manager-role-mapping]
+it('maps an opted-in trusted app manager to maintainer without allowing header spoofing or admin tokens', async () => {
+  const { authenticate } = await import('../../src/server/central/auth.js');
+  const { backend } = await start();
+  const headers = { 'x-deploykit-email': 'manager@acme.test', 'x-deploykit-app-role': 'manager' };
+  const cfg = { backend, allowedDomain: 'acme.test', trustedProxies: ['127.0.0.1'], appRoleHeader: 'x-deploykit-app-role' };
+  const auth = await authenticate(headers, cfg, '127.0.0.1');
+  expect(auth.identity?.role).toBe('maintainer');
+  expect((await authenticate(headers, { ...cfg, appRoleHeader: undefined }, '127.0.0.1')).identity?.role).toBe('viewer');
+  expect((await authenticate(headers, { ...cfg, trustedProxies: undefined }, '127.0.0.1')).identity?.role).toBe('viewer');
+  expect((await authenticate(headers, cfg, '10.0.0.1')).identity).toBeUndefined();
+  expect((await authenticate({ ...headers, authorization: 'Bearer invalid' }, cfg, '127.0.0.1')).rejected).toBe(true);
+  expect((await authenticate({ ...headers, 'x-deploykit-app-role': 'admin' }, cfg, '127.0.0.1')).identity?.role).toBe('viewer');
+  expect((await authenticate({ ...headers, 'x-deploykit-email': 'manager@other.test' }, cfg, '127.0.0.1')).identity).toBeUndefined();
+  const { tokenRoute } = await import('../../src/server/central/auth.js');
+  expect((await tokenRoute('POST', ['tokens'], JSON.stringify({ name: 'admin', role: 'admin' }), auth, backend))?.status).toBe(403);
+});

@@ -163,7 +163,20 @@ export class Api {
       }
       if (parts[0] === 'projects' && parts.length === 3 && parts[2] === 'snapshots' && req.method === 'POST') return await this.publish(req, parts[1]);
       if (parts[0] === 'projects') {
-        if (parts.length === 1) return reading ? json(200, { projects: await this.registry.list(), default: this.registry.defaultProject ?? null }) : json(405, { error: 'projects are created by publishing to them' });
+        if (parts.length === 1) {
+          if (reading) return json(200, { projects: (await this.registry.list()).filter(p => !req.identity?.project || p.name === req.identity.project), default: this.registry.defaultProject ?? null });
+          if (req.method !== 'POST' || !this.registry.create) return json(405, { error: 'project creation is unavailable' });
+          const refused = this.mayWrite(req);
+          if (refused) return refused;
+          let body: { name?: unknown };
+          try { body = JSON.parse(req.body ?? ''); } catch { return json(400, { error: 'invalid JSON' }); }
+          if (!body || typeof body.name !== 'string' || !PROJECT_NAME.test(body.name)) return json(400, { error: 'invalid project name' });
+          if (req.identity?.project) return json(403, { error: 'project-scoped credentials cannot create projects' });
+          if ((await this.registry.list()).some(p => p.name === body.name)) return json(409, { error: 'project already exists' });
+          await this.registry.create(body.name);
+          this.opts.onAudit?.({ actor: req.identity!.user, action: 'project.create', project: body.name, detail: 'Awaiting first publish' });
+          return json(201, { name: body.name, kind: 'pending' });
+        }
         return await this.projectRoute(req, parts[1], parts.slice(2));
       }
       const name = this.registry.defaultProject;

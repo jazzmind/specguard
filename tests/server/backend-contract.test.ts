@@ -54,6 +54,17 @@ describe.each(makers)('backend contract: %s [backend-contract]', (_name, make) =
     return b;
   };
 
+  // [claims: capabilities/team-server#project-onboarding]
+  it('keeps a project directory independent of snapshots, idempotently and with safe identifiers', async () => {
+    const b = await backend();
+    expect(await b.projects.list()).toEqual([]);
+    await b.projects.create('new-app');
+    await b.projects.create('new-app');
+    expect(await b.projects.list()).toEqual(['new-app']);
+    expect(await b.snapshots.latest('new-app')).toBeUndefined();
+    await expect(b.projects.create('../escape')).rejects.toThrow();
+  });
+
   // [claims: capabilities/team-server#team-server-storage]
   it('shows a project from its newest snapshot on the default branch, else its newest overall [snapshots-latest]', async () => {
     const b = await backend();

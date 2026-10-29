@@ -7,7 +7,7 @@ import type { DashboardEvent, DashboardCommand, FindingItem, ActivityEntry, Work
 import { RUNNABLE_PIPELINES } from './protocol.js';
 import { PLUGIN_PIPELINES, pipelineAvailable } from '../plugins-model.js';
 import { getPlugins } from '../plugins-state.js';
-import { resolveCliPath, spawnCli, SpawnHandle, loadDotEnv } from './cli.js';
+import { resolveCliPath, spawnCli, SpawnHandle } from './cli.js';
 import { parseCoverageText, augmentCoverageFromDisk } from './coverage-parse.js';
 import { toMatrixModel } from './matrix-model.js';
 import { artifactEventFor, cliArgsFor } from './flow-events.js';

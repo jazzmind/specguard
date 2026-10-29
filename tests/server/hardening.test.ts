@@ -80,6 +80,8 @@ describe('who may send the sign-in header [trusted-proxies]', () => {
     const base = { SPECGUARD_BOOTSTRAP_TOKEN: 'b', SPECGUARD_ALLOWED_DOMAIN: 'acme.test' };
     expect(settingsFromEnv({ ...base, SPECGUARD_TRUSTED_PROXIES: ' 10.0.0.1, 172.18.0.0/16 ' }).auth.trustedProxies).toEqual(['10.0.0.1', '172.18.0.0/16']);
     expect(settingsFromEnv(base).auth.trustedProxies).toBeUndefined();
+    expect(settingsFromEnv(base).auth.appRoleHeader).toBeUndefined();
+    expect(settingsFromEnv({ ...base, SPECGUARD_APP_ROLE_HEADER: 'X-Deploykit-App-Role' }).auth.appRoleHeader).toBe('x-deploykit-app-role');
     expect(settingsWarnings(settingsFromEnv(base)).join('\n')).toContain('SPECGUARD_TRUSTED_PROXIES is not set');
     expect(settingsWarnings(settingsFromEnv({ ...base, SPECGUARD_TRUSTED_PROXIES: '10.0.0.1' })).join('\n')).not.toContain('SPECGUARD_TRUSTED_PROXIES');
   });

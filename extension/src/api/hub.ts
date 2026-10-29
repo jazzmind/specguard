@@ -4,7 +4,7 @@
  */
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { settingsLayers, serverToken, runtimeEnvironment } from '../settings.js';
+import { settingsLayers, serverToken, runtimeEnvironment, saveSettings } from '../settings.js';
 import { configDirFor } from '../project-config.js';
 
 import { resolveCliPath } from '../dashboard/cli.js';
@@ -83,22 +83,40 @@ export class ApiHub implements vscode.Disposable {
       (await vscode.window.showInputBox({ title: 'SpecGuard team server', prompt: 'Address of the team server', value: configured?.url ?? '', placeHolder: 'https://specguard.example.com', ignoreFocusOut: true })) ?? '',
     );
     if (!url) return;
+    const next = await vscode.window.showInformationMessage('Select or create a project on the team server and generate a token. Browser sign-in is independent of the extension connection.', 'Open team server', 'I have a token');
+    if (!next) return;
+    if (next === 'Open team server') await vscode.env.openExternal(vscode.Uri.parse(url + '/'));
     const token = await vscode.window.showInputBox({ title: 'SpecGuard token', prompt: `Create one on ${url}/ under Tokens, and paste it here`, password: true, ignoreFocusOut: true });
     if (!token) return;
     // A token that does not work must not be saved.
+    let project: string | undefined;
     try {
       const res = await fetch(`${url}/api/v1/projects`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
       if (!res.ok) {
         void vscode.window.showErrorMessage(res.status === 401 ? 'The server did not accept that token.' : `The server answered ${res.status}; the token was not saved.`);
         return;
       }
+      const directory = await res.json() as { projects: Array<{ name: string }> };
+      const choice = await vscode.window.showQuickPick([
+        ...directory.projects.map(p => ({ label: p.name, create: false })),
+        { label: 'Create a new project…', create: true },
+      ], { title: 'Select a team server project' });
+      if (!choice) return;
+      project = choice.label;
+      if (choice.create) {
+        const name = await vscode.window.showInputBox({ title: 'New project', prompt: 'Project identifier (letters, numbers, dots, underscores or hyphens)', validateInput: value => /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(value) ? undefined : 'Enter a valid project identifier.' });
+        if (!name) return;
+        const created = await fetch(`${url}/api/v1/projects`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name }), signal: AbortSignal.timeout(5000) });
+        if (!created.ok) { void vscode.window.showErrorMessage(created.status === 403 ? 'Creating a project requires an unrestricted maintainer token. Create the project in the browser or ask a server maintainer.' : `Project creation failed (HTTP ${created.status}).`); return; }
+        project = name;
+      }
     } catch (err) {
       void vscode.window.showErrorMessage(`Cannot reach ${url} (${(err as Error).message}); the token was not saved.`);
       return;
     }
     await this.secrets.store(SECRET_PREFIX + url, token);
-    if (!this.settings().url && !configured) await vscode.workspace.getConfiguration('specguard').update('serverUrl', url, vscode.ConfigurationTarget.Workspace);
-    void vscode.window.showInformationMessage(`Signed in to ${url}${configured?.project ? ` as a reader of ${configured.project}` : ''}.`);
+    await saveSettings(workspaceRoot, { ...settingsLayers(workspaceRoot).repo, server: { url, project, mode: 'auto' } });
+    void vscode.window.showInformationMessage(`Signed in to ${url}${project ? ` · ${project}` : ''}.`);
     this.reset();
   }
 

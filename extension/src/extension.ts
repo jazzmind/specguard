@@ -72,8 +72,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     hub,
     { dispose: () => setHub(undefined) },
     hub.onDidChange(() => void coverageProvider?.refresh()),
-    vscode.commands.registerCommand('specguard.signIn', async () => {
-      const root = getActiveWorkspaceRoot();
+    vscode.commands.registerCommand('specguard.signIn', async (selectedRoot?: string) => {
+      const root = selectedRoot ?? getActiveWorkspaceRoot();
       if (root) await hub.signIn(root);
       else void vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.');
     }),

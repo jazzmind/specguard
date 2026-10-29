@@ -5,7 +5,7 @@
  * as the path it arrived by: another container on the same network could send it directly and name anyone. So:
  *  - it is never enough for anything administrative;
  *  - without `trustedProxies` it signs in a viewer at most (read, and minting viewer tokens), whoever it names;
- *  - with `trustedProxies` it is honoured only from those addresses, and only then can naming a maintainer's email
+ *  - with `trustedProxies` it is honoured only from those addresses; an allowlisted email or opted-in verified app-manager role can
  *    make a signed-in browser a maintainer (change plans and workspaces with `X-Requested-With`, mint tokens up to
  *    that role).
  * Everything else that changes state, and everything administrative, goes through a token: a user's own, a project's
@@ -29,6 +29,8 @@ export interface AuthConfig {
   bootstrapToken?: string;
   /** Header that carries the signed-in user. Default `x-deploykit-email`. */
   emailHeader?: string;
+  /** Opt-in header overwritten by the trusted proxy with this app's verified manager/viewer permission. */
+  appRoleHeader?: string;
   /** Accept the header only for this domain (for example `acme.test`). */
   allowedDomain?: string;
   /** Addresses (IPv4 or IPv6, or IPv4 CIDR ranges) the sign-in header is accepted from. Absent: from anywhere. */
@@ -106,10 +108,10 @@ export async function authenticate(headers: Record<string, string | undefined>, 
   if (!email || !email.includes('@')) return {};
   if (cfg.allowedDomain && !email.endsWith(`@${cfg.allowedDomain.toLowerCase()}`)) return {};
   const maintainers = [...(cfg.maintainerEmails ?? []), ...(cfg.adminEmails ?? [])].map((e) => e.toLowerCase());
-  // Naming a maintainer makes you one only when the request provably came through the sign-in proxy. Without
+  // An allowlisted email or opted-in app-manager permission grants maintainer only through the sign-in proxy. Without
   // `trustedProxies` the header could have been written by anyone who can reach this server, so it is read-only.
   const throughProxy = Boolean(cfg.trustedProxies?.length) && peerIsTrusted(peer, cfg.trustedProxies ?? []);
-  return { identity: { user: email, role: maintainers.includes(email) && throughProxy ? 'maintainer' : 'viewer' }, via: 'header' };
+  return { identity: { user: email, role: throughProxy && (maintainers.includes(email) || (cfg.appRoleHeader && headers[cfg.appRoleHeader.toLowerCase()]?.trim().toLowerCase() === 'manager')) ? 'maintainer' : 'viewer' }, via: 'header' };
 }
 
 const json = (status: number, value: unknown): ApiResponse => ({ status, type: 'application/json; charset=utf-8', body: JSON.stringify(value) });

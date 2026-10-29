@@ -107,8 +107,10 @@ export async function runtimeEnvironment(root: string): Promise<NodeJS.ProcessEn
   if (layers.workspace.llm || layers.repo.llm) {
     env.SPECGUARD_IDE_LLM = JSON.stringify(llm);
     // Explicit editor endpoints (including provider defaults) must also supersede legacy endpoint env vars.
-    env.OPENAI_BASE_URL = llm.provider === 'openai' ? llm.baseUrl ?? '' : '';
-    env.LITELLM_BASE_URL = llm.provider === 'litellm' ? llm.baseUrl ?? '' : '';
+    if (llm.provider === 'openai' && llm.baseUrl) env.OPENAI_BASE_URL = llm.baseUrl;
+    else delete env.OPENAI_BASE_URL;
+    if (llm.provider === 'litellm' && llm.baseUrl) env.LITELLM_BASE_URL = llm.baseUrl;
+    else delete env.LITELLM_BASE_URL;
   }
   if (layers.workspace.server || layers.repo.server) {
     env.SPECGUARD_SERVER = server.mode === 'off' ? '' : server.url;

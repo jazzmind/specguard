@@ -88,6 +88,7 @@ docs:
   - "docs/feature-catalog.md"
   - "extension/README.md"
 history:
+  - 2026-10-29-editor-endpoint-startup
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-15-catalog-exclude
   - 2026-10-22-0-3-phase-2-plugin-management

@@ -230,6 +230,8 @@ function viewTokens(caps) {
       '<select id="tk-role"><option value="viewer">viewer (read)</option><option value="maintainer" selected>maintainer (read and change plans)</option></select> ' +
       '<input id="tk-project" placeholder="limit to one project (optional)"> <button id="tk-create">Create</button></p><div id="tk-out"></div></div>' +
       '<table><tr><th>Name</th><th>Access</th><th>Created</th><th>Last used</th><th></th></tr>' + (rows || '<tr><td colspan="5" class="meta">No tokens yet.</td></tr>') + '</table>');
+    document.getElementById('tk-project').value = new URLSearchParams(location.search).get('project') || '';
+    document.getElementById('tk-role').value = 'viewer';
     document.getElementById('tk-create').onclick = function () {
       var body = { name: document.getElementById('tk-name').value, role: document.getElementById('tk-role').value };
       var proj = document.getElementById('tk-project').value.trim();
@@ -247,6 +249,8 @@ function viewTokens(caps) {
 var capsCache = null;
 function route() {
   var h = location.hash || '#/system';
+  if (h === '#/tokens') return viewTokens([]);
+  if (!new URLSearchParams(location.search).get('project') && !localDefault) return viewProjects();
   var go = function (caps) {
     var m;
     if ((m = h.match(/^#\/cap\/(.+)$/))) return viewCapability(decodeURIComponent(m[1]), caps);
@@ -260,15 +264,31 @@ function route() {
 }
 window.onhashchange = route;
 /* A server with several projects has no unprefixed routes: pick a project (?project=name, else the first) and offer a switcher. */
+var localDefault = false;
+function viewProjects() {
+  fetch(BASE + '/api/v1/projects').then(function(r) { if (!r.ok) throw new Error('Sign in to view projects.'); return r.json(); }).then(function(p) {
+    buildNav([], '#projects');
+    show('<h2>Projects</h2><p>Select a project, then create a token to connect SpecGuard.</p>' +
+      (p.projects.length ? p.projects.map(function(x) { return '<p><a href="?project=' + encodeURIComponent(x.name) + '#/tokens">' + esc(x.name) + '</a> · ' + (x.kind === 'pending' ? 'Awaiting first publish' : esc(x.commit || x.kind)) + '</p>'; }).join('') : '<p>No projects yet. Create your first project below.</p>') +
+      '<p><label>Project name <input id="new-project" maxlength="64" placeholder="my-project"></label> <button id="create-project">Create project</button></p><p>Creating projects requires maintainer access.</p>');
+    document.getElementById('create-project').onclick = function() {
+      send('POST', '/projects', {name: document.getElementById('new-project').value.trim()}).then(function(p) { location.href = BASE + '/?project=' + encodeURIComponent(p.name) + '#/tokens'; }).catch(fail);
+    };
+  }).catch(fail);
+}
 function boot() {
   var wanted = new URLSearchParams(location.search).get('project');
   fetch(BASE + '/api/v1/projects').then(function (r) { return r.ok ? r.json() : { projects: [], default: null }; }).then(function (p) {
     var names = (p.projects || []).map(function (x) { return x.name; });
-    var use = wanted && names.indexOf(wanted) >= 0 ? wanted : (p['default'] ? null : names[0]);
+    localDefault = !!p['default'];
+    var use = wanted && names.indexOf(wanted) >= 0 ? wanted : null;
     if (use) API = BASE + '/api/v1/projects/' + encodeURIComponent(use);
+    if (names.length || !localDefault) {
+      document.getElementById('project-slot').innerHTML = '<a href="' + BASE + '/">Projects</a>';
+    }
     if (names.length > 1) {
       var sel = '<select id="project" aria-label="Project">' + names.map(function (n) { return '<option value="' + esc(n) + '"' + (n === use ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select>';
-      document.getElementById('project-slot').innerHTML = sel;
+      document.getElementById('project-slot').innerHTML = '<a href="' + BASE + '/">Projects</a> ' + sel;
       document.getElementById('project').onchange = function (e) { location.search = '?project=' + encodeURIComponent(e.target.value); };
     }
     route();

@@ -87,3 +87,13 @@ does not; `required` (for CI) treats an unreachable server as an error; `off` ne
 
 The server answers MCP at `/mcp` for clients that connect by URL, with a token. Its tools are read-only: projects, system,
 capability, spec, audit, coverage, docs, history, findings and plans.
+
+## Connect a new project
+
+Open the team server address in your signed-in browser. With no project selected, the home page lists projects you can access. Select a project to create a token, or create a project first (requires maintainer access). A new project shows “Awaiting first publish”; it does not contain evidence until CI publishes a snapshot. Tokens can also be managed without selecting a project.
+
+In VS Code, use **SpecGuard: Sign In** or **Connect / select or create project** in SpecGuard settings. Open the server to obtain a token, paste it into the secure prompt, and select a project or create one using an unrestricted maintainer token. The extension saves the token securely and records the connection for the selected repository. A project-scoped token can select only its own project.
+
+### DeployKit app managers
+
+DeployKit app-manager permission maps to SpecGuard's `maintainer` role when the proxy forwards verified app permissions. Update DeployKit and regenerate the app's nginx route first, then set `SPECGUARD_APP_ROLE_HEADER=x-deploykit-app-role` and `SPECGUARD_TRUSTED_PROXIES` to the actual sign-in proxy's addresses on the team server and restart it. Do not enable this header on a proxy that lets clients supply it. DeployKit clears the header for public app routes; use a gated route for browser manager permissions. Browser managers can create projects and maintainer tokens, but cannot administer tokens. Existing viewer tokens retain their original role; create a new maintainer token after the browser mapping is active. Explicit `SPECGUARD_MAINTAINER_EMAILS` remains supported for other deployments.

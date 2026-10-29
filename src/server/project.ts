@@ -36,7 +36,7 @@ export interface ProjectSource {
 export interface ProjectInfo {
   name: string;
   /** Where the data came from: `working-tree` (local serve) or `snapshot` (team server). */
-  kind: 'working-tree' | 'snapshot';
+  kind: 'working-tree' | 'snapshot' | 'pending';
   /** Commit and branch of the data, for snapshot projects. */
   commit?: string;
   branch?: string;
@@ -56,6 +56,7 @@ export interface ProjectRegistry {
   /** Whether this registry accepts writes (snapshots, proofs, plan status). A local serve does not. */
   writable: boolean;
   list(): Promise<ProjectInfo[]>;
+  create?(name: string): Promise<void>;
   get(name: string): Promise<ProjectSource | undefined>;
   /** Accept a snapshot for a project, creating the project on first publish. Only a writable registry has it. */
   publish?(snapshot: Snapshot): Promise<PublishResult>;

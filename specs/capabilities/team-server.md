@@ -20,7 +20,9 @@ tests:
   - "tests/pipelines/publish.test.ts"
   - "tests/pipelines/team.test.ts"
   - "tests/server/projects.test.ts"
+  - "tests/server/ui.test.ts"
   - "tests/server/central.test.ts"
+  - "tests/server/hardening.test.ts"
   - "tests/server/backend-contract.test.ts"
   - "tests/server/puller.test.ts"
   - "tests/client/*.test.ts"
@@ -28,6 +30,8 @@ tests:
 docs:
   - "docs/team-server.md"
 history:
+  - 2026-10-29-app-manager-role-mapping
+  - 2026-10-29-project-onboarding
   - 2026-10-15-local-first-specguard-with-an-optional-t
   - 2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv
   - 2026-10-22-intent-catch-up-for-the-2026-10-19-chang
@@ -49,6 +53,8 @@ This capability keeps one engine and gives it two homes. The local command line 
 - An auditor or product owner with no checkout reads the system guide, capability docs and traceability from the server's web UI.
 
 ## Requirements
+- [ ] With an explicitly configured app-role header and a trusted proxy that overwrites it, a verified DeployKit app manager maps to a SpecGuard maintainer, never an admin. An absent opt-in, untrusted peer, unknown role, wrong domain or invalid bearer token cannot gain permission from that header. <!-- claim: app-manager-role-mapping -->
+- [ ] With no project selected, the team server shows the accessible project directory and an empty-state creation flow; maintainers can create persistent projects before first publish on either backend. Project-scoped credentials see only their project and cannot create projects. Tokens remain accessible without project data and default to the selected project. The extension opens browser onboarding independently of its connection, accepts a verified token, then lets the user select or create a project and securely saves the token and repo connection. <!-- claim: project-onboarding -->
 - [ ] `specguard publish` writes one snapshot file holding the spec and history markdown, the trace model, the proof rows, the newest remediation plan and the contract graph, tagged with the project name, repository, branch, commit, origin and engine and hash versions; it never includes source code, working-tree files outside the spec tree, or prompts that were not committed as history, and it redacts credentials from every file; with `--push` or `--server` it also sends the snapshot to the project's team server, and a refusal or an unreachable server fails the command while the file is still written <!-- claim: publish-snapshot -->
 - [ ] A snapshot is validated before it is written or accepted: the project name is a safe identifier, every file is a markdown file inside the spec tree (no absolute paths, `..` or backslashes), the trace model has its required shape, an unknown version is refused, and anything over the size limit is refused <!-- claim: snapshot-validation -->
 - [ ] The API serves every project under `/api/v1/projects/:project/...`, lists projects at `/api/v1/projects`, and on a server with one project also serves the same routes without the prefix; a server with several projects answers an unprefixed route with a pointer to the prefixed form; besides the existing routes it serves specs with their file (and one spec's markdown), coverage per capability and unit, the document list, the contract graph and unresolved findings, and the web UI works under a path prefix and across projects <!-- claim: project-scoped-api -->
@@ -62,7 +68,7 @@ This capability keeps one engine and gives it two homes. The local command line 
 - [ ] The server answers MCP over HTTP at `/mcp` for token holders only, as read-only tools (projects, system, capability, spec, audit, coverage, docs, history, findings, plans) that go through the same API as the same identity, so access rules, project scoping and redaction are the API's <!-- claim: remote-mcp -->
 - [ ] Commands that can use a server resolve it from config or the environment, check its health with a short timeout and a compatible API version, and otherwise behave locally: reads fall back silently and say which source they used; a shared write goes to the server or, with none, is written locally and marked local-only; a server that answers but refuses (bad token, no permission, lifecycle violation) is an error and never a quiet switch to local; `server.mode: required` makes an unreachable server an error and `off` never contacts it; `check --team`, the plan commands, the MCP plan tool and the VS Code extension all follow this, and a token saved by `login` is checked against the server before it is kept <!-- claim: local-first-fallback -->
 - [ ] When `SPECGUARD_TRUSTED_PROXIES` lists addresses (exact, or IPv4 CIDR ranges) the sign-in header is honoured only from a connection that comes from one of them, so a container that reaches the server directly cannot sign in as anyone or become a maintainer by naming one; a token works from anywhere; the server warns at startup when it is not set <!-- claim: trusted-proxies -->
-- [ ] The sign-in header never makes a maintainer on its own: without `SPECGUARD_TRUSTED_PROXIES` it signs in a read-only viewer whoever it names (it can read and mint viewer tokens, and cannot write, change plan items, define a workspace or mint a maintainer token), and only through a trusted proxy does naming a listed maintainer email make the session a maintainer; it is never an admin <!-- claim: header-is-viewer-without-proxy -->
+- [ ] The sign-in header never makes a maintainer on its own: without `SPECGUARD_TRUSTED_PROXIES` it signs in a read-only viewer whoever it names (it can read and mint viewer tokens, and cannot write, change plan items, define a workspace or mint a maintainer token), and only through a trusted proxy does naming a listed maintainer email or carrying an explicitly configured, proxy-verified app-manager role make the session a maintainer; it is never an admin <!-- claim: header-is-viewer-without-proxy -->
 - [ ] Each caller (the signed-in user, or the connecting address when there is no credential) is limited to a number of API requests a minute (600 for a signed-in caller, 60 with no credential), and the routes that can start a model call to fewer (30 a minute for `/docs/`); a caller over a limit gets `429` with `Retry-After`, a refused request is not counted, health is never limited, and the limits are set with `SPECGUARD_RATE_LIMIT_PER_MIN`, `_DOCS_PER_MIN` and `_ANON_PER_MIN` <!-- claim: server-rate-limits -->
 - [ ] The server keeps an audit trail of what changes through its API (token creation and revocation, plan item status changes, workspace definitions, published snapshots) with who did it, and of every refused attempt to change something (no credential, or a role too low) with the reason; reads are not recorded <!-- claim: server-audit-trail -->
 

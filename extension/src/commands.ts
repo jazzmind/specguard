@@ -10,11 +10,10 @@ import { registerMcpForCursor } from './mcp-registration.js';
 import { openDashboardPanel, openAndRun } from './dashboard/panel.js';
 import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot, getWorkspaceManifestRoot } from './workspace-state.js';
 import { forceUpdateProjectFiles } from './project-updater.js';
-import { openOutputs } from './output-panel.js';
 import { openWorkspacePanel, registerWorkspacePanelCommands } from './workspace-panel.js';
 import { resolveCliCommand } from './dashboard/cli.js';
 import { shellQuote } from './safe-spawn.js';
-import { initWorkspace, setApiKey, setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
+import { initWorkspace, setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 import { ensurePluginEnabled } from './plugins-view.js';
 import { loadWorkspaceManifest } from './workspace-state.js';
 

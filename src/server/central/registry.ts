@@ -17,6 +17,7 @@ import type { TraceModel } from '../../core/trace.js';
 import type { LlmConfig, SpecGuardConfig } from '../../core/types.js';
 import { UNRESOLVED, type RemediationPlan } from '../../core/remediation-schema.js';
 import { PROJECT_NAME, type Backend, type SnapshotRecord } from './backend.js';
+import { localProject } from '../project.js';
 import type { ProjectInfo, ProjectRegistry, ProjectSource, PublishResult } from '../project.js';
 
 export interface CentralRegistryOptions {
@@ -108,11 +109,21 @@ export function centralRegistry(opts: CentralRegistryOptions): CentralRegistry {
   return {
     writable: true,
     workspaces: backend.workspaces,
-    list: async () => (await backend.snapshots.projects()).map(infoOf),
+    create: (name) => backend.projects.create(name),
+    list: async () => {
+      const published = (await backend.snapshots.projects()).map(infoOf);
+      const names = new Set(published.map(p => p.name));
+      return [...published, ...(await backend.projects.list()).filter(n => !names.has(n)).map(name => ({ name, kind: 'pending' as const }))].sort((a,b) => a.name.localeCompare(b.name));
+    },
     async get(name) {
       if (!PROJECT_NAME.test(name)) return undefined;
       const latest = await backend.snapshots.latest(name);
-      if (!latest) return undefined;
+      if (!latest) {
+        if (!(await backend.projects.list()).includes(name)) return undefined;
+        const rootDir = path.join(workDir, name, 'pending');
+        fs.mkdirSync(rootDir, { recursive: true });
+        return localProject({ rootDir, apps: [], paths: { specsRoot: 'specs' }, llm, server: { project: name } } as unknown as SpecGuardConfig);
+      }
       const hit = loaded.get(name);
       if (hit?.id === latest.record.id) return hit.source;
       const source = sourceFor(latest.record, latest.snapshot);

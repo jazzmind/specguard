@@ -165,6 +165,13 @@ export function fileBackend(dir: string): Backend {
 
   return {
     kind: 'file',
+    projects: {
+      async list() {
+        const d = path.join(dir, 'project-directory');
+        return fs.existsSync(d) ? fs.readdirSync(d).filter(n => n.endsWith('.json')).map(n => n.slice(0, -5)).filter(n => PROJECT_NAME.test(n)).sort() : [];
+      },
+      async create(name) { await writeFile(path.join(dir, 'project-directory', safeProject(name) + '.json'), JSON.stringify({ name })); },
+    },
     snapshots,
     plans: (project) => filePlanStore(path.join(projectDir(project), 'plans')),
     cache: (project) => fileContentCache(projectDir(project)),

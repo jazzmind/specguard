@@ -85,6 +85,7 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv, flags: CentralFlags = {}
       maintainerEmails: list(env.SPECGUARD_MAINTAINER_EMAILS),
       ...(env.SPECGUARD_BOOTSTRAP_TOKEN ? { bootstrapToken: env.SPECGUARD_BOOTSTRAP_TOKEN } : {}),
       emailHeader: (env.SPECGUARD_EMAIL_HEADER ?? 'x-deploykit-email').toLowerCase(),
+      ...(env.SPECGUARD_APP_ROLE_HEADER ? { appRoleHeader: env.SPECGUARD_APP_ROLE_HEADER.trim().toLowerCase() } : {}),
       ...(env.SPECGUARD_ALLOWED_DOMAIN ? { allowedDomain: env.SPECGUARD_ALLOWED_DOMAIN } : {}),
       ...(list(env.SPECGUARD_TRUSTED_PROXIES).length > 0 ? { trustedProxies: list(env.SPECGUARD_TRUSTED_PROXIES) } : {}),
     },

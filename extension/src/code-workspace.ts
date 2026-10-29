@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { resolveCliPath, spawnCli } from './dashboard/cli.js';
-import { codeWorkspaceFile, getActiveWorkspaceRoot, getWorkspaceManifestRoot, manifestRootForCodeWorkspace } from './workspace-state.js';
+import { codeWorkspaceFile, manifestRootForCodeWorkspace } from './workspace-state.js';
 
 const ASKED_KEY = 'specguard.codeWorkspaceOffered';
 const DEBOUNCE_MS = 1500;

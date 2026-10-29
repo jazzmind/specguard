@@ -100,6 +100,7 @@ export interface UsageRow {
 
 export interface Backend {
   readonly kind: 'file' | 'postgres';
+  projects: { list(): Promise<string[]>; create(name: string): Promise<void> };
   snapshots: SnapshotStore;
   /** Plans are per project. */
   plans(project: string): PlanStore;

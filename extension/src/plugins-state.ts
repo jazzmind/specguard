@@ -37,7 +37,7 @@ export async function getPlugins(root: string, opts: { fresh?: boolean } = {}): 
   if (!opts.fresh && hit && Date.now() - hit.at < TTL_MS) return { rows: hit.rows, error: hit.error };
   const res = await runCli(root, ['plugin', 'list', '--json']);
   const rows = res.code === 0 ? parsePluginList(res.lines) : undefined;
-  const entry: Cached = { at: Date.now(), rows, ...(rows ? {} : { error: res.lines.slice(-1)[0] ?? 'plugin list failed' }) };
+  const entry: Cached = { at: Date.now(), rows, ...(rows ? {} : { error: res.lines.find(l => /\b\w*Error(?:\d+)?(?: \[[^\]]+\])?:/.test(l))?.trim().slice(0, 500) || res.lines.filter(l => l.trim() && !/^Node\.js v/.test(l.trim())).slice(-3).join('\n').slice(-1000) || 'Could not load plugins; the CLI did not return a plugin list.' }) };
   cache.set(root, entry);
   return { rows, error: entry.error };
 }
