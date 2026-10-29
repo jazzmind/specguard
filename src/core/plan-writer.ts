@@ -1,3 +1,4 @@
+import { readOutputLocations } from './output-locations.js';
 /**
  * Shared plan-writer utility.
  *
@@ -35,6 +36,8 @@ export interface PlanSection {
 }
 
 export interface PlanOpts {
+  /** Explicit destination for generated plans. */
+  outDir?: string;
   /** Pipeline that produced the findings, e.g. `drift`. */
   pipeline: string;
   /** Short title for the plan document. */
@@ -133,7 +136,8 @@ export function updatePlanStatus(
  * Returns the absolute path to the written file.
  */
 export function writePlan(opts: PlanOpts): string {
-  const plansDir = path.join(opts.rootDir, '.specguard', 'plans');
+  const saved = [...new Set(Object.values(readOutputLocations(opts.rootDir).apps).map(a => a.plans).filter((dir): dir is string => !!dir))];
+  const plansDir = opts.outDir ?? (saved.length === 1 ? path.resolve(opts.rootDir, saved[0]) : path.join(opts.rootDir, '.specguard', 'plans'));
   fs.mkdirSync(plansDir, { recursive: true });
 
   const filePath = path.join(plansDir, `${opts.pipeline}.md`);

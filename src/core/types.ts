@@ -218,6 +218,10 @@ export interface AppSecurityConfig {
 
 /** A single application target within a SpecGuard config. */
 export interface AppConfig {
+  /** Runtime canonical key prefix retained when a spec root is relocated. */
+  specKeyPrefix?: string;
+  /** Original spec root retained for discovery to ignore superseded copies. */
+  originalSpecDir?: string;
   name: string;
   /** Repo root for this app, relative to the config location. */
   repo: string;

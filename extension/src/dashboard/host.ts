@@ -1,3 +1,5 @@
+import { getWorkspaceManifestRoot } from '../workspace-state.js';
+import { prepareOutputRun, queryCli } from '../output-routing.js';
 import { settingsLayers, aiCredential, saveSettings, setAiCredential } from '../settings.js';
 import { collectOutputs } from '../output-inventory.js';
 import * as vscode from 'vscode';
@@ -35,6 +37,7 @@ export class DashboardHost {
   private lastDriftCode: number | undefined = undefined;
   /** Handles for in-flight CLI spawns, keyed by pipeline id. */
   private activeRuns = new Map<string, SpawnHandle>();
+  private cancelledRun = false;
 
   constructor(private post: (e: DashboardEvent) => void, public readonly workspaceRoot: string) {
     this.activityLog = new ActivityLogService(workspaceRoot);
@@ -50,9 +53,9 @@ export class DashboardHost {
       if (ev) {
         if (ev.type === 'artifact' && ev.kind === 'doc') {
           const meta = this._readDocMeta(uri.fsPath);
-          this.post({ ...ev, ...meta });
+          this.post({ ...ev, path: uri.fsPath, ...meta });
         } else {
-          this.post(ev);
+          this.post(ev.type === 'artifact' ? { ...ev, path: uri.fsPath } : ev);
         }
       }
 
@@ -91,6 +94,7 @@ export class DashboardHost {
 
   async handle(cmd: DashboardCommand): Promise<void> {
     if (cmd.type === 'refresh') return this.refresh();
+    if (cmd.type === 'organizeApplication') { await vscode.commands.executeCommand('specguard.organizeApplication', this.workspaceRoot); return; }
     if (cmd.type === 'openFile') {
       const resolved = resolveEvidenceFile(this.workspaceRoot, configDirFor(this.workspaceRoot), cmd.path);
       const uri = vscode.Uri.file(resolved);
@@ -235,6 +239,7 @@ export class DashboardHost {
   // ---------------------------------------------------------------------------
 
   private async run(pipeline: string, extra: string[]): Promise<void> {
+    this.cancelledRun = false;
     // Guard: refuse concurrent runs of the same pipeline.
     if (this.activeRuns.has(pipeline)) {
       this.post({ type: 'pipeline:log', pipeline, line: `[warn] ${pipeline} is already running — use Cancel first` });
@@ -255,16 +260,26 @@ export class DashboardHost {
     }
 
     const entry = RUNNABLE_PIPELINES.find((p) => p.id === pipeline);
-    if (entry?.destructive) {
+    if (entry?.destructive && !['generate', 'reverse', 'import', 'docs', 'gap-analysis'].includes(pipeline)) {
       const choice = await vscode.window.showWarningMessage(
         `Run "${entry.label ?? pipeline}"? It may call the LLM and write files.`,
         { modal: true },
         'Run',
       );
       if (choice !== 'Run') {
+        this.cancelledRun = true;
         this.post({ type: 'pipeline:log', pipeline, line: 'cancelled by user' });
         return;
       }
+    }
+
+    try {
+      const prepared = await prepareOutputRun(this.workspaceRoot, pipeline, extra);
+      if (!prepared) { this.cancelledRun = true; return; }
+      extra = prepared;
+    } catch (err) {
+      this.post({ type: 'error', scope: pipeline, message: (err as Error).message });
+      return;
     }
 
     this.post({ type: 'pipeline:start', pipeline });
@@ -349,68 +364,14 @@ export class DashboardHost {
   private async _runSequence(pipelines: string[]): Promise<void> {
     for (const p of pipelines) {
       await this.run(p, []);
+      if (this.cancelledRun) break;
     }
   }
 
-  /** Like _runSequence but shows ONE confirmation dialog for all pipelines instead of per-pipeline prompts. */
+  /** Batch actions use the same destination selection as individual runs. */
   private async _runSequenceBatch(pipelines: string[]): Promise<void> {
-    if (pipelines.length === 0) return;
-
-    const destructiveIds = pipelines.filter((p) => {
-      const entry = RUNNABLE_PIPELINES.find((e) => e.id === p);
-      return entry?.destructive;
-    });
-
-    if (destructiveIds.length > 0) {
-      const choice = await vscode.window.showWarningMessage(
-        `Run ${pipelines.length} pipeline(s) in sequence: ${pipelines.join(', ')}?\nLLM-powered pipelines will call the AI and write files.`,
-        { modal: true },
-        'Run All',
-      );
-      if (choice !== 'Run All') {
-        for (const p of pipelines) {
-          this.post({ type: 'pipeline:log', pipeline: p, line: 'cancelled by user (batch)' });
-        }
-        return;
-      }
-    }
-
-    // Run each pipeline, bypassing the individual destructive confirmation since we already asked.
-    for (const p of pipelines) {
-      if (this.activeRuns.has(p)) {
-        this.post({ type: 'pipeline:log', pipeline: p, line: `[warn] ${p} is already running — skipped` });
-        continue;
-      }
-      this.post({ type: 'pipeline:start', pipeline: p });
-      const startMs = Date.now();
-      this.activityLog.append({ pipeline: p, status: 'running', source: 'extension' });
-      const collectedLines: string[] = [];
-      try {
-        const cli = await resolveCliPath(this.workspaceRoot);
-        const handle = spawnCli(cli, cliArgsFor(p, []), this.workspaceRoot, (line) => {
-          this.post({ type: 'pipeline:log', pipeline: p, line });
-          collectedLines.push(line);
-        });
-        this.activeRuns.set(p, handle);
-        const code = await handle.promise;
-        this.activeRuns.delete(p);
-        const cancelled = code === -1;
-        const ok = !cancelled && isSuccess(p, code);
-        this.post({ type: 'pipeline:done', pipeline: p, exitCode: code });
-        this.post({
-          type: 'pipeline:lastRun',
-          info: { pipeline: p, status: ok ? 'pass' : 'fail', exitCode: code, finishedAt: new Date().toISOString(), tail: collectedLines.filter((l) => l.trim()).slice(-5) },
-        });
-        this.activityLog.append({ pipeline: p, status: cancelled ? 'error' : ok ? 'pass' : 'fail', source: 'extension', durationMs: Date.now() - startMs, message: cancelled ? 'cancelled by user' : `exit code ${code}`, logLines: collectedLines });
-      } catch (err) {
-        this.activeRuns.delete(p);
-        const msg = err instanceof Error ? err.message : String(err);
-        this.post({ type: 'pipeline:log', pipeline: p, line: `[error] ${msg}` });
-        this.post({ type: 'pipeline:done', pipeline: p, exitCode: 1 });
-        this.activityLog.append({ pipeline: p, status: 'error', source: 'extension', message: msg });
-      }
-    }
-    await this.refresh();
+    // Use the same output routing and cancellation behavior as individual actions.
+    for (const pipeline of pipelines) { await this.run(pipeline, []); if (this.cancelledRun) break; }
   }
 
   // ---------------------------------------------------------------------------
@@ -472,7 +433,11 @@ export class DashboardHost {
       this.post({ type: 'artifact', kind: 'doc', path: file.path, title: file.title, change: 'update' });
     }
     // Emit existing spec artifacts so Docs → Specs tab is populated on open
-    this._pushExistingSpecs();
+    let organization: import('../output-inventory.js').OutputOrganization | undefined;
+    try { organization = (await queryCli<{document: import('../output-inventory.js').OutputOrganization}>(this.workspaceRoot, ['experience', '--config', configDirFor(this.workspaceRoot), ...(getWorkspaceManifestRoot() ? ['--inherit-workspace', getWorkspaceManifestRoot()!] : [])])).document; } catch { /* local inventory still works offline/unconfigured */ }
+    for (const file of await collectOutputs('specs', this.workspaceRoot, configDirFor(this.workspaceRoot), organization)) {
+      this.post({ type: 'artifact', kind: 'spec', path: file.path, title: file.title, category: file.group, order: file.order, change: 'update' });
+    }
     for (const file of await collectOutputs('tests', this.workspaceRoot, configDirFor(this.workspaceRoot))) {
       this.post({ type: 'artifact', kind: 'test', path: file.path, title: file.title, change: 'update' });
     }
@@ -915,14 +880,21 @@ export class DashboardHost {
   }
 
   private _pushPlans(): void {
-    const plansDir = path.join(this.workspaceRoot, '.specguard', 'plans');
-    if (!fs.existsSync(plansDir)) return;
+    const root = configDirFor(this.workspaceRoot);
+    const directories = new Set([path.join(root, '.specguard', 'plans')]);
+    try {
+      const locations = JSON.parse(fs.readFileSync(path.join(root, '.specguard/output-locations.json'), 'utf8'));
+      for (const app of Object.values(locations.apps) as Array<{plans?: string}>) if (app.plans) directories.add(path.resolve(root, app.plans));
+    } catch { /* optional preferences */ }
     const items: import('./protocol.js').PlanItem[] = [];
     try {
-      for (const file of fs.readdirSync(plansDir)) {
-        if (!file.endsWith('.md')) continue;
-        const meta = this._parsePlanMeta(path.join(plansDir, file));
-        if (meta) items.push(meta);
+      for (const plansDir of directories) {
+        if (!fs.existsSync(plansDir)) continue;
+        for (const file of fs.readdirSync(plansDir)) {
+          if (!file.endsWith('.md')) continue;
+          const meta = this._parsePlanMeta(path.join(plansDir, file));
+          if (meta) items.push(meta);
+        }
       }
     } catch { /* best-effort */ }
     items.sort((a, b) => {

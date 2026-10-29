@@ -38,14 +38,23 @@ function isInside(dir: string, file: string): boolean {
 
 /** Canonical key for an absolute spec file; `fallbackDir` is the owning specDir. */
 export function canonicalSpecKey(config: SpecGuardConfig, absFile: string, fallbackDir?: string): string {
+  const relocated = config.apps.find(app => app.specKeyPrefix !== undefined && isInside(path.resolve(rootOf(config), app.specDir), absFile));
+  if (relocated) return stripMd([relocated.specKeyPrefix, posixRel(path.resolve(rootOf(config), relocated.specDir), absFile)].filter(Boolean).join('/'));
   const top = specsRootDir(config);
   if (fs.existsSync(top) && isInside(top, absFile)) return stripMd(posixRel(top, absFile));
   return stripMd(posixRel(fallbackDir ?? top, absFile));
 }
 
+/** A spec retained at its old location after an explicit root switch is no longer active. */
+export function retiredSpecFile(config: SpecGuardConfig, file: string): boolean {
+  const root = rootOf(config);
+  return config.apps.some(app => app.originalSpecDir && path.resolve(root, app.specDir) !== path.resolve(root, app.originalSpecDir) && isInside(path.resolve(root, app.originalSpecDir), file))
+    && !config.apps.some(app => isInside(path.resolve(root, app.specDir), file));
+}
+
 /** Specs of one directory with canonical `specKey` and the `specDir`-relative `localKey`. */
 export function loadCanonicalSpecs(config: SpecGuardConfig, dir: string): ParsedSpec[] {
-  return loadAllSpecs(dir).map((spec) => ({
+  return loadAllSpecs(dir).filter(spec => !retiredSpecFile(config, spec.filePath)).map((spec) => ({
     ...spec,
     localKey: spec.specKey,
     specKey: canonicalSpecKey(config, path.join(dir, `${spec.specKey}.md`), dir),

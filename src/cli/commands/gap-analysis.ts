@@ -5,6 +5,7 @@ import { runGapAnalysis } from '../../pipelines/gap-analysis.js';
 import { loadCliConfig, type GlobalOpts } from './helpers.js';
 
 export interface GapAnalysisCliOpts extends GlobalOpts {
+  app?: string;
   spec?: string;
   all?: boolean;
   noPlan?: boolean;
@@ -13,6 +14,7 @@ export interface GapAnalysisCliOpts extends GlobalOpts {
 export async function gapAnalysisCommand(opts: GapAnalysisCliOpts): Promise<void> {
   const config = await loadCliConfig(opts);
   const result = await runGapAnalysis(config, {
+    app: opts.app,
     spec: opts.spec,
     plan: !opts.noPlan,
   });

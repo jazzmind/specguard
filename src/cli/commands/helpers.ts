@@ -81,7 +81,7 @@ export async function tryLoadCliConfig(opts: GlobalOpts): Promise<SpecGuardConfi
  * `.specguard/config.json` / `config.json`, in which case we hand back the
  * directory two levels up so `loadConfig` finds it.
  */
-function resolveSearchDir(configPath?: string): string {
+export function resolveSearchDir(configPath?: string): string {
   if (!configPath) return process.cwd();
   // Normalize separators; strip a trailing config file reference if present.
   const norm = configPath.replace(/\\/g, '/');

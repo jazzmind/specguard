@@ -23,7 +23,7 @@ function groupFromPath(p: string): string {
 }
 
 export function SpecsView({ vm, kind = 'spec' }: { vm: ViewModel; kind?: 'spec' | 'test' }) {
-  const specs = vm.artifacts.filter((a) => a.kind === kind);
+  const specs = vm.artifacts.filter((a) => a.kind === kind).sort((a, b) => (a.order ?? 9999999999) - (b.order ?? 9999999999) || (a.title ?? a.path).localeCompare(b.title ?? b.path));
 
   if (kind === 'test' && specs.length === 0) return <p style={{ padding: 16 }}>No test files found in the configured test sources.</p>;
   if (specs.length === 0) {
@@ -61,7 +61,7 @@ export function SpecsView({ vm, kind = 'spec' }: { vm: ViewModel; kind?: 'spec' 
   // Group specs by directory under specs/
   const groups = new Map<string, typeof specs>();
   for (const s of specs) {
-    const key = groupFromPath(s.path);
+    const key = s.category ?? groupFromPath(s.path);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(s);
   }
@@ -69,6 +69,7 @@ export function SpecsView({ vm, kind = 'spec' }: { vm: ViewModel; kind?: 'spec' 
   return (
     <div style={{ padding: 16 }}>
       <div style={{ marginBottom: 16 }}>
+        <button onClick={() => vscodeApi.postMessage({ type: 'organizeApplication' })}>Organize features &amp; specs</button>
         <span style={{ fontSize: 12, color: '#888' }}>
           {specs.length} {kind === 'spec' ? 'Living Specs' : 'Test files'}
         </span>

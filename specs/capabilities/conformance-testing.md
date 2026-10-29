@@ -46,6 +46,7 @@ docs:
   - "README.md"
   - "docs/ci.md"
 history:
+  - 2026-10-29-output-routing-and-business-organization
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-22-0-3-phase-3-test-layers-and-ci
   - 2026-10-22-0-3-phase-4-app-repair-loop-and-auto-mer

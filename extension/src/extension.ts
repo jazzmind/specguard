@@ -1,3 +1,4 @@
+import { registerExperiencePanel } from './experience-panel.js';
 /**
  * SpecGuard VS Code / Cursor extension entry point.
  *
@@ -55,6 +56,7 @@ async function windowHasProject(): Promise<boolean> {
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   initSettings(context.secrets);
+  registerExperiencePanel(context);
   registerSettingsPanel(context);
   initWorkspaceState(context);
   setExtensionPath(context.extensionPath);

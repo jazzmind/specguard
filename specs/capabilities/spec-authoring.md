@@ -34,6 +34,7 @@ sources:
   - "src/core/test-declarations.ts"
   - "src/core/safe-fetch.ts"
 tests:
+  - "tests/core/experience.test.ts"
   - "tests/core/spec-parser.test.ts"
   - "tests/core/spec-frontmatter.test.ts"
   - "tests/core/spec-key.test.ts"
@@ -55,6 +56,7 @@ docs:
   - "docs/user/reverse-generate.md"
   - "docs/user/import.md"
 history:
+  - 2026-10-29-output-routing-and-business-organization
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-22-security-ssrf-via-import-url-fetching-is
   - 2026-10-22-security-hardening-from-audit-sast-and-p
@@ -82,6 +84,7 @@ Spec Authoring gives every other SpecGuard capability something solid to stand o
 - A maintainer runs `specguard index` to produce an architecture index of the routes or endpoints and the spec tree.
 
 ## Requirements
+- [ ] Application features and specs have logical groups and explicit presentation order independent of filenames and stable identities; the editor can draft, edit and reorder that organization, and defaults unassigned application entries to the nearest workspace journey step ordering while preserving explicit application choices <!-- claim: application-organization -->
 - [ ] A spec may declare its metadata in YAML frontmatter (id, kind, title, parent, value, status, sources, tests, docs, history); frontmatter is read first, and specs that use the older HTML-comment metadata block still parse unchanged <!-- claim: frontmatter-v2-metadata -->
 - [ ] Invalid frontmatter (bad YAML, a kind other than system, capability, component or journey, a non-string where a string is required, a list of non-strings) fails with an error that names the file and explains that lists must be block lists with quoted globs <!-- claim: frontmatter-errors -->
 - [ ] A spec parses into a title, named sections, scenarios (name, numbered steps, expected-result bullets) and claims; missing sections yield empty values rather than errors, unknown metadata keys are preserved, and `Requirements` is accepted as the preferred name for `Acceptance Criteria` <!-- claim: sections-and-scenarios -->

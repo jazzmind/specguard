@@ -6,6 +6,8 @@ parent: system
 value: Teams that split one system across several repos or packages can treat it as one system, so a change in one place shows what else must be re-checked.
 status: active
 sources:
+  - "src/core/experience.ts"
+  - "src/cli/commands/experience.ts"
   - "src/core/env.ts"
   - "src/core/workspace.ts"
   - "src/core/workspace-heuristics.ts"
@@ -24,6 +26,8 @@ sources:
   - "src/cli/commands/key.ts"
   - "src/pipelines/workspace-publish.ts"
 tests:
+  - "tests/core/experience.test.ts"
+  - "tests/cli/experience.test.ts"
   - "tests/core/monorepo.test.ts"
   - "tests/core/env.test.ts"
   - "tests/cli/key.test.ts"
@@ -34,8 +38,10 @@ tests:
   - "tests/pipelines/workspaces.test.ts"
   - "tests/core/workspace-sync-overlay.test.ts"
 docs:
+  - "docs/business-organization.md"
   - "README.md"
 history:
+  - 2026-10-29-output-routing-and-business-organization
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-22-0-3-phase-1-workspace-ignore-sync-and-co
   - 2026-10-22-0-3-phase-1f-workspaces-on-the-team-serv
@@ -68,6 +74,8 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - An architect runs `check` at a workspace root and sees the system, its units (repos or packages) and the capabilities that span them.
 
 ## Requirements
+- [ ] A workspace has a maintained business overview and ordered journeys, groups and steps linking application-qualified features, specs and claims across repositories; the CLI and editor can create, edit, reorder and remove organization without renaming specs or claim IDs, show missing references and draft/reviewed status independently of proof, and reject saves against an outdated revision <!-- claim: workspace-business-journeys -->
+- [ ] Automatic organization drafting uses configured model access and existing specs/catalogs only, rejects invented references, writes a reviewable proposal rather than changing active organization, preserves existing descriptions/order/references when refreshing, marks journeys with newly added steps draft, and refuses applying a proposal after organization or catalog inputs change <!-- claim: journey-draft-review -->
 - [ ] A workspace manifest at `.specguard/workspace.json` lists repos with a path and a role of consumer, provider, test or docs, an optional description, and an optional catalog directory; it is found by walking up from any child directory and unknown fields are preserved <!-- claim: workspace-manifest -->
 - [ ] A missing manifest is a clear "not found" configuration error and an invalid or schema-failing manifest is a configuration error; repos without their own SpecGuard config load with no config rather than failing <!-- claim: manifest-errors -->
 - [ ] `workspace init` registers sibling repos that have a SpecGuard config, deriving each repo key from the directory name alone and each role from the repo's contents (test frameworks, UI or server dependencies, API schema files, language markers) and never from a platform-specific name; it never overwrites an existing manifest and fails with guidance when no repo is found <!-- claim: workspace-init-heuristics -->

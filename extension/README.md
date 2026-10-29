@@ -68,3 +68,13 @@ Setup updates offer a per-file preview before running:
   unchanged.
 
 Cancel leaves files unchanged. A failed update does not advance the setup version.
+
+## Business journeys and output destinations
+
+**Workspace → Business journeys** opens the application-wide overview with ordered cross-application journeys and linked features/specs/claims. Add or edit groups, journeys and steps; use arrows to reorder. **Draft / update from specs** proposes a structure using configured AI settings. Review the diff and apply it; existing manual organization is retained and stale proposals are refused.
+
+An application's **Evidence → Specs → Organize features & specs** opens its own grouped feature/spec view. Defaults follow the nearest workspace journey order, with application overrides. Organization is independent of file paths and claim IDs.
+
+Generate, Reverse, Import, Docs and Gap Analysis show their input scope and let you select an output directory. Choices are remembered per application, with separate unit/integration/e2e destinations. Existing conventions are suggested; mapping directories such as `tags/` are flagged. Changing a spec root explicitly copies the specs while retaining originals and canonical keys. Configure an existing test runner to include any new directory you introduce.
+
+See [the workflow guide](../docs/business-organization.md) for CLI commands, persistence and draft/review semantics.

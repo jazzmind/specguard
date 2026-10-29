@@ -1,3 +1,4 @@
+import { outputDirectory } from '../core/output-locations.js';
 /**
  * Gap Analysis pipeline.
  *
@@ -28,6 +29,7 @@ import { resolveProfile, featureFromPath, type LanguageProfile } from '../core/l
 import { writePlan } from '../core/plan-writer.js';
 
 export interface GapAnalysisOpts {
+  app?: string;
   /** Restrict to a single spec key (e.g. `app/team-sprint-board-mvp`). */
   spec?: string;
   /** Generate implementation plans via LLM (default: true). */
@@ -116,7 +118,7 @@ export async function runGapAnalysis(
   const log = (line: string) => { result.messages.push(line); };
   const shouldPlan = opts.plan !== false; // default true
 
-  for (const app of config.apps) {
+  for (const app of config.apps.filter(a => !opts.app || a.name === opts.app)) {
     const repoDir = resolveFromRoot(config, app.repo);
     const specDirAbs = resolveFromRoot(config, app.specDir);
 
@@ -147,7 +149,7 @@ export async function runGapAnalysis(
       specs = specs.filter((s) => s.specKey === filterKey || `${app.name}/${s.specKey}` === opts.spec);
     }
 
-    const plansDir = path.join(config.rootDir ?? process.cwd(), '.specguard', 'plans');
+    const plansDir = outputDirectory(config, app, 'plans');
 
     for (const spec of specs) {
       const fullKey = `${app.name}/${spec.specKey}`;
@@ -289,6 +291,7 @@ export async function runGapAnalysis(
     try {
       writePlan({
         pipeline: 'gap-analysis',
+        outDir: outputDirectory(config, config.apps.find(a => a.name === opts.app) ?? config.apps[0], 'plans'),
         title: `Implement Missing Features — ${unimpl.length} unimplemented, ${partial.length} partial`,
         summary: `Gap analysis found ${unimpl.length} spec(s) with no source implementation and ` +
           `${partial.length} spec(s) that are only partially implemented. ` +

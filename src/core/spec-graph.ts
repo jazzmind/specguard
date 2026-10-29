@@ -20,6 +20,7 @@ import {
   resolveDeclaredSources,
   sourceKeys,
   specsRootDir,
+  retiredSpecFile,
 } from './spec-key.js';
 import type { ParsedSpec, SpecGuardConfig, SpecKind } from './types.js';
 
@@ -84,14 +85,14 @@ export interface BuildGraphOptions {
 export function loadRepoSpecs(config: SpecGuardConfig): Array<{ spec: ParsedSpec; abs: string; dir: string }> {
   const root = config.rootDir ?? process.cwd();
   const top = specsRootDir(config);
-  const dirs = fs.existsSync(top) ? [top] : config.apps.map((app) => path.resolve(root, app.specDir));
+  const dirs = [...new Set([...(fs.existsSync(top) ? [top] : []), ...config.apps.map((app) => path.resolve(root, app.specDir))])];
   const seen = new Set<string>();
   const out: Array<{ spec: ParsedSpec; abs: string; dir: string }> = [];
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
     for (const spec of loadAllSpecs(dir)) {
       const abs = path.join(dir, `${spec.specKey}.md`);
-      if (seen.has(abs)) continue;
+      if (seen.has(abs) || retiredSpecFile(config, abs)) continue;
       seen.add(abs);
       out.push({ spec: { ...spec, localKey: spec.specKey, specKey: canonicalSpecKey(config, abs, dir) }, abs, dir });
     }

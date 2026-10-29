@@ -11,6 +11,7 @@ let panel: vscode.WebviewPanel | undefined;
 let currentHost: DashboardHost | undefined;
 /** Stored context so openAndRun can open the panel if needed. */
 let _context: vscode.ExtensionContext | undefined;
+export function refreshDashboard(): void { void currentHost?.refresh(); }
 export function refreshDashboardSettings(): void { void currentHost?.handle({ type: 'readProjectConfig' }); }
 
 export function openDashboardPanel(context: vscode.ExtensionContext, previewRoot?: string, targetTab?: DashboardTab): void {

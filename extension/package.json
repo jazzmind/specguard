@@ -235,6 +235,14 @@
         "command": "specguard.workspaceSettings",
         "title": "SpecGuard: Workspace Settings",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "specguard.businessJourneys",
+        "title": "SpecGuard: Business Journeys"
+      },
+      {
+        "command": "specguard.organizeApplication",
+        "title": "SpecGuard: Organize Features and Specs"
       }
     ],
     "menus": {

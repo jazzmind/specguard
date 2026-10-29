@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { experienceCommand } from './commands/experience.js';
+import { outputsCommand } from './commands/outputs.js';
 /**
  * SpecGuard CLI entrypoint.
  *
@@ -126,6 +128,18 @@ process.on('exit', (code) => {
     void code;
   }
 });
+
+program.command('experience').description('workspace journeys or application feature/spec organization')
+  .option('--inherit-workspace <path>', 'application organization follows this workspace instead of the nearest manifest')
+  .option('--workspace <path>', 'workspace manifest, root or .code-workspace')
+  .option('--action <action>', 'show, draft, save or apply', 'show')
+  .option('--data <json>', 'organization document for save').option('--revision <hash>', 'revision being edited')
+  .action(async (opts, cmd: Command) => { await experienceCommand(withGlobals(cmd, opts)); });
+
+program.command('outputs').description('show or save per-application destinations (paths relative to the config root)')
+  .option('--app <name>', 'application name').option('--kind <kind>', 'specs, tests.unit, tests.integration, tests.e2e, docs or plans')
+  .option('--directory <path>', 'save this destination; existing files are retained')
+  .action(async (opts, cmd: Command) => { await outputsCommand(withGlobals(cmd, opts)); });
 
 // --- start ----------------------------------------------------------------------
 program
@@ -465,12 +479,13 @@ program
 // --- gap-analysis ---------------------------------------------------------
 program
   .command('gap-analysis')
+  .option('--app <name>', 'restrict to one application')
   .description('detect unimplemented/partial specs and generate implementation plans (also `check --gaps`)')
   .option('--spec <key>', 'restrict to a single spec key (e.g. app/feature)')
   .option('--all', 'check all apps (default)')
   .option('--no-plan', 'skip LLM plan generation — only report gaps')
-  .action(async (opts: { spec?: string; all?: boolean; plan?: boolean }, cmd: Command) => {
-    await gapAnalysisCommand(withGlobals(cmd, { spec: opts.spec, all: opts.all, noPlan: opts.plan === false }));
+  .action(async (opts: { app?: string; spec?: string; all?: boolean; plan?: boolean }, cmd: Command) => {
+    await gapAnalysisCommand(withGlobals(cmd, { app: opts.app, spec: opts.spec, all: opts.all, noPlan: opts.plan === false }));
   });
 
 // --- align ----------------------------------------------------------------

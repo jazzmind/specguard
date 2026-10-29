@@ -30,6 +30,7 @@ let _catalogFiles = new Map<string, string[]>();
 
 type PanelMsg =
   | { type: 'settings' }
+  | { type: 'journeys' }
   | { type: 'openDashboard'; key: string }
   | { type: 'ready' }
   | { type: 'runDrift' }
@@ -91,6 +92,7 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
 
 async function handleMessage(msg: PanelMsg): Promise<void> {
   if (!_panel) return;
+  if (msg.type === 'journeys') { await vscode.commands.executeCommand('specguard.businessJourneys'); return; }
   if (msg.type === 'settings') { await vscode.commands.executeCommand('specguard.workspaceSettings'); return; }
 
   if (msg.type === 'openCatalog') {
@@ -502,7 +504,7 @@ export function buildHtml(_webview: vscode.Webview): string {
         <div class="c-stat" style="opacity:.7">\${manifest.rollupAt ? 'Checked ' + new Date(manifest.rollupAt).toLocaleString() : 'Not checked yet'}\${manifest.codeWorkspace ? ' · follows ' + manifest.codeWorkspace.split('/').pop() : ''}</div>
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           \${manifest.codeWorkspace ? '<button class="btn secondary" data-act="syncNow">Sync folders</button>' : ''}
-          <button class="btn" data-act="refreshAll">Refresh all repos</button>
+          <button class="btn secondary" data-act="journeys">Business journeys</button><button class="btn" data-act="refreshAll">Refresh all repos</button>
         </div>
       </div>
     \`;
@@ -587,6 +589,7 @@ export function buildHtml(_webview: vscode.Webview): string {
     e.preventDefault();
     const d = el.dataset;
     if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
+    else if (d.act === 'journeys') vscode.postMessage({ type: 'journeys' });
     else if (d.act === 'settings') vscode.postMessage({ type: 'settings' });
     else if (d.act === 'openDashboard') vscode.postMessage({ type: 'openDashboard', key: d.key });
     else if (d.act === 'switch') switchRepo(d.abs, d.key);

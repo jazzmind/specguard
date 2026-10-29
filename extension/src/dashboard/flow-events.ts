@@ -22,6 +22,6 @@ export function cliArgsFor(pipeline: string, extra: string[] = []): string[] {
   if (pipeline === 'test-run') return ['test', 'run', ...extra];
   if (pipeline === 'security-scan') return ['security', 'scan', ...extra];
   const needsAll = new Set(['docs', 'generate', 'reverse', 'security', 'heal', 'validate']);
-  const defaults = needsAll.has(pipeline) ? ['--all'] : [];
+  const defaults = needsAll.has(pipeline) && !(pipeline === 'reverse' && extra.includes('--app')) && !extra.includes('--spec') ? ['--all'] : [];
   return [pipeline, ...defaults, ...extra];
 }

@@ -125,6 +125,7 @@ export interface FindingItem {
 }
 
 export type DashboardCommand =
+  | { type: 'organizeApplication' }
   | { type: 'openWorkspaceSettings' }
   | { type: 'openRepositorySettings' }
   | { type: 'openWorkspace' }

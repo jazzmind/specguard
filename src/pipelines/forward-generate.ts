@@ -1,3 +1,5 @@
+import { canonicalSpecKey } from '../core/spec-key.js';
+import { outputDirectory } from '../core/output-locations.js';
 /**
  * Forward Generation pipeline.
  *
@@ -259,7 +261,7 @@ export async function runForwardGenerate(
   let attempted = 0;
 
   for (const { absSpecPath, app, specDirAbs } of owned) {
-    const profile = resolveProfile(app);
+    const profile = resolveProfile(opts.framework === 'playwright' ? { ...app, language: 'typescript', framework: 'playwright' } : app);
     const feature = deriveFeature(absSpecPath, specDirAbs);
     const key = `${app.name}/${feature}`;
 
@@ -268,8 +270,8 @@ export async function runForwardGenerate(
       continue;
     }
 
-    const testOutputAbs = resolveFromRoot(config, app.testOutput);
-    const targetTest = path.join(testOutputAbs, `${feature}${profile.testExt}`);
+    const testOutputAbs = outputDirectory(config, app, `tests.${opts.type ?? 'unit'}`);
+    const targetTest = path.join(testOutputAbs, `${feature}${opts.framework === 'playwright' ? '.spec.ts' : profile.testExt}`);
 
     // Skip if the test file already exists and --force is not set.
     if (!opts.force && (await fileExists(targetTest))) {
@@ -289,6 +291,7 @@ export async function runForwardGenerate(
     try {
       const content = await readFile(absSpecPath);
       spec = parseSpecContent(content, absSpecPath, specDirAbs);
+      spec.specKey = canonicalSpecKey(config, absSpecPath, specDirAbs);
     } catch (err) {
       log(`[warn] ${key} — could not read spec: ${(err as Error).message}`);
       continue;

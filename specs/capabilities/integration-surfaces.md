@@ -6,6 +6,8 @@ parent: system
 value: People, coding agents and other systems can drive SpecGuard from wherever they work (terminal, agent harness, CI or IDE) and extend it without forking it.
 status: active
 sources:
+  - "src/core/output-locations.ts"
+  - "src/cli/commands/outputs.ts"
   - "Makefile"
   - "scripts/wait-for-ci.mjs"
   - "src/cli/index.ts"
@@ -41,6 +43,8 @@ sources:
   - "src/cli/commands/overlay.ts"
   - "plugins/specguard/scripts/session-status.sh"
 tests:
+  - "tests/core/output-locations.test.ts"
+  - "tests/pipelines/output-destinations.test.ts"
   - "tests/core/make.test.ts"
   - "tests/core/release-ci.test.ts"
   - "tests/action/run-gates.test.ts"
@@ -76,6 +80,7 @@ tests:
   - "tests/hooks/overlay.test.ts"
   - "tests/plugins/session-status.test.ts"
 docs:
+  - "docs/business-organization.md"
   - "docs/development.md"
   - "README.md"
   - "docs/ci.md"
@@ -88,6 +93,7 @@ docs:
   - "docs/feature-catalog.md"
   - "extension/README.md"
 history:
+  - 2026-10-29-output-routing-and-business-organization
   - 2026-10-29-editor-endpoint-startup
   - 2026-10-15-functional-specs-and-four-pillars
   - 2026-10-15-catalog-exclude
@@ -135,6 +141,8 @@ This capability is the set of surfaces through which people, agents and systems 
 - A developer runs `specguard quality` and `specguard commit` to lint and commit only SpecGuard-generated files.
 
 ## Requirements
+- [ ] CLI and editor actions resolve saved output directories per application and artifact kind, including separate unit, integration and e2e tests; generated directories join test discovery, native sources remain intact, and changing a spec root copies existing Markdown without deleting originals or overwriting conflicting content while preserving canonical spec/claim keys <!-- claim: output-destinations -->
+- [ ] Before Generate, Reverse, Import, Docs or Gap Analysis writes outputs, the editor shows the application, code/config locations and chosen destination, offers established runnable directories and an alternate directory, flags mapping-only test directories, remembers the choice and scopes the action to the chosen application; cancelled routing does not start generation <!-- claim: extension-output-routing -->
 - [ ] SpecGuard never stages runtime `.specguard/activity-log.json` files, including nested projects and explicit generated, dependency or code-fix scopes; a legacy tracked log can be untracked once by migration while retaining its local history, after which post-commit activity remains local <!-- claim: activity-log-never-committed -->
 - [ ] The VS Code sidebar defaults to Workspace, Coverage, Pipelines and Plugins in that order; Workspace has its own independent tree and remains usable when the active repo has no coverage or its coverage load fails <!-- claim: extension-navigation-order -->
 - [ ] The workspace dashboard lists every repo's configured feature catalog files, schema versions, content revision, feature-to-current-spec link coverage and missing links; it separately shows the installed extension version, last harness setup version, spec format, current Git revision and working changes, and the revision and engine version of the last spec check; absent or differing check evidence is shown as needing a refresh, and catalog links alone never claim verified content alignment <!-- claim: extension-workspace-alignment -->

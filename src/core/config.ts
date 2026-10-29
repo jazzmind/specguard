@@ -1,3 +1,4 @@
+import { applyOutputLocations } from './output-locations.js';
 /**
  * Config loader for SpecGuard.
  *
@@ -634,6 +635,7 @@ export async function loadConfig(cwd: string = process.cwd(), opts: { env?: Node
     const off = new Set(config.disabledPlugins);
     config.plugins = config.plugins.filter((e) => !off.has(typeof e === 'string' ? e : e.name));
   }
+  applyOutputLocations(config);
   // The LLM layer is configured once per process from the config it was given.
   configureLlm({ rootDir, llm: config.llm });
   return config;

@@ -1,3 +1,4 @@
+import { outputDirectory } from '../core/output-locations.js';
 /**
  * Doc Generation pipeline.
  *
@@ -263,7 +264,7 @@ export async function runDocGenerate(
   }
 
   const apps = appsInScope(config, opts);
-  const outDirAbs = resolveFromRoot(config, opts.out ?? config.paths?.docsOut ?? DEFAULT_OUT);
+  const defaultOutDirAbs = resolveFromRoot(config, opts.out ?? config.paths?.docsOut ?? DEFAULT_OUT);
 
   // Build the list of owned spec files to process.
   const owned: OwnedSpec[] = [];
@@ -293,6 +294,7 @@ export async function runDocGenerate(
   let attempted = 0;
 
   for (const { absSpecPath, app, specDirAbs } of owned) {
+    const outDirAbs = opts.out ? defaultOutDirAbs : outputDirectory(config, app, 'docs');
     const feature = deriveFeature(absSpecPath, specDirAbs);
     const key = `${app.name}/${feature}`;
     const targetDoc = path.join(outDirAbs, `${feature}.md`);
