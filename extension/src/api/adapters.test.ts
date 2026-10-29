@@ -20,6 +20,13 @@ describe('coverage from the API [adapters-coverage]', () => {
   };
   const specs: SpecsResponse = { specs: [{ id: 'auth', title: 'Auth', kind: 'capability', specKey: 'capabilities/auth', file: 'specs/capabilities/auth.md', claims: 4 }] };
 
+  // [claims: capabilities/integration-surfaces#extension-overlay-workspace]
+  it('resolves overlay API spec links from the config directory, including absolute paths', () => {
+    const [app] = coverageFromApi(cov, specs, { name: 'portal', workspaceRoot: '/code/portal', configDir: '/evidence/apps/portal' });
+    expect(app.items[0].specPath).toBe('/evidence/apps/portal/specs/capabilities/auth.md');
+    expect(coverageFromApi(cov, { specs: [{ ...specs.specs[0], file: '/evidence/spec.md' }] }, { name: 'portal', workspaceRoot: '/code/portal' })[0].items[0].specPath).toBe('/evidence/spec.md');
+  });
+
   it('makes one entry for the project, a capability per item, and a missing-spec item per unowned file', () => {
     const [app] = coverageFromApi(cov, specs, { name: 'portal', workspaceRoot: '/work/portal' });
     expect(app).toMatchObject({ name: 'portal', specCount: 2, sourceCount: 10, testCount: 1, percentage: 80, basis: 'capability' });

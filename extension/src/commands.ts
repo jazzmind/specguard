@@ -1,3 +1,4 @@
+import { repoNavigator } from './repo-navigation.js';
 /**
  * VS Code command handlers for SpecGuard extension.
  */
@@ -24,7 +25,7 @@ export function registerCommands(
 ): void {
   context.subscriptions.push(vscode.commands.registerCommand('specguard.openOutputs', async (kind: string) => {
     const root = getActiveWorkspaceRoot();
-    if (root && (kind === 'specs' || kind === 'tests' || kind === 'docs')) await openOutputs(root, kind);
+    if (root && (kind === 'specs' || kind === 'tests' || kind === 'docs')) openDashboardPanel(context, root, kind);
   }));
   // --- specguard.switchProject ----------------------------------------------
   context.subscriptions.push(
@@ -212,6 +213,14 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.openDashboard', () => openDashboardPanel(context)),
   );
 
+  context.subscriptions.push(vscode.commands.registerCommand('specguard.previewRepo', repoNavigator((root) => {
+    const repo = loadWorkspaceManifest()?.repos.find(r => r.absPath === root);
+    if (repo?.overlayFor?.length) openWorkspacePanel(context);
+    else openDashboardPanel(context, root);
+  }, (root, key) => vscode.commands.executeCommand('specguard.switchToRepo', root, key))));
+
+  context.subscriptions.push(vscode.commands.registerCommand('specguard.repoDashboard', (root: string) => openDashboardPanel(context, root)));
+
   // --- specguard.switchToRepo -----------------------------------------------
   // Called when clicking a repo row in the Workspace section.
   context.subscriptions.push(
@@ -294,7 +303,7 @@ export function registerCommands(
       openWorkspacePanel(context, 'status');
     }),
     vscode.commands.registerCommand('specguard.setApiKey', async () => {
-      if (await setApiKey()) void coverageProvider.refresh();
+      await vscode.commands.executeCommand('specguard.workspaceSettings');
     }),
     vscode.commands.registerCommand('specguard.syncWorkspace', async () => {
       if (await syncCodeWorkspace(context, { interactive: true })) void coverageProvider.refresh();

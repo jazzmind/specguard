@@ -32,6 +32,22 @@ afterAll(() => {
 });
 
 describe('loadConfig', () => {
+  // [claims: capabilities/platform-foundation#config-editor-ai-defaults]
+  it('validates editor AI defaults without changing project paths, budgets or the config file', async () => {
+    const root = makeTempDir();
+    mkdirSync(path.join(root, '.specguard'));
+    const raw = JSON.stringify({ apps: [{ name: 'app', repo: '.', specDir: 'specs', sources: {}, framework: 'vitest', testOutput: 'tests/' }], llm: { provider: 'anthropic', model: 'old', apiKeyEnv: 'OLD_KEY', baseUrl: 'https://old.test', budget: { maxCalls: 3 } } });
+    writeFileSync(path.join(root, '.specguard/config.json'), raw);
+    const override = { provider: 'openai', model: 'workspace-model', apiKeyEnv: 'WORKSPACE_KEY', rootDir: '/wrong', budget: { maxCalls: 999 } };
+    const env = { SPECGUARD_IDE_LLM: JSON.stringify(override) };
+    const config = await loadConfig(root, { env });
+    expect(config.llm).toMatchObject({ provider: 'openai', model: 'workspace-model', apiKeyEnv: 'WORKSPACE_KEY', budget: { maxCalls: 3 } });
+    expect(config.llm.baseUrl).toBeUndefined();
+    expect(config.rootDir).toBe(root);
+    expect(await readFile(path.join(root, '.specguard/config.json'))).toBe(raw);
+    await expect(loadConfig(root, { env: { SPECGUARD_IDE_LLM: '{bad' } })).rejects.toBeInstanceOf(ConfigInvalidError);
+    await expect(loadConfig(root, { env: { SPECGUARD_IDE_LLM: JSON.stringify({ model: 42 }) } })).rejects.toBeInstanceOf(ConfigInvalidError);
+  });
   // [claims: capabilities/platform-foundation#config-discovery]
   it('loads the repo .specguard/config.json', async () => {
     const config = await loadConfig(REPO_ROOT);

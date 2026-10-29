@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "specguard-mcp": {
+      "command": "specguard-mcp",
+      "args": []
+    }
+  }
+}

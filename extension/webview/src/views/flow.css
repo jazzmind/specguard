@@ -416,3 +416,11 @@
   padding: 1px 4px;
   border-radius: 3px;
 }
+
+/* Shared project navigation; use the editor theme rather than native browser buttons. */
+.sg-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
+.sg-tabs button { appearance: none; border: 1px solid transparent; background: transparent; color: var(--vscode-descriptionForeground); font: inherit; font-size: 12px; padding: 7px 12px; border-radius: 5px; cursor: pointer; }
+.sg-tabs button:hover { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
+.sg-tabs button.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.sg-tabs .sg-workspace-link { color: var(--vscode-textLink-foreground); margin-right: 12px; border-right: 1px solid var(--vscode-panel-border); border-radius: 0; }
+.sg-tabs button:focus-visible, .sg-subtabs button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }

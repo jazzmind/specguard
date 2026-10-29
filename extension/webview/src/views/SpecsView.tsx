@@ -22,9 +22,10 @@ function groupFromPath(p: string): string {
   return 'root';
 }
 
-export function SpecsView({ vm }: { vm: ViewModel }) {
-  const specs = vm.artifacts.filter((a) => a.kind === 'spec');
+export function SpecsView({ vm, kind = 'spec' }: { vm: ViewModel; kind?: 'spec' | 'test' }) {
+  const specs = vm.artifacts.filter((a) => a.kind === kind);
 
+  if (kind === 'test' && specs.length === 0) return <p style={{ padding: 16 }}>No test files found in the configured test sources.</p>;
   if (specs.length === 0) {
     return (
       <div style={{ padding: 16 }}>
@@ -69,7 +70,7 @@ export function SpecsView({ vm }: { vm: ViewModel }) {
     <div style={{ padding: 16 }}>
       <div style={{ marginBottom: 16 }}>
         <span style={{ fontSize: 12, color: '#888' }}>
-          {specs.length} Living Spec{specs.length !== 1 ? 's' : ''}
+          {specs.length} {kind === 'spec' ? 'Living Specs' : 'Test files'}
         </span>
       </div>
 
@@ -80,7 +81,7 @@ export function SpecsView({ vm }: { vm: ViewModel }) {
             textTransform: 'uppercase', letterSpacing: '0.08em',
             borderBottom: '1px solid var(--vscode-panel-border)', paddingBottom: 4,
           }}>
-            {group === 'root' ? 'Specs' : group}
+            {group === 'root' ? (kind === 'spec' ? 'Specs' : 'Tests') : group}
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {items.map((s) => {

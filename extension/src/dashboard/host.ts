@@ -1,3 +1,5 @@
+import { settingsLayers, aiCredential, saveSettings, setAiCredential } from '../settings.js';
+import { collectOutputs } from '../output-inventory.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -13,7 +15,7 @@ import { ActivityLogService } from './activity-log.js';
 import { loadProjectData, type ProjectData } from '../api/data.js';
 import { getHub } from '../api/shared.js';
 import { projectNameOf } from '../api/hub.js';
-import { configDirFor, configFileFor, detectProjectConfig } from '../project-config.js';
+import { configDirFor, configFileFor, detectProjectConfig, resolveEvidenceFile } from '../project-config.js';
 
 /** 4 means "specs missing" and, for a security scan, 5 means "findings exist": the command ran, and the result is the finding. */
 function isSuccess(pipeline: string, code: number): boolean {
@@ -90,7 +92,7 @@ export class DashboardHost {
   async handle(cmd: DashboardCommand): Promise<void> {
     if (cmd.type === 'refresh') return this.refresh();
     if (cmd.type === 'openFile') {
-      const resolved = path.resolve(this.workspaceRoot, cmd.path);
+      const resolved = resolveEvidenceFile(this.workspaceRoot, configDirFor(this.workspaceRoot), cmd.path);
       const uri = vscode.Uri.file(resolved);
       // If path is a directory, reveal it in Explorer; otherwise open as document.
       const stat = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
@@ -429,7 +431,7 @@ export class DashboardHost {
       const hub = getHub();
       if (hub) {
         const live = await hub.get(this.workspaceRoot);
-        const data = await loadProjectData(live.client, { name: projectNameOf(this.workspaceRoot, live), workspaceRoot: this.workspaceRoot });
+        const data = await loadProjectData(live.client, { name: projectNameOf(this.workspaceRoot, live), workspaceRoot: this.workspaceRoot, configDir: configDirFor(this.workspaceRoot) });
         if (data.functional) api = data;
         if (live.notice) this.post({ type: 'error', scope: 'server', message: live.notice });
       }
@@ -466,9 +468,14 @@ export class DashboardHost {
       this.post({ type: 'error', scope: 'matrix', message: err instanceof Error ? err.message : String(err) });
     }
     // Emit existing doc artifacts with metadata
-    this._pushExistingDocs();
+    for (const file of await collectOutputs('docs', this.workspaceRoot, configDirFor(this.workspaceRoot))) {
+      this.post({ type: 'artifact', kind: 'doc', path: file.path, title: file.title, change: 'update' });
+    }
     // Emit existing spec artifacts so Docs → Specs tab is populated on open
     this._pushExistingSpecs();
+    for (const file of await collectOutputs('tests', this.workspaceRoot, configDirFor(this.workspaceRoot))) {
+      this.post({ type: 'artifact', kind: 'test', path: file.path, title: file.title, change: 'update' });
+    }
     // Findings from quality/dep JSON outputs (if present)
     this._pushFindings(api?.findings ?? []);
     // Plans from .specguard/plans/
@@ -646,95 +653,20 @@ export class DashboardHost {
   // Project config (LLM settings + .env)
   // ---------------------------------------------------------------------------
 
-  private _pushProjectConfig(): void {
-    // The config (and its .env) live in the overlay repo when the project's specs are kept there.
-    const configFile = configFileFor(this.workspaceRoot);
-    const dotEnvFile = path.join(configDirFor(this.workspaceRoot), '.specguard', '.env');
-    const configFound = fs.existsSync(configFile);
-
-    const defaultLlm: ProjectConfig['llm'] = { provider: 'anthropic', model: 'claude-sonnet-4-6', apiKeyEnv: 'ANTHROPIC_API_KEY' };
-
-    if (!configFound) {
-      this.post({ type: 'projectConfig', config: { llm: defaultLlm, envVars: {}, hasApiKey: false, configFound: false } });
-      return;
-    }
-
-    let llm: ProjectConfig['llm'] = { ...defaultLlm };
-    try {
-      const raw = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as { llm?: Partial<ProjectConfig['llm']> };
-      if (raw.llm) llm = { ...defaultLlm, ...raw.llm } as ProjectConfig['llm'];
-    } catch { /* best-effort */ }
-
-    const dotEnv = loadDotEnv(dotEnvFile);
-    const maskedEnv: Record<string, string> = {};
-    for (const [k, v] of Object.entries(dotEnv)) {
-      maskedEnv[k] = v ? '***' : '';
-    }
-
-    const apiKeyValue = dotEnv[llm.apiKeyEnv] ?? process.env[llm.apiKeyEnv];
-    const hasApiKey = llm.provider === 'litellm' ? true : !!apiKeyValue;
-
-    this.post({ type: 'projectConfig', config: { llm, envVars: maskedEnv, hasApiKey, configFound: true } });
+  private async _pushProjectConfig(): Promise<void> {
+    const { effective } = settingsLayers(this.workspaceRoot);
+    const credential = await aiCredential(this.workspaceRoot, effective.llm);
+    this.post({ type: 'projectConfig', config: { llm: effective.llm, envVars: { [effective.llm.apiKeyEnv]: credential.value ? '***' : '' },
+      hasApiKey: effective.llm.provider === 'litellm' || !!credential.value, configFound: fs.existsSync(configFileFor(this.workspaceRoot)),
+      llmSource: effective.llmSource, keySource: credential.source, serverSource: effective.serverSource, serverUrl: effective.server.url } });
   }
 
   private async _saveProjectConfig(config: ProjectConfig): Promise<void> {
-    const configFile = configFileFor(this.workspaceRoot);
-    const dotEnvFile = path.join(configDirFor(this.workspaceRoot), '.specguard', '.env');
-
-    try {
-      let existing: Record<string, unknown> = {};
-      if (fs.existsSync(configFile)) {
-        existing = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Record<string, unknown>;
-      }
-      existing['llm'] = config.llm;
-      fs.writeFileSync(configFile, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
-    } catch (err) {
-      this.post({ type: 'error', scope: 'saveProjectConfig', message: `Failed to update config.json: ${(err as Error).message}` });
-      return;
-    }
-
-    const keyEnv = config.llm.apiKeyEnv;
-    const keyValue = config.envVars[keyEnv];
-    if (keyValue && keyValue !== '***') {
-      try {
-        const dir = path.dirname(dotEnvFile);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        let content = fs.existsSync(dotEnvFile) ? fs.readFileSync(dotEnvFile, 'utf-8') : '';
-        const lineRe = new RegExp(`^${keyEnv}=.*$`, 'm');
-        if (lineRe.test(content)) {
-          content = content.replace(lineRe, `${keyEnv}=${keyValue}`);
-        } else {
-          content += (content.endsWith('\n') ? '' : '\n') + `${keyEnv}=${keyValue}\n`;
-        }
-        fs.writeFileSync(dotEnvFile, content, 'utf-8');
-      } catch (err) {
-        this.post({ type: 'error', scope: 'saveProjectConfig', message: `Failed to update .env: ${(err as Error).message}` });
-        return;
-      }
-    }
-
-    // Save base URL env var for providers that support custom endpoints
-    const baseUrlEnvVar = config.llm.provider === 'litellm' ? 'LITELLM_BASE_URL'
-      : config.llm.provider === 'openai' ? 'OPENAI_BASE_URL'
-      : null;
-    if (baseUrlEnvVar && config.llm.baseUrl) {
-      try {
-        const dir = path.dirname(dotEnvFile);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        let content = fs.existsSync(dotEnvFile) ? fs.readFileSync(dotEnvFile, 'utf-8') : '';
-        const lineRe = new RegExp(`^${baseUrlEnvVar}=.*$`, 'm');
-        if (lineRe.test(content)) {
-          content = content.replace(lineRe, `${baseUrlEnvVar}=${config.llm.baseUrl}`);
-        } else {
-          content += (content.endsWith('\n') ? '' : '\n') + `${baseUrlEnvVar}=${config.llm.baseUrl}\n`;
-        }
-        fs.writeFileSync(dotEnvFile, content, 'utf-8');
-      } catch { /* best-effort */ }
-    }
-
-    this._pushProjectConfig();
-    await this.refresh();
-    vscode.window.showInformationMessage('SpecGuard settings saved.');
+    const layer = settingsLayers(this.workspaceRoot).repo;
+    await saveSettings(this.workspaceRoot, { ...layer, llm: config.llm });
+    // Credentials are entered through a native password prompt, never written to project files.
+    await setAiCredential(this.workspaceRoot, config.llm);
+    await this._pushProjectConfig();
   }
 
   // ---------------------------------------------------------------------------
@@ -769,7 +701,7 @@ export class DashboardHost {
 
   private _readDocMeta(absPath: string): { title?: string; description?: string; category?: string; order?: number } {
     try {
-      const content = fs.readFileSync(absPath, 'utf-8');
+      const content = fs.readFileSync(absPath, 'utf-8').replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
       const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
       if (!match) return {};
       const block = match[1];
@@ -858,7 +790,7 @@ export class DashboardHost {
   /** Extract title and overview from a Living Spec markdown file. */
   private _readSpecMeta(absPath: string): { title?: string; description?: string } {
     try {
-      const content = fs.readFileSync(absPath, 'utf-8');
+      const content = fs.readFileSync(absPath, 'utf-8').replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
       // H1 title
       const titleMatch = content.match(/^#\s+(.+)$/m);
       const title = titleMatch ? titleMatch[1].trim() : undefined;

@@ -29,6 +29,8 @@ let _refreshId = 0;
 let _catalogFiles = new Map<string, string[]>();
 
 type PanelMsg =
+  | { type: 'settings' }
+  | { type: 'openDashboard'; key: string }
   | { type: 'ready' }
   | { type: 'runDrift' }
   | { type: 'runContracts' }
@@ -89,6 +91,7 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
 
 async function handleMessage(msg: PanelMsg): Promise<void> {
   if (!_panel) return;
+  if (msg.type === 'settings') { await vscode.commands.executeCommand('specguard.workspaceSettings'); return; }
 
   if (msg.type === 'openCatalog') {
     const file = Number.isInteger(msg.index) ? _catalogFiles.get(msg.key)?.[msg.index] : undefined;
@@ -129,6 +132,12 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
   if (msg.type === 'setIgnore') {
     const root = getWorkspaceManifestRoot();
     if (root && (await setRepoIgnored(root, msg.key, msg.ignore))) refreshStatus(_panel.webview);
+    return;
+  }
+
+  if (msg.type === 'openDashboard') {
+    const repo = loadWorkspaceManifest()?.repos.find(r => r.key === msg.key && !r.ignore);
+    if (repo) await vscode.commands.executeCommand('specguard.repoDashboard', repo.absPath);
     return;
   }
 
@@ -240,7 +249,7 @@ export function buildHtml(_webview: vscode.Webview): string {
 
   /* ── Repo grid ── */
   .section-title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: 8px; margin-top: 20px; }
-  .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--gap); }
+  .repo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
   .repo-card {
     padding: 12px 14px;
     background: var(--vscode-editor-inactiveSelectionBackground);
@@ -275,6 +284,40 @@ export function buildHtml(_webview: vscode.Webview): string {
   .catalog-table small { display: block; margin-top: 5px; color: var(--vscode-descriptionForeground); }
   .catalog-table button { margin: 3px; }
   .table-wrap { overflow-x: auto; }
+
+  #status-content > .contracts-bar:first-child { margin-bottom: 18px; }
+  .repo-grid { max-width: 1280px; margin: 0 auto; gap: 18px; align-items: start; }
+  .repo-card { min-width: 0; padding: 22px; border-radius: 10px; background: var(--vscode-editorWidget-background, var(--vscode-editor-background)); cursor: default; border: 1px solid var(--vscode-panel-border); }
+  .repo-card.active-repo { border-color: var(--vscode-focusBorder); box-shadow: inset 3px 0 0 var(--vscode-focusBorder); }
+  .repo-card .repo-header { align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+  .repo-title { flex: 1; min-width: 0; }
+  .repo-card .repo-name { display: block; font-size: 17px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .repo-subtitle { display: block; color: var(--vscode-descriptionForeground); font-size: 12px; margin-top: 4px; }
+  .repo-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 20px; }
+  .content-chip { font-size: 11px; color: var(--vscode-descriptionForeground); padding: 2px 7px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; }
+  .repo-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .repo-metrics strong { display: block; font-size: 23px; font-weight: 600; line-height: 1.3; }
+  .repo-metrics strong small { font-size: 13px; color: var(--vscode-descriptionForeground); font-weight: 400; }
+  .repo-metrics span { display: block; font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 4px; }
+  .catalog-summary { border-top: 1px solid var(--vscode-panel-border); border-bottom: 1px solid var(--vscode-panel-border); padding: 15px 0; margin-bottom: 14px; }
+  .card-section-label { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .catalog-status { font-size: 13px; }
+  .catalog-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 8px; }
+  .catalog-link { background: transparent; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; font: inherit; text-align: left; overflow-wrap: anywhere; }
+  .catalog-link:hover { text-decoration: underline; }
+  .muted { color: var(--vscode-descriptionForeground); margin: 0; font-size: 12px; line-height: 1.5; }
+  .small { font-size: 11px; }
+  .card-context { display: flex; justify-content: space-between; gap: 18px; font-size: 12px; line-height: 1.6; margin: 6px 0; }
+  .card-context > :first-child { color: var(--vscode-descriptionForeground); flex-shrink: 0; }
+  .card-context > :last-child { text-align: right; overflow-wrap: anywhere; }
+  .repo-details { margin-top: 16px; font-size: 12px; }
+  .repo-details summary { color: var(--vscode-textLink-foreground); cursor: pointer; width: fit-content; }
+  .detail-path { font-family: var(--vscode-editor-font-family); color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; margin-top: 12px; }
+  .card-footer { border-top: 1px solid var(--vscode-panel-border); margin-top: 16px; padding-top: 12px; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--vscode-descriptionForeground); }
+  .activate { flex-shrink: 0; }
+  .active-badge { color: var(--vscode-testing-iconPassed); background: transparent; border: 1px solid var(--vscode-testing-iconPassed); }
+  @media (max-width: 940px) { .repo-grid { grid-template-columns: minmax(0, 1fr); } }
+
 
   /* ── Contracts bar ── */
   .contracts-bar {
@@ -333,6 +376,7 @@ export function buildHtml(_webview: vscode.Webview): string {
 <div class="tabs">
   <button class="tab-btn active" data-tab="status">Status</button>
   <button class="tab-btn" data-tab="drift">Cross-Repo Drift</button>
+  <button class="tab-btn" data-act="settings">Settings</button>
 </div>
 
 <!-- ── Status Tab ── -->
@@ -387,7 +431,8 @@ export function buildHtml(_webview: vscode.Webview): string {
     const repos = manifest.repos;
     const active = repos.filter(r => !r.ignore);
     const ignored = repos.filter(r => r.ignore);
-    const specced = active.filter(r => r.specCount > 0).length;
+    const projects = active.filter(r => !r.overlayFor?.length);
+    const specced = projects.filter(r => r.specCount > 0).length;
     const edgeCount = contracts ? contracts.edgeCount : 0;
     const staleCount = contracts ? contracts.staleCount : 0;
     const nodeCount = contracts ? contracts.nodeCount : 0;
@@ -397,8 +442,8 @@ export function buildHtml(_webview: vscode.Webview): string {
       <div class="stats">
         <div class="stat-card">
           <div class="label">Repos Specced</div>
-          <div class="value">\${specced}/<span style="opacity:.5">\${active.length}</span></div>
-          <div class="sub">\${active.length - specced} need specs</div>
+          <div class="value">\${specced}/<span style="opacity:.5">\${projects.length}</span></div>
+          <div class="sub">\${projects.length - specced} projects need specs · \${active.length - projects.length} overlays</div>
         </div>
         <div class="stat-card">
           <div class="label">Current specs</div>
@@ -465,39 +510,46 @@ export function buildHtml(_webview: vscode.Webview): string {
     document.getElementById('status-content').innerHTML =
       toolbarHtml +
       statsHtml +
-      catalogTable(repos) +
+
       \`<div class="section-title">Repos</div><div class="repo-grid">\${activeCardsHtml}</div>\` +
       ignoredCardsHtml +
       contractsBarHtml;
   }
 
   function repoCard(repo, ignored) {
-    const dotClass = !repo.hasConfig ? 'gray' : repo.specCount > 0 ? 'green' : 'yellow';
-    const specLabel = !repo.hasConfig ? 'no config' : repo.specCount > 0 ? (repo.specLabel || repo.specCount + ' specs') : 'no specs';
+    const h = repo.health;
+    const catalog = h && h.catalog;
+    const overlay = repo.overlayFor?.length > 0;
+    const proof = h && h.counts;
     const roleClass = ['provider','consumer','test','docs'].includes(repo.role) ? repo.role : '';
-    const activeClass = repo._isActive ? 'active-repo' : '';
-    const ignoredClass = ignored ? 'ignored' : '';
-    const clickAttr = (!ignored && !repo._isActive)
-      ? \`data-act="switch" data-abs="\${attr(repo.absPath)}" data-key="\${attr(repo.key)}"\`
-      : '';
+    const files = catalog ? catalog.files.map((f,i) => '<button class="catalog-link" data-act="openCatalog" data-key="' + attr(repo.key) + '" data-index="' + i + '" title="Open ' + attr(f.name) + '">' + attr(f.name) + '</button>').join('') : '';
+    const sourceNames = (repo.suppliedBy || []).map(p => p.split(/[\\/]/).filter(Boolean).pop()).join(', ');
     return \`
-      <div class="repo-card \${activeClass} \${ignoredClass}" \${clickAttr} title="\${attr(repo.absPath)}">
+      <article class="repo-card \${repo._isActive ? 'active-repo' : ''} \${ignored ? 'ignored' : ''}">
         <div class="repo-header">
-          <span class="repo-name">\${attr(repo.key)}</span>
-          <span class="badge \${roleClass}">\${attr(repo.role)}</span>
-          \${repo._isActive ? '<span class="active-label">active</span>' : ''}
+          <div class="repo-title"><span class="repo-name" title="\${attr(repo.absPath)}">\${attr(repo.key)}</span>
+            <span class="repo-subtitle">\${overlay ? 'Shared evidence overlay' : attr(repo.description || 'Workspace project')}</span></div>
+          \${repo._isActive ? '<span class="badge active-badge">Active</span>' : !ignored ? '<button class="btn secondary activate" data-act="switch" data-abs="' + attr(repo.absPath) + '" data-key="' + attr(repo.key) + '">Activate</button>' : ''}
         </div>
-        \${rollupLine(repo)}
-        \${healthLines(repo.health)}
-        <div class="repo-meta">
-          <span class="spec-count"><span class="dot \${dotClass}"></span>\${specLabel}</span>
-          \${repo.description ? \`<span style="opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="\${attr(repo.description)}">\${attr(repo.description)}</span>\` : ''}
+        <div class="repo-chips"><span class="badge \${roleClass}">\${overlay ? 'overlay' : attr(repo.role)}</span>\${(repo.contents || []).map(c => '<span class="content-chip">' + attr(c) + '</span>').join('')}</div>
+        <div class="repo-metrics">
+          <div><strong>\${overlay ? repo.overlayFor.length : repo.specCount}</strong><span>\${overlay ? 'Projects supported' : 'Capabilities'}</span></div>
+          <div><strong>\${proof ? proof.proven + '<small> / ' + proof.claims + '</small>' : '—'}</strong><span>Claims proven</span></div>
+          <div><strong>\${catalog ? catalog.features : '—'}</strong><span>Catalog features</span></div>
         </div>
-        <div class="repo-meta">
-          \${ignored ? \`<span style="opacity:.6">\${attr(repo.ignoreReason || 'ignored')}</span>\` : '<span></span>'}
-          <a href="#" data-act="ignore" data-key="\${attr(repo.key)}" data-ignore="\${ignored ? 'false' : 'true'}">\${ignored ? 'Include' : 'Ignore'}</a>
+        <div class="catalog-summary">
+          <div class="card-section-label">Feature catalog</div>
+          \${overlay ? '<p class="muted">Catalogs are shown on the supported project cards.</p>' : catalog ? '<div class="catalog-status">' + (catalog.error ? attr(catalog.error) : '<strong>' + catalog.linked + '/' + catalog.features + '</strong> features linked to specs') + '</div><div class="catalog-files">' + files + '</div><span class="muted small">Content alignment: not verified</span>' : '<p class="muted">No feature catalog configured</p>'}
         </div>
-      </div>
+        <div class="card-context"><span>Team server</span><span>\${attr(repo.teamStatus || 'not checked')}</span></div>
+        \${sourceNames ? '<div class="card-context"><span>Evidence</span><span title="' + attr(repo.suppliedBy.join(', ')) + '">' + attr(sourceNames) + '</span></div>' : ''}
+        <details class="repo-details"><summary>Technical details</summary>
+          <div class="detail-path">\${attr(repo.absPath)}</div>
+          \${overlay ? '<p>Supplies specs, tests or docs to: ' + repo.overlayFor.map(attr).join(', ') + '</p>' : healthLines(h)}
+          \${catalog ? '<div class="health-line">Catalog revision: <code>' + attr(catalog.revision || 'unavailable') + '</code><small>' + attr(catalog.directory) + '</small>' + catalog.files.map(f => '<small>schema ' + attr(f.version) + ' · ' + f.features + ' features</small>').join('') + (catalog.missing.length ? '<small>Missing: ' + attr(catalog.missing.join(', ')) + '</small>' : '') + '</div>' : ''}
+        </details>
+        <div class="card-footer"><button class="catalog-link" data-act="openDashboard" data-key="\${attr(repo.key)}">Open dashboard →</button><span>\${ignored ? attr(repo.ignoreReason || 'Ignored') : overlay ? 'Shared across repositories' : proof ? proof.failed + ' failed · ' + proof.stale + ' stale' : 'Run a check to collect proof'}</span><a href="#" data-act="ignore" data-key="\${attr(repo.key)}" data-ignore="\${ignored ? 'false' : 'true'}">\${ignored ? 'Include' : 'Ignore'}</a></div>
+      </article>
     \`;
   }
 
@@ -512,15 +564,6 @@ export function buildHtml(_webview: vscode.Webview): string {
       '<div class="health-line"><strong>Spec format:</strong> ' + (h.specFormat === 'capability' ? 'v2 functional specs' : h.specFormat === 'legacy' ? 'v1 legacy per-file specs' : 'no current specs') + '</div>' +
       (h.counts ? '<div class="health-line">Last check: ' + h.counts.proven + '/' + h.counts.claims + ' claims proven · ' + h.counts.failed + ' failed · ' + h.counts.stale + ' stale</div>' : '') +
       (h.error ? '<div class="health-line">' + attr(h.error) + '</div>' : '');
-  }
-
-  function catalogTable(repos) {
-    return '<div class="section-title">Feature catalogs across repositories</div><p>Links use the current catalog and spec files. Content alignment requires review; matching links alone do not verify it.</p><div class="table-wrap"><table class="catalog-table"><thead><tr><th>Repository</th><th>Catalog files</th><th>Spec links</th><th>Current catalog revision</th></tr></thead><tbody>' + repos.map(repo => {
-      const c = repo.health && repo.health.catalog;
-      if (!c) return '<tr><td>' + attr(repo.key) + '</td><td colspan="3">No feature catalog configured</td></tr>';
-      const files = c.files.map((f,i) => '<button class="btn secondary" data-act="openCatalog" data-key="' + attr(repo.key) + '" data-index="' + i + '">' + attr(f.name) + '</button><small>schema ' + attr(f.version) + ' · ' + f.features + ' features</small>').join('');
-      return '<tr><td>' + attr(repo.key) + (repo.ignore ? '<small>ignored</small>' : '') + '</td><td>' + (files || 'No catalog files') + '<small>' + attr(c.directory) + '</small></td><td>' + (c.error ? attr(c.error) : c.linked + '/' + c.features + ' features linked to specs' + (c.missing.length ? '<small>Missing: ' + attr(c.missing.join(', ')) + '</small>' : '')) + '<small>Content alignment: not verified</small></td><td>' + attr(c.revision || 'unavailable') + '</td></tr>';
-    }).join('') + '</tbody></table></div>';
   }
 
   /** One line of what the last workspace check recorded for the repo. */
@@ -544,6 +587,8 @@ export function buildHtml(_webview: vscode.Webview): string {
     e.preventDefault();
     const d = el.dataset;
     if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
+    else if (d.act === 'settings') vscode.postMessage({ type: 'settings' });
+    else if (d.act === 'openDashboard') vscode.postMessage({ type: 'openDashboard', key: d.key });
     else if (d.act === 'switch') switchRepo(d.abs, d.key);
     else if (d.act === 'runDrift') runDrift();
     else if (d.act === 'runContracts') runContracts();

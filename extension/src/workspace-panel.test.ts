@@ -41,9 +41,15 @@ describe('the workspace panel page', () => {
     }] };
     context.fixture = manifest;
     new vm.Script('renderStatus(fixture, null)').runInContext(context);
-    for (const value of ['Feature catalogs across repositories', '1/2 features linked', 'checkout', 'abc123', 'SpecGuard setup', 'v0.5.0', 'Spec check engine', 'v0.4.0', 'aaaaaaa', 'bbbbbbb', 'Content alignment: not verified']) expect(content.innerHTML).toContain(value);
+    for (const value of ['Feature catalog', '1/2 features linked', 'checkout', 'abc123', 'SpecGuard setup', 'v0.5.0', 'Spec check engine', 'v0.4.0', 'aaaaaaa', 'bbbbbbb', 'Content alignment: not verified']) expect(content.innerHTML.replace(/<[^>]*>/g, '')).toContain(value);
     expect(content.innerHTML).toContain('&lt;features>.yaml');
+    expect(content.innerHTML).toContain('repo-metrics');
+    expect(content.innerHTML).toContain('<details class="repo-details">');
+    expect(content.innerHTML).not.toContain('<table');
     click({ target: { closest: () => ({ dataset: { act: 'openCatalog', key: 'web', index: '0' } }) }, preventDefault: () => undefined });
     expect(postMessage).toHaveBeenCalledWith({ type: 'openCatalog', key: 'web', index: 0 });
+    click({ target: { closest: () => ({ dataset: { act: 'openDashboard', key: 'web' } }) }, preventDefault: () => undefined });
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openDashboard', key: 'web' });
+    expect(content.innerHTML).toContain('Open dashboard');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { collectFeatureState, runFeatureState, featureStates } from '../../src/plugins/feature-catalog/feature-state.js';
-import { makeRepo } from '../helpers/repo.js';
+import { makeRepo, SPEC_AWARDS } from '../helpers/repo.js';
 
 const CATALOG = `version: 1
 features:
@@ -21,6 +21,24 @@ const REPORT = JSON.stringify({
 });
 
 describe('collectFeatureState (single repo, no plugins)', () => {
+  // [claims: capabilities/integration-surfaces#catalog-layout-config, capabilities/integration-surfaces#feature-catalog]
+  it('resolves an overlay app catalog beside its config when an ancestor workspace exists', async () => {
+    const repo = makeRepo();
+    repo.write('.specguard/workspace.json', JSON.stringify({ version: '1.0', name: 'overlay', repos: {
+      api: { path: 'apps/api', role: 'provider' },
+    } }));
+    repo.write('apps/api/.specguard/config.json', JSON.stringify({
+      apps: [{ name: 'api', repo: '.', specDir: 'specs', sources: {}, framework: 'vitest', testOutput: 'tests/' }],
+      featureState: { catalog: 'catalog' },
+    }));
+    repo.write('apps/api/specs/core/awards.md', SPEC_AWARDS);
+    repo.write('apps/api/catalog/awards.yaml', CATALOG.replace('repo:core/awards', 'api:core/awards'));
+    repo.write('catalog/other.yaml', CATALOG.replace('awards.once', 'wrong.catalog'));
+    const input = await collectFeatureState(`${repo.dir}/apps/api`);
+    expect(input.features.map((f) => f.id)).toEqual(['awards.once']);
+    expect(input.specs.map((s) => s.ref)).toContain('api:core/awards');
+  });
+
   // [claims: capabilities/integration-surfaces#feature-state]
   it('reads a versioned catalog and reporter output named in config', async () => {
     const repo = makeRepo({

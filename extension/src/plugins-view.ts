@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
 import { describeRow, rowContext, suggestPluginId, type PluginRow } from './plugins-model.js';
 import { changePlugins, getPlugins, isPluginEnabled, onDidChangePlugins } from './plugins-state.js';
 import { openAndRun } from './dashboard/panel.js';
-import { getActiveWorkspaceRoot } from './workspace-state.js';
+import { getActiveWorkspaceRoot, onDidChangeActiveWorkspaceRoot } from './workspace-state.js';
 import type { ApiHub } from './api/hub.js';
 
 type Node = { kind: 'row'; row: PluginRow } | { kind: 'message'; text: string; command?: vscode.Command };
@@ -18,25 +18,31 @@ export class PluginsProvider implements vscode.TreeDataProvider<Node>, vscode.Di
   private readonly emitter = new vscode.EventEmitter<Node | undefined | void>();
   readonly onDidChangeTreeData = this.emitter.event;
   private readonly sub: vscode.Disposable;
+  private readonly activeSub: vscode.Disposable;
+  private requestId = 0;
   private rows: PluginRow[] | undefined;
   private error: string | undefined;
 
   constructor() {
     this.sub = onDidChangePlugins(() => void this.refresh());
+    this.activeSub = onDidChangeActiveWorkspaceRoot(() => void this.refresh());
   }
 
   dispose(): void {
     this.sub.dispose();
+    this.activeSub.dispose();
     this.emitter.dispose();
   }
 
   async refresh(fresh = true): Promise<void> {
+    const requestId = ++this.requestId;
     const root = getActiveWorkspaceRoot();
     if (!root) {
       this.rows = undefined;
       this.error = 'Open a folder to see its plugins.';
     } else {
       const res = await getPlugins(root, { fresh });
+      if (requestId !== this.requestId) return;
       this.rows = res.rows;
       this.error = res.rows ? undefined : res.error ?? 'Could not read the plugin list.';
     }

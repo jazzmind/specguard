@@ -20,6 +20,24 @@ Dev: `cd extension && npm run build` (builds the webview into `media/` and the h
 
 ## Workspace, outputs and setup updates
 
+Use **Workspace → Workspace Settings** or the workspace dashboard's **Settings**
+tab to set a shared AI provider, model, endpoint and team server. The scope picker
+edits individual repository overrides; repository dashboards also link there.
+Workspace defaults take precedence over existing project settings, and explicit
+repo overrides take precedence over workspace defaults. Each repo keeps its own
+server project mapping unless you supply another. Reset removes repo overrides
+and its current stored API key, restoring workspace inheritance.
+
+New API keys and server tokens are entered in native password prompts and stored
+in VS Code secure storage. Shareable settings contain no credentials. Existing
+environment variables and overlay project `.env` files remain supported as
+fallbacks. Secure workspace keys are scoped to this workspace and provider
+endpoint; repo keys apply only to their repo. These credentials are used by the
+extension's CLI and local API processes. Standalone terminal and MCP sessions
+continue to use their existing environment or CLI credential configuration.
+Connection tests check model-list access (without generation) or server health,
+authentication and access to the selected project.
+
 The sidebar starts with **Workspace**, followed by **Coverage**, **Pipelines** and
 **Plugins**. Workspace opens the cross-repo dashboard and remains available even
 when coverage cannot be loaded.

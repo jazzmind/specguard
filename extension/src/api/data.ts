@@ -14,7 +14,7 @@ export interface ProjectData {
   functional: boolean;
 }
 
-export async function loadProjectData(client: ApiClient, opts: { name: string; workspaceRoot: string }): Promise<ProjectData> {
+export async function loadProjectData(client: ApiClient, opts: { name: string; workspaceRoot: string; configDir?: string }): Promise<ProjectData> {
   const [coverage, specs] = await Promise.all([client.get<CoverageResponse>('/coverage'), client.get<SpecsResponse>('/specs')]);
   if (coverage.capabilities.length === 0) return { apps: [], matrix: { generatedAt: null, rows: [] }, findings: [], functional: false };
   const [trace, findings] = await Promise.all([client.get<TraceResponse>('/trace'), client.get<FindingsResponse>('/findings')]);

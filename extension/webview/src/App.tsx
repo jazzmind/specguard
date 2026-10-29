@@ -46,10 +46,11 @@ const TAB_GROUPS: TabGroup[] = [
   },
   {
     id: 'docs',
-    label: 'Docs',
+    label: 'Evidence',
     subtabs: [
       { id: 'docs', label: 'Docs' },
       { id: 'specs', label: 'Specs' },
+      { id: 'tests', label: 'Tests' },
       { id: 'traceability', label: 'Traceability' },
     ],
   },
@@ -174,7 +175,8 @@ export function App() {
       </div>
 
       {/* Main tabs */}
-      <header className="sg-tabs">
+      <header className="sg-tabs" aria-label="Project sections">
+        <button className="sg-workspace-link" onClick={() => vscodeApi.postMessage({ type: 'openWorkspace' })}>← Workspace</button>
         {TAB_GROUPS.map((g) => {
           let badge: number | null = null;
           if (g.id === 'actions' && totalRunning > 0) badge = totalRunning;
@@ -224,6 +226,7 @@ export function App() {
         {subTab === 'activity' && <ActivityFeed vm={vm} />}
         {subTab === 'docs' && <DocsView vm={vm} />}
         {subTab === 'specs' && <SpecsView vm={vm} />}
+        {subTab === 'tests' && <SpecsView vm={vm} kind="test" />}
         {subTab === 'traceability' && <MatrixView vm={vm} />}
         {subTab === 'settings' && <SettingsView vm={vm} />}
       </main>

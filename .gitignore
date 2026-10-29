@@ -19,6 +19,12 @@ dist/
 .specguard/gaps.json
 .specguard/security.json
 .specguard/llm-usage.json
+.specguard/trace.json
+.specguard/proofs.json
+.specguard/rollup.json
+.specguard/security/scan.sarif
+.specguard/cache/
+.specguard/history/
 .specguard/traceability.json
 .specguard/traceability.csv
 .specguard/contracts.json
@@ -28,6 +34,8 @@ dist/
 .specguard/reports/
 .specguard/validation-history.json
 .specguard/ci/
+.specguard/coverage/
+.specguard/mutation/
 # specguard:generated-state:end
 specs/.DS_Store
 .DS_Store

@@ -1,3 +1,6 @@
+import { refreshTeamStatus, teamStatus } from './team-status.js';
+import { settingsLayers } from './settings.js';
+import { repositoryContent } from './repository-content.js';
 /**
  * Manages the "active workspace root" — which folder in a multi-root workspace
  * SpecGuard is currently operating on.
@@ -15,6 +18,8 @@ import { cachedProjectConfig, configDirFor, configFileFor, detectProjectConfig }
 const STATE_KEY = 'specguard.activeWorkspaceRoot';
 
 let _context: vscode.ExtensionContext | undefined;
+const activeRootChanged = new vscode.EventEmitter<string>();
+export const onDidChangeActiveWorkspaceRoot = activeRootChanged.event;
 
 export function initWorkspaceState(context: vscode.ExtensionContext): void {
   _context = context;
@@ -37,6 +42,7 @@ export function getActiveWorkspaceRoot(): string | undefined {
 /** Persist a new active workspace root. */
 export async function setActiveWorkspaceRoot(fsPath: string): Promise<void> {
   await _context?.workspaceState.update(STATE_KEY, fsPath);
+  activeRootChanged.fire(fsPath);
 }
 
 /**
@@ -88,6 +94,8 @@ export async function warmProjectConfigs(): Promise<void> {
   const folders = new Set<string>((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
   for (const repo of loadWorkspaceManifest()?.repos ?? []) folders.add(repo.absPath);
   await Promise.all([...folders].map((f) => detectProjectConfig(f)));
+  await Promise.all([...folders].map(f => refreshTeamStatus(f, configDirFor(f), getWorkspaceManifestRoot(), settingsLayers(f).effective.server)));
+
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +197,10 @@ export interface WorkspaceRepo {
   ignore: boolean;
   ignoreReason: string;
   hasConfig: boolean;
+  contents?: string[];
+  teamStatus?: string;
+  overlayFor?: string[];
+  suppliedBy?: string[];
   /** What the last `check --workspace` recorded for this repo, when it has run. */
   rollup?: RepoRollupSummary;
   specCount: number;
@@ -318,6 +330,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         ignore: entry.ignore === true,
         ignoreReason: entry.ignoreReason ?? '',
         hasConfig,
+        teamStatus: teamStatus(absPath),
         rollup: rollup.byKey[key],
         specCount: counted.specCount,
         specLabel: counted.specLabel,
@@ -325,6 +338,9 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         hasSystemSpec: inventory.hasSystem,
       };
     });
+
+    const projects = repos.filter(r => !r.ignore).map(r => ({ key: r.key, absPath: r.absPath, config: cachedProjectConfig(r.absPath) }));
+    for (const repo of repos) Object.assign(repo, repositoryContent(repo.absPath, projects));
 
     return {
       name,

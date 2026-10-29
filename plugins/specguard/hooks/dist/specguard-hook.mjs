@@ -7624,7 +7624,22 @@ async function loadConfig(cwd = process.cwd(), opts = {}) {
     );
   }
   if (isPlainObject(parsed)) {
-    parsed = await resolveExtends(configPath, parsed, /* @__PURE__ */ new Set([configPath]));
+    const resolved = await resolveExtends(configPath, parsed, /* @__PURE__ */ new Set([configPath]));
+    parsed = resolved;
+    const override = (opts.env ?? process.env).SPECGUARD_IDE_LLM;
+    if (override) {
+      let llm;
+      try {
+        llm = JSON.parse(override);
+      } catch {
+        throw new ConfigInvalidError("SPECGUARD_IDE_LLM must be valid JSON.");
+      }
+      if (!isPlainObject(llm)) throw new ConfigInvalidError("SPECGUARD_IDE_LLM must be an object.");
+      const allowed = ["provider", "model", "apiKeyEnv", "baseUrl"];
+      const fields = Object.fromEntries(Object.entries(llm).filter(([key]) => allowed.includes(key)));
+      resolved.llm = { ...isPlainObject(resolved.llm) ? resolved.llm : {}, ...fields };
+      if (!("baseUrl" in fields)) delete resolved.llm.baseUrl;
+    }
   }
   const result = configSchema.safeParse(parsed);
   if (!result.success) {

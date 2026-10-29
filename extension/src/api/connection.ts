@@ -86,7 +86,7 @@ export function readSavedToken(url: string, env: NodeJS.ProcessEnv = process.env
 export function resolveServer(deps: ConnectionDeps): { url: string; project: string; token?: string } | null {
   const env = deps.env ?? process.env;
   const cfg = readServerConfig(deps.workspaceRoot);
-  if (deps.settings.mode === 'off' || cfg.mode === 'off') return null;
+  if ((deps.settings.mode ?? cfg.mode) === 'off') return null;
   const url = deps.settings.url || env.SPECGUARD_SERVER || cfg.url;
   if (!url) return null;
   const token = deps.storedToken || env[cfg.tokenEnv ?? 'SPECGUARD_TOKEN'] || readSavedToken(url, env);

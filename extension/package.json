@@ -230,6 +230,11 @@
         "command": "specguard.plugins.run",
         "title": "Run Plugin Command",
         "icon": "$(play)"
+      },
+      {
+        "command": "specguard.workspaceSettings",
+        "title": "SpecGuard: Workspace Settings",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -432,6 +437,18 @@
           ],
           "default": "auto",
           "markdownDescription": "`auto`: use the team server when it answers and the local files otherwise. `off`: never contact a server."
+        },
+        "specguard.workspaceDefaults": {
+          "type": "object",
+          "default": {},
+          "scope": "window",
+          "description": "Shared AI and team-server defaults. Configure with SpecGuard: Workspace Settings. Credentials are stored in VS Code secure storage."
+        },
+        "specguard.repositoryOverrides": {
+          "type": "object",
+          "default": {},
+          "scope": "window",
+          "description": "Repository overrides keyed by workspace folder name. Manage with SpecGuard: Workspace Settings. No credentials."
         }
       }
     }

@@ -4,6 +4,8 @@
  */
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { settingsLayers, serverToken, runtimeEnvironment } from '../settings.js';
+import { configDirFor } from '../project-config.js';
 
 import { resolveCliPath } from '../dashboard/cli.js';
 import { connect, normalizeUrl, resolveServer, type Live } from './connection.js';
@@ -19,11 +21,15 @@ export class ApiHub implements vscode.Disposable {
 
   constructor(private readonly secrets: vscode.SecretStorage) {
     this.subscription = vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('specguard.serverUrl') || e.affectsConfiguration('specguard.serverProject') || e.affectsConfiguration('specguard.serverMode')) this.reset();
+      if (e.affectsConfiguration('specguard')) this.reset();
     });
   }
 
-  private settings() {
+  private settings(root?: string) {
+    if (root) {
+      const { server } = settingsLayers(root).effective;
+      return { url: server.url, project: server.project || path.basename(root), mode: server.mode };
+    }
     const cfg = vscode.workspace.getConfiguration('specguard');
     const url = cfg.get<string>('serverUrl', '').trim();
     const project = cfg.get<string>('serverProject', '').trim();
@@ -36,13 +42,14 @@ export class ApiHub implements vscode.Disposable {
     this.reset(false);
     this.liveRoot = workspaceRoot;
     this.live = (async () => {
-      const settings = this.settings();
-      const known = resolveServer({ workspaceRoot, settings, resolveCli: async () => '' });
-      const storedToken = known ? await this.secrets.get(SECRET_PREFIX + known.url) : undefined;
+      const settings = this.settings(workspaceRoot);
+      const known = resolveServer({ workspaceRoot: configDirFor(workspaceRoot), settings, resolveCli: async () => '' });
+      const storedToken = known ? await serverToken(known.url, workspaceRoot) : undefined;
       return connect({
         workspaceRoot,
         settings,
         storedToken,
+        env: await runtimeEnvironment(workspaceRoot),
         resolveCli: () => resolveCliPath(workspaceRoot),
       });
     })();
@@ -71,7 +78,7 @@ export class ApiHub implements vscode.Disposable {
   }
 
   async signIn(workspaceRoot: string): Promise<void> {
-    const configured = resolveServer({ workspaceRoot, settings: this.settings(), resolveCli: async () => '' });
+    const configured = resolveServer({ workspaceRoot: configDirFor(workspaceRoot), settings: this.settings(workspaceRoot), resolveCli: async () => '' });
     const url = normalizeUrl(
       (await vscode.window.showInputBox({ title: 'SpecGuard team server', prompt: 'Address of the team server', value: configured?.url ?? '', placeHolder: 'https://specguard.example.com', ignoreFocusOut: true })) ?? '',
     );
@@ -96,7 +103,7 @@ export class ApiHub implements vscode.Disposable {
   }
 
   async signOut(workspaceRoot: string): Promise<void> {
-    const known = resolveServer({ workspaceRoot, settings: this.settings(), resolveCli: async () => '' });
+    const known = resolveServer({ workspaceRoot: configDirFor(workspaceRoot), settings: this.settings(workspaceRoot), resolveCli: async () => '' });
     if (!known) return;
     await this.secrets.delete(SECRET_PREFIX + known.url);
     void vscode.window.showInformationMessage(`Forgot the token for ${known.url}.`);

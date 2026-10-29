@@ -5,11 +5,14 @@
  * and the status bar item. MCP registration for Cursor is also wired here.
  */
 import * as vscode from 'vscode';
+import { initSettings } from './settings.js';
+import { registerSettingsPanel } from './settings-panel.js';
+import { refreshDashboardSettings } from './dashboard/panel.js';
 import { CoverageProvider, WorkspaceProvider } from './sidebar.js';
 import { PipelinesProvider } from './pipelines-view.js';
 import { registerCommands } from './commands.js';
 import { registerMcpForCursor } from './mcp-registration.js';
-import { initWorkspaceState } from './workspace-state.js';
+import { initWorkspaceState, onDidChangeActiveWorkspaceRoot } from './workspace-state.js';
 import { resolveCliPath, setExtensionPath, spawnCli } from './dashboard/cli.js';
 import { detectProjectConfig, setConfigRunner, type CliRunner } from './project-config.js';
 import * as fs from 'fs';
@@ -51,6 +54,8 @@ async function windowHasProject(): Promise<boolean> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  initSettings(context.secrets);
+  registerSettingsPanel(context);
   initWorkspaceState(context);
   setExtensionPath(context.extensionPath);
   setConfigRunner(cliRunner);
@@ -58,6 +63,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // One connection to SpecGuard's API: the team server when configured and reachable, else a local `serve`.
   const hub = new ApiHub(context.secrets);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration('specguard')) refreshDashboardSettings(); }),
+    context.secrets.onDidChange(() => { hub.reset(); refreshDashboardSettings(); void coverageProvider?.refresh(); }),
+  );
   setHub(hub);
   context.subscriptions.push(
     hub,
@@ -101,6 +110,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
   registerPluginViews(context, hub, () => void coverageProvider?.refresh());
   context.subscriptions.push(onDidChangePlugins(() => void syncPipelines()));
+  context.subscriptions.push(onDidChangeActiveWorkspaceRoot(() => void syncPipelines()));
   void syncPipelines();
 
   // Status bar: shows "SpecGuard: 82%" or similar

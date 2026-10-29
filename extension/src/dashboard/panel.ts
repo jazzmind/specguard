@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { DashboardHost } from './host.js';
-import type { DashboardEvent, DashboardCommand } from './protocol.js';
+import type { DashboardEvent, DashboardCommand, DashboardTab } from './protocol.js';
 import { getActiveWorkspaceRoot } from '../workspace-state.js';
 import { checkAndOfferUpdate } from '../project-updater.js';
 
@@ -11,16 +11,18 @@ let panel: vscode.WebviewPanel | undefined;
 let currentHost: DashboardHost | undefined;
 /** Stored context so openAndRun can open the panel if needed. */
 let _context: vscode.ExtensionContext | undefined;
+export function refreshDashboardSettings(): void { void currentHost?.handle({ type: 'readProjectConfig' }); }
 
-export function openDashboardPanel(context: vscode.ExtensionContext): void {
+export function openDashboardPanel(context: vscode.ExtensionContext, previewRoot?: string, targetTab?: DashboardTab): void {
   _context = context;
-  const workspaceRoot = getActiveWorkspaceRoot();
+  const workspaceRoot = previewRoot ?? getActiveWorkspaceRoot();
   if (!workspaceRoot) { vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.'); return; }
 
   // If the panel is already open for a different root, close and reopen
   if (panel) {
     if (currentHost?.workspaceRoot === workspaceRoot) {
       panel.reveal();
+      if (targetTab) panel.webview.postMessage({ type: 'navigate', tab: targetTab });
       return;
     }
     // Different project — dispose the old one
@@ -37,8 +39,20 @@ export function openDashboardPanel(context: vscode.ExtensionContext): void {
   const host = new DashboardHost((e: DashboardEvent) => panel?.webview.postMessage(e), workspaceRoot);
   currentHost = host;
   panel.webview.html = renderHtml(panel.webview, context.extensionPath);
+  let pendingTab = targetTab;
   context.subscriptions.push(
-    panel.webview.onDidReceiveMessage((msg: DashboardCommand) => void host.handle(msg)),
+    panel.webview.onDidReceiveMessage((msg: DashboardCommand) => {
+      if (msg.type === 'openWorkspaceSettings' || msg.type === 'openRepositorySettings') {
+        void vscode.commands.executeCommand('specguard.workspaceSettings', msg.type === 'openRepositorySettings' ? workspaceRoot : undefined);
+        return;
+      }
+      if (msg.type === 'openWorkspace') { void vscode.commands.executeCommand('specguard.workspaceStatus'); return; }
+      if (msg.type === 'refresh' && pendingTab) {
+        panel?.webview.postMessage({ type: 'navigate', tab: pendingTab });
+        pendingTab = undefined;
+      }
+      void host.handle(msg);
+    }),
   );
   host.start();
 

@@ -73,6 +73,10 @@ export interface PlanItem {
 }
 
 export interface ProjectConfig {
+  llmSource?: string;
+  keySource?: string;
+  serverSource?: string;
+  serverUrl?: string;
   llm: {
     provider: 'anthropic' | 'openai' | 'litellm';
     model: string;
@@ -86,7 +90,7 @@ export interface ProjectConfig {
   configFound: boolean;
 }
 
-export type DashboardTab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans';
+export type DashboardTab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans' | 'specs' | 'tests' | 'traceability' | 'settings';
 
 export type DashboardEvent =
   | { type: 'pipeline:start'; pipeline: string }
@@ -121,6 +125,9 @@ export interface FindingItem {
 }
 
 export type DashboardCommand =
+  | { type: 'openWorkspaceSettings' }
+  | { type: 'openRepositorySettings' }
+  | { type: 'openWorkspace' }
   | { type: 'run'; pipeline: string; args?: string[] }
   | { type: 'cancel'; pipeline: string }
   | { type: 'runSequence'; pipelines: string[] }

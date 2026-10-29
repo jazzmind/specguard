@@ -144,3 +144,11 @@ export function describeProjectConfig(info: ProjectConfigInfo): string {
   if (info.via === 'env-config') return `config from SPECGUARD_CONFIG (${info.configDir ?? ''})`;
   return `specs in overlay ${info.overlayRoot ?? ''}${info.app ? ` (app ${info.app})` : ''}`;
 }
+
+/** File references in overlay evidence are relative to its config; code references may still belong to the code repo. */
+export function resolveEvidenceFile(codeRoot: string, configDir: string, file: string): string {
+  if (path.isAbsolute(file)) return path.normalize(file);
+  const evidence = path.resolve(configDir, file);
+  const code = path.resolve(codeRoot, file);
+  return fs.existsSync(evidence) || !fs.existsSync(code) ? evidence : code;
+}

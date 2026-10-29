@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'node:events';
+vi.mock('../settings.js', () => ({ runtimeEnvironment: async () => ({ SG_SECURE_KEY: 'secure-test-value' }) }));
 
 // vscode is not available in the test environment — provide a manual mock.
 vi.mock('vscode', () => ({
@@ -152,36 +153,39 @@ describe('spawnCli', () => {
   });
 
   // [claims: capabilities/integration-surfaces#vscode-dashboard]
-  it('AC-7: .js path spawns via node', () => {
+  it('AC-7: .js path spawns via node', async () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     spawnCli('/ext/dist/cli.js', ['--version'], '/ws', () => {});
+    await vi.waitFor(() => expect(cp.spawn).toHaveBeenCalled());
     expect(cp.spawn).toHaveBeenCalledWith(
       'node',
       ['/ext/dist/cli.js', '--version'],
-      expect.objectContaining({ cwd: '/ws' }),
+      expect.objectContaining({ cwd: '/ws', env: expect.objectContaining({ SG_SECURE_KEY: 'secure-test-value' }) }),
     );
   });
 
   // [claims: capabilities/integration-surfaces#vscode-dashboard]
-  it('AC-7: .ts path spawns via node --import tsx, without a shell', () => {
+  it('AC-7: .ts path spawns via node --import tsx, without a shell', async () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     spawnCli('/ws/src/cli/index.ts', ['status'], '/ws', () => {});
+    await vi.waitFor(() => expect(cp.spawn).toHaveBeenCalled());
     expect(cp.spawn).toHaveBeenCalledWith(
       'node',
       ['--import', 'tsx', '/ws/src/cli/index.ts', 'status'],
-      expect.objectContaining({ cwd: '/ws' }),
+      expect.objectContaining({ cwd: '/ws', env: expect.objectContaining({ SG_SECURE_KEY: 'secure-test-value' }) }),
     );
   });
 
   // [claims: capabilities/security-and-remediation#no-shell-spawn]
-  it('never starts a shell, and passes an argument full of shell syntax as one argument', () => {
+  it('never starts a shell, and passes an argument full of shell syntax as one argument', async () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     spawnCli('/ext/dist/cli.js', ['check', '--spec', '$(touch pwned); rm -rf / & `id`'], '/ws', () => {});
     spawnCli('/ws/src/cli/index.ts', ['x; y'], '/ws', () => {});
     spawnCli('/proj/node_modules/.bin/specguard', ['a b'], '/ws', () => {});
+    await vi.waitFor(() => expect(cp.spawn).toHaveBeenCalledTimes(3));
     for (const call of vi.mocked(cp.spawn).mock.calls) {
       expect((call[2] as { shell?: unknown }).shell).toBeUndefined();
     }
@@ -206,6 +210,7 @@ describe('spawnCli', () => {
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     const lines: string[] = [];
     const handle = spawnCli('/ext/dist/cli.js', ['status'], '/ws', (l) => lines.push(l));
+    await vi.waitFor(() => expect(cp.spawn).toHaveBeenCalled());
     mockProc.stdout.emit('data', Buffer.from('line1\nline2\n'));
     mockProc.emit('close', 0);
     await handle.promise;
@@ -214,11 +219,20 @@ describe('spawnCli', () => {
   });
 
   // [claims: capabilities/integration-surfaces#vscode-dashboard]
-  it('AC-12: kill() sends SIGTERM without throwing', () => {
+  it('AC-12: kill() sends SIGTERM without throwing', async () => {
     const mockProc = makeProc();
     vi.mocked(cp.spawn).mockReturnValue(mockProc as unknown as ReturnType<typeof cp.spawn>);
     const handle = spawnCli('/ext/dist/cli.js', ['status'], '/ws', () => {});
+    await vi.waitFor(() => expect(cp.spawn).toHaveBeenCalled());
     expect(() => handle.kill()).not.toThrow();
     expect(mockProc.kill).toHaveBeenCalledWith('SIGTERM');
   });
+});
+
+// [claims: capabilities/integration-surfaces#extension-workspace-settings]
+it('cancels while credentials are still being resolved without starting a child process', async () => {
+  const handle = spawnCli('/ext/dist/cli.js', ['generate'], '/ws', () => {});
+  handle.kill();
+  expect(await handle.promise).toBe(-1);
+  expect(cp.spawn).not.toHaveBeenCalled();
 });

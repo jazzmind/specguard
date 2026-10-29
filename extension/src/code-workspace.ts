@@ -124,42 +124,9 @@ export async function initWorkspace(context: vscode.ExtensionContext): Promise<b
   return true;
 }
 
-/**
- * "SpecGuard: Set API Key": save the key SpecGuard's model calls use. It is typed into a masked box and handed to
- * `specguard key set` through the environment of that one process (never on a command line), which writes it to a
- * git-ignored, owner-only `.env`: the user's own (every workspace), the workspace's, or the project's.
- */
+/** Open the shared secure-credential editor for workspace and repo scopes. */
 export async function setApiKey(): Promise<boolean> {
-  const root = getActiveWorkspaceRoot();
-  const manifestRoot = getWorkspaceManifestRoot();
-  if (!root) {
-    void vscode.window.showErrorMessage('SpecGuard: open a folder first.');
-    return false;
-  }
-  const options: Array<vscode.QuickPickItem & { scope: 'user' | 'workspace' | 'repo' }> = [
-    { label: 'All my workspaces', description: '~/.config/specguard/.env', scope: 'user' },
-    ...(manifestRoot ? [{ label: 'This workspace', description: path.join(manifestRoot, '.specguard', '.env'), scope: 'workspace' as const }] : []),
-    { label: 'This project only', description: path.join(root, '.specguard', '.env'), scope: 'repo' },
-  ];
-  const where = await vscode.window.showQuickPick(options, { title: 'SpecGuard API key (1/2): where should it be available?', placeHolder: 'The key is stored in a git-ignored file, never in config.json' });
-  if (!where) return false;
-  const key = await vscode.window.showInputBox({ title: 'SpecGuard API key (2/2)', prompt: 'The key for SpecGuard\'s model calls (Anthropic, or your proxy\'s virtual key)', password: true, ignoreFocusOut: true, validateInput: (v) => (v.trim() === '' || /[\r\n]/.test(v) ? 'Enter the key on one line' : undefined) });
-  if (!key) return false;
-  const cli = await resolveCliPath(root);
-  const lines: string[] = [];
-  const args = ['key', 'set', '--scope', where.scope, '--from-env', 'SPECGUARD_NEW_KEY', ...(where.scope === 'workspace' && manifestRoot ? ['--workspace', manifestRoot] : [])];
-  const handle = spawnCli(cli, args, root, (l) => lines.push(l), { SPECGUARD_NEW_KEY: key.trim() });
-  let code = 1;
-  try {
-    code = await handle.promise;
-  } catch (err) {
-    lines.push((err as Error).message);
-  }
-  if (code !== 0) {
-    void vscode.window.showErrorMessage(`SpecGuard: could not save the key: ${lines.slice(-1).join(' ')}`);
-    return false;
-  }
-  void vscode.window.showInformationMessage(`SpecGuard: key saved (${where.label.toLowerCase()}). New runs pick it up now; restart the MCP server for agents to see it.`);
+  await vscode.commands.executeCommand('specguard.workspaceSettings');
   return true;
 }
 

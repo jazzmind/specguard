@@ -602,7 +602,21 @@ export async function loadConfig(cwd: string = process.cwd(), opts: { env?: Node
     );
   }
   if (isPlainObject(parsed)) {
-    parsed = await resolveExtends(configPath, parsed, new Set([configPath]));
+    const resolved = await resolveExtends(configPath, parsed, new Set([configPath]));
+    parsed = resolved;
+    // The editor passes non-secret workspace defaults to its child processes only.
+    // Validate through the same schema, preserving budgets, tiers and project paths.
+    const override = (opts.env ?? process.env).SPECGUARD_IDE_LLM;
+    if (override) {
+      let llm: unknown;
+      try { llm = JSON.parse(override); } catch { throw new ConfigInvalidError('SPECGUARD_IDE_LLM must be valid JSON.'); }
+      if (!isPlainObject(llm)) throw new ConfigInvalidError('SPECGUARD_IDE_LLM must be an object.');
+      const allowed = ['provider', 'model', 'apiKeyEnv', 'baseUrl'];
+      const fields = Object.fromEntries(Object.entries(llm).filter(([key]) => allowed.includes(key)));
+      resolved.llm = { ...(isPlainObject(resolved.llm) ? resolved.llm : {}), ...fields };
+      // An empty endpoint explicitly returns to the provider's default.
+      if (!('baseUrl' in fields)) delete (resolved.llm as Record<string, unknown>).baseUrl;
+    }
   }
 
   const result = configSchema.safeParse(parsed);

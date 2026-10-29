@@ -490,7 +490,10 @@ export async function collectFeatureState(
   if (fs.mcpModulePattern) tuning.mcpModulePattern = new RegExp(fs.mcpModulePattern, 'i');
 
   // Catalog: config, then workspace manifest, then a plugin's default directory.
-  const configured = fs.catalog ?? resolved.manifestCatalog;
+  // An app config and its ancestor workspace can live in different directories (notably overlays).
+  const configured = fs.catalog !== undefined
+    ? path.resolve(config?.rootDir ?? rootDir, fs.catalog)
+    : resolved.manifestCatalog;
   const providers: CatalogProvider[] = [...plugins.flatMap((p) => p.catalogProviders ?? []), fs.catalogFormat === 'list' ? listCatalogProvider : yamlCatalogProvider];
   const features: CatalogFeatureInput[] = [];
   const seen = new Set<string>();

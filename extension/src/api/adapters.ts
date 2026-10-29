@@ -1,7 +1,7 @@
 /**
  * Turns the API's responses into the shapes the extension's views already draw. Pure functions, no VS Code imports.
  */
-import * as path from 'path';
+import { resolveEvidenceFile } from '../project-config.js';
 
 import type { AppCoverage, CoverageItem, FindingItem, FindingSeverity, MatrixModel, MatrixRow } from '../dashboard/protocol.js';
 import type { CoverageResponse, FindingsResponse, SpecsResponse, TraceResponse } from './types.js';
@@ -10,11 +10,11 @@ import type { CoverageResponse, FindingsResponse, SpecsResponse, TraceResponse }
  * One coverage entry for the whole project: each capability is an item (does it have tests?), and each source file no
  * spec owns is a missing-spec item, so the tree still points at what needs a spec.
  */
-export function coverageFromApi(cov: CoverageResponse, specs: SpecsResponse, opts: { name: string; workspaceRoot: string }): AppCoverage[] {
+export function coverageFromApi(cov: CoverageResponse, specs: SpecsResponse, opts: { name: string; workspaceRoot: string; configDir?: string }): AppCoverage[] {
   const specFile = new Map(specs.specs.map((s) => [s.id, s.file]));
   const items: CoverageItem[] = cov.capabilities.map((c) => {
     const file = specFile.get(c.id);
-    return { app: opts.name, key: c.id, hasSpec: true, hasTest: c.tests > 0, ...(file ? { specPath: path.join(opts.workspaceRoot, file) } : {}) };
+    return { app: opts.name, key: c.id, hasSpec: true, hasTest: c.tests > 0, ...(file ? { specPath: resolveEvidenceFile(opts.workspaceRoot, opts.configDir ?? opts.workspaceRoot, file) } : {}) };
   });
   for (const file of cov.unowned) items.push({ app: opts.name, key: file, hasSpec: false, hasTest: false });
   return [

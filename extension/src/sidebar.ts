@@ -250,6 +250,18 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     statusItem.tooltip = 'Show workspace health dashboard';
     statusItem.command = { command: 'specguard.workspaceStatus', title: 'Workspace Status' };
     items.push(statusItem);
+    const settingsItem = new CoverageTreeItem('Workspace Settings', vscode.TreeItemCollapsibleState.None, 'info');
+    settingsItem.iconPath = new vscode.ThemeIcon('settings-gear');
+    settingsItem.command = { command: 'specguard.workspaceSettings', title: 'Workspace Settings' };
+    settingsItem.description = 'AI, credentials & team server';
+    items.push(settingsItem);
+    const server = new CoverageTreeItem('Team server', vscode.TreeItemCollapsibleState.None, 'info');
+    const configured = activeRepos.filter(r => r.teamStatus && !['not configured', 'disabled', 'not checked'].includes(r.teamStatus));
+    server.description = configured.length ? `${configured.filter(r => r.teamStatus?.startsWith('available')).length} available · ${configured.length} configured` : 'not configured';
+    server.iconPath = new vscode.ThemeIcon('cloud');
+    server.command = { command: 'specguard.workspaceSettings', title: 'Configure team server' };
+    server.tooltip = activeRepos.map(r => `${r.key}: ${r.teamStatus ?? 'not checked'}`).join('\n');
+    items.push(server);
 
     const driftItem = new CoverageTreeItem(
       'Workspace Drift',
@@ -313,7 +325,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     });
 
     const reposGroup = new CoverageTreeItem(
-      `${speccedCount}/${activeRepos.length} repos specced`,
+      `${speccedCount} projects with specs · ${activeRepos.filter(r => r.overlayFor?.length).length} overlays`,
       vscode.TreeItemCollapsibleState.Expanded,
       'workspace-repos-group',
     );
@@ -387,13 +399,15 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         item.tooltip = `${repo.absPath}\n${repo.specLabel}${system}${archived}${via ? `\n${via}` : ''}`;
       }
 
-      if (!isActive) {
-        item.command = {
-          command: 'specguard.switchToRepo',
-          title: 'Switch to repo',
-          arguments: [repo.absPath, repo.key],
-        };
-      }
+      const contributions = repo.contents?.join(' · ');
+      if (repo.overlayFor?.length) {
+        item.description = `overlay · ${contributions || 'specs'}${isActive ? ' (active)' : ''}`;
+        item.iconPath = new vscode.ThemeIcon('library');
+        item.tooltip = `${repo.absPath}\nProvides evidence for: ${repo.overlayFor.join(', ')}`;
+      } else if (contributions) item.description += ` · ${contributions}`;
+      item.tooltip = `${item.tooltip}\nTeam server: ${repo.teamStatus ?? 'not checked'}`;
+      if (repo.suppliedBy?.length) item.tooltip = `${item.tooltip}\nEvidence from: ${repo.suppliedBy.join(', ')}`;
+      item.command = { command: 'specguard.previewRepo', title: 'Preview dashboard; double-click to activate', arguments: [repo.absPath, repo.key] };
 
       return item;
     });
@@ -484,7 +498,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       if (hub) {
         try {
           const live = await hub.get(workspaceRoot);
-          const data = await loadProjectData(live.client, { name: projectNameOf(workspaceRoot, live), workspaceRoot });
+          const data = await loadProjectData(live.client, { name: projectNameOf(workspaceRoot, live), workspaceRoot, configDir: configDirFor(workspaceRoot) });
           if (data.functional) {
             this._apps = data.apps;
             this._source = { label: live.source === 'server' ? `team server · ${live.project}` : 'local', ...(live.notice ? { notice: live.notice } : {}) };

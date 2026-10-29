@@ -14,6 +14,15 @@ The `specguard` CLI and MCP server run every QA pipeline. Prefer the MCP tools
 (`specguard_*`) when available; otherwise use `npx -p specguard-ai specguard <command>`
 (or just `specguard <command>` when the CLI is installed with `npm install -g specguard-ai`).
 
+## When a command exits with code 12
+
+SpecGuard needs model output (drafting specs, linking tests, judging drift) and, with no API key,
+asks you instead: it writes requests to `.specguard/agent-requests/` and exits with 12, which means
+"waiting for the agent", not failure. List them with `specguard agent pending`, write each answer
+(JSON for object requests, matching the request's `jsonSchema`), submit it with
+`specguard agent answer <hash> --file <answer>`, then run the same command again. Repeat until
+it finishes. Do not invent an answer to get past a step.
+
 ## When to Run
 
 - After implementing or changing a module (check coverage + drift).
