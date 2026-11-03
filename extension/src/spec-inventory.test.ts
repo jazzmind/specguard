@@ -16,7 +16,7 @@ describe('spec inventory [vscode-dashboard]', () => {
     fs.writeFileSync(path.join(root, 'README.md'), '# readme\n');
 
     const inventory = inventorySpecs(root);
-    expect(inventory).toMatchObject({ capabilities: 2, hasSystem: true, livingFiles: 3, archivedFiles: 1 });
+    expect(inventory).toMatchObject({ capabilities: 2, capabilityFiles: 2, hasSystem: true, livingFiles: 3, archivedFiles: 1 });
     expect(specCountLabel(inventory)).toEqual({ specCount: 2, specLabel: '2 capabilities' });
   });
 
@@ -24,5 +24,16 @@ describe('spec inventory [vscode-dashboard]', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sg-specs-'));
     fs.writeFileSync(path.join(root, 'login.md'), '# login\n');
     expect(specCountLabel(inventorySpecs(root))).toEqual({ specCount: 1, specLabel: '1 spec file' });
+  });
+
+  it('counts a capability\'s child specs in sub-folders, matching coverage and the dashboard', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sg-specs-'));
+    fs.mkdirSync(path.join(root, 'capabilities', 'dash'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'capabilities', 'dash.md'), '# dash\n');
+    fs.writeFileSync(path.join(root, 'capabilities', 'other.md'), '# other\n');
+    fs.writeFileSync(path.join(root, 'capabilities', 'dash', 'backend.md'), '# backend\n');
+    const inventory = inventorySpecs(root);
+    expect(inventory).toMatchObject({ capabilities: 2, capabilityFiles: 3 });
+    expect(specCountLabel(inventory)).toEqual({ specCount: 3, specLabel: '3 specs (2 capabilities)' });
   });
 });

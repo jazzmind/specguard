@@ -258,7 +258,7 @@ export interface WorkspaceManifestData {
  * no apps defined.
  */
 function inventoryForRepo(absPath: string): SpecInventory {
-  const empty: SpecInventory = { capabilities: 0, hasSystem: false, livingFiles: 0, archivedFiles: 0 };
+  const empty: SpecInventory = { capabilities: 0, capabilityFiles: 0, hasSystem: false, livingFiles: 0, archivedFiles: 0 };
   const dirs: string[] = [];
   // The config may live in an overlay repo; its specDirs are relative to the folder that holds that `.specguard/`.
   const configPath = configFileFor(absPath);
@@ -285,6 +285,7 @@ function inventoryForRepo(absPath: string): SpecInventory {
     const inv = inventorySpecs(dir);
     return {
       capabilities: sum.capabilities + inv.capabilities,
+      capabilityFiles: sum.capabilityFiles + inv.capabilityFiles,
       hasSystem: sum.hasSystem || inv.hasSystem,
       livingFiles: sum.livingFiles + inv.livingFiles,
       archivedFiles: sum.archivedFiles + inv.archivedFiles,
