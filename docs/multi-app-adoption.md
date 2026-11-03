@@ -63,7 +63,7 @@ Notes that follow from the code:
 - **Source hashes come from the spec.** `results ingest` hashes the files a spec lists in its `sources:` header (else `module:`) into each ledger row, so a source edit stales the claims of exactly the specs that list it. No registry seeding script is needed.
 
 - The `test` blocks are for `heal`: with no `resultsFile`, SpecGuard adds the reporter flags itself (`--reporter=json --outputFile=<tmp>`, Playwright `PLAYWRIGHT_JSON_OUTPUT_NAME`) and reads that file. If you set `resultsFile`, the command runs verbatim and must write it. In CI you run the tests yourself (step 4) and ingest the files; Vitest resolves `--outputFile` relative to the workspace directory.
-- Do not commit `.specguard/auth/`, `.specguard/evidence/`, `.specguard/reports/`; the first `validate` run writes a `.gitignore` in each. `.specguard/proofs.json` is meant to be committed.
+- Do not commit `.specguard/auth/`, `.specguard/evidence/`, `.specguard/reports/`; the first `validate` run writes a `.gitignore` in each. `.specguard/proofs.json` and `.specguard/trace.json` are generated state: the managed ignore block lists them, so regenerate them with `specguard test run` rather than committing them.
 - The `storageState` profile reads `.specguard/auth/admin.json`; when it is missing, SpecGuard logs in with the env vars and creates it. `successUrl` is a URL or a `/regex/`; omit it and any URL other than the login page counts as logged in. Other strategies: `header`, `token`, `script` (see `specs/adapters/auth-state-machine.md`).
 - `llm.allowImages: false` keeps screenshots away from the LLM; DOM, a11y text and console errors are always redacted first (email, phone, SSN, card numbers, plus `patterns` and `blankSelectors`).
 
