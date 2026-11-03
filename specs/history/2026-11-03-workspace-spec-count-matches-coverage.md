@@ -12,4 +12,4 @@ affects:
 
 ## Decision
 
-Workspace spec count includes child specs in sub-folders of capabilities/ (esales-dashboard showed 9 capabilities while coverage and the dashboard showed 16 specs); shown as '16 specs (9 capabilities)'.
+Workspace spec count includes child specs in sub-folders of capabilities/ (one app showed 9 capabilities while coverage and the dashboard showed 16 specs); shown as '16 specs (9 capabilities)'.
