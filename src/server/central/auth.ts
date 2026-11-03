@@ -14,6 +14,7 @@
  * Spec: specs/capabilities/team-server.md
  */
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
 
 import type { ApiResponse, Identity } from '../api.js';
 import type { Backend, TokenRecord, TokenRole } from './backend.js';
@@ -45,6 +46,30 @@ function ipv4(addr: string): number | undefined {
 }
 
 const unmap = (addr: string): string => addr.trim().toLowerCase().replace(/^::ffff:/, '');
+
+const HOST_TTL_MS = 30_000;
+const hostCache = new Map<string, { at: number; addrs: string[] }>();
+
+/**
+ * Trusted entries with host names (such as a proxy container's name on the shared network) replaced by the addresses
+ * they currently resolve to, so a proxy that restarts with a new address stays trusted. Resolved names are cached for
+ * 30 seconds; a name that does not resolve trusts nothing.
+ */
+export async function expandTrusted(entries: string[], now: number = Date.now()): Promise<string[]> {
+  const out: string[] = [];
+  for (const entry of entries) {
+    const e = entry.trim();
+    if (e.includes('/') || e.includes(':') || ipv4(e) !== undefined) { out.push(e); continue; }
+    let hit = hostCache.get(e.toLowerCase());
+    if (!hit || now - hit.at > HOST_TTL_MS) {
+      const addrs = await lookup(e, { all: true }).then((r) => r.map((a) => a.address)).catch(() => [] as string[]);
+      hit = { at: now, addrs };
+      hostCache.set(e.toLowerCase(), hit);
+    }
+    out.push(...hit.addrs);
+  }
+  return out;
+}
 
 /** Whether the connection's peer address is one of `trusted` (exact addresses or IPv4 CIDR ranges). */
 export function peerIsTrusted(peer: string | undefined, trusted: string[]): boolean {
@@ -106,13 +131,14 @@ export async function authenticate(headers: Record<string, string | undefined>, 
   }
   // The header names a user only when it came through the proxy that sets it.
   const email = headers[cfg.emailHeader ?? 'x-deploykit-email']?.trim().toLowerCase();
-  if (cfg.trustedProxies && cfg.trustedProxies.length > 0 && !peerIsTrusted(peer, cfg.trustedProxies)) return { why: `the sign-in header came from ${peer ?? 'an unknown address'}, which is not in SPECGUARD_TRUSTED_PROXIES` };
+  const trusted = cfg.trustedProxies && cfg.trustedProxies.length > 0 ? await expandTrusted(cfg.trustedProxies) : undefined;
+  if (cfg.trustedProxies && cfg.trustedProxies.length > 0 && !peerIsTrusted(peer, trusted ?? [])) return { why: `the sign-in header came from ${peer ?? 'an unknown address'}, which is not in SPECGUARD_TRUSTED_PROXIES (${cfg.trustedProxies.join(', ')})` };
   if (!email || !email.includes('@')) return { why: 'the server received no sign-in email (is the app public in DeployKit, or reached without the sign-in proxy?)' };
   if (cfg.allowedDomain && !email.endsWith(`@${cfg.allowedDomain.toLowerCase()}`)) return { why: `${email} is outside SPECGUARD_ALLOWED_DOMAIN (${cfg.allowedDomain})` };
   const maintainers = [...(cfg.maintainerEmails ?? []), ...(cfg.adminEmails ?? [])].map((e) => e.toLowerCase());
   // An allowlisted email or opted-in app-manager permission grants maintainer only through the sign-in proxy. Without
   // `trustedProxies` the header could have been written by anyone who can reach this server, so it is read-only.
-  const throughProxy = Boolean(cfg.trustedProxies?.length) && peerIsTrusted(peer, cfg.trustedProxies ?? []);
+  const throughProxy = Boolean(cfg.trustedProxies?.length) && peerIsTrusted(peer, trusted ?? []);
   return { identity: { user: email, role: throughProxy && (maintainers.includes(email) || (cfg.appRoleHeader && headers[cfg.appRoleHeader.toLowerCase()]?.trim().toLowerCase() === 'manager')) ? 'maintainer' : 'viewer' }, via: 'header' };
 }
 

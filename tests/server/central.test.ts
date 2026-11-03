@@ -80,6 +80,18 @@ async function snapshotOf(project: string, over: { plan?: boolean } = {}) {
   return buildSnapshot(await loadConfig(repo.dir), { project });
 }
 
+describe('trusted proxy host names [central-access]', () => {
+  // [claims: capabilities/team-server#trusted-proxies]
+  it('trusts the addresses a host name resolves to and nothing for one that does not [proxy-hostname]', async () => {
+    const { expandTrusted, peerIsTrusted } = await import('../../src/server/central/auth.js');
+    const trusted = await expandTrusted(['localhost', '10.0.0.0/8', 'no-such-host.invalid']);
+    expect(trusted).toContain('10.0.0.0/8');
+    expect(peerIsTrusted('127.0.0.1', trusted) || peerIsTrusted('::1', trusted)).toBe(true);
+    expect(peerIsTrusted('172.18.0.31', trusted)).toBe(false);
+    expect(await expandTrusted(['no-such-host.invalid'])).toEqual([]);
+  });
+});
+
 describe('team server: access [central-access]', () => {
   // [claims: capabilities/team-server#team-server-auth]
   it('serves health to anyone and everything else only to a valid credential [auth-gate]', async () => {
