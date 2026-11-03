@@ -304,6 +304,10 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.setApiKey', async () => {
       await vscode.commands.executeCommand('specguard.workspaceSettings');
     }),
+    vscode.commands.registerCommand('specguard.openTeamServer', async (url?: string) => {
+      if (!url) { await vscode.commands.executeCommand('specguard.workspaceSettings'); return; }
+      await vscode.env.openExternal(vscode.Uri.parse(url));
+    }),
     vscode.commands.registerCommand('specguard.syncWorkspace', async () => {
       if (await syncCodeWorkspace(context, { interactive: true })) void coverageProvider.refresh();
     }),

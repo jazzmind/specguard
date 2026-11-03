@@ -106,7 +106,7 @@ function md(src) {
 /* ---- views ---- */
 var main = document.getElementById('main'), nav = document.getElementById('nav');
 function show(html) { main.innerHTML = html; }
-function fail(e) { show('<p class="err">' + esc(e.message) + '</p>'); }
+function fail(e) { var n = document.getElementById('nav'); if (n && n.textContent === 'Loading…') n.innerHTML = '<a href="' + BASE + '/">Projects</a>'; show('<p class="err">' + esc(e.message) + '</p>'); }
 
 function buildNav(caps, current) {
   var h = '<a href="#/system"' + (current === 'system' ? ' class="on"' : '') + '>Overview</a><div class="sub">Capabilities</div>';
@@ -266,7 +266,7 @@ window.onhashchange = route;
 /* A server with several projects has no unprefixed routes: pick a project (?project=name, else the first) and offer a switcher. */
 var localDefault = false;
 function viewProjects() {
-  fetch(BASE + '/api/v1/projects').then(function(r) { if (!r.ok) throw new Error('Sign in to view projects.'); return r.json(); }).then(function(p) {
+  fetch(BASE + '/api/v1/projects').then(function(r) { if (!r.ok) return r.json().then(function(j) { throw new Error(j.error || 'Sign in to view projects.'); }, function() { throw new Error('Sign in to view projects.'); }); return r.json(); }).then(function(p) {
     buildNav([], '#projects');
     show('<h2>Projects</h2><p>Select a project, then create a token to connect SpecGuard.</p>' +
       (p.projects.length ? p.projects.map(function(x) { return '<p><a href="?project=' + encodeURIComponent(x.name) + '#/tokens">' + esc(x.name) + '</a> · ' + (x.kind === 'pending' ? 'Awaiting first publish' : esc(x.commit || x.kind)) + '</p>'; }).join('') : '<p>No projects yet. Create your first project below.</p>') +

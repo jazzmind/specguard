@@ -259,7 +259,11 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     const configured = activeRepos.filter(r => r.teamStatus && !['not configured', 'disabled', 'not checked'].includes(r.teamStatus));
     server.description = configured.length ? `${configured.filter(r => r.teamStatus?.startsWith('available')).length} available · ${configured.length} configured` : 'not configured';
     server.iconPath = new vscode.ThemeIcon('cloud');
-    server.command = { command: 'specguard.workspaceSettings', title: 'Configure team server' };
+    const teamLink = activeRepos.find(r => r.teamUrl)?.teamUrl;
+    server.command = teamLink
+      ? { command: 'specguard.openTeamServer', title: 'Open team server', arguments: [teamLink] }
+      : { command: 'specguard.workspaceSettings', title: 'Configure team server' };
+    if (teamLink) server.description = `${server.description} · ${teamLink}`;
     server.tooltip = activeRepos.map(r => `${r.key}: ${r.teamStatus ?? 'not checked'}`).join('\n');
     items.push(server);
 

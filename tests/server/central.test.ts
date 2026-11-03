@@ -99,6 +99,15 @@ describe('team server: access [central-access]', () => {
   });
 
   // [claims: capabilities/team-server#team-server-auth]
+  it('says why a sign-in was not accepted instead of a bare sign-in prompt [auth-reason]', async () => {
+    const { base } = await start();
+    const none = await call(base, '/api/v1/projects');
+    expect(none.json.error).toMatch(/no sign-in email/);
+    const wrong = await call(base, '/api/v1/projects', { headers: { 'x-deploykit-email': 'eve@example.com' } });
+    expect(wrong.json.error).toMatch(/eve@example\.com is outside SPECGUARD_ALLOWED_DOMAIN/);
+  });
+
+  // [claims: capabilities/team-server#team-server-auth]
   it('is mounted under its base path and nowhere else [base-path]', async () => {
     const { base } = await start({ basePath: '/specguard' });
     expect(base.endsWith('/specguard')).toBe(true);

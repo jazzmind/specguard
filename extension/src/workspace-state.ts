@@ -1,4 +1,4 @@
-import { refreshTeamStatus, teamStatus } from './team-status.js';
+import { refreshTeamStatus, teamStatus, teamUrl } from './team-status.js';
 import { settingsLayers } from './settings.js';
 import { repositoryContent } from './repository-content.js';
 /**
@@ -199,6 +199,7 @@ export interface WorkspaceRepo {
   hasConfig: boolean;
   contents?: string[];
   teamStatus?: string;
+  teamUrl?: string;
   overlayFor?: string[];
   suppliedBy?: string[];
   /** What the last `check --workspace` recorded for this repo, when it has run. */
@@ -331,6 +332,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         ignoreReason: entry.ignoreReason ?? '',
         hasConfig,
         teamStatus: teamStatus(absPath),
+        ...(teamUrl(absPath) ? { teamUrl: teamUrl(absPath)!.url } : {}),
         rollup: rollup.byKey[key],
         specCount: counted.specCount,
         specLabel: counted.specLabel,

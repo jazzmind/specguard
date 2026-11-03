@@ -161,7 +161,7 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
         }
         if (!auth.identity) {
           refusedWrite('no credential');
-          return sendJson(401, { error: 'sign in, or send a token' }, { 'WWW-Authenticate': 'Bearer' });
+          return sendJson(401, { error: 'why' in auth && auth.why ? `Not signed in: ${auth.why}.` : 'sign in, or send a token' }, { 'WWW-Authenticate': 'Bearer' });
         }
       }
       // A browser session can be driven by another site; a token cannot. Changing anything from a session needs a header

@@ -11,7 +11,7 @@ const put = (file: string, data: unknown) => { const target = path.join(root, fi
 describe('business organization', () => {
   // [claims: capabilities/workspaces#workspace-business-journeys]
   it('keeps manual text, order and references when an automatic refresh proposes changes', () => {
-    const current = emptyExperience('eSales'); current.overview = 'Reviewed overview'; current.journeys.push(journey('Buy insurance'));
+    const current = emptyExperience('Acme'); current.overview = 'Reviewed overview'; current.journeys.push(journey('Buy insurance'));
     const generated = emptyExperience('Replacement'); generated.overview = 'Generated overview'; const j = journey('Model title'); j.steps.push({ id: 'confirm', title: 'Confirm', summary: 'Policy issued', order: 3, refs: ['ui:confirmation'] }); generated.journeys.push(j);
     const merged = mergeExperience(current, generated);
     expect(merged.overview).toBe('Reviewed overview'); expect(merged.journeys[0].title).toBe('Buy insurance'); expect(merged.journeys[0].order).toBe(4);

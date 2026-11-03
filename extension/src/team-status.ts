@@ -1,6 +1,7 @@
 import { resolveServer, readServerConfig, type ConnectionSettings } from './api/connection.js';
 import { ApiClient, SUPPORTED_API_VERSION } from './api/client.js';
-const cache = new Map<string, { at: number; label: string; signature: string }>();
+const cache = new Map<string, { at: number; label: string; signature: string; url?: string; project?: string }>();
+export function teamUrl(root: string): { url: string; project?: string } | undefined { const c = cache.get(root); return c?.url ? { url: c.url, ...(c.project ? { project: c.project } : {}) } : undefined; }
 export function teamStatus(root: string): string { return cache.get(root)?.label ?? 'not checked'; }
 export async function refreshTeamStatus(root: string, configDir: string, workspace: string | undefined, settings: ConnectionSettings): Promise<void> {
   const signature = JSON.stringify(settings);
@@ -15,5 +16,5 @@ export async function refreshTeamStatus(root: string, configDir: string, workspa
       label = health.ok && health.apiVersion === SUPPORTED_API_VERSION ? 'available (project access not checked)' : 'incompatible';
     } catch { label = 'configured · unavailable'; }
   }
-  cache.set(root, { at: Date.now(), label, signature });
+  cache.set(root, { at: Date.now(), label, signature, ...(server ? { url: server.url, project: server.project } : {}) });
 }

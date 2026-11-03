@@ -73,6 +73,8 @@ export interface AuthResult {
   via?: Via;
   /** A bearer credential was sent and is not valid. */
   rejected?: boolean;
+  /** Why no one is signed in, when a sign-in header was involved: shown to the person so they can fix it. */
+  why?: string;
 }
 
 export const TOKEN_PREFIX = 'sg_';
@@ -103,10 +105,10 @@ export async function authenticate(headers: Record<string, string | undefined>, 
     return { identity: { user: record.owner, role: record.role, ...(record.project ? { project: record.project } : {}) }, via: 'token' };
   }
   // The header names a user only when it came through the proxy that sets it.
-  if (cfg.trustedProxies && cfg.trustedProxies.length > 0 && !peerIsTrusted(peer, cfg.trustedProxies)) return {};
   const email = headers[cfg.emailHeader ?? 'x-deploykit-email']?.trim().toLowerCase();
-  if (!email || !email.includes('@')) return {};
-  if (cfg.allowedDomain && !email.endsWith(`@${cfg.allowedDomain.toLowerCase()}`)) return {};
+  if (cfg.trustedProxies && cfg.trustedProxies.length > 0 && !peerIsTrusted(peer, cfg.trustedProxies)) return { why: `the sign-in header came from ${peer ?? 'an unknown address'}, which is not in SPECGUARD_TRUSTED_PROXIES` };
+  if (!email || !email.includes('@')) return { why: 'the server received no sign-in email (is the app public in DeployKit, or reached without the sign-in proxy?)' };
+  if (cfg.allowedDomain && !email.endsWith(`@${cfg.allowedDomain.toLowerCase()}`)) return { why: `${email} is outside SPECGUARD_ALLOWED_DOMAIN (${cfg.allowedDomain})` };
   const maintainers = [...(cfg.maintainerEmails ?? []), ...(cfg.adminEmails ?? [])].map((e) => e.toLowerCase());
   // An allowlisted email or opted-in app-manager permission grants maintainer only through the sign-in proxy. Without
   // `trustedProxies` the header could have been written by anyone who can reach this server, so it is read-only.

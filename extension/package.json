@@ -1,8 +1,8 @@
 {
   "name": "specguard",
   "displayName": "SpecGuard",
-  "description": "Living Specification QA agent \u2014 spec coverage, drift detection, test generation, and security analysis in your IDE.",
-  "version": "0.6.0",
+  "description": "Living Specification QA agent — spec coverage, drift detection, test generation, and security analysis in your IDE.",
+  "version": "0.6.1",
   "publisher": "WesSonnenreich",
   "repository": {
     "type": "git",
@@ -208,7 +208,7 @@
       },
       {
         "command": "specguard.plugins.add",
-        "title": "SpecGuard: Add npm Plugin\u2026",
+        "title": "SpecGuard: Add npm Plugin…",
         "icon": "$(add)"
       },
       {
@@ -230,6 +230,11 @@
         "command": "specguard.plugins.run",
         "title": "Run Plugin Command",
         "icon": "$(play)"
+      },
+      {
+        "command": "specguard.openTeamServer",
+        "title": "SpecGuard: Open Team Server in Browser",
+        "icon": "$(cloud)"
       },
       {
         "command": "specguard.workspaceSettings",
