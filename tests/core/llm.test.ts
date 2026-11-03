@@ -23,6 +23,10 @@ import { SpecGuardError } from '../../src/core/errors.js';
 
 const API_KEY_ENV = 'TEST_SPECGUARD_API_KEY';
 
+function noObject(text: string, finishReason = 'stop') {
+  return Object.assign(new Error('No object generated: could not parse the response.'), { name: 'AI_NoObjectGeneratedError', text, finishReason, usage: { inputTokens: 5, outputTokens: 7 } });
+}
+
 describe('llm adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -31,6 +35,27 @@ describe('llm adapter', () => {
 
   afterEach(() => {
     delete process.env[API_KEY_ENV];
+  });
+
+  describe('structured replies that are not clean JSON', () => {
+    const schema = z.object({ name: z.string() });
+    const call = (maxTokens?: number) => llmGenerateObject({ provider: 'anthropic', model: 'm', apiKeyEnv: API_KEY_ENV, schema, prompt: 'p', ...(maxTokens ? { maxTokens } : {}) });
+
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
+    it('uses the JSON inside a fenced or chatty reply', async () => {
+      (generateObject as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(noObject('Here you go:\n```json\n{"name":"ok"}\n```'));
+      expect(await call()).toEqual({ name: 'ok' });
+    });
+
+    // [claims: capabilities/platform-foundation#llm-provider-layer]
+    it('gives a reply cut off at the output limit more room once, then explains why it failed', async () => {
+      const gen = generateObject as unknown as ReturnType<typeof vi.fn>;
+      gen.mockRejectedValueOnce(noObject('{"name":"tru', 'length')).mockResolvedValueOnce({ object: { name: 'big' } });
+      expect(await call(1000)).toEqual({ name: 'big' });
+      expect(gen.mock.calls[1][0].maxOutputTokens).toBe(2000);
+      gen.mockRejectedValueOnce(noObject('{"name":"tru', 'length'));
+      await expect(call(40000)).rejects.toThrow(/cut off at the output limit \(40000 tokens\).*Start of the reply: \{"name":"tru/);
+    });
   });
 
   describe('llmGenerateText', () => {

@@ -78,6 +78,7 @@ history:
   - 2026-10-27-host-agent-tests-isolate-the-inherited-c
   - 2026-10-27-keep-runtime-activity-logging-out-of-com
   - 2026-10-28-workspace-defaults-and-secure-editor-cre
+  - 2026-11-03-project-link-from-vs-code-recover-unpars
 ---
 
 # Platform Foundation
@@ -104,7 +105,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] A config may extend exactly one other config by explicit path (file or directory) and nothing else is inherited: keys merge one level deep, a child's `apps` and arrays replace the parent's, and a cycle or missing target is an invalid-config error <!-- claim: config-extends -->
 - [ ] Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start <!-- claim: config-apps-and-defaults -->
 - [ ] Glob expansion never descends into dependency, build or VCS directories (node_modules, dist, build, coverage, .next, .git) even when a pattern would reach them, returns only sorted, de-duplicated absolute file paths, and skips dot-files <!-- claim: default-glob-excludes -->
-- [ ] Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema <!-- claim: llm-provider-layer -->
+- [ ] Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema; a structured reply that is not clean JSON (code fences or chatter around it) is used when the object inside it is valid, a reply cut off at the output limit is retried once with twice the room (up to 32000 tokens), and a reply that still cannot be used fails with the reason and the start of the reply, never a bare "could not parse" <!-- claim: llm-provider-layer -->
 - [ ] Each model attempt has a timeout; retryable failures (timeouts, rate limits, server errors, network resets) are retried with exponential backoff and jitter a configurable number of times, while authentication, validation and missing-key failures are never retried <!-- claim: llm-timeout-retry -->
 - [ ] After a target exhausts its attempts, an ordered fallback chain (global or per pipeline) is tried; a budget or disabled-model error never triggers fallback <!-- claim: llm-fallback-chain -->
 - [ ] Named model tiers `fast` and `frontier` can be configured; pipelines that summarise, document or propose history use `fast` and those that cluster or review specs use `frontier`, a pipeline's own override wins over its tier, and the tier wins over the global default <!-- claim: llm-model-tiers -->

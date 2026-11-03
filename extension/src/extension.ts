@@ -66,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // One connection to SpecGuard's API: the team server when configured and reachable, else a local `serve`.
   const hub = new ApiHub(context.secrets);
   context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration('specguard')) refreshDashboardSettings(); }),
+    vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration('specguard')) { refreshDashboardSettings(); void coverageProvider?.refresh(); } }),
     context.secrets.onDidChange(() => { hub.reset(); refreshDashboardSettings(); void coverageProvider?.refresh(); }),
   );
   setHub(hub);

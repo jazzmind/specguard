@@ -15,7 +15,7 @@ import { resolveCliCommand } from './dashboard/cli.js';
 import { shellQuote } from './safe-spawn.js';
 import { initWorkspace, setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 import { ensurePluginEnabled } from './plugins-view.js';
-import { loadWorkspaceManifest } from './workspace-state.js';
+import { loadWorkspaceManifest, teamLinks } from './workspace-state.js';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -304,8 +304,16 @@ export function registerCommands(
     vscode.commands.registerCommand('specguard.setApiKey', async () => {
       await vscode.commands.executeCommand('specguard.workspaceSettings');
     }),
-    vscode.commands.registerCommand('specguard.openTeamServer', async (url?: string) => {
-      if (!url) { await vscode.commands.executeCommand('specguard.workspaceSettings'); return; }
+    // From a repo row (the tree item), from the Team server row (a URL) or from the palette (the active repo).
+    vscode.commands.registerCommand('specguard.openTeamServer', async (arg?: unknown) => {
+      const row = arg && typeof arg === 'object' ? (arg as { repoData?: { teamProjectUrl?: string; teamUrl?: string } }).repoData : undefined;
+      const root = getActiveWorkspaceRoot();
+      const url = typeof arg === 'string' ? arg : row ? (row.teamProjectUrl ?? row.teamUrl) : (root ? (teamLinks(root).teamProjectUrl ?? teamLinks(root).teamUrl) : undefined);
+      if (!url) {
+        void vscode.window.showInformationMessage('SpecGuard: no team server is configured for this repo. Set one in Workspace Settings.');
+        await vscode.commands.executeCommand('specguard.workspaceSettings');
+        return;
+      }
       await vscode.env.openExternal(vscode.Uri.parse(url));
     }),
     vscode.commands.registerCommand('specguard.syncWorkspace', async () => {

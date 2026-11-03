@@ -412,6 +412,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       item.tooltip = `${item.tooltip}\nTeam server: ${repo.teamStatus ?? 'not checked'}`;
       if (repo.suppliedBy?.length) item.tooltip = `${item.tooltip}\nEvidence from: ${repo.suppliedBy.join(', ')}`;
       item.command = { command: 'specguard.previewRepo', title: 'Preview dashboard; double-click to activate', arguments: [repo.absPath, repo.key] };
+      if (repo.teamProjectUrl) item.tooltip = `${item.tooltip}\nOpen on team server: ${repo.teamProjectUrl}`;
 
       return item;
     });

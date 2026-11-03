@@ -527,6 +527,26 @@ export async function llmGenerateText(raw: LlmTextOpts): Promise<string> {
   );
 }
 
+/** The object in a model reply that was not clean JSON: code fences and chatter around it removed, then checked against the schema. */
+export function salvageObject<T>(text: string | undefined, schema: ZodType<T>): { ok: true; value: T } | { ok: false; reason: string } {
+  if (!text?.trim()) return { ok: false, reason: 'the reply was empty' };
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
+  const body = (fenced ? fenced[1] : text).trim();
+  const from = body.indexOf('{');
+  const to = body.lastIndexOf('}');
+  if (from < 0 || to <= from) return { ok: false, reason: 'the reply held no JSON object' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body.slice(from, to + 1));
+  } catch (err) {
+    return { ok: false, reason: `the reply was not valid JSON (${(err as Error).message})` };
+  }
+  const checked = schema.safeParse(parsed);
+  return checked.success ? { ok: true, value: checked.data } : { ok: false, reason: `the reply did not match the expected structure (${checked.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ')})` };
+}
+
+const MAX_RETRY_TOKENS = 32000;
+
 /** Generate a structured object validated against a Zod schema. */
 export async function llmGenerateObject<T>(raw: LlmObjectOpts<T>): Promise<T> {
   const opts = redactedCall(raw);
@@ -534,20 +554,42 @@ export async function llmGenerateObject<T>(raw: LlmObjectOpts<T>): Promise<T> {
     'object',
     opts,
     async (model, abortSignal, target) => {
-      const common = {
-        model,
-        schema: opts.schema,
-        system: opts.system,
-        maxOutputTokens: opts.maxTokens,
-        temperature: opts.temperature,
-        abortSignal,
-        ...(scopeCallOptions(target.provider) as object),
+      const run = async (maxOutputTokens: number | undefined): Promise<{ value: T; inputTokens: number; outputTokens: number }> => {
+        const common = {
+          model,
+          schema: opts.schema,
+          system: opts.system,
+          maxOutputTokens,
+          temperature: opts.temperature,
+          abortSignal,
+          ...(scopeCallOptions(target.provider) as object),
+        };
+        try {
+          const res =
+            opts.images && opts.images.length > 0
+              ? await generateObject({ ...common, messages: userMessages(opts) })
+              : await generateObject({ ...common, prompt: opts.prompt });
+          return { value: res.object as T, ...usageOf((res as { usage?: unknown }).usage) };
+        } catch (err) {
+          // Matched by name: the SDK's class is not importable from every build of it.
+          if ((err as { name?: string } | null)?.name !== 'AI_NoObjectGeneratedError') throw err;
+          const bad = err as unknown as { text?: string; finishReason?: string; usage?: unknown };
+          // The model answered, but not in a form the SDK accepts: use what is usable, give a cut-off reply more room once, else say why.
+          const usage = usageOf(bad.usage);
+          const salvaged = salvageObject(bad.text, opts.schema as ZodType<T>);
+          if (salvaged.ok) return { value: salvaged.value, ...usage };
+          const cutOff = bad.finishReason === 'length';
+          if (cutOff && maxOutputTokens && maxOutputTokens < MAX_RETRY_TOKENS) return run(Math.min(maxOutputTokens * 2, MAX_RETRY_TOKENS));
+          throw new SpecGuardError(
+            `${target.provider}/${target.model} did not return a usable structured answer: ${salvaged.reason}.` +
+              (cutOff ? ` The reply was cut off at the output limit (${maxOutputTokens ?? 'default'} tokens); narrow the request or use a model with a larger output limit.` : '') +
+              (bad.text ? ` Start of the reply: ${createSecretRedactor().text(bad.text.slice(0, 200)).replace(/\s+/g, ' ')}` : ''),
+            ExitCode.InternalError,
+            err,
+          );
+        }
       };
-      const res =
-        opts.images && opts.images.length > 0
-          ? await generateObject({ ...common, messages: userMessages(opts) })
-          : await generateObject({ ...common, prompt: opts.prompt });
-      return { value: res.object as T, ...usageOf((res as { usage?: unknown }).usage) };
+      return run(opts.maxTokens);
     },
     (recorded) => opts.schema.parse(recorded),
     opts.schema as ZodType<unknown>,

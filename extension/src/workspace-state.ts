@@ -1,4 +1,4 @@
-import { refreshTeamStatus, teamStatus, teamUrl } from './team-status.js';
+import { refreshTeamStatus, resolveTeam, teamProjectUrl, teamStatus } from './team-status.js';
 import { settingsLayers } from './settings.js';
 import { repositoryContent } from './repository-content.js';
 /**
@@ -90,6 +90,12 @@ function hasSpecGuardConfig(root: string): boolean {
  * Resolve every open folder and every repo of the workspace manifest, so the synchronous readers (`hasSpecGuardConfig`,
  * `loadWorkspaceManifest`) see overlay-covered folders as configured. A folder with its own config costs no CLI call.
  */
+/** A repo's team server address and its project page, read from settings on every call. */
+export function teamLinks(root: string): { teamUrl?: string; teamProjectUrl?: string } {
+  const team = resolveTeam(configDirFor(root), getWorkspaceManifestRoot(), settingsLayers(root).effective.server);
+  return team ? { teamUrl: team.url, teamProjectUrl: teamProjectUrl(team) } : {};
+}
+
 export async function warmProjectConfigs(): Promise<void> {
   const folders = new Set<string>((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
   for (const repo of loadWorkspaceManifest()?.repos ?? []) folders.add(repo.absPath);
@@ -200,6 +206,7 @@ export interface WorkspaceRepo {
   contents?: string[];
   teamStatus?: string;
   teamUrl?: string;
+  teamProjectUrl?: string;
   overlayFor?: string[];
   suppliedBy?: string[];
   /** What the last `check --workspace` recorded for this repo, when it has run. */
@@ -332,7 +339,7 @@ export function loadWorkspaceManifest(): WorkspaceManifestData | null {
         ignoreReason: entry.ignoreReason ?? '',
         hasConfig,
         teamStatus: teamStatus(absPath),
-        ...(teamUrl(absPath) ? { teamUrl: teamUrl(absPath)!.url } : {}),
+        ...teamLinks(absPath),
         rollup: rollup.byKey[key],
         specCount: counted.specCount,
         specLabel: counted.specLabel,
