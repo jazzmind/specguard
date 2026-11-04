@@ -5,9 +5,11 @@
  *
  * Spec: specs/capabilities/team-server.md
  */
+import { createHash } from 'node:crypto';
 import { z } from 'zod/v4';
 
 import { RemediationPlanSchema } from './remediation-schema.js';
+import { SNAPSHOT_DIGEST_SECTIONS, type SnapshotDigest } from './publish-contract.js';
 
 export const SNAPSHOT_VERSION = 1;
 
@@ -100,4 +102,40 @@ export function parseSnapshot(text: string): SnapshotParse {
     return { ok: false, error: `snapshot is invalid at ${issue.path.join('.') || '(root)'}: ${issue.message}` };
   }
   return { ok: true, snapshot: parsed.data };
+}
+
+// ---------------------------------------------------------------------------
+// Digest: the cheap, exact "is this the same snapshot" test behind `publish --check`
+// ---------------------------------------------------------------------------
+
+/** JSON with every object's keys sorted, so equal content hashes equal. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return `{${Object.keys(obj).sort().map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+
+/**
+ * Hashes of what a server shows: the spec/history files, the trace, the proof rows, the plans and the contracts. It leaves out
+ * what changes on every build without meaning anything (`createdAt`, `engineVersion`, `trace.generated`, the commit), so two
+ * publishes of the same content have the same `total`. The server computes it itself on every put; it never trusts a client's.
+ */
+export function snapshotDigest(snap: Pick<Snapshot, 'files' | 'trace' | 'ledger' | 'plans' | 'contracts'>): SnapshotDigest {
+  const { generated: _generated, ...trace } = snap.trace as Record<string, unknown>;
+  void _generated;
+  const parts: Record<(typeof SNAPSHOT_DIGEST_SECTIONS)[number], unknown> = {
+    specs: snap.files,
+    trace,
+    ledger: snap.ledger,
+    plans: snap.plans,
+    contracts: snap.contracts ?? null,
+  };
+  const sections = Object.fromEntries(SNAPSHOT_DIGEST_SECTIONS.map((k) => [k, sha(canonical(parts[k])).slice(0, 16)])) as SnapshotDigest['sections'];
+  const files = Object.fromEntries(Object.keys(snap.files).sort().map((f) => [f, sha(snap.files[f]).slice(0, 12)]));
+  return { v: 1, total: sha(SNAPSHOT_DIGEST_SECTIONS.map((k) => `${k}:${sections[k]}`).join('|')).slice(0, 32), sections, files };
 }

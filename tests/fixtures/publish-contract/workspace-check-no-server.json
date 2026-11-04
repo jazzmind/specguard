@@ -1,0 +1,15 @@
+{
+  "schema": "specguard-workspace-publish-check/1",
+  "workspace": "demo",
+  "server": {
+    "url": "",
+    "reachable": false,
+    "signedIn": false,
+    "features": []
+  },
+  "definition": {
+    "needsPublish": false,
+    "reasons": []
+  },
+  "repos": []
+}

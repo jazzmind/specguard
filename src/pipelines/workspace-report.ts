@@ -14,7 +14,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { loadConfig } from '../core/config.js';
-import { listRunIndexes } from '../core/evidence.js';
+import { listRunIndexes, type RunIndex } from '../core/evidence.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { emptyResult, type PipelineResult } from '../core/types.js';
 import { loadWorkspace } from '../core/workspace.js';
@@ -76,6 +76,70 @@ function evidenceCounts(data: ReportData): WorkspaceRepoReport['evidence'] {
   return out;
 }
 
+/**
+ * The workspace-report row for one repo, from its report data and its recorded runs. Pure (no disk): a team server builds the
+ * same rows from the report data a client published.
+ */
+export function repoEntryFromData(key: string, role: string, data: ReportData, runs: Array<Pick<RunIndex, 'runId' | 'label' | 'ingestedAt' | 'tests' | 'claims'>>, href: string): WorkspaceRepoReport {
+  return {
+    key,
+    role,
+    href,
+    run: data.run,
+    tests: data.totals.tests,
+    claims: data.totals.claims,
+    gaps: data.gaps.counts,
+    regression: {
+      baseline: data.regression.baseline?.runId ?? null,
+      claimsNewlyFailing: data.regression.claims.newlyFailing.length,
+      claimsNewlyProven: data.regression.claims.newlyProven.length,
+      testsNewlyFailing: data.regression.tests.newlyFailing.length,
+      testsNewlyPassing: data.regression.tests.newlyPassing.length,
+    },
+    evidence: evidenceCounts(data),
+    topGaps: data.gaps.top.slice(0, 5).map((g) => ({ claim: g.claim, gap: g.gap, reason: g.reason })),
+    history: historyOf(runs),
+  };
+}
+
+/** The last few runs as the sparkline rows. */
+export function historyOf(runs: Array<Pick<RunIndex, 'runId' | 'label' | 'ingestedAt' | 'tests' | 'claims'>>): WorkspaceRepoReport['history'] {
+  return runs.slice(-HISTORY_RUNS).map((r) => ({
+    runId: r.runId,
+    ...(r.label ? { label: r.label } : {}),
+    ingestedAt: r.ingestedAt,
+    pass: r.tests.filter((t) => t.status === 'pass').length,
+    fail: r.tests.filter((t) => t.status === 'fail').length,
+    skip: r.tests.filter((t) => t.status === 'skip').length,
+    claimsProven: r.claims.filter((c) => c.verdict === 'proven').length,
+    claimsFailed: r.claims.filter((c) => c.verdict === 'failed').length,
+  }));
+}
+
+/** Totals across repo rows: the whole workspace report data. Pure. */
+export function rollupWorkspace(workspace: string, repos: WorkspaceRepoReport[], links: WorkspaceReportData['links'] = [], generatedAt: string = new Date().toISOString()): WorkspaceReportData {
+  const sum = (f: (r: WorkspaceRepoReport) => number): number => repos.reduce((s, r) => s + f(r), 0);
+  return {
+    schema: WORKSPACE_REPORT_SCHEMA,
+    generatedAt,
+    workspace,
+    repos,
+    totals: {
+      repos: repos.length,
+      tests: sum((r) => r.tests?.total ?? 0),
+      pass: sum((r) => r.tests?.pass ?? 0),
+      fail: sum((r) => r.tests?.fail ?? 0),
+      skip: sum((r) => r.tests?.skip ?? 0),
+      claimsProven: sum((r) => r.claims?.proven ?? 0),
+      claimsFailed: sum((r) => r.claims?.failed ?? 0),
+      claimsUnexercised: sum((r) => r.claims?.unexercised ?? 0),
+      claimsUntested: sum((r) => r.claims?.untested ?? 0),
+      claimsTotal: sum((r) => (r.gaps ? Object.values(r.gaps).reduce((a, b) => a + b, 0) : 0)),
+    },
+    links,
+  };
+}
+
 function readLinks(root: string): WorkspaceReportData['links'] {
   const file = path.join(root, '.specguard', 'report-links.json');
   if (!existsSync(file)) return [];
@@ -110,32 +174,7 @@ export async function runWorkspaceReport(cwd: string, opts: WorkspaceReportOpts 
       const res = await runReport(config, { out: repoOut, format: 'html', backHref: '../../index.html' });
       if (res.failed > 0) throw new Error(res.messages.join('; '));
       const data = JSON.parse(readFileSync(path.join(repoOut, 'report.json'), 'utf8')) as ReportData;
-      entry.href = `repos/${key}/index.html`;
-      entry.run = data.run;
-      entry.tests = data.totals.tests;
-      entry.claims = data.totals.claims;
-      entry.gaps = data.gaps.counts;
-      entry.regression = {
-        baseline: data.regression.baseline?.runId ?? null,
-        claimsNewlyFailing: data.regression.claims.newlyFailing.length,
-        claimsNewlyProven: data.regression.claims.newlyProven.length,
-        testsNewlyFailing: data.regression.tests.newlyFailing.length,
-        testsNewlyPassing: data.regression.tests.newlyPassing.length,
-      };
-      entry.evidence = evidenceCounts(data);
-      entry.topGaps = data.gaps.top.slice(0, 5).map((g) => ({ claim: g.claim, gap: g.gap, reason: g.reason }));
-      entry.history = listRunIndexes(dir)
-        .slice(-HISTORY_RUNS)
-        .map((r) => ({
-          runId: r.runId,
-          ...(r.label ? { label: r.label } : {}),
-          ingestedAt: r.ingestedAt,
-          pass: r.tests.filter((t) => t.status === 'pass').length,
-          fail: r.tests.filter((t) => t.status === 'fail').length,
-          skip: r.tests.filter((t) => t.status === 'skip').length,
-          claimsProven: r.claims.filter((c) => c.verdict === 'proven').length,
-          claimsFailed: r.claims.filter((c) => c.verdict === 'failed').length,
-        }));
+      Object.assign(entry, repoEntryFromData(key, repo.role, data, listRunIndexes(dir), `repos/${key}/index.html`));
     } catch (err) {
       entry.error = (err as Error).message;
       result.messages.push(`[warn] ${key}: ${entry.error}`);
@@ -143,26 +182,7 @@ export async function runWorkspaceReport(cwd: string, opts: WorkspaceReportOpts 
     repos.push(entry);
   }
 
-  const sum = (f: (r: WorkspaceRepoReport) => number): number => repos.reduce((s, r) => s + f(r), 0);
-  const data: WorkspaceReportData = {
-    schema: WORKSPACE_REPORT_SCHEMA,
-    generatedAt: new Date().toISOString(),
-    workspace: ws.name,
-    repos,
-    totals: {
-      repos: repos.length,
-      tests: sum((r) => r.tests?.total ?? 0),
-      pass: sum((r) => r.tests?.pass ?? 0),
-      fail: sum((r) => r.tests?.fail ?? 0),
-      skip: sum((r) => r.tests?.skip ?? 0),
-      claimsProven: sum((r) => r.claims?.proven ?? 0),
-      claimsFailed: sum((r) => r.claims?.failed ?? 0),
-      claimsUnexercised: sum((r) => r.claims?.unexercised ?? 0),
-      claimsUntested: sum((r) => r.claims?.untested ?? 0),
-      claimsTotal: sum((r) => (r.gaps ? Object.values(r.gaps).reduce((a, b) => a + b, 0) : 0)),
-    },
-    links: readLinks(ws.rootDir),
-  };
+  const data = rollupWorkspace(ws.name, repos, readLinks(ws.rootDir));
   await writeFile(path.join(out, 'workspace-report.json'), JSON.stringify(data, null, 2) + '\n');
   await writeFile(path.join(out, 'index.html'), renderWorkspaceReportHtml(data));
   result.created = repos.filter((r) => r.href).length;

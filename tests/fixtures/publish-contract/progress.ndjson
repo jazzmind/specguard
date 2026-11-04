@@ -1,0 +1,4 @@
+{"sg": "progress", "key": "es", "phase": "hash", "done": 10, "total": 51, "bytes": 0}
+{"sg": "progress", "key": "es", "phase": "upload", "done": 3, "total": 12, "bytes": 52428800}
+{"sg": "progress", "key": "es", "phase": "commit", "done": 1, "total": 1, "bytes": 0}
+plain log line that is not JSON

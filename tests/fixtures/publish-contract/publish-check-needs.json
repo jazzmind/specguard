@@ -1,0 +1,83 @@
+{
+  "schema": "specguard-publish-check/1",
+  "project": "demo-es",
+  "key": "es",
+  "server": {
+    "url": "https://team.example/specguard",
+    "reachable": true,
+    "signedIn": true,
+    "role": "maintainer",
+    "features": [
+      "publish-state",
+      "evidence"
+    ]
+  },
+  "local": {
+    "digest": {
+      "v": 1,
+      "total": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sections": {
+        "specs": "s1",
+        "trace": "t1",
+        "ledger": "l1",
+        "plans": "p1",
+        "contracts": "c1"
+      },
+      "files": {
+        "specs/a.md": "abc123abc123"
+      }
+    },
+    "commit": "1111111",
+    "branch": "main",
+    "latestRun": {
+      "runId": "r3",
+      "files": 51,
+      "bytes": 520000000
+    }
+  },
+  "remote": {
+    "snapshotId": "snap-9",
+    "createdAt": "2026-11-01T10:00:00Z",
+    "digest": {
+      "v": 1,
+      "total": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sections": {
+        "specs": "s1",
+        "trace": "t1",
+        "ledger": "l1",
+        "plans": "p1",
+        "contracts": "c1"
+      },
+      "files": {
+        "specs/a.md": "abc123abc123"
+      }
+    },
+    "commit": "1111111",
+    "latestRun": {
+      "runId": "r2",
+      "ingestedAt": "2026-11-04T10:00:00Z",
+      "status": "complete",
+      "files": 40,
+      "bytes": 412000000,
+      "createdAt": "2026-11-04T10:05:00Z"
+    }
+  },
+  "needsPublish": true,
+  "exact": true,
+  "reasons": [
+    "specs-changed",
+    "proofs-changed",
+    "new-run"
+  ],
+  "specFiles": {
+    "added": [
+      "specs/new.md"
+    ],
+    "removed": [],
+    "modified": [
+      "specs/a.md",
+      "specs/<b>.md"
+    ]
+  },
+  "commitDiffers": false
+}

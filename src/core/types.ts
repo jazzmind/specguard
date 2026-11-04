@@ -978,6 +978,8 @@ export interface PipelineResult {
   messages: string[];
   /** The proof statement, set by `check` (see `src/core/proof-statement.ts`). */
   statement?: SystemStatement;
+  /** Structured publish output (`publish --check`, `publish --evidence`, `workspace publish --check`), for `--json` consumers such as the VS Code extension. */
+  publish?: import('./publish-contract.js').PublishCheck | import('./publish-contract.js').WorkspacePublishCheck | { runs: import('./publish-contract.js').RunRecord[] };
 }
 
 /** Create an empty PipelineResult for a named pipeline. */

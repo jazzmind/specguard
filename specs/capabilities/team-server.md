@@ -7,6 +7,9 @@ value: SpecGuard works fully on one machine, and when a team server exists it al
 status: active
 sources:
   - "src/core/snapshot.ts"
+  - "src/core/publish-contract.ts"
+  - "src/pipelines/publish-evidence.ts"
+  - "src/pipelines/workspace-publish.ts"
   - "src/pipelines/publish.ts"
   - "src/pipelines/team.ts"
   - "src/cli/commands/publish.ts"
@@ -19,6 +22,11 @@ sources:
 tests:
   - "tests/pipelines/publish.test.ts"
   - "tests/pipelines/team.test.ts"
+  - "tests/pipelines/publish-check.test.ts"
+  - "tests/pipelines/publish-evidence.test.ts"
+  - "tests/core/snapshot-digest.test.ts"
+  - "tests/server/evidence.test.ts"
+  - "tests/server/evidence-e2e.test.ts"
   - "tests/server/projects.test.ts"
   - "tests/server/ui.test.ts"
   - "tests/server/central.test.ts"
@@ -40,6 +48,7 @@ history:
   - 2026-11-03-diagnosable-team-server-sign-in-and-open
   - 2026-11-03-trusted-proxies-by-host-name
   - 2026-11-03-project-link-from-vs-code-recover-unpars
+  - 2026-11-04-team-server-publish-status-and-test-evid
 ---
 
 # Local-first operation with an optional team server
@@ -74,6 +83,14 @@ This capability keeps one engine and gives it two homes. The local command line 
 - [ ] The sign-in header never makes a maintainer on its own: without `SPECGUARD_TRUSTED_PROXIES` it signs in a read-only viewer whoever it names (it can read and mint viewer tokens, and cannot write, change plan items, define a workspace or mint a maintainer token), and only through a trusted proxy does naming a listed maintainer email or carrying an explicitly configured, proxy-verified app-manager role make the session a maintainer; it is never an admin <!-- claim: header-is-viewer-without-proxy -->
 - [ ] Each caller (the signed-in user, or the connecting address when there is no credential) is limited to a number of API requests a minute (600 for a signed-in caller, 60 with no credential), and the routes that can start a model call to fewer (30 a minute for `/docs/`); a caller over a limit gets `429` with `Retry-After`, a refused request is not counted, health is never limited, and the limits are set with `SPECGUARD_RATE_LIMIT_PER_MIN`, `_DOCS_PER_MIN` and `_ANON_PER_MIN` <!-- claim: server-rate-limits -->
 - [ ] The server keeps an audit trail of what changes through its API (token creation and revocation, plan item status changes, workspace definitions, published snapshots) with who did it, and of every refused attempt to change something (no credential, or a role too low) with the reason; reads are not recorded <!-- claim: server-audit-trail -->
+- [ ] A snapshot has a digest (`snapshotDigest`: a hash per section - specs, trace, proof rows, plans, contracts - and per spec file) that ignores `createdAt`, `engineVersion`, `trace.generated` and the commit; two snapshots with the same content have the same `total`, a change to one section changes only that section's hash, and the server computes the digest itself on every put and returns it, computing it on demand for snapshots stored before digests existed <!-- claim: publish-digest-check -->
+- [ ] `publish --check` builds the snapshot in memory, compares its digest with the server's latest (`GET /projects/:p/publish-state`) and prints a `specguard-publish-check/1` result with `needsPublish`, the reasons (never published, specs, trace, proofs, plans, contracts changed, a newer run, incomplete evidence) and the added, removed and modified spec files, uploading nothing; it exits 0 when up to date and 9 when a publish is needed; against a server without `publish-state` it falls back to comparing commits and says `exact: false` <!-- claim: publish-state-check -->
+- [ ] `publish --push --evidence` sends the newest run (or `--run`) as a manifest of the report data plus evidence files: the server answers which sha256 blobs it lacks, the client uploads only those in chunks of at most the server's `chunkBytes` (resuming from the server's offset after an interruption), and commits the run only when every blob is verified; a run whose missing bytes exceed `--max-evidence-mb`, or a file over the server's per-file cap (unless `--skip-oversized`, which records it as omitted), stops before uploading, and a server without the `evidence` feature gets the snapshot and then a clear upgrade error <!-- claim: evidence-upload-protocol -->
+- [ ] The server verifies each uploaded blob's sha256 and discards a partial upload whose hash does not match, refuses chunks, files and runs over its caps with a structured error, keeps the last `keepRuns` runs per project (default 5) and deletes blobs no kept run refers to and partial uploads older than a day, and scopes blobs to the project so one project cannot learn what another holds <!-- claim: evidence-limits-and-retention -->
+- [ ] The server serves a run's report and evidence only to callers allowed to read the project: the HTML is rendered from the stored report data by the same renderers the CLI uses, evidence is looked up by manifest path and never joined to a filesystem path, images and video are inline while traces and every other type download as attachments, every blob response carries `nosniff` and a sandboxing content-security-policy, and byte ranges are honoured <!-- claim: evidence-serving-safety -->
+- [ ] The server's web UI lists a project's published runs with their totals and opens the report of a run, and a workspace's rollup report, from the same pages the CLI writes; links to local files are never sent to the server <!-- claim: server-test-report -->
+- [ ] Evidence blobs are stored through the backend interface: the file backend keeps them as files, the Postgres backend as chunked rows so a database-only deployment needs no volume, and both pass the same contract tests (append, finalize with hash verification, range read, garbage collection) <!-- claim: evidence-backend-storage -->
+- [ ] Publishing is backward compatible: snapshot version and payload are unchanged, an older server ignores the extra fields, and a client that finds a server without the new routes degrades as the checks above describe <!-- claim: publish-back-compat -->
 
 ## Scenarios
 ### Scenario 1: CI publishes a commit
