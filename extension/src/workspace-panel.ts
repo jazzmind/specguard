@@ -18,6 +18,9 @@ import { setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 import { configDirFor } from './project-config.js';
 import { projectHealth } from './project-health.js';
 import { warmProjectConfigs } from './workspace-state.js';
+import { settingsLayers, serverToken } from './settings.js';
+import { getHub } from './api/shared.js';
+import { parseCliLine, parseCheckOutput, teamSectionHtml, publishArgs, reportUrl, repoKey, type TeamModel, type TeamCheck, type TeamProgress } from './team-publish.js';
 
 // ---------------------------------------------------------------------------
 // Panel singleton
@@ -39,7 +42,13 @@ type PanelMsg =
   | { type: 'syncNow' }
   | { type: 'setIgnore'; key: string; ignore: boolean }
   | { type: 'openCatalog'; key: string; index: number }
-  | { type: 'switchRepo'; absPath: string; key: string };
+  | { type: 'switchRepo'; absPath: string; key: string }
+  | { type: 'teamCheck' }
+  | { type: 'teamPublish'; key?: string; evidence: boolean }
+  | { type: 'teamPublishWorkspaceDef' }
+  | { type: 'teamOpenReport'; key?: string }
+  | { type: 'teamSetEvidence'; on: boolean }
+  | { type: 'teamSignIn' };
 
 /** Commands other parts of the extension use to drive an open panel. */
 export function registerWorkspacePanelCommands(context: vscode.ExtensionContext): void {
@@ -71,7 +80,8 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
   );
 
   _panel.webview.html = buildHtml(_panel.webview);
-  _panel.onDidDispose(() => { _panel = undefined; }, null, context.subscriptions);
+  const hubSub = getHub()?.onDidChange(() => { if (_panel) void teamCheck(); });
+  _panel.onDidDispose(() => { _panel = undefined; hubSub?.dispose(); _teamHandle?.kill(); _teamHandle = undefined; _team = { phase: 'idle', evidence: _team.evidence }; }, null, context.subscriptions);
 
   context.subscriptions.push(
     _panel.webview.onDidReceiveMessage((msg: PanelMsg) => void handleMessage(msg)),
@@ -103,6 +113,22 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
 
   if (msg.type === 'ready') {
     refreshStatus(_panel.webview);
+    if (_team.check || _team.noServer) postTeam('teamState'); else void teamCheck();
+    return;
+  }
+
+  if (msg.type === 'teamCheck') { await teamCheck(); return; }
+  if (msg.type === 'teamPublish') { await teamPublish(typeof msg.key === 'string' ? msg.key : undefined, msg.evidence === true); return; }
+  if (msg.type === 'teamPublishWorkspaceDef') { await teamRun('definition'); return; }
+  if (msg.type === 'teamOpenReport') {
+    const url = _team.check ? reportUrl(_team.check, typeof msg.key === 'string' ? msg.key : undefined) : undefined;
+    if (url) await vscode.env.openExternal(vscode.Uri.parse(url));
+    return;
+  }
+  if (msg.type === 'teamSetEvidence') { _team = { ..._team, evidence: msg.on === true }; postTeam('teamState'); return; }
+  if (msg.type === 'teamSignIn') {
+    const root = getWorkspaceManifestRoot();
+    if (root) await vscode.commands.executeCommand('specguard.signIn', root);
     return;
   }
 
@@ -169,6 +195,98 @@ async function refreshStatus(webview: vscode.Webview): Promise<void> {
   if (id !== _refreshId) return;
   _catalogFiles = new Map(annotated?.repos.map((r) => [r.key, r.health.catalog?.files.map((f) => f.path) ?? []]) ?? []);
   webview.postMessage({ type: 'statusData', manifest: annotated, contracts });
+}
+
+// ---------------------------------------------------------------------------
+// Team server section: check and publish through the CLI
+// ---------------------------------------------------------------------------
+
+let _team: TeamModel = { phase: 'idle', evidence: false };
+let _teamHandle: ReturnType<typeof spawnCli> | undefined;
+let _teamLastPost = 0;
+
+/** Send the section's HTML to the webview. `teamProgress` is the same payload sent while a publish runs, with the raw progress record. */
+function postTeam(type: 'teamState' | 'teamProgress'): void {
+  if (!_panel) return;
+  void _panel.webview.postMessage({ type, html: teamSectionHtml(_team), phase: _team.phase, ...(_team.progress ? { progress: _team.progress } : {}) });
+}
+
+/** Server URL, enabled state and token. The token only ever goes into the child's environment. */
+async function teamEnv(root: string): Promise<{ configured: boolean; env: NodeJS.ProcessEnv }> {
+  const { server } = settingsLayers(root).effective;
+  if (!server.url || server.mode === 'off') return { configured: false, env: {} };
+  const token = await serverToken(server.url, root);
+  return { configured: true, env: token ? { SPECGUARD_TOKEN: token } : {} };
+}
+
+async function teamCheck(): Promise<void> {
+  if (!_panel || _team.phase === 'publishing') return;
+  const root = getWorkspaceManifestRoot();
+  if (!root) { _team = { phase: 'idle', evidence: _team.evidence, error: 'No workspace.json found.' }; postTeam('teamState'); return; }
+  const { configured, env } = await teamEnv(root);
+  if (!configured) { _team = { phase: 'idle', evidence: _team.evidence, noServer: true }; postTeam('teamState'); return; }
+  _team = { ..._team, phase: 'checking', noServer: false, error: undefined, log: undefined, progress: undefined };
+  postTeam('teamState');
+  const lines: string[] = [];
+  try {
+    const cli = await resolveCliPath(root);
+    const handle = spawnCli(cli, publishArgs('check'), root, (l) => lines.push(l), env);
+    _teamHandle = handle;
+    const code = await handle.promise;
+    _teamHandle = undefined;
+    const out = parseCheckOutput(lines);
+    if (out.check) {
+      const check: TeamCheck = out.check;
+      _team = { phase: 'idle', evidence: _team.evidence, check, ...(!check.server.url ? { noServer: true } : {}), ...(check.server.url && !check.server.reachable ? { error: 'The team server is not reachable.' } : {}) };
+    } else {
+      _team = { phase: 'idle', evidence: _team.evidence, error: `Check failed (exit ${code}). ${out.text.slice(-3).join(' ')}`.trim() };
+    }
+  } catch (err) {
+    _teamHandle = undefined;
+    _team = { phase: 'idle', evidence: _team.evidence, error: (err as Error).message };
+  }
+  postTeam('teamState');
+}
+
+async function teamPublish(key: string | undefined, evidence: boolean): Promise<void> {
+  // Only a repo the last check listed can be published (the key comes from the webview).
+  if (key !== undefined && !_team.check?.repos.some((r) => repoKey(r) === key)) return;
+  await teamRun('publish', key, evidence);
+}
+
+async function teamRun(action: 'publish' | 'definition', key?: string, evidence = false): Promise<void> {
+  if (!_panel || _team.phase !== 'idle') return;
+  const root = getWorkspaceManifestRoot();
+  if (!root) return;
+  const { configured, env } = await teamEnv(root);
+  if (!configured) { _team = { phase: 'idle', evidence: _team.evidence, noServer: true }; postTeam('teamState'); return; }
+  let args: string[];
+  try { args = publishArgs(action, key, evidence); } catch (err) { _team = { ..._team, error: (err as Error).message }; postTeam('teamState'); return; }
+  _team = { ..._team, phase: 'publishing', error: undefined, log: [], progress: undefined, busyKey: action === 'publish' ? key ?? '' : undefined };
+  postTeam('teamState');
+  let failure: string | undefined;
+  try {
+    const cli = await resolveCliPath(root);
+    const handle = spawnCli(cli, args, root, (line) => {
+      const p = parseCliLine(line);
+      if (p.kind === 'progress') {
+        _team = { ..._team, progress: p.progress as TeamProgress };
+        // Progress lines can arrive many times a second: repaint at most about 6 times a second.
+        if (Date.now() - _teamLastPost > 150) { _teamLastPost = Date.now(); postTeam('teamProgress'); }
+      } else if (p.text.trim()) _team = { ..._team, log: [...(_team.log ?? []), p.text].slice(-20) };
+    }, env);
+    _teamHandle = handle;
+    const code = await handle.promise;
+    _teamHandle = undefined;
+    if (code !== 0) failure = `Publish failed (exit ${code}). ${(_team.log ?? []).slice(-3).join(' ')}`.trim();
+  } catch (err) {
+    _teamHandle = undefined;
+    failure = (err as Error).message;
+  }
+  _team = { ..._team, phase: 'idle', progress: undefined, busyKey: undefined };
+  // Re-check so the rows show what the server now holds; a failure stays visible after it.
+  await teamCheck();
+  if (failure) { _team = { ..._team, error: failure }; postTeam('teamState'); }
 }
 
 async function streamCommand(label: string, args: string[], streamTarget: string): Promise<void> {
@@ -367,6 +485,21 @@ export function buildHtml(_webview: vscode.Webview): string {
   .stream-placeholder { opacity: .45; font-style: italic; }
   .exit-ok  { color: var(--vscode-testing-iconPassed, #3fb950); }
   .exit-err { color: var(--vscode-testing-iconFailed, #f85149); }
+  .team-card { padding: 14px 16px; border: 1px solid var(--vscode-panel-border); border-radius: var(--radius); background: var(--vscode-editor-inactiveSelectionBackground); margin-bottom: 20px; }
+  .team-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .team-url { font-family: var(--vscode-editor-font-family, monospace); overflow-wrap: anywhere; }
+  .team-table td { padding: 8px 10px; }
+  .team-key { font-weight: 600; }
+  .team-detail small { color: var(--vscode-descriptionForeground); }
+  .team-bar { margin-top: 12px; }
+  .team-evidence { display: inline-flex; align-items: center; gap: 6px; }
+  .team-error { color: var(--vscode-testing-iconFailed, #f85149); margin: 6px 0; overflow-wrap: anywhere; }
+  .team-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
+  .team-progress progress { width: 160px; }
+  .team-log { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; white-space: pre-wrap; margin-top: 8px; opacity: .75; }
+  .badge.ok { background: var(--vscode-testing-iconPassed, #3fb950); color: #000; }
+  .badge.warn { background: var(--vscode-testing-iconFailed, #d29922); color: #000; }
+  .badge.bad { background: var(--vscode-errorForeground, #f85149); color: #000; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--vscode-foreground);
     border-right-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -384,6 +517,8 @@ export function buildHtml(_webview: vscode.Webview): string {
 <!-- ── Status Tab ── -->
 <div id="tab-status" class="tab-panel active">
   <div id="status-content"><em style="opacity:.5">Loading…</em></div>
+  <!-- Team server section: its HTML is built and escaped by the extension (team-publish.ts) -->
+  <div id="team-content"></div>
   <!-- contracts log appears inline when rebuild is running -->
   <div id="contracts-log-wrap">
     <div class="stream-header">
@@ -583,6 +718,13 @@ export function buildHtml(_webview: vscode.Webview): string {
   // The page's CSP allows only nonce'd scripts, which blocks inline click-handler attributes: clicks are
   // routed by data-act instead.
   function attr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+  // The checkbox is not a data-act element (the click handler above cancels default actions, which would undo a tick).
+  // (Registered before the click handler on purpose.)
+  function teamEvidence() { const box = document.querySelector('[data-team-evidence]'); return !!(box && box.checked); }
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-team-evidence')) vscode.postMessage({ type: 'teamSetEvidence', on: e.target.checked });
+  });
+
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
     if (!el) return;
@@ -597,6 +739,12 @@ export function buildHtml(_webview: vscode.Webview): string {
     else if (d.act === 'runContracts') runContracts();
     else if (d.act === 'refreshAll') refreshAll();
     else if (d.act === 'syncNow') syncNow();
+    else if (d.act === 'teamCheck') vscode.postMessage({ type: 'teamCheck' });
+    else if (d.act === 'teamPublish') vscode.postMessage({ type: 'teamPublish', key: d.key, evidence: teamEvidence() });
+    else if (d.act === 'teamPublishAll') vscode.postMessage({ type: 'teamPublish', evidence: teamEvidence() });
+    else if (d.act === 'teamPublishDef') vscode.postMessage({ type: 'teamPublishWorkspaceDef' });
+    else if (d.act === 'teamOpenReport') vscode.postMessage({ type: 'teamOpenReport' });
+    else if (d.act === 'teamSignIn') vscode.postMessage({ type: 'teamSignIn' });
     else if (d.act === 'openCatalog') vscode.postMessage({type:'openCatalog',key:d.key,index:Number(d.index)});
   });
 
@@ -614,6 +762,11 @@ export function buildHtml(_webview: vscode.Webview): string {
 
     if (msg.type === 'navigate') {
       activateTab(msg.tab);
+    }
+
+    if (msg.type === 'teamState' || msg.type === 'teamProgress') {
+      // msg.html comes from teamSectionHtml, which escapes every string from the CLI and the server.
+      document.getElementById('team-content').innerHTML = msg.html;
     }
 
     if (msg.type === 'statusData') {
