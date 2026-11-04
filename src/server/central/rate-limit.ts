@@ -16,9 +16,12 @@ export interface RateLimitConfig {
   docsPerMinute: number;
   /** Requests per minute with no valid credential, per connecting address. Default 60. */
   anonymousPerMinute: number;
+  /** Requests per minute to the evidence blob routes, which count against this bucket instead of `perMinute`: a run is hundreds of chunk requests. Default 3000. */
+  uploadPerMinute?: number;
 }
 
-export const DEFAULT_RATE_LIMITS: RateLimitConfig = { perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60 };
+export const DEFAULT_UPLOAD_PER_MIN = 3000;
+export const DEFAULT_RATE_LIMITS: RateLimitConfig = { perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60, uploadPerMinute: DEFAULT_UPLOAD_PER_MIN };
 
 export function rateLimitsFromEnv(env: NodeJS.ProcessEnv): RateLimitConfig {
   const n = (v: string | undefined, d: number): number => (v !== undefined && Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : d);
@@ -26,6 +29,7 @@ export function rateLimitsFromEnv(env: NodeJS.ProcessEnv): RateLimitConfig {
     perMinute: n(env.SPECGUARD_RATE_LIMIT_PER_MIN, DEFAULT_RATE_LIMITS.perMinute),
     docsPerMinute: n(env.SPECGUARD_RATE_LIMIT_DOCS_PER_MIN, DEFAULT_RATE_LIMITS.docsPerMinute),
     anonymousPerMinute: n(env.SPECGUARD_RATE_LIMIT_ANON_PER_MIN, DEFAULT_RATE_LIMITS.anonymousPerMinute),
+    uploadPerMinute: n(env.SPECGUARD_RATE_LIMIT_UPLOAD_PER_MIN, DEFAULT_UPLOAD_PER_MIN),
   };
 }
 
@@ -37,11 +41,13 @@ export class RateLimiter {
 
   /**
    * Count a request. Returns the seconds to wait when it is over a limit (the request is not counted), else undefined.
-   * `caller` is a user or address; `anonymous` says it has no credential; `docs` marks a route that can start a model call.
+   * `caller` is a user or address; `anonymous` says it has no credential; `docs` marks a route that can start a model call; `upload` an evidence blob route, counted in its own bucket.
    */
-  hit(caller: string, opts: { anonymous?: boolean; docs?: boolean } = {}, now: number = Date.now()): number | undefined {
+  hit(caller: string, opts: { anonymous?: boolean; docs?: boolean; upload?: boolean } = {}, now: number = Date.now()): number | undefined {
     this.sweep(now);
-    const checks: Array<[string, number]> = [[`${opts.anonymous ? 'anon' : 'user'}:${caller}`, opts.anonymous ? this.config.anonymousPerMinute : this.config.perMinute]];
+    const checks: Array<[string, number]> = opts.upload && !opts.anonymous
+      ? [[`upload:${caller}`, this.config.uploadPerMinute ?? DEFAULT_UPLOAD_PER_MIN]]
+      : [[`${opts.anonymous ? 'anon' : 'user'}:${caller}`, opts.anonymous ? this.config.anonymousPerMinute : this.config.perMinute]];
     if (opts.docs) checks.push([`docs:${caller}`, this.config.docsPerMinute]);
     for (const [key, limit] of checks) {
       const recent = (this.hits.get(key) ?? []).filter((t) => now - t < 60_000);

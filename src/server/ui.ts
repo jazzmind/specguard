@@ -41,7 +41,7 @@ const UI_TEMPLATE = String.raw`<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>SpecGuard</h1><a href="#/matrix" id="t-matrix">Traceability</a><a href="#/audit" id="t-audit">Audit</a><a href="#/tokens" id="t-tokens">Tokens</a><span id="project-slot" style="margin-left:auto"></span></header>
+<header><h1>SpecGuard</h1><a href="#/matrix" id="t-matrix">Traceability</a><a href="#/audit" id="t-audit">Audit</a><a href="#/runs" id="t-runs">Test report</a><a href="#/tokens" id="t-tokens">Tokens</a><span id="project-slot" style="margin-left:auto"></span></header>
 <div id="layout"><nav id="nav">Loading…</nav><main id="main"></main></div>
 <script>
 var BASE = document.querySelector('meta[name="sg-base"]').getAttribute('content');
@@ -117,6 +117,7 @@ function buildNav(caps, current) {
   document.getElementById('t-matrix').className = current === '#matrix' ? 'on' : '';
   document.getElementById('t-audit').className = current === '#audit' ? 'on' : '';
   document.getElementById('t-tokens').className = current === '#tokens' ? 'on' : '';
+  document.getElementById('t-runs').className = current === '#runs' ? 'on' : '';
 }
 
 function countsLine(c) {
@@ -206,6 +207,35 @@ function viewAudit(caps) {
   }).catch(fail);
 }
 
+/* ---- test report: the runs a client published, each opening the report page the server renders ---- */
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+  return (n / 1073741824).toFixed(2) + ' GB';
+}
+function viewRuns(caps) {
+  buildNav(caps, '#runs');
+  show('<h2>Test report</h2><p class="meta">Loading…</p>');
+  fetch(API + '/runs').then(function (r) {
+    if (r.status === 404 || r.status === 405) { show('<h2>Test report</h2><p class="value">Test runs are published to a team server with <code>specguard publish --push --evidence</code>. This server has none for this project.</p>'); return null; }
+    return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; });
+  }).then(function (runs) {
+    if (!runs) return;
+    var done = runs.filter(function (r) { return r.status === 'complete'; });
+    var rows = runs.map(function (r) {
+      var t = r.tests;
+      var verdict = !t ? badge('no totals') : (t.fail > 0 ? badge(t.fail + ' failing', 'failed') : badge('all passing', 'proven')) + badge(t.pass + ' pass') + (t.skip ? badge(t.skip + ' skip') : '');
+      var link = r.status === 'complete' ? '<a href="' + esc(API + '/runs/' + encodeURIComponent(r.runId) + '/report/index.html') + '">' + esc(r.label || r.runId) + '</a>' : esc(r.label || r.runId) + ' ' + badge('uploading', 'stale');
+      return '<tr><td>' + link + '<br><span class="meta"><code>' + esc(r.runId) + '</code></span></td><td>' + esc(r.ingestedAt) + '</td><td>' + verdict + '</td><td>' + r.files + ' files · ' + esc(fmtBytes(r.bytes)) + '</td></tr>';
+    }).join('');
+    show('<h2>Test report</h2><p class="value">The test runs published for this project, newest first. Each opens the same report the command line writes, with its screenshots, video and traces.</p>' +
+      (done.length ? '<p><a href="' + esc(API + '/runs/latest/report/index.html') + '">Open the latest report</a></p>' : '') +
+      '<table><tr><th>Run</th><th>Ingested</th><th>Tests</th><th>Evidence</th></tr>' + (rows || '<tr><td colspan="4" class="meta">No test run has been published yet.</td></tr>') + '</table>');
+  }).catch(fail);
+}
+
 /* ---- tokens: the team server's own, never project-prefixed ---- */
 function send(method, path, body) {
   var init = { method: method, headers: { 'X-Requested-With': 'specguard' } };
@@ -256,6 +286,7 @@ function route() {
     if ((m = h.match(/^#\/cap\/(.+)$/))) return viewCapability(decodeURIComponent(m[1]), caps);
     if (h === '#/matrix') return viewMatrix(caps);
     if (h === '#/audit') return viewAudit(caps);
+    if (h === '#/runs') return viewRuns(caps);
     if (h === '#/tokens') return viewTokens(caps);
     return viewSystem(caps);
   };
@@ -271,6 +302,13 @@ function viewProjects() {
     show('<h2>Projects</h2><p>Select a project, then create a token to connect SpecGuard.</p>' +
       (p.projects.length ? p.projects.map(function(x) { return '<p><a href="?project=' + encodeURIComponent(x.name) + '#/tokens">' + esc(x.name) + '</a> · ' + (x.kind === 'pending' ? 'Awaiting first publish' : esc(x.commit || x.kind)) + '</p>'; }).join('') : '<p>No projects yet. Create your first project below.</p>') +
       '<p><label>Project name <input id="new-project" maxlength="64" placeholder="my-project"></label> <button id="create-project">Create project</button></p><p>Creating projects requires maintainer access.</p>');
+    fetch(BASE + '/api/v1/workspaces').then(function (r) { return r.ok ? r.json() : { workspaces: [] }; }).then(function (w) {
+      var list = (w && w.workspaces) || [];
+      if (!list.length) return;
+      main.insertAdjacentHTML('beforeend', '<h3>Workspaces</h3>' + list.map(function (x) {
+        return '<p>' + esc(x.name) + ' · <a href="' + esc(BASE + '/api/v1/workspaces/' + encodeURIComponent(x.name) + '/report/index.html') + '">Test report</a></p>';
+      }).join(''));
+    }).catch(function () {});
     document.getElementById('create-project').onclick = function() {
       send('POST', '/projects', {name: document.getElementById('new-project').value.trim()}).then(function(p) { location.href = BASE + '/?project=' + encodeURIComponent(p.name) + '#/tokens'; }).catch(fail);
     };

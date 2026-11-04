@@ -48,6 +48,8 @@ export interface PublishResult {
   snapshotId: string;
   commit?: string;
   branch?: string;
+  /** What the stored snapshot hashes to (computed by the server). */
+  digest?: import('../core/publish-contract.js').SnapshotDigest;
 }
 
 export interface ProjectRegistry {

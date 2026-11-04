@@ -7,10 +7,36 @@
 import { rateLimitsFromEnv, type RateLimitConfig } from './rate-limit.js';
 import path from 'node:path';
 
+import { DEFAULT_LIMITS } from '../../core/publish-contract.js';
+
 import type { LlmConfig } from '../../core/types.js';
 import type { AuthConfig } from './auth.js';
 import type { Backend } from './backend.js';
 import { fileBackend } from './file-backend.js';
+
+/** What the server accepts as test evidence. */
+export interface EvidenceSettings {
+  /** Runs kept per project. */
+  keepRuns: number;
+  maxFileBytes: number;
+  maxRunBytes: number;
+  /** Evidence bytes the server holds in total, across projects. */
+  maxTotalBytes: number;
+  /** Largest body of one blob PUT. */
+  chunkBytes: number;
+}
+
+export function evidenceSettingsFromEnv(env: NodeJS.ProcessEnv): EvidenceSettings {
+  const n = (v: string | undefined, d: number): number => (v !== undefined && v.trim() !== '' && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
+  const MB = 1024 * 1024;
+  return {
+    keepRuns: Math.floor(n(env.SPECGUARD_KEEP_RUNS, DEFAULT_LIMITS.keepRuns)),
+    maxFileBytes: Math.floor(n(env.SPECGUARD_MAX_EVIDENCE_FILE_MB, DEFAULT_LIMITS.maxFileBytes / MB) * MB),
+    maxRunBytes: Math.floor(n(env.SPECGUARD_MAX_EVIDENCE_RUN_MB, DEFAULT_LIMITS.maxRunBytes / MB) * MB),
+    maxTotalBytes: Math.floor(n(env.SPECGUARD_EVIDENCE_MAX_GB, 20) * 1024 * MB),
+    chunkBytes: Math.floor(n(env.SPECGUARD_UPLOAD_CHUNK_KB, DEFAULT_LIMITS.chunkBytes / 1024) * 1024),
+  };
+}
 
 export interface GithubSource {
   /** `owner/name` of the repository. */
@@ -28,6 +54,7 @@ export interface CentralSettings {
   llm: LlmConfig;
   auth: Omit<AuthConfig, 'backend'>;
   rateLimit: RateLimitConfig;
+  evidence: EvidenceSettings;
   github: {
     token?: string;
     sources: GithubSource[];
@@ -90,6 +117,7 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv, flags: CentralFlags = {}
       ...(list(env.SPECGUARD_TRUSTED_PROXIES).length > 0 ? { trustedProxies: list(env.SPECGUARD_TRUSTED_PROXIES) } : {}),
     },
     rateLimit: rateLimitsFromEnv(env),
+    evidence: evidenceSettingsFromEnv(env),
     github: {
       ...(env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {}),
       sources: parseGithubSources(env.SPECGUARD_GITHUB_REPOS),

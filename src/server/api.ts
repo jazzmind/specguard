@@ -111,6 +111,8 @@ export class Api {
       workspace?: () => Promise<unknown>;
       /** Told of every change made through the API and every refused attempt to make one, for an audit trail. */
       onAudit?: (entry: { actor: string; action: string; project?: string; detail: string }) => void;
+      /** Extra fields for `/health` (a team server lists its features and limits). */
+      healthExtra?: () => Record<string, unknown>;
     } = {},
   ) {
     this.registry = isRegistry(source) ? source : localRegistry(source);
@@ -137,7 +139,7 @@ export class Api {
   private readonly redact = createSecretRedactor();
 
   private health(extra: Record<string, unknown> = {}): ApiResponse {
-    return json(200, { ok: true, version: 1, apiVersion: API_VERSION, engineVersion: cliVersion(), hashVersion: HASH_VERSION, writable: this.registry.writable, ...extra });
+    return json(200, { ok: true, version: 1, apiVersion: API_VERSION, engineVersion: cliVersion(), hashVersion: HASH_VERSION, writable: this.registry.writable, ...(this.opts.healthExtra?.() ?? {}), ...extra });
   }
 
   private async route(req: ApiRequest): Promise<ApiResponse> {

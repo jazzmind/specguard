@@ -142,7 +142,7 @@ export function centralRegistry(opts: CentralRegistryOptions): CentralRegistry {
         await plans.write(merged);
       }
       await backend.snapshots.prune(snapshot.project, keep);
-      return { project: record.project, snapshotId: record.id, ...(record.commit ? { commit: record.commit } : {}), ...(record.branch ? { branch: record.branch } : {}) };
+      return { project: record.project, snapshotId: record.id, ...(record.commit ? { commit: record.commit } : {}), ...(record.branch ? { branch: record.branch } : {}), ...(record.digest ? { digest: record.digest } : {}) };
     },
   };
 }

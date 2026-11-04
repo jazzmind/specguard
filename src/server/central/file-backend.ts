@@ -6,16 +6,17 @@
  *
  * Spec: specs/capabilities/team-server.md
  */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { fileContentCache } from '../../core/state/content-cache.js';
 import { serially } from '../../core/state/lock.js';
 import { filePlanStore } from '../../core/state/plan-store.js';
-import type { Snapshot } from '../../core/snapshot.js';
+import { snapshotDigest, type Snapshot } from '../../core/snapshot.js';
+import type { RunManifest } from '../../core/publish-contract.js';
 import { writeFile } from '../../core/writer.js';
-import { PROJECT_NAME, WORKSPACE_NAME, type AuditEntry, type Backend, type WorkspaceDef, type WorkspaceStore, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow } from './backend.js';
+import { PROJECT_NAME, WORKSPACE_NAME, EvidenceError, gcPlan, manifestBlobs, newestFirst, runListingOf, type AuditEntry, type Backend, type BlobState, type EvidenceStore, type StoredRun, type WorkspaceDef, type WorkspaceStore, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow } from './backend.js';
 
 const DEFAULT_BRANCHES = ['main', 'master'];
 
@@ -45,6 +46,164 @@ function readLines<T>(file: string, limit: number): T[] {
   }
 }
 
+const SHA256 = /^[0-9a-f]{64}$/;
+
+/** A run id made safe for a file name; the hash keeps two ids that sanitize alike apart. */
+export function runFileId(runId: string): string {
+  return `${runId.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^\.+/, '_').slice(0, 80)}-${createHash('sha1').update(runId).digest('hex').slice(0, 8)}`;
+}
+
+/** Evidence of one project as files: runs as JSON, blobs by hash, partial uploads aside. */
+function fileEvidence(root: string): EvidenceStore {
+  const runDir = path.join(root, 'runs');
+  const blobDir = path.join(root, 'blobs');
+  const partialDir = path.join(blobDir, '.partial');
+  const runFile = (runId: string): string => path.join(runDir, `${runFileId(runId)}.json`);
+  const blobFile = (sha: string): string => path.join(blobDir, sha.slice(0, 2), sha);
+  const partialFile = (sha: string): string => path.join(partialDir, sha);
+  const metaFile = (sha: string): string => path.join(partialDir, `${sha}.meta`);
+  const checked = (sha: string): string => {
+    if (!SHA256.test(sha)) throw new Error('invalid blob hash');
+    return sha;
+  };
+  const stored = (file: string): StoredRun | undefined => {
+    const run = readJson<StoredRun | null>(file, null);
+    return run?.record && run.manifest ? run : undefined;
+  };
+  const allRuns = (): StoredRun[] => (fs.existsSync(runDir) ? fs.readdirSync(runDir).filter((f) => f.endsWith('.json')).map((f) => stored(path.join(runDir, f))).filter((r): r is StoredRun => Boolean(r)) : []);
+
+  const store: EvidenceStore = {
+    async putRun(manifest: RunManifest, status) {
+      return serially(runDir, async () => {
+        const before = stored(runFile(manifest.runId));
+        const createdAt = before && before.record.digest === manifest.digest.total ? before.record.createdAt : new Date().toISOString();
+        const record = runListingOf(manifest, status, createdAt);
+        await writeFile(runFile(manifest.runId), JSON.stringify({ record, manifest } satisfies StoredRun));
+        return record;
+      });
+    },
+    async getRun(id) {
+      if (id === 'latest') return allRuns().filter((r) => r.record.status === 'complete').sort((a, b) => newestFirst(a.record, b.record))[0];
+      return stored(runFile(id));
+    },
+    async listRuns() {
+      return allRuns().map((r) => r.record).sort(newestFirst);
+    },
+    async deleteRun(id) {
+      return serially(runDir, async () => {
+        const file = runFile(id);
+        if (!fs.existsSync(file)) return false;
+        fs.rmSync(file, { force: true });
+        return true;
+      });
+    },
+    async blobState(sha) {
+      checked(sha);
+      const done = blobFile(sha);
+      if (fs.existsSync(done)) {
+        const size = fs.statSync(done).size;
+        return { size, received: size, complete: true } satisfies BlobState;
+      }
+      const part = partialFile(sha);
+      if (!fs.existsSync(part)) return undefined;
+      const meta = readJson<{ total?: number }>(metaFile(sha), {});
+      return { size: meta.total ?? 0, received: fs.statSync(part).size, complete: false } satisfies BlobState;
+    },
+    async appendChunk(sha, offset, total, data) {
+      checked(sha);
+      return serially(`blob:${root}:${sha}`, async () => {
+        if (fs.existsSync(blobFile(sha))) return fs.statSync(blobFile(sha)).size;
+        const part = partialFile(sha);
+        const held = fs.existsSync(part) ? fs.statSync(part).size : 0;
+        if (offset !== held) throw new EvidenceError('offset-mismatch', `the server holds ${held} bytes, not ${offset}`, held);
+        if (held + data.length > total) throw new EvidenceError('overflow', 'the upload is longer than its declared length');
+        fs.mkdirSync(partialDir, { recursive: true });
+        if (held === 0) fs.writeFileSync(metaFile(sha), JSON.stringify({ total }));
+        fs.appendFileSync(part, data);
+        return held + data.length;
+      });
+    },
+    async finalizeBlob(sha) {
+      checked(sha);
+      return serially(`blob:${root}:${sha}`, async () => {
+        if (fs.existsSync(blobFile(sha))) return { ok: true, size: fs.statSync(blobFile(sha)).size };
+        const part = partialFile(sha);
+        if (!fs.existsSync(part)) throw new EvidenceError('not-found', 'no upload in progress');
+        const hash = createHash('sha256');
+        let size = 0;
+        for await (const chunk of fs.createReadStream(part)) {
+          hash.update(chunk as Buffer);
+          size += (chunk as Buffer).length;
+        }
+        const meta = readJson<{ total?: number }>(metaFile(sha), {});
+        const ok = hash.digest('hex') === sha && (meta.total === undefined || meta.total === size);
+        if (!ok) {
+          fs.rmSync(part, { force: true });
+          fs.rmSync(metaFile(sha), { force: true });
+          return { ok: false, size };
+        }
+        fs.mkdirSync(path.dirname(blobFile(sha)), { recursive: true });
+        fs.renameSync(part, blobFile(sha));
+        fs.rmSync(metaFile(sha), { force: true });
+        return { ok: true, size };
+      });
+    },
+    async *readBlob(sha, range) {
+      checked(sha);
+      const file = blobFile(sha);
+      if (!fs.existsSync(file)) throw new EvidenceError('not-found', 'no such blob');
+      if (range && range.end < range.start) return;
+      for await (const chunk of fs.createReadStream(file, range ? { start: range.start, end: range.end } : {})) yield chunk as Buffer;
+    },
+    async gc(keepRuns, now = Date.now()) {
+      return serially(runDir, async () => {
+        const runs = allRuns().map((r) => r.record);
+        const { keep, drop } = gcPlan(runs, keepRuns, now);
+        for (const r of drop) fs.rmSync(runFile(r.runId), { force: true });
+        const referenced = new Set<string>();
+        for (const r of keep) {
+          const run = stored(runFile(r.runId));
+          if (run) for (const sha of manifestBlobs(run.manifest)) referenced.add(sha);
+        }
+        let blobs = 0;
+        if (fs.existsSync(blobDir)) {
+          for (const dir of fs.readdirSync(blobDir)) {
+            if (!/^[0-9a-f]{2}$/.test(dir)) continue;
+            for (const name of fs.readdirSync(path.join(blobDir, dir))) {
+              if (SHA256.test(name) && !referenced.has(name)) {
+                fs.rmSync(path.join(blobDir, dir, name), { force: true });
+                blobs += 1;
+              }
+            }
+          }
+        }
+        if (fs.existsSync(partialDir)) {
+          for (const name of fs.readdirSync(partialDir)) {
+            const file = path.join(partialDir, name);
+            if (now - fs.statSync(file).mtimeMs > 24 * 60 * 60 * 1000) {
+              fs.rmSync(file, { force: true });
+              if (SHA256.test(name)) blobs += 1;
+            }
+          }
+        }
+        return { runs: drop.map((r) => r.runId), blobs };
+      });
+    },
+    async bytesUsed() {
+      let total = 0;
+      if (!fs.existsSync(blobDir)) return 0;
+      for (const dir of fs.readdirSync(blobDir)) {
+        if (!/^[0-9a-f]{2}$/.test(dir)) continue;
+        const d = path.join(blobDir, dir);
+        for (const name of fs.readdirSync(d)) total += fs.statSync(path.join(d, name)).size;
+      }
+      if (fs.existsSync(partialDir)) for (const name of fs.readdirSync(partialDir)) if (SHA256.test(name)) total += fs.statSync(path.join(partialDir, name)).size;
+      return total;
+    },
+  };
+  return store;
+}
+
 export function fileBackend(dir: string): Backend {
   const projectDir = (project: string): string => path.join(dir, 'projects', safeProject(project));
   const snapshotDir = (project: string): string => path.join(projectDir(project), 'snapshots');
@@ -72,6 +231,7 @@ export function fileBackend(dir: string): Backend {
         createdAt: snapshot.createdAt,
         origin: snapshot.origin,
         bytes: Buffer.byteLength(text),
+        digest: snapshotDigest(snapshot),
       };
       const d = snapshotDir(snapshot.project);
       await writeFile(path.join(d, `${id}.json`), text);
@@ -84,7 +244,9 @@ export function fileBackend(dir: string): Backend {
       const onDefault = all.filter((r) => r.branch && DEFAULT_BRANCHES.includes(r.branch));
       const record = (onDefault.length > 0 ? onDefault : all).at(-1)!;
       const snapshot = readJson<Snapshot | null>(path.join(snapshotDir(project), `${record.id}.json`), null);
-      return snapshot ? { record, snapshot } : undefined;
+      if (!snapshot) return undefined;
+      // Snapshots stored before digests existed get theirs on demand.
+      return { record: record.digest ? record : { ...record, digest: snapshotDigest(snapshot) }, snapshot };
     },
     async projects() {
       const root = path.join(dir, 'projects');
@@ -173,6 +335,7 @@ export function fileBackend(dir: string): Backend {
       async create(name) { await writeFile(path.join(dir, 'project-directory', safeProject(name) + '.json'), JSON.stringify({ name })); },
     },
     snapshots,
+    evidence: (project) => fileEvidence(projectDir(project)),
     plans: (project) => filePlanStore(path.join(projectDir(project), 'plans')),
     cache: (project) => fileContentCache(projectDir(project)),
     tokens,

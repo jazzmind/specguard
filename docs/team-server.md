@@ -49,6 +49,11 @@ All settings come from environment variables; flags override them.
 | `SPECGUARD_ALLOWED_DOMAIN` | Accept the sign-in header only for this email domain. |
 | `SPECGUARD_TRUSTED_PROXIES` | Addresses, IPv4 CIDR ranges or host names (comma separated; a name such as the proxy container's is re-resolved every 30 seconds, so it survives the proxy restarting with a new address) the sign-in header is accepted from, normally the sign-in proxy. Without it the header is accepted from anywhere, so it signs in a read-only viewer whoever it names, and `SPECGUARD_MAINTAINER_EMAILS` has no effect (changes from a browser, and plan status buttons in the UI, need it; tokens work either way). |
 | `SPECGUARD_RATE_LIMIT_PER_MIN` / `_DOCS_PER_MIN` / `_ANON_PER_MIN` | Requests a minute per signed-in caller (default 600), to document routes, which can start a model call (30), and per connecting address with no credential (60). Over the limit: `429` with `Retry-After`. |
+| `SPECGUARD_RATE_LIMIT_UPLOAD_PER_MIN` | Requests a minute per caller to the evidence blob routes (default 3000). They count in this bucket and not in the general one, because one run is hundreds of chunk requests. |
+| `SPECGUARD_KEEP_RUNS` | Test runs kept per project (default 5). Older runs, and blobs no kept run refers to, are deleted. |
+| `SPECGUARD_MAX_EVIDENCE_FILE_MB` / `_RUN_MB` | Largest single evidence file (default 100) and largest evidence total of one run (default 1024). |
+| `SPECGUARD_EVIDENCE_MAX_GB` | Evidence the server holds in total, across projects (default 20). A run that does not fit is refused with `507`. |
+| `SPECGUARD_UPLOAD_CHUNK_KB` | Largest body of one blob upload (default 768). Keep it under the body limit of any proxy in front of the server (about 1 MB is common). |
 | `SPECGUARD_EMAIL_HEADER` | Header that carries the signed-in user (default `x-deploykit-email`). |
 | `SPECGUARD_MAINTAINER_EMAILS` | People who may change plans when signed in through a browser. Honoured only for requests that come from `SPECGUARD_TRUSTED_PROXIES`. |
 | `SPECGUARD_LLM_PROVIDER` / `_MODEL` / `_BASE_URL` | The model that writes documents (default `litellm`, `fast`). The key is read from `LITELLM_API_KEY`. |
@@ -66,6 +71,47 @@ All settings come from environment variables; flags override them.
 The sandbox's sign-in passes the user's email in a header. Other containers on the same network could forge that header,
 so it is trusted only for reading and for minting a person's own tokens. Anything that changes shared state, and
 everything administrative, needs a token.
+
+## Test runs and evidence
+
+`specguard publish --push --evidence` sends a recorded test run: the report data and, optionally, its screenshots, video and
+traces. The server renders the report itself, so a team sees the same page the command line writes, without a checkout.
+Publishing evidence is opt-in: test titles, file paths, attachment names and what a screenshot shows (the secret redactor
+cannot see inside images) reach the server.
+
+- The web UI has a **Test report** view that lists a project's runs (pass/fail, size, newest first) and opens each report.
+  The projects page links each workspace to its rollup report.
+- Everything is under `/api/v1`, so the sign-in header and tokens apply. Reading needs any role; changing needs maintainer,
+  and a token limited to a project reaches only that project.
+- Evidence is kept **per project**: no blob is shared between projects, so a project-scoped token cannot learn what another
+  project holds. Blobs are named by their sha256 and verified when the last chunk arrives; bytes that do not hash to their
+  name are discarded (`422`).
+- Retention: after each commit the server keeps the newest `SPECGUARD_KEEP_RUNS` complete runs of the project, deletes the
+  blobs no kept run refers to, and deletes partial uploads and unfinished runs older than a day. `DELETE
+  /api/v1/projects/<p>/runs/<id>` removes one run. The audit trail records `run.publish`, `run.prune` and `run.delete`.
+- Storage: a file server keeps runs and blobs under `SPECGUARD_DATA_DIR/projects/<p>/{runs,blobs}`. A Postgres server
+  keeps them in `sg_runs`, `sg_blobs` and `sg_blob_chunks` (chunked `bytea`), so a database-only deployment needs no volume.
+  The database's own size quota is not known to SpecGuard: set `SPECGUARD_EVIDENCE_MAX_GB` below it. `GET /api/v1/health`
+  lists the `features` (`publish-state`, `evidence`) and `limits` the server enforces, so clients can check before they send.
+
+### Routes
+
+| Route | Role | Notes |
+|---|---|---|
+| `GET /projects/<p>/publish-state` | viewer | The caller, the newest snapshot with its digest (computed by the server), the runs, the limits and features. |
+| `POST /projects/<p>/runs` | maintainer | Body: a `specguard-run/1` manifest (gzip allowed). Answers `{runId, status, missing[], chunkBytes}`. `400` invalid; `413` `file-too-large` (with the files) or `run-too-large`; `507` `storage-full`. Offering the same run again is harmless. |
+| `HEAD /projects/<p>/blobs/<sha256>` | viewer | `200` complete, `204` with `Upload-Offset` when partial, `404` absent. |
+| `PUT /projects/<p>/blobs/<sha256>` | maintainer | `application/octet-stream` with `Upload-Offset` and `Upload-Length`; body at most `chunkBytes`. `204` and the new `Upload-Offset` for a chunk, `201` when complete and verified, `409` `offset-mismatch` (with `expectedOffset`) or `not-requested`, `422` `hash-mismatch`, `413`. |
+| `POST /projects/<p>/runs/<id>/commit` | maintainer | `200 {runId, status, files, bytes, pruned}`; `409` `incomplete` with the missing hashes. |
+| `GET /projects/<p>/runs`, `GET /projects/<p>/runs/<id\|latest>` | viewer | The run list, and a run's manifest. `latest` is the newest complete run. |
+| `GET /projects/<p>/runs/<id\|latest>/report/index.html`, `.../report/report.json` | viewer | The report, rendered on the server from the stored data. |
+| `GET /projects/<p>/runs/<id\|latest>/report/evidence/<path>` | viewer | One evidence file, by the path in the manifest. Supports `Range`. |
+| `GET /workspaces/<w>/report/index.html`, `.../report/workspace-report.json`, `.../report/repos/<key>/index.html`, `.../report/repos/<key>/evidence/<path>` | viewer | The workspace rollup from each member project's newest complete run. |
+
+Evidence responses are inert: images (png, jpeg, gif, webp) and video (webm, mp4) show in place, everything else (traces,
+SVG, HTML) downloads as an attachment; every one carries `X-Content-Type-Options: nosniff`, `Content-Security-Policy:
+sandbox` and private caching with the sha256 as ETag. A path is looked up in the manifest and is never joined to a
+filesystem path, so a path that climbs or is not listed is a `404`.
 
 ## Tokens
 

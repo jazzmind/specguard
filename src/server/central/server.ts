@@ -19,6 +19,8 @@ import { handleMcp } from './mcp.js';
 import type { Backend } from './backend.js';
 import { DEFAULT_RATE_LIMITS, RateLimiter, type RateLimitConfig } from './rate-limit.js';
 import { centralRegistry, type CentralRegistry } from './registry.js';
+import { evidenceSettingsFromEnv, type EvidenceSettings } from './config.js';
+import { createEvidenceRoutes } from './evidence-routes.js';
 
 export interface CentralServerOptions {
   backend: Backend;
@@ -34,6 +36,8 @@ export interface CentralServerOptions {
   maxBodyBytes?: number;
   /** Per-minute request limits. Default: `DEFAULT_RATE_LIMITS`. */
   rateLimit?: RateLimitConfig;
+  /** What the server accepts as test evidence. Default: from the environment (`SPECGUARD_KEEP_RUNS` and the other evidence limits). */
+  evidence?: Partial<EvidenceSettings>;
   /** Called with the registry once it exists, for things that publish into it (the artifact puller). */
   onRegistry?: (registry: CentralRegistry) => void;
 }
@@ -102,8 +106,11 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
   const basePath = (opts.basePath ?? '').replace(/\/+$/, '');
   const authConfig: AuthConfig = { ...opts.auth, backend: opts.backend };
   const registry = centralRegistry({ backend: opts.backend, llm: opts.llm, workDir: opts.workDir });
+  const evidenceSettings: EvidenceSettings = { ...evidenceSettingsFromEnv(process.env), ...opts.evidence };
+  const evidenceRoutes = createEvidenceRoutes({ backend: opts.backend, settings: evidenceSettings });
   const api = new Api(registry, {
     basePath,
+    healthExtra: () => ({ features: evidenceRoutes.features, limits: evidenceRoutes.limits() }),
     onAudit: (e) => void opts.backend.audit({ at: new Date().toISOString(), ...e }).catch(() => undefined),
     onUsage: (usage, project) => void opts.backend.usage({ at: new Date().toISOString(), ...(usage.user ? { user: usage.user } : {}), project, pipeline: usage.pipeline, model: usage.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedUsd: usage.estimatedUsd }).catch(() => undefined),
   });
@@ -145,11 +152,20 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
 
       const isApi = pathname.startsWith('/api/v1');
       const normalized = pathname.replace(/\/+$/, '') || '/';
+      let routeParts: string[] | undefined;
+      if (isApi) {
+        try {
+          routeParts = normalized.slice('/api/v1'.length).split('/').filter(Boolean).map((seg) => decodeURIComponent(seg));
+        } catch {
+          routeParts = undefined;
+        }
+      }
+      const evidenceRoute = routeParts ? evidenceRoutes.match(method, routeParts) : undefined;
       const auth = isApi && !PUBLIC.has(normalized) ? await authenticate(headers, authConfig, req.socket.remoteAddress) : { identity: undefined };
       if (isApi && !PUBLIC.has(normalized)) {
         // Every API request is counted against its caller, a credential-less one against the connecting address.
         const caller = auth.identity?.user ?? req.socket.remoteAddress ?? 'unknown';
-        const wait = limiter.hit(caller, { anonymous: !auth.identity, docs: /\/docs(\/|$)/.test(normalized) });
+        const wait = limiter.hit(caller, { anonymous: !auth.identity, docs: /\/docs(\/|$)/.test(normalized), upload: routeParts ? evidenceRoutes.isUpload(method, routeParts) : false });
         if (wait !== undefined) return sendJson(429, { error: `too many requests: try again in ${wait}s` }, { 'Retry-After': String(wait) });
         // An attempt to change something without a valid credential is worth a line in the trail; a refused read is not.
         const refusedWrite = (why: string): void => {
@@ -183,6 +199,9 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
         return await handleMcp(req, res, undefined, api, mcpAuth.identity);
       }
 
+      // A blob upload is binary: the route reads the stream itself, in chunks it bounds.
+      if (evidenceRoute?.stream && routeParts && auth.identity) return await evidenceRoutes.handle({ req, res, method, parts: routeParts, identity: auth.identity });
+
       let body: string | undefined;
       if (!reading) {
         const read = await readBody(req, opts.maxBodyBytes ?? BODY_LIMIT);
@@ -192,6 +211,8 @@ export function createCentralListener(opts: CentralServerOptions): { listener: h
         }
         body = read.body;
       }
+
+      if (evidenceRoute && routeParts && auth.identity) return await evidenceRoutes.handle({ req, res, method, parts: routeParts, identity: auth.identity, body });
 
       if (isApi) {
         const parts = normalized.slice('/api/v1'.length).split('/').filter(Boolean).map((s) => decodeURIComponent(s));

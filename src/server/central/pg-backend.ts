@@ -7,14 +7,16 @@
  *
  * Spec: specs/capabilities/team-server.md
  */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 import type { CacheEntry, ContentCache } from '../../core/state/content-cache.js';
 import type { PlanStore } from '../../core/state/plan-store.js';
 import { planStem } from '../../core/state/plan-store.js';
 import { RemediationPlanSchema, type RemediationPlan } from '../../core/remediation-schema.js';
-import type { Snapshot } from '../../core/snapshot.js';
-import { PROJECT_NAME, WORKSPACE_NAME, type AuditEntry, type Backend, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow, type WorkspaceDef, type WorkspaceStore } from './backend.js';
+import { serially } from '../../core/state/lock.js';
+import { snapshotDigest, type Snapshot } from '../../core/snapshot.js';
+import type { RunManifest, SnapshotDigest } from '../../core/publish-contract.js';
+import { PROJECT_NAME, WORKSPACE_NAME, EvidenceError, gcPlan, manifestBlobs, newestFirst, runListingOf, PARTIAL_MAX_AGE_MS, type AuditEntry, type Backend, type EvidenceStore, type RunListing, type StoredRun, type SnapshotRecord, type SnapshotStore, type TokenRecord, type TokenStore, type UsageRow, type WorkspaceDef, type WorkspaceStore } from './backend.js';
 
 /** The part of a Postgres pool this backend uses. `pg.Pool` satisfies it; so does a pg-mem adapter. */
 export interface Db {
@@ -49,6 +51,19 @@ const MIGRATIONS: string[] = [
   `CREATE TABLE IF NOT EXISTS sg_usage (
      seq SERIAL PRIMARY KEY, at text NOT NULL, usr text, project text, pipeline text NOT NULL, model text NOT NULL,
      input_tokens integer NOT NULL, output_tokens integer NOT NULL, estimated_usd double precision NOT NULL)`,
+  // Snapshots stored before digests existed have none; the server computes it on demand.
+  `ALTER TABLE sg_snapshots ADD COLUMN IF NOT EXISTS digest text`,
+  // Test evidence. Blobs are chunked rows (bytea) so a database-only deployment needs no volume.
+  `CREATE TABLE IF NOT EXISTS sg_runs (
+     project text NOT NULL, run_id text NOT NULL, digest text NOT NULL, status text NOT NULL, ingested_at text NOT NULL,
+     bytes bigint NOT NULL, created_at text NOT NULL, record text NOT NULL, manifest text NOT NULL,
+     PRIMARY KEY (project, run_id))`,
+  `CREATE TABLE IF NOT EXISTS sg_blobs (
+     project text NOT NULL, sha256 text NOT NULL, size bigint NOT NULL, received bigint NOT NULL, complete boolean NOT NULL,
+     created_at text NOT NULL, PRIMARY KEY (project, sha256))`,
+  `CREATE TABLE IF NOT EXISTS sg_blob_chunks (
+     project text NOT NULL, sha256 text NOT NULL, seq integer NOT NULL, len integer NOT NULL, data bytea NOT NULL,
+     PRIMARY KEY (project, sha256, seq))`,
 ];
 
 export async function migrate(db: Db): Promise<void> {
@@ -63,6 +78,16 @@ interface SnapshotRow {
   created_at: string;
   origin: SnapshotRecord['origin'];
   bytes: number;
+  digest?: string | null;
+}
+
+function parseDigest(text: string | null | undefined): SnapshotDigest | undefined {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text) as SnapshotDigest;
+  } catch {
+    return undefined;
+  }
 }
 
 const recordOf = (r: SnapshotRow): SnapshotRecord => ({
@@ -73,9 +98,10 @@ const recordOf = (r: SnapshotRow): SnapshotRecord => ({
   createdAt: r.created_at,
   origin: r.origin,
   bytes: Number(r.bytes),
+  ...(parseDigest(r.digest) ? { digest: parseDigest(r.digest) } : {}),
 });
 
-const RECORD_COLUMNS = 'id, project, branch, commit_sha, created_at, origin, bytes';
+const RECORD_COLUMNS = 'id, project, branch, commit_sha, created_at, origin, bytes, digest';
 
 function snapshotStore(db: Db): SnapshotStore {
   const records = async (project: string): Promise<SnapshotRecord[]> =>
@@ -84,11 +110,12 @@ function snapshotStore(db: Db): SnapshotStore {
     async put(snapshot: Snapshot) {
       const body = JSON.stringify(snapshot);
       const id = `${snapshot.createdAt.replace(/[^0-9]/g, '').slice(0, 17)}-${randomBytes(3).toString('hex')}`;
+      const digest = snapshotDigest(snapshot);
       await db.query(
-        'INSERT INTO sg_snapshots (id, project, branch, commit_sha, created_at, origin, bytes, body) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [id, snapshot.project, snapshot.branch ?? null, snapshot.commit ?? null, snapshot.createdAt, snapshot.origin, Buffer.byteLength(body), body],
+        'INSERT INTO sg_snapshots (id, project, branch, commit_sha, created_at, origin, bytes, body, digest) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+        [id, snapshot.project, snapshot.branch ?? null, snapshot.commit ?? null, snapshot.createdAt, snapshot.origin, Buffer.byteLength(body), body, JSON.stringify(digest)],
       );
-      return { id, project: snapshot.project, ...(snapshot.branch ? { branch: snapshot.branch } : {}), ...(snapshot.commit ? { commit: snapshot.commit } : {}), createdAt: snapshot.createdAt, origin: snapshot.origin, bytes: Buffer.byteLength(body) };
+      return { id, project: snapshot.project, ...(snapshot.branch ? { branch: snapshot.branch } : {}), ...(snapshot.commit ? { commit: snapshot.commit } : {}), createdAt: snapshot.createdAt, origin: snapshot.origin, bytes: Buffer.byteLength(body), digest };
     },
     async latest(project) {
       const all = await records(project);
@@ -98,7 +125,9 @@ function snapshotStore(db: Db): SnapshotStore {
       const row = (await db.query<{ body: string }>('SELECT body FROM sg_snapshots WHERE id = $1', [record.id])).rows[0];
       if (!row) return undefined;
       try {
-        return { record, snapshot: JSON.parse(row.body) as Snapshot };
+        const snapshot = JSON.parse(row.body) as Snapshot;
+        // Snapshots stored before digests existed get theirs on demand.
+        return { record: record.digest ? record : { ...record, digest: snapshotDigest(snapshot) }, snapshot };
       } catch {
         return undefined;
       }
@@ -271,6 +300,163 @@ function tokenStore(db: Db): TokenStore {
   };
 }
 
+const SHA256 = /^[0-9a-f]{64}$/;
+
+/** The bytes in a buffer of their own: a view into a larger (or pooled) buffer must not drag its neighbours into the row. */
+function exact(data: Buffer): Buffer {
+  const own = Buffer.allocUnsafeSlow(data.length);
+  data.copy(own);
+  return own;
+}
+
+/** Evidence of one project in Postgres: runs as rows, blobs as chunked bytea rows. */
+function evidenceStore(db: Db, project: string): EvidenceStore {
+  const checked = (sha: string): string => {
+    if (!SHA256.test(sha)) throw new Error('invalid blob hash');
+    return sha;
+  };
+  const parse = (record: string, manifest: string): StoredRun | undefined => {
+    try {
+      return { record: JSON.parse(record) as RunListing, manifest: JSON.parse(manifest) as RunManifest };
+    } catch {
+      return undefined;
+    }
+  };
+  const blobRow = async (sha: string) =>
+    (await db.query<{ size: number | string; received: number | string; complete: boolean }>('SELECT size, received, complete FROM sg_blobs WHERE project = $1 AND sha256 = $2', [project, sha])).rows[0];
+  const dropBlob = async (sha: string): Promise<void> => {
+    await db.query('DELETE FROM sg_blob_chunks WHERE project = $1 AND sha256 = $2', [project, sha]);
+    await db.query('DELETE FROM sg_blobs WHERE project = $1 AND sha256 = $2', [project, sha]);
+  };
+  const chunkIndex = async (sha: string): Promise<Array<{ seq: number; len: number }>> =>
+    (await db.query<{ seq: number; len: number }>('SELECT seq, len FROM sg_blob_chunks WHERE project = $1 AND sha256 = $2 ORDER BY seq ASC', [project, sha])).rows.map((r) => ({ seq: Number(r.seq), len: Number(r.len) }));
+  const chunk = async (sha: string, seq: number): Promise<Buffer> => {
+    const row = (await db.query<{ data: Buffer | Uint8Array }>('SELECT data FROM sg_blob_chunks WHERE project = $1 AND sha256 = $2 AND seq = $3', [project, sha, seq])).rows[0];
+    if (!row) throw new EvidenceError('not-found', 'a chunk of the blob is missing');
+    return Buffer.from(row.data);
+  };
+  const listRuns = async (): Promise<RunListing[]> =>
+    (await db.query<{ record: string }>('SELECT record FROM sg_runs WHERE project = $1', [project])).rows
+      .map((r) => {
+        try {
+          return JSON.parse(r.record) as RunListing;
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((r): r is RunListing => Boolean(r))
+      .sort(newestFirst);
+
+  const store: EvidenceStore = {
+    async putRun(manifest, status) {
+      return serially(`runs:${project}`, async () => {
+        const before = (await db.query<{ digest: string; created_at: string }>('SELECT digest, created_at FROM sg_runs WHERE project = $1 AND run_id = $2', [project, manifest.runId])).rows[0];
+        const createdAt = before && before.digest === manifest.digest.total ? before.created_at : new Date().toISOString();
+        const record = runListingOf(manifest, status, createdAt);
+        await db.query(
+          `INSERT INTO sg_runs (project, run_id, digest, status, ingested_at, bytes, created_at, record, manifest) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           ON CONFLICT (project, run_id) DO UPDATE SET digest = EXCLUDED.digest, status = EXCLUDED.status, ingested_at = EXCLUDED.ingested_at,
+             bytes = EXCLUDED.bytes, created_at = EXCLUDED.created_at, record = EXCLUDED.record, manifest = EXCLUDED.manifest`,
+          [project, manifest.runId, manifest.digest.total, status, manifest.ingestedAt, record.bytes, createdAt, JSON.stringify(record), JSON.stringify(manifest)],
+        );
+        return record;
+      });
+    },
+    async getRun(id) {
+      const row = id === 'latest'
+        ? (await db.query<{ record: string; manifest: string }>("SELECT record, manifest FROM sg_runs WHERE project = $1 AND status = 'complete' ORDER BY ingested_at DESC, created_at DESC, run_id DESC LIMIT 1", [project])).rows[0]
+        : (await db.query<{ record: string; manifest: string }>('SELECT record, manifest FROM sg_runs WHERE project = $1 AND run_id = $2', [project, id])).rows[0];
+      return row ? parse(row.record, row.manifest) : undefined;
+    },
+    listRuns,
+    async deleteRun(id) {
+      return serially(`runs:${project}`, async () => {
+        const res = await db.query('DELETE FROM sg_runs WHERE project = $1 AND run_id = $2', [project, id]);
+        return (res.rowCount ?? 0) > 0;
+      });
+    },
+    async blobState(sha) {
+      const row = await blobRow(checked(sha));
+      return row ? { size: Number(row.size), received: Number(row.received), complete: Boolean(row.complete) } : undefined;
+    },
+    async appendChunk(sha, offset, total, data) {
+      checked(sha);
+      return serially(`blob:${project}:${sha}`, async () => {
+        const row = await blobRow(sha);
+        if (row?.complete) return Number(row.size);
+        const held = row ? Number(row.received) : 0;
+        if (offset !== held) throw new EvidenceError('offset-mismatch', `the server holds ${held} bytes, not ${offset}`, held);
+        if (held + data.length > total) throw new EvidenceError('overflow', 'the upload is longer than its declared length');
+        if (!row) await db.query('INSERT INTO sg_blobs (project, sha256, size, received, complete, created_at) VALUES ($1,$2,$3,0,false,$4)', [project, sha, total, new Date().toISOString()]);
+        const seq = Number((await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sg_blob_chunks WHERE project = $1 AND sha256 = $2', [project, sha])).rows[0].n);
+        await db.query('INSERT INTO sg_blob_chunks (project, sha256, seq, len, data) VALUES ($1,$2,$3,$4,$5)', [project, sha, seq, data.length, exact(data)]);
+        await db.query('UPDATE sg_blobs SET received = $1 WHERE project = $2 AND sha256 = $3', [held + data.length, project, sha]);
+        return held + data.length;
+      });
+    },
+    async finalizeBlob(sha) {
+      checked(sha);
+      return serially(`blob:${project}:${sha}`, async () => {
+        const row = await blobRow(sha);
+        if (!row) throw new EvidenceError('not-found', 'no upload in progress');
+        if (row.complete) return { ok: true, size: Number(row.size) };
+        const hash = createHash('sha256');
+        let size = 0;
+        for (const { seq } of await chunkIndex(sha)) {
+          const data = await chunk(sha, seq);
+          hash.update(data);
+          size += data.length;
+        }
+        if (hash.digest('hex') !== sha || size !== Number(row.size)) {
+          await dropBlob(sha);
+          return { ok: false, size };
+        }
+        await db.query('UPDATE sg_blobs SET complete = true, received = $1 WHERE project = $2 AND sha256 = $3', [size, project, sha]);
+        return { ok: true, size };
+      });
+    },
+    async *readBlob(sha, range) {
+      checked(sha);
+      const row = await blobRow(sha);
+      if (!row?.complete) throw new EvidenceError('not-found', 'no such blob');
+      let at = 0;
+      for (const { seq, len } of await chunkIndex(sha)) {
+        const from = at;
+        const to = at + len - 1;
+        at += len;
+        if (range && (to < range.start || from > range.end)) continue;
+        const data = await chunk(sha, seq);
+        yield range ? data.subarray(Math.max(0, range.start - from), Math.min(len, range.end - from + 1)) : data;
+        if (range && to >= range.end) return;
+      }
+    },
+    async gc(keepRuns, now = Date.now()) {
+      return serially(`runs:${project}`, async () => {
+        const { keep, drop } = gcPlan(await listRuns(), keepRuns, now);
+        for (const r of drop) await db.query('DELETE FROM sg_runs WHERE project = $1 AND run_id = $2', [project, r.runId]);
+        const referenced = new Set<string>();
+        for (const r of keep) {
+          const run = await store.getRun(r.runId);
+          if (run) for (const sha of manifestBlobs(run.manifest)) referenced.add(sha);
+        }
+        let blobs = 0;
+        const cutoff = new Date(now - PARTIAL_MAX_AGE_MS).toISOString();
+        for (const b of (await db.query<{ sha256: string; complete: boolean; created_at: string }>('SELECT sha256, complete, created_at FROM sg_blobs WHERE project = $1', [project])).rows) {
+          if (b.complete ? !referenced.has(b.sha256) : b.created_at < cutoff) {
+            await dropBlob(b.sha256);
+            blobs += 1;
+          }
+        }
+        return { runs: drop.map((r) => r.runId), blobs };
+      });
+    },
+    async bytesUsed() {
+      return Number((await db.query<{ n: number | string | null }>('SELECT COALESCE(SUM(received), 0) AS n FROM sg_blobs WHERE project = $1', [project])).rows[0]?.n ?? 0);
+    },
+  };
+  return store;
+}
+
 /** A backend over an open connection pool. Creates its tables on first use. */
 export async function pgBackend(db: Db): Promise<Backend> {
   await migrate(db);
@@ -285,6 +471,7 @@ export async function pgBackend(db: Db): Promise<Backend> {
     },
     snapshots: snapshotStore(db),
     plans: (project) => planStore(db, project),
+    evidence: (project) => evidenceStore(db, project),
     cache: (project) => contentCache(db, project),
     tokens: tokenStore(db),
     workspaces: workspaceStore(db),

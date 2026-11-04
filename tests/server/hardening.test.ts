@@ -176,9 +176,9 @@ describe('how often one caller may ask [rate-limit]', () => {
 
   // [claims: capabilities/team-server#server-rate-limits]
   it('reads limits from the environment and ignores nonsense', () => {
-    expect(rateLimitsFromEnv({})).toEqual({ perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60 });
-    expect(rateLimitsFromEnv({ SPECGUARD_RATE_LIMIT_PER_MIN: '10', SPECGUARD_RATE_LIMIT_DOCS_PER_MIN: '2', SPECGUARD_RATE_LIMIT_ANON_PER_MIN: '5' })).toEqual({ perMinute: 10, docsPerMinute: 2, anonymousPerMinute: 5 });
-    expect(rateLimitsFromEnv({ SPECGUARD_RATE_LIMIT_PER_MIN: '0', SPECGUARD_RATE_LIMIT_DOCS_PER_MIN: 'x' })).toEqual({ perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60 });
+    expect(rateLimitsFromEnv({})).toEqual({ perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60, uploadPerMinute: 3000 });
+    expect(rateLimitsFromEnv({ SPECGUARD_RATE_LIMIT_PER_MIN: '10', SPECGUARD_RATE_LIMIT_DOCS_PER_MIN: '2', SPECGUARD_RATE_LIMIT_ANON_PER_MIN: '5', SPECGUARD_RATE_LIMIT_UPLOAD_PER_MIN: '7' })).toEqual({ perMinute: 10, docsPerMinute: 2, anonymousPerMinute: 5, uploadPerMinute: 7 });
+    expect(rateLimitsFromEnv({ SPECGUARD_RATE_LIMIT_PER_MIN: '0', SPECGUARD_RATE_LIMIT_DOCS_PER_MIN: 'x' })).toEqual({ perMinute: 600, docsPerMinute: 30, anonymousPerMinute: 60, uploadPerMinute: 3000 });
   });
 
   // [claims: capabilities/team-server#server-rate-limits]

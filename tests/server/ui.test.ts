@@ -109,3 +109,54 @@ it('opens the empty project directory and token page without requesting capabili
     else expect([...elements.values()].some(e => e.innerHTML.includes('No projects yet'))).toBe(true);
   }
 });
+
+// [claims: capabilities/team-server#server-test-report]
+describe('web UI: test report [ui-runs]', () => {
+  it('has a Test report entry in the navigation', () => {
+    expect(UI_HTML).toContain('<a href="#/runs" id="t-runs">Test report</a>');
+    expect(renderUi('/team')).toContain('id="t-runs"');
+  });
+
+  async function open(hash: string, runs: unknown, status = 200) {
+    const elements = new Map<string, { innerHTML: string; className: string }>();
+    const el = (id: string) => { if (!elements.has(id)) elements.set(id, { innerHTML: '', className: '' }); return elements.get(id)!; };
+    const calls: string[] = [];
+    const ctx = {
+      document: { getElementById: el, querySelector: () => ({ getAttribute: () => '/team' }) },
+      location: { hash, search: '?project=beta' }, URLSearchParams, window: {}, encodeURIComponent, decodeURIComponent, Array,
+      fetch: async (url: string) => {
+        calls.push(url);
+        if (url.endsWith('/runs')) return { ok: status === 200, status, json: async () => runs };
+        return { ok: true, status: 200, json: async () => (url.endsWith('/projects') ? { projects: [{ name: 'beta' }], default: null } : { capabilities: [] }) };
+      },
+    };
+    vm.runInNewContext(renderUi('/team').match(/<script>([\s\S]*)<\/script>/)![1], ctx);
+    await new Promise((r) => setTimeout(r, 30));
+    return { main: el('main').innerHTML, calls, nav: el('t-runs').className };
+  }
+
+  it('lists the published runs newest first and links each to its report page [runs-list]', async () => {
+    const runs = [
+      { runId: 'run-2', label: 'nightly', ingestedAt: '2026-11-02T10:00:00Z', status: 'complete', files: 3, bytes: 5 * 1024 * 1024, createdAt: 'x', tests: { total: 10, pass: 8, fail: 2, skip: 0 } },
+      { runId: 'run <b>1</b>', ingestedAt: '2026-11-01T10:00:00Z', status: 'complete', files: 0, bytes: 0, createdAt: 'x', tests: { total: 4, pass: 4, fail: 0, skip: 0 } },
+      { runId: 'run-0', ingestedAt: '2026-10-31T10:00:00Z', status: 'pending', files: 1, bytes: 10, createdAt: 'x' },
+    ];
+    const { main, calls, nav } = await open('#/runs', runs);
+    expect(calls).toContain('/team/api/v1/projects/beta/runs');
+    expect(nav).toBe('on');
+    expect(main).toContain('href="/team/api/v1/projects/beta/runs/run-2/report/index.html"');
+    expect(main).toContain('href="/team/api/v1/projects/beta/runs/latest/report/index.html"');
+    expect(main).toContain('2 failing');
+    expect(main).toContain('5.0 MB');
+    expect(main.indexOf('run-2')).toBeLessThan(main.indexOf('run-0'));
+    // A run id is text, never markup; a run still uploading has no link.
+    expect(main).not.toContain('<b>1</b>');
+    expect(main).toContain('run%20%3Cb%3E1%3C%2Fb%3E');
+    expect(main).not.toContain('runs/run-0/report');
+  });
+
+  it('says so when there are no runs, and when the server cannot list them [runs-empty]', async () => {
+    expect((await open('#/runs', [])).main).toContain('No test run has been published yet');
+    expect((await open('#/runs', { error: 'no route' }, 404)).main).toContain('specguard publish --push --evidence');
+  });
+});
