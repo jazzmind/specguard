@@ -238,12 +238,31 @@ export async function workspaceSyncCommand(opts: WorkspacePointerOpts & { from?:
   }
 }
 
-export async function workspacePublishCommand(opts: WorkspacePointerOpts & { name?: string; server?: string; token?: string; json?: boolean }): Promise<void> {
+export async function workspacePublishCommand(
+  opts: WorkspacePointerOpts & { name?: string; server?: string; token?: string; json?: boolean; check?: boolean; repos?: boolean; only?: string; evidence?: boolean | string; maxEvidenceMb?: string | number; skipOversized?: boolean; progressJson?: boolean },
+): Promise<void> {
   const { runWorkspacePublish } = await import('../../pipelines/workspace-publish.js');
+  const { evidenceMode, megabytes } = await import('./publish.js');
   const { outputResult } = await import('./helpers.js');
   const root = manifestRootOrExit(opts);
   try {
-    outputResult(await runWorkspacePublish(root, root, { name: opts.name, server: opts.server, token: opts.token }), opts);
+    const only = opts.only?.split(',').map((k) => k.trim()).filter(Boolean);
+    outputResult(
+      await runWorkspacePublish(root, root, {
+        name: opts.name,
+        server: opts.server,
+        token: opts.token,
+        check: opts.check,
+        // Evidence implies publishing the repos: it is a repo-level action.
+        repos: opts.repos || Boolean(opts.evidence),
+        ...(only && only.length > 0 ? { only } : {}),
+        evidence: evidenceMode(opts.evidence),
+        maxEvidenceMb: megabytes(opts.maxEvidenceMb),
+        skipOversized: opts.skipOversized,
+        progressJson: opts.progressJson,
+      }),
+      opts,
+    );
   } catch (err) {
     process.stderr.write(`[workspace] ${(err as Error).message}\n`);
     process.exit(1);

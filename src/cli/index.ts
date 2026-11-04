@@ -578,7 +578,13 @@ program
   .option('--push', 'also send it to the project\'s team server (server.url in config, or SPECGUARD_SERVER)')
   .option('--server <url>', 'push to this server (implies --push)')
   .option('--token <token>', 'token for the push (default: SPECGUARD_TOKEN or a saved login)')
-  .action(async (opts: { out?: string; project?: string; push?: boolean; server?: string; token?: string }, cmd: Command) => {
+  .option('--check', 'compare with the server and report whether a publish is needed; sends nothing (exit 9 when it is, with --json the answer is in "publish")')
+  .option('--evidence [mode]', 'with --push: also publish the newest test run; "all" (default) with its evidence files, "summary" with the report only')
+  .option('--run <id>', 'the run to publish as evidence (default: the newest)')
+  .option('--max-evidence-mb <n>', 'refuse, before uploading, when more than this many MB of evidence remain to be sent')
+  .option('--skip-oversized', 'leave evidence files over the server\'s per-file cap out instead of failing')
+  .option('--progress-json', 'print progress as NDJSON lines on stderr')
+  .action(async (opts: { out?: string; project?: string; push?: boolean; server?: string; token?: string; check?: boolean; evidence?: boolean | string; run?: string; maxEvidenceMb?: string; skipOversized?: boolean; progressJson?: boolean }, cmd: Command) => {
     await publishCommand(withGlobals(cmd, opts));
   });
 
@@ -1038,8 +1044,15 @@ workspaceCmd
   .option('--server <url>', 'team server (default: SPECGUARD_SERVER, else server.url in a repo config)')
   .option('--token <token>', 'token for the server (default: SPECGUARD_TOKEN or a saved login)')
   .option('--workspace <path>', 'which manifest (a workspace.json, its folder or a .code-workspace file)')
+  .option('--check', 'compare the definition and every repo with the server and report what needs publishing; sends nothing (exit 9 when something does)')
+  .option('--repos', 'also publish every repo\'s snapshot')
+  .option('--only <keys>', 'with --repos or --check: only these repo keys (comma-separated)')
+  .option('--evidence [mode]', 'with --repos: also publish each repo\'s newest test run ("all" with files, or "summary")')
+  .option('--max-evidence-mb <n>', 'refuse a repo\'s evidence upload when more than this many MB remain to be sent')
+  .option('--skip-oversized', 'leave evidence files over the server\'s per-file cap out instead of failing')
+  .option('--progress-json', 'print progress as NDJSON lines on stderr')
   .option('--json', 'machine-readable output')
-  .action(async (opts: { name?: string; server?: string; token?: string; workspace?: string; json?: boolean }) => {
+  .action(async (opts: { name?: string; server?: string; token?: string; workspace?: string; json?: boolean; check?: boolean; repos?: boolean; only?: string; evidence?: boolean | string; maxEvidenceMb?: string; skipOversized?: boolean; progressJson?: boolean }) => {
     await workspacePublishCommand(withRootJson(opts));
   });
 

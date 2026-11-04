@@ -29,6 +29,8 @@ export interface ServerHealth {
   engineVersion: string;
   hashVersion: number;
   writable: boolean;
+  /** Feature names a newer server lists (`publish-state`, `evidence`). */
+  features?: string[];
 }
 
 export class ServerUnavailableError extends SpecGuardError {
@@ -43,6 +45,8 @@ export class ServerRequestError extends Error {
     readonly status: number,
     message: string,
     readonly code?: string,
+    /** The parsed error body, for details such as `expectedOffset` or the list of oversized files. */
+    readonly body?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ServerRequestError';
@@ -108,9 +112,49 @@ export class SpecGuardClient {
     }
     if (!res.ok) {
       const body = (parsed ?? {}) as { error?: string; code?: string };
-      throw new ServerRequestError(res.status, body.error ?? `the server answered ${res.status}`, body.code);
+      throw new ServerRequestError(res.status, body.error ?? `the server answered ${res.status}`, body.code, body as Record<string, unknown>);
     }
     return parsed as T;
+  }
+
+  /** `HEAD` a URL. A 404 is an answer, not an error; only a network failure throws. */
+  async head(url: string, init: { timeoutMs?: number } = {}): Promise<{ status: number; headers: Headers }> {
+    const res = await this.fetchImpl(url, {
+      method: 'HEAD',
+      headers: { ...(this.target.token ? { Authorization: `Bearer ${this.target.token}` } : {}) },
+      signal: AbortSignal.timeout(init.timeoutMs ?? Math.max(this.target.timeoutMs, 10_000)),
+    });
+    return { status: res.status, headers: res.headers };
+  }
+
+  /**
+   * `PUT` raw bytes (one chunk of an evidence blob). 2xx answers return the status and headers; other statuses throw a
+   * {@link ServerRequestError} carrying the parsed body (`code`, `expectedOffset`, ...).
+   */
+  async putBinary(url: string, body: Uint8Array, init: { headers?: Record<string, string>; timeoutMs?: number } = {}): Promise<{ status: number; headers: Headers }> {
+    const res = await this.fetchImpl(url, {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/octet-stream',
+        'X-Requested-With': 'specguard',
+        ...(this.target.token ? { Authorization: `Bearer ${this.target.token}` } : {}),
+        ...init.headers,
+      },
+      body: body as unknown as RequestInit['body'],
+      signal: AbortSignal.timeout(init.timeoutMs ?? Math.max(this.target.timeoutMs, 60_000)),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      let parsed: Record<string, unknown> = {};
+      try {
+        parsed = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        /* not JSON */
+      }
+      throw new ServerRequestError(res.status, typeof parsed.error === 'string' ? parsed.error : `the server answered ${res.status}`, typeof parsed.code === 'string' ? parsed.code : undefined, parsed);
+    }
+    return { status: res.status, headers: res.headers };
   }
 
   get<T>(suffix: string): Promise<T> {
