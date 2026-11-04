@@ -346,6 +346,7 @@ export async function runResultsIngest(
     title: row.title,
     file: row.file,
     claims: row.claims,
+    ...(row.partialClaims && row.partialClaims.length > 0 ? { partialClaims: row.partialClaims } : {}),
     status: row.status,
     durationMs: row.durationMs,
     layer: layerOf.get(row),

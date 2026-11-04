@@ -116,6 +116,8 @@ export interface RunIndexTest {
   title: string;
   file: string;
   claims: string[];
+  /** Claims this test is only partial evidence for; not part of any verdict. */
+  partialClaims?: string[];
   status: TestStatus;
   durationMs: number;
   layer?: string;

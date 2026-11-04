@@ -29,6 +29,8 @@ export interface TestCaseResult {
   durationMs: number;
   tags: string[];
   claims: string[];
+  /** Claims this test gives PARTIAL evidence for (annotation/property `partial-claim`). Shown with its verdict and media in the report, never counted as proof. */
+  partialClaims?: string[];
   externalIds: string[];
   /** Failure message when status is fail. Not part of the identity of a test. */
   message?: string;
@@ -73,6 +75,7 @@ function finish(raw: RawTest): TestCaseResult {
   for (const match of text.matchAll(AT_TAG)) tags.add(match[1].replace(/[.,;]+$/, ''));
 
   const claimSources = [text, ...[...tags]];
+  const partialSources: string[] = [];
   const externalIds = new Set<string>();
   for (const source of [text, ...tags]) {
     for (const match of source.matchAll(EXT_TAG)) externalIds.add(match[1]);
@@ -82,17 +85,22 @@ function finish(raw: RawTest): TestCaseResult {
     const value = (note.description ?? '').trim();
     if (!value) continue;
     if (type === 'claim' || type === 'specguard-claim') claimSources.push(`@claim:${value}`);
+    else if (type === 'partial-claim') partialSources.push(`@claim:${value}`);
     else if (['externalid', 'external-id', 'zephyr', 'jira', 'testcase', 'issue'].includes(type)) externalIds.add(value);
     else if (type === 'tag') tags.add(value.startsWith('@') ? value : `@${value}`);
   }
   for (const prop of raw.properties ?? []) {
     const name = prop.name.toLowerCase();
     if (name === 'claim' || name === 'specguard-claim') claimSources.push(`@claim:${prop.value}`);
+    else if (name === 'partial-claim') partialSources.push(`@claim:${prop.value}`);
     else if (name === 'externalid' || name === 'external-id') externalIds.add(prop.value);
     else if (name === 'tag') tags.add(prop.value.startsWith('@') ? prop.value : `@${prop.value}`);
   }
   const claims = new Set<string>();
   for (const source of claimSources) for (const ref of extractClaimRefs(source)) claims.add(ref);
+  // A claim a test proves outright is never also listed as partial.
+  const partialClaims = new Set<string>();
+  for (const source of partialSources) for (const ref of extractClaimRefs(source)) if (!claims.has(ref)) partialClaims.add(ref);
   return {
     file: raw.file,
     title: raw.title,
@@ -101,6 +109,7 @@ function finish(raw: RawTest): TestCaseResult {
     durationMs: Math.max(0, Math.round(raw.durationMs || 0)),
     tags: [...tags],
     claims: [...claims],
+    ...(partialClaims.size > 0 ? { partialClaims: [...partialClaims] } : {}),
     externalIds: [...externalIds],
     ...(raw.status === 'fail' && raw.message ? { message: raw.message } : {}),
     ...(raw.attachments && raw.attachments.length > 0 ? { attachments: dedupeAttachments(raw.attachments) } : {}),

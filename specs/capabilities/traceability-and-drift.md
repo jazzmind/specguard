@@ -57,6 +57,7 @@ history:
   - 2026-10-26-check-leads-with-the-proof-statement-exi
   - 2026-10-27-check-traces-record-the-engine-version-u
   - 2026-11-04-add-test-evidence-attachments-content-ad
+  - 2026-11-04-partial-claim-evidence
 ---
 
 # Traceability and Drift

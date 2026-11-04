@@ -254,6 +254,43 @@ describe('report', () => {
     expect(existsSync(path.join(out, 'evidence', 'head'))).toBe(true);
   });
 
+  // [claims: capabilities/conformance-testing#partial-claim-evidence]
+  it('parses partial-claim annotations/properties without making them proof', () => {
+    const pw = JSON.stringify({
+      suites: [{ title: 'a.spec.ts', file: 'a.spec.ts', specs: [{ title: 'flow', file: 'a.spec.ts', tests: [{ projectName: 'c', status: 'expected', expectedStatus: 'passed',
+        annotations: [{ type: 'claim', description: AUTH }, { type: 'partial-claim', description: OUT }, { type: 'partial-claim', description: AUTH }], results: [{ status: 'passed', duration: 1 }] }] }] }],
+    });
+    const rows = parsePlaywrightResults(pw);
+    expect(rows[0].claims).toEqual([AUTH]);
+    expect(rows[0].partialClaims).toEqual([OUT]); // AUTH is proven outright, so it is not also partial
+    const xml = `<testsuite><testcase name="t" classname="C"><properties><property name="partial-claim" value="${OUT}"/></properties></testcase></testsuite>`;
+    const j = parseJunitResults(xml);
+    expect(j[0].claims).toEqual([]);
+    expect(j[0].partialClaims).toEqual([OUT]);
+  });
+
+  // [claims: capabilities/conformance-testing#partial-claim-evidence, capabilities/traceability-and-drift#regression-report]
+  it('shows partial evidence with its media separately and never as proof', async () => {
+    const repo = makeV2Repo();
+    repo.write('reports/shots/p.png', 'PARTIALPNG');
+    const pw = JSON.stringify({
+      suites: [{ title: 'a.spec.ts', file: 'a.spec.ts', specs: [{ title: 'long journey', file: 'a.spec.ts', tests: [{ projectName: 'c', status: 'expected', expectedStatus: 'passed',
+        annotations: [{ type: 'partial-claim', description: OUT }],
+        results: [{ status: 'passed', duration: 5, attachments: [{ name: 'shot', contentType: 'image/png', path: 'shots/p.png' }] }] }] }] }],
+    });
+    repo.write('reports/pw.json', pw);
+    await runResultsIngest(['reports/pw.json'], repo.dir, { runId: 'only' });
+    const res = await runReport(await loadConfig(repo.dir), { format: 'json' });
+    expect(res.exitCode).toBe(0);
+    const json = JSON.parse(readFileSync(path.join(repo.dir, '.specguard', 'report', 'report.json'), 'utf8'));
+    const claim = json.capabilities.find((c: { id: string }) => c.id === 'auth').claims.find((c: { ref: string }) => c.ref === OUT);
+    expect(claim.gap).toBe('untested');
+    expect(claim.reason).toContain('partial evidence');
+    expect(claim.partialTests).toHaveLength(1);
+    expect(claim.partialTests[0].attachments[0].kind).toBe('image');
+    expect(claim.verdict).toBeUndefined();
+  });
+
   // [claims: capabilities/traceability-and-drift#regression-report]
   it('renders with no recorded runs', async () => {
     const repo = makeV2Repo();

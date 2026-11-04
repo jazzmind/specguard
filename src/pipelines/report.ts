@@ -66,6 +66,8 @@ export interface ReportClaim {
   gap: GapKind;
   reason: string;
   tests: ReportTest[];
+  /** Tests that are only partial evidence (verdict and media shown, never counted as proof). */
+  partialTests: ReportTest[];
 }
 
 export interface ReportCapability {
@@ -291,6 +293,7 @@ export async function buildReport(
     if (k) runClaims.set(k, c);
   }
   const runTestsOf = (ref: string): RunIndexTest[] => (run?.tests ?? []).filter((t) => t.claims.some((c) => normRef(c) === ref));
+  const partialTestsOf = (ref: string): RunIndexTest[] => (run?.tests ?? []).filter((t) => (t.partialClaims ?? []).some((c) => normRef(c) === ref));
   const strengthCache = new Map<string, Map<string, string>>();
 
   const capabilities: ReportCapability[] = [];
@@ -301,14 +304,16 @@ export async function buildReport(
     const cap: ReportCapability = { id: node.id, title: node.title, counts: emptyGapCounts(), claims: [] };
     for (const claim of node.claims) {
       const inRun = runClaims.get(claim.ref);
-      const tests: ReportTest[] = runTestsOf(claim.ref).map((t) => ({
+      const toReportTest = (t: RunIndexTest): ReportTest => ({
         title: t.title,
         file: t.file,
         status: t.status,
         durationMs: t.durationMs,
         ...(t.layer ? { layer: t.layer } : {}),
         attachments: t.attachments.map((a) => ({ name: a.name, ...(a.contentType ? { contentType: a.contentType } : {}), kind: attachmentKind(a.name || a.path, a.contentType), path: a.path, href: hrefOf(a.path) })),
-      }));
+      });
+      const tests: ReportTest[] = runTestsOf(claim.ref).map(toReportTest);
+      const partialTests: ReportTest[] = partialTestsOf(claim.ref).map(toReportTest);
       const seen = new Set(tests.map((t) => t.title));
       for (const linked of claim.tests) {
         if (linked.title && seen.has(linked.title)) continue;
@@ -320,7 +325,7 @@ export async function buildReport(
       let reason: string;
       if (tests.length === 0) {
         gap = 'untested';
-        reason = 'no test is linked to this claim';
+        reason = partialTests.length > 0 ? `no test proves this claim outright; ${partialTests.length} test(s) give partial evidence only` : 'no test is linked to this claim';
       } else if (verdict === 'failed') {
         gap = 'failed';
         reason = `${inRun?.counterexamples ?? 0} failing test(s)`;
@@ -337,7 +342,7 @@ export async function buildReport(
         gap = 'proven';
         reason = 'passed with no failing test';
       }
-      cap.claims.push({ ref: claim.ref, text: claim.text, ...(verdict ? { verdict } : {}), proof: claim.proof, gap, reason, tests });
+      cap.claims.push({ ref: claim.ref, text: claim.text, ...(verdict ? { verdict } : {}), proof: claim.proof, gap, reason, tests, partialTests });
       cap.counts[gap] += 1;
       gapTotals[gap] += 1;
       if (gap !== 'proven') top.push({ claim: claim.ref, capability: node.id, gap, reason, score: GAP_SCORE[gap] });
@@ -467,11 +472,16 @@ export function renderReportHtml(data: ReportData): string {
   for (const cap of data.capabilities) {
     parts.push(`<section class="cap"><h3>${esc(cap.id)} <span class="mut">${esc(cap.title)}</span> ${GAP_KINDS.filter((g) => cap.counts[g] > 0).map((g) => `<span class="badge g-${g}">${esc(g)} ${cap.counts[g]}</span>`).join(' ')}</h3>`);
     for (const c of cap.claims) {
-      const haystack = [c.ref, c.text, c.gap, ...c.tests.flatMap((x) => [x.title, x.file])].join(' ').toLowerCase();
+      const haystack = [c.ref, c.text, c.gap, ...[...c.tests, ...c.partialTests].flatMap((x) => [x.title, x.file])].join(' ').toLowerCase();
       parts.push(`<details class="claim" data-gap="${esc(c.gap)}" data-text="${esc(haystack)}"><summary><span class="badge g-${esc(c.gap)}">${esc(c.gap)}</span> <code>${esc(c.ref)}</code> ${esc(c.text)} <span class="mut">&middot; verdict ${esc(c.verdict ?? 'none')} &middot; proof ${esc(c.proof)} &middot; ${c.tests.length} test(s)</span></summary><p class="mut">${esc(c.reason)}</p>`);
       if (c.tests.length > 0) {
         parts.push(`<table><thead><tr><th>Status</th><th>Duration</th><th>Test</th><th>Evidence</th></tr></thead><tbody>${c.tests
           .map((x) => `<tr><td class="s-${esc(x.status)}">${esc(x.status)}</td><td>${x.status === 'not-run' ? '' : esc(dur(x.durationMs))}</td><td><code>${esc(x.file)}</code>: ${esc(x.title)}${x.layer ? ` <span class="badge">${esc(x.layer)}</span>` : ''}</td><td><div class="att">${x.attachments.map(attachmentHtml).join('')}</div></td></tr>`)
+          .join('')}</tbody></table>`);
+      }
+      if (c.partialTests.length > 0) {
+        parts.push(`<p class="mut">Partial evidence (verdict and media shown; does not count as proof)</p><table><thead><tr><th>Status</th><th>Duration</th><th>Test</th><th>Evidence</th></tr></thead><tbody>${c.partialTests
+          .map((x) => `<tr><td class="s-${esc(x.status)}">${esc(x.status)}</td><td>${esc(dur(x.durationMs))}</td><td><code>${esc(x.file)}</code>: ${esc(x.title)}${x.layer ? ` <span class="badge">${esc(x.layer)}</span>` : ''}</td><td><div class="att">${x.attachments.map(attachmentHtml).join('')}</div></td></tr>`)
           .join('')}</tbody></table>`);
       }
       parts.push(`</details>`);
@@ -526,7 +536,7 @@ export async function runReport(config: SpecGuardConfig, opts: ReportOpts = {}):
   await writeFile(path.join(out, 'report.json'), JSON.stringify(data, null, 2) + '\n');
   if ((opts.format ?? 'html') === 'html') {
     let copied = 0;
-    const wanted = new Set(data.capabilities.flatMap((c) => c.claims.flatMap((cl) => cl.tests.flatMap((t) => t.attachments.map((a) => a.path)))));
+    const wanted = new Set(data.capabilities.flatMap((c) => c.claims.flatMap((cl) => [...cl.tests, ...cl.partialTests].flatMap((t) => t.attachments.map((a) => a.path)))));
     for (const rel of wanted) {
       const from = path.join(root, EVIDENCE_DIR, rel);
       if (!existsSync(from)) continue;
