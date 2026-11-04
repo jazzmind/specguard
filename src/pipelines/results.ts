@@ -30,6 +30,8 @@ import {
 import { emptyResult, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
 import { classifyTest, layerGlobIndex, readFileLayer, type EvidenceLayer, type TestLayer } from '../core/test-layers.js';
 import { loadWorkspace } from '../core/workspace.js';
+import { DEFAULT_MAX_ATTACHMENT_MB, newRunId, storeAttachments, writeRunIndex, type RunIndexTest } from '../core/evidence.js';
+import type { ProofTest } from '../core/proof-ledger.js';
 import { canonicalClaimRef } from '../core/workspace-units.js';
 import { exampleTablesFor, ingestVerdicts, walkClaimVerdicts, type ProofOpts, type VerdictFile } from './proof.js';
 
@@ -49,6 +51,12 @@ export interface ResultsIngestOpts extends ProofOpts {
   layer?: TestLayer;
   /** The layer of the suite that produced these files (`test run` sets it from `test.suites`). */
   suiteLayer?: TestLayer;
+  /** Free-text label of the run (an environment name), kept on ledger rows and the run index. */
+  runLabel?: string;
+  /** Copy attachments named by the reports into `.specguard/evidence`. Default true (`--no-attachments` sets false). */
+  attachments?: boolean;
+  /** Attachments larger than this are skipped with a count. Default 200. */
+  maxAttachmentMb?: number;
 }
 
 export function isResultFormat(value: string): value is ResultFormat | 'auto' {
@@ -127,6 +135,19 @@ async function appCoverage(config: SpecGuardConfig, tagged: Set<string>): Promis
   return { all, covered };
 }
 
+/** A ledger row keeps this many of the tests behind it; the run index keeps them all. */
+const MAX_TESTS_PER_VERDICT = 50;
+
+function proofTestOf(t: ClaimAggregate['tests'][number]): ProofTest {
+  return {
+    title: t.title,
+    file: t.file,
+    status: t.status,
+    durationMs: t.durationMs ?? 0,
+    ...(t.attachments && t.attachments.length > 0 ? { attachments: t.attachments.map((a) => a.path) } : {}),
+  };
+}
+
 export interface LayeredVerdictsOpts {
   /** The report format when it is known; else `rowFormats` says it per row. */
   format?: string;
@@ -144,7 +165,7 @@ export async function layeredVerdicts(
   all: TestCaseResult[],
   cwd: string,
   o: LayeredVerdictsOpts = {},
-): Promise<{ aggregates: ClaimAggregate[]; verdicts: VerdictFile['verdicts'] }> {
+): Promise<{ aggregates: ClaimAggregate[]; verdicts: VerdictFile['verdicts']; layerOf: Map<TestCaseResult, TestLayer> }> {
   let configured: Map<string, TestLayer> = new Map();
   try {
     const cfg = await loadConfig(cwd);
@@ -181,10 +202,11 @@ export async function layeredVerdicts(
         counterexamples: agg.counterexamples,
         evidencePath: o.evidence?.(agg),
         layer: layer as EvidenceLayer,
+        ...(agg.tests.length > 0 ? { tests: agg.tests.slice(0, MAX_TESTS_PER_VERDICT).map(proofTestOf) } : {}),
       });
     }
   }
-  return { aggregates, verdicts };
+  return { aggregates, verdicts, layerOf };
 }
 
 export async function runResultsIngest(
@@ -216,6 +238,7 @@ export async function runResultsIngest(
   const all: TestCaseResult[] = [];
   const rowFormats = new Map<TestCaseResult, string>();
   const perFile = new Map<string, ClaimAggregate[]>();
+  const reportDirOf = new Map<TestCaseResult, string>();
   const ambiguous: AmbiguousExampleMatch[] = [];
   let parseFailures = 0;
   for (const abs of files) {
@@ -237,6 +260,7 @@ export async function runResultsIngest(
       // A parameterized test whose title names one example row of its claim is also a test of that row.
       const tables = await exampleTablesFor(cwd, rows.flatMap((row) => row.claims));
       if (tables.size > 0) ambiguous.push(...attachExampleRows(rows, tables).ambiguous);
+      for (const row of rows) reportDirOf.set(row, path.dirname(abs));
       all.push(...rows);
       perFile.set(rel, aggregateClaims(rows));
       result.messages.push(`${rel}: ${rows.length} test(s), ${rows.filter((r) => r.claims.length > 0).length} tagged`);
@@ -252,7 +276,24 @@ export async function runResultsIngest(
     return result;
   }
 
-  const { aggregates, verdicts } = await layeredVerdicts(all, cwd, {
+  const runId = opts.runId ?? newRunId();
+  if (opts.attachments === false) {
+    for (const row of all) delete row.attachments;
+  } else if (all.some((row) => row.attachments?.length)) {
+    const maxMb = opts.maxAttachmentMb ?? DEFAULT_MAX_ATTACHMENT_MB;
+    const stats = await storeAttachments(all, {
+      root: cwd,
+      cwd,
+      runId,
+      reportDirOf: (row) => reportDirOf.get(row) ?? cwd,
+      maxBytes: Math.max(0, maxMb) * 1024 * 1024,
+    });
+    result.messages.push(`attachments: ${stats.copied} copied, ${stats.deduped} duplicate(s) skipped`);
+    if (stats.missing > 0) result.messages.push(`[warn] ${stats.missing} attachment(s) named by the reports were not found on disk and were skipped`);
+    if (stats.tooLarge > 0) result.messages.push(`[warn] ${stats.tooLarge} attachment(s) exceeded --max-attachment-mb ${maxMb} and were skipped`);
+  }
+
+  const { aggregates, verdicts, layerOf } = await layeredVerdicts(all, cwd, {
     format: opts.format && opts.format !== 'auto' ? opts.format : undefined,
     rowFormats,
     suiteLayer: opts.suiteLayer,
@@ -296,12 +337,27 @@ export async function runResultsIngest(
     }
   }
 
-  const runId = opts.runId ?? `results-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const ingest = emptyResult('results-ingest');
   ingest.failed = result.failed;
   ingest.items = [...result.items];
   ingest.messages = [...result.messages];
-  await ingestVerdicts({ runId, verdicts }, cwd, { ledger: opts.ledger }, ingest);
+  await ingestVerdicts({ runId, ...(opts.runLabel ? { runLabel: opts.runLabel } : {}), verdicts }, cwd, { ledger: opts.ledger }, ingest);
+  const indexTests: RunIndexTest[] = all.map((row) => ({
+    title: row.title,
+    file: row.file,
+    claims: row.claims,
+    status: row.status,
+    durationMs: row.durationMs,
+    layer: layerOf.get(row),
+    attachments: row.attachments ?? [],
+  }));
+  const fmt = opts.format && opts.format !== 'auto' ? opts.format : [...new Set(rowFormats.values())][0];
+  try {
+    await writeRunIndex(cwd, { runId, label: opts.runLabel, format: fmt, tests: indexTests });
+    ingest.messages.push(`run ${runId}${opts.runLabel ? ` (${opts.runLabel})` : ''}: ${all.length} test(s) indexed`);
+  } catch (err) {
+    ingest.messages.push(`[warn] run index not written: ${err instanceof Error ? err.message : String(err)}`);
+  }
   for (const m of ambiguous) {
     ingest.messages.push(`[warn] EXAMPLE_TITLE_AMBIGUOUS: "${m.title}" (${m.file}) names several rows of ${m.claim} (${m.ids.join(', ')}); it counts for the claim only`);
   }

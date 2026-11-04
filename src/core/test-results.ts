@@ -6,11 +6,20 @@
  *
  * Spec: specs/capabilities/conformance-testing.md
  */
+import path from 'node:path';
+
 import { XMLParser } from 'fast-xml-parser';
 
 import { extractClaimRefs } from './claim-tags.js';
 
 export type TestStatus = 'pass' | 'fail' | 'skip';
+
+/** A file a test produced as evidence (screenshot, video, trace, log). `path` is as the reporter wrote it until ingest stores it. */
+export interface TestAttachment {
+  name: string;
+  contentType?: string;
+  path: string;
+}
 
 export interface TestCaseResult {
   file: string;
@@ -23,6 +32,8 @@ export interface TestCaseResult {
   externalIds: string[];
   /** Failure message when status is fail. Not part of the identity of a test. */
   message?: string;
+  /** Evidence files named by the reporter (Playwright attachments, JUnit attachment markers). */
+  attachments?: TestAttachment[];
 }
 
 export const RESULT_FORMATS = ['vitest', 'jest', 'playwright', 'junit', 'pytest', 'go', 'cargo'] as const;
@@ -52,6 +63,7 @@ interface RawTest {
   annotations?: Array<{ type?: string; description?: string }>;
   properties?: Array<{ name: string; value: string }>;
   message?: string;
+  attachments?: TestAttachment[];
 }
 
 function finish(raw: RawTest): TestCaseResult {
@@ -91,7 +103,19 @@ function finish(raw: RawTest): TestCaseResult {
     claims: [...claims],
     externalIds: [...externalIds],
     ...(raw.status === 'fail' && raw.message ? { message: raw.message } : {}),
+    ...(raw.attachments && raw.attachments.length > 0 ? { attachments: dedupeAttachments(raw.attachments) } : {}),
   };
+}
+
+function dedupeAttachments(list: TestAttachment[]): TestAttachment[] {
+  const seen = new Set<string>();
+  const out: TestAttachment[] = [];
+  for (const a of list) {
+    if (seen.has(a.path)) continue;
+    seen.add(a.path);
+    out.push(a);
+  }
+  return out;
 }
 
 function num(value: unknown): number {
@@ -183,6 +207,14 @@ export function parsePlaywrightResults(text: string): TestCaseResult[] {
         const duration = results.reduce((sum, r) => sum + num(r.duration), 0);
         const lastError = [...results].reverse().find((r) => isObject(r.error));
         const project = str(t.projectName);
+        const attachments: TestAttachment[] = [];
+        for (const r of results) {
+          for (const a of Array.isArray(r.attachments) ? r.attachments : []) {
+            if (!isObject(a) || typeof a.path !== 'string' || a.path === '') continue;
+            const contentType = str(a.contentType);
+            attachments.push({ name: str(a.name) || path.basename(a.path), ...(contentType ? { contentType } : {}), path: a.path });
+          }
+        }
         const annotations = Array.isArray(t.annotations)
           ? t.annotations.filter(isObject).map((n) => ({ type: str(n.type), description: str(n.description) }))
           : [];
@@ -198,6 +230,7 @@ export function parsePlaywrightResults(text: string): TestCaseResult[] {
             tags: tagList,
             annotations: project ? [...annotations, { type: 'tag', description: `project-${project}` }] : annotations,
             message: lastError && isObject(lastError.error) ? str(lastError.error.message) : undefined,
+            attachments,
           }),
         );
       }
@@ -255,6 +288,16 @@ export function parseJunitResults(text: string): TestCaseResult[] {
             value: str(p['@_value'] ?? p['#text']),
           }))
         : [];
+      const attachments: TestAttachment[] = [];
+      const addAttachment = (p: string): void => {
+        const trimmed = p.trim();
+        if (trimmed) attachments.push({ name: path.basename(trimmed.replace(/\\/g, '/')), path: trimmed });
+      };
+      for (const p of props) if (p.name.toLowerCase() === 'attachment' && p.value) addAttachment(p.value);
+      for (const so of asArray(tc['system-out'] as unknown)) {
+        const text = isObject(so) ? str(so['#text']) : str(so);
+        for (const m of text.matchAll(/\[\[ATTACHMENT\|([^\]\n]+?)\]\]/g)) addAttachment(m[1]);
+      }
       out.push(
         finish({
           file,
@@ -264,6 +307,7 @@ export function parseJunitResults(text: string): TestCaseResult[] {
           durationMs: num(tc['@_time']) * 1000,
           properties: props,
           message,
+          attachments,
         }),
       );
     }
@@ -454,7 +498,7 @@ export interface ClaimAggregate {
   counterexamples: number;
   /** Titles of failing tests. */
   failures: string[];
-  tests: Array<{ file: string; title: string; status: TestStatus }>;
+  tests: Array<{ file: string; title: string; status: TestStatus; durationMs?: number; attachments?: TestAttachment[] }>;
 }
 
 /**
@@ -474,7 +518,13 @@ export function aggregateClaims(results: TestCaseResult[]): ClaimAggregate[] {
       const agg =
         byClaim.get(claim) ??
         ({ claim, verdict: 'unexercised', exercised: 0, counterexamples: 0, failures: [], tests: [] } as ClaimAggregate);
-      agg.tests.push({ file: result.file, title: result.title, status: result.status });
+      agg.tests.push({
+        file: result.file,
+        title: result.title,
+        status: result.status,
+        durationMs: result.durationMs,
+        ...(result.attachments ? { attachments: result.attachments } : {}),
+      });
       if (result.status === 'pass') agg.exercised += 1;
       else if (result.status === 'fail') {
         agg.counterexamples += 1;

@@ -18,6 +18,9 @@ sources:
   - "src/pipelines/forward-generate.ts"
   - "src/pipelines/heal.ts"
   - "src/pipelines/results.ts"
+  - "src/core/evidence.ts"
+  - "src/pipelines/runs.ts"
+  - "src/cli/commands/runs.ts"
   - "src/pipelines/proof.ts"
   - "src/cli/commands/generate.ts"
   - "src/cli/commands/heal.ts"
@@ -54,6 +57,7 @@ history:
   - 2026-10-22-security-evidence-path-traversal-not-con
   - 2026-10-26-example-rows-reach-the-proof-ledger-and
   - 2026-10-26-title-scoped-test-selection-and-claim-sc
+  - 2026-11-04-add-test-evidence-attachments-content-ad
 ---
 
 # Conformance Testing
@@ -117,6 +121,8 @@ Conformance testing turns specs into tests, runs the project's own test suite th
 - [ ] A runner that cannot select by title, or a title it cannot express (a pytest, go or cargo name that is not an identifier, a Java test without a known class and method, an empty list), yields `undefined` from `titleFlags`: unknown, which callers treat as files or the whole suite, never as a pass <!-- claim: title-unsupported-unknown -->
 - [ ] `test run --coverage` appends each app's `test.coverage.flags` to the test command and records the configured report paths (and format) in the run output and run record, without ingesting them; an app with no `test.coverage` runs without coverage and says so <!-- claim: coverage-flags-recorded -->
 - [ ] `test run --record <id>` writes `.specguard/runs/<id>.json` with the run id, start and finish times, claims, selected tests with per-test verdicts, suites, head commit and `ownedSourceTreeHash`, a hash of the owned source files' contents that changes when an owned file is edited or added and not when an unowned file changes <!-- claim: run-record-owned-hash -->
+- [ ] `results ingest` reads test attachments (Playwright `attachments[]` with a path, JUnit `[[ATTACHMENT|path]]` lines and `attachment` properties), resolves relative paths against the report's directory then the working directory, and copies each existing file into `.specguard/evidence/<runId>/<sha256-16>-<basename>` once (duplicates skipped, missing files and files over `--max-attachment-mb` (default 200) skipped with a warning, `--no-attachments` copies nothing); ledger rows gain optional `runLabel` and `tests[]` (title, file, status, duration, attachment paths), and a ledger written before these fields still loads <!-- claim: test-attachments -->
+- [ ] Every ingest has a run id (`--run-id`, else an ISO timestamp with a short random suffix) and optional `--run-label`, and writes `.specguard/runs/<runId>.json` with the run's tests, per-claim verdicts (combined and per layer) and attachments; `runs list` prints the runs and `runs prune --keep N` removes older indexes and evidence no kept run or ledger row refers to, and nothing is rotated automatically <!-- claim: run-index -->
 
 ## Scenarios
 ### Scenario 1: Spec to tagged tests

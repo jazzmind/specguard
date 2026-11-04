@@ -6,6 +6,8 @@ parent: system
 value: At any moment a team can see how every spec relates to its code, tests, docs and proof, and be told as soon as code and specs stop agreeing.
 status: active
 sources:
+  - "src/pipelines/report.ts"
+  - "src/cli/commands/report.ts"
   - "src/core/drift-registry.ts"
   - "src/core/claim-hash.ts"
   - "src/core/claim-prepass.ts"
@@ -54,6 +56,7 @@ history:
   - 2026-10-26-proof-statement-is-a-pure-composition-wi
   - 2026-10-26-check-leads-with-the-proof-statement-exi
   - 2026-10-27-check-traces-record-the-engine-version-u
+  - 2026-11-04-add-test-evidence-attachments-content-ad
 ---
 
 # Traceability and Drift
@@ -114,6 +117,7 @@ This capability computes that answer on demand and without opinion. It links spe
 - [ ] The statement takes ledger verdicts judged by hashes alone, so a changed owned file leaves a claim not conforming even when a drift assessment says the change does not affect it <!-- claim: statement-input-deterministic-ledger -->
 - [ ] Evidence the repository does not hold (no ledger, coverage, mutation report, base ref or git checkout) is passed as absent, so its pillar reads unknown and never fail, and a base ref that does not resolve gives a warning and no change judgement <!-- claim: statement-input-absent-is-unknown -->
 - [ ] With a base ref (`check --since <ref>`) the statement classifies each claim as added, modified or unchanged against that ref and reports the policy the change relaxed (spec `layers`, `assurance` and `evidence` frontmatter, config gates and weakened tests); without a base no change is judged <!-- claim: statement-input-change-mode -->
+- [ ] `specguard report` writes a self-contained report folder (`index.html` with inline CSS and JS and evidence copied beside it, plus `report.json` with schema `specguard-report/1`) for a run (`--run`, default latest) showing totals by layer, a capability and claim table with per-test status, duration and attachments, a regression diff against a baseline (`--baseline`, default the previous run with the same label else the previous run: newly failing, newly proven, newly unexercised, removed, flaky), and a gap analysis (untested, linked-not-executed, weak-only, partial, failed, proven) with a ranked top-gaps list; all test text is HTML-escaped <!-- claim: regression-report -->
 
 ## Scenarios
 ### Scenario 1: A new file has no spec

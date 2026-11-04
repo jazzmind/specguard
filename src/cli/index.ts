@@ -66,6 +66,8 @@ import { budgetExceededMessage, setDefaultPipeline, setRecordMode } from '../cor
 import { AgentWorkPendingError, pendingMessage, pendingThisRun } from '../core/agent-work.js';
 import { agentAnswerCommand, agentPendingCommand } from './commands/agent.js';
 import { resultsIngestCommand } from './commands/results.js';
+import { runsListCommand, runsPruneCommand } from './commands/runs.js';
+import { reportCommand } from './commands/report.js';
 import { coverageIngestCommand } from './commands/coverage.js';
 import { mutationIngestCommand } from './commands/mutation.js';
 import { remediateCommand, type RemediateCliOpts } from './commands/remediate.js';
@@ -805,7 +807,10 @@ resultsCmd
   .description('map test results to claims by @claim tags and write proof verdicts')
   .argument('<files...>', 'reporter output files (globs allowed): vitest/jest JSON, playwright JSON, JUnit XML, pytest-json-report, go test -json, cargo JSON')
   .option('--format <fmt>', 'auto|vitest|jest|playwright|junit|pytest|go|cargo', 'auto')
-  .option('--run-id <id>', 'ledger run id (default: timestamped)')
+  .option('--run-id <id>', 'ledger run id (default: ISO timestamp plus a short random suffix)')
+  .option('--run-label <text>', 'free-text label for the run, such as an environment name')
+  .option('--no-attachments', 'do not copy test attachments (screenshots, videos, traces) into .specguard/evidence')
+  .option('--max-attachment-mb <n>', 'skip attachments larger than this many megabytes', '200')
   .option('--unexercised', 'also store unexercised for claims absent from every ingested file (only on a full run; see --full-run)')
   .option('--sweep', 'alias of --unexercised')
   .option('--full-run', 'the ingested files are the complete run; lets --unexercised/--sweep apply')
@@ -814,12 +819,44 @@ resultsCmd
   .action(
     async (
       files: string[],
-      opts: { format?: string; runId?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string; layer?: string },
+      opts: { format?: string; runId?: string; runLabel?: string; attachments?: boolean; maxAttachmentMb?: string; unexercised?: boolean; sweep?: boolean; fullRun?: boolean; ledger?: string; layer?: string },
       cmd: Command,
     ) => {
       await resultsIngestCommand(files, withGlobals(cmd, opts));
     },
   );
+
+// --- runs ------------------------------------------------------------------
+const runsCmd = program
+  .command('runs')
+  .description('the runs recorded by `results ingest` (.specguard/runs) and their evidence files');
+
+runsCmd
+  .command('list')
+  .description('list recorded runs, newest first')
+  .action(async (opts: Record<string, never>, cmd: Command) => {
+    await runsListCommand(withGlobals(cmd, opts));
+  });
+
+runsCmd
+  .command('prune')
+  .description('remove all but the newest N run indexes and the evidence files nothing else refers to')
+  .requiredOption('--keep <n>', 'number of newest runs to keep')
+  .action(async (opts: { keep?: string }, cmd: Command) => {
+    await runsPruneCommand(withGlobals(cmd, opts));
+  });
+
+// --- report ----------------------------------------------------------------
+program
+  .command('report')
+  .description('static HTML (or JSON) regression and gap report for a recorded run, with test evidence')
+  .option('--out <dir>', 'output directory (default .specguard/report)')
+  .option('--run <runId>', 'run to report (default: the latest)')
+  .option('--baseline <runId>', 'run to diff against (default: the previous run with the same label, else the previous run)')
+  .option('--format <fmt>', 'html (index.html and report.json) or json (report.json only)', 'html')
+  .action(async (opts: { out?: string; run?: string; baseline?: string; format?: string }, cmd: Command) => {
+    await reportCommand(withGlobals(cmd, opts));
+  });
 
 // --- coverage and mutation evidence -----------------------------------------
 const coverageCmd = program

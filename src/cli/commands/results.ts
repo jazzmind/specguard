@@ -17,6 +17,10 @@ export interface ResultsIngestCliOpts extends GlobalOpts {
   fullRun?: boolean;
   ledger?: string;
   layer?: string;
+  runLabel?: string;
+  /** Commander sets this false for `--no-attachments`. */
+  attachments?: boolean;
+  maxAttachmentMb?: string;
 }
 
 export async function resultsIngestCommand(files: string[], opts: ResultsIngestCliOpts): Promise<void> {
@@ -35,6 +39,17 @@ export async function resultsIngestCommand(files: string[], opts: ResultsIngestC
     bad.messages.push(`unknown --layer '${opts.layer}'. Use ${TEST_LAYERS.join(', ')}.`);
     outputResult(bad, opts);
   }
+  let maxAttachmentMb: number | undefined;
+  if (opts.maxAttachmentMb !== undefined) {
+    maxAttachmentMb = Number(opts.maxAttachmentMb);
+    if (!Number.isFinite(maxAttachmentMb) || maxAttachmentMb < 0) {
+      const bad = emptyResult('results-ingest');
+      bad.failed = 1;
+      bad.exitCode = ExitCode.ValidationFailed;
+      bad.messages.push(`invalid --max-attachment-mb '${opts.maxAttachmentMb}'. Use a number of megabytes.`);
+      outputResult(bad, opts);
+    }
+  }
   const result = await runResultsIngest(files, process.cwd(), {
     layer: opts.layer as never,
     format: format as never,
@@ -43,6 +58,9 @@ export async function resultsIngestCommand(files: string[], opts: ResultsIngestC
     sweep: opts.sweep,
     fullRun: opts.fullRun,
     ledger: opts.ledger,
+    runLabel: opts.runLabel,
+    attachments: opts.attachments,
+    maxAttachmentMb,
   });
   outputResult(result, opts);
 }

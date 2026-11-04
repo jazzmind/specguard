@@ -34,6 +34,7 @@ export const GENERATED_STATE_PATHS = [
   '.specguard/evidence/',
   '.specguard/runs/',
   '.specguard/reports/',
+  '.specguard/report/',
   '.specguard/validation-history.json',
   '.specguard/ci/',
   '.specguard/coverage/',

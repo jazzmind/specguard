@@ -52,6 +52,8 @@ import { canonicalClaimRef } from '../core/workspace-units.js';
 
 const VerdictFileSchema = z.object({
   runId: z.string().min(1),
+  /** Free-text label of the run (for example an environment name). */
+  runLabel: z.string().optional(),
   repoShas: z.record(z.string(), z.string()).optional(),
   verdicts: z.array(
     z.object({
@@ -64,6 +66,18 @@ const VerdictFileSchema = z.object({
       evidence: z.enum(['test', 'agentic', 'manual']).optional(),
       /** The test layer this evidence belongs to. Default: `functional` for agentic or manual evidence, else unclassified. */
       layer: z.enum([...TEST_LAYERS, 'unclassified']).optional(),
+      /** The tests behind the verdict, with evidence files relative to `.specguard/evidence`. */
+      tests: z
+        .array(
+          z.object({
+            title: z.string(),
+            file: z.string(),
+            status: z.enum(['pass', 'fail', 'skip']),
+            durationMs: z.number().nonnegative(),
+            attachments: z.array(z.string()).optional(),
+          }),
+        )
+        .optional(),
     }),
   ),
 });
@@ -438,6 +452,8 @@ export async function ingestVerdicts(
         claim: row.claim,
         verdict: row.verdict,
         runId: body.runId,
+        ...(body.runLabel ? { runLabel: body.runLabel } : {}),
+        ...(row.tests && row.tests.length > 0 ? { tests: row.tests } : {}),
         specHash: hashString(located.content),
         claimHash,
         repoSha,

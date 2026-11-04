@@ -23,10 +23,23 @@ export function isNonAutomatedEvidence(evidence: ProofEvidence | undefined): boo
   return evidence === 'agentic' || evidence === 'manual';
 }
 
+/** A test that backed a verdict, with the evidence files it produced (paths relative to `.specguard/evidence`). */
+export interface ProofTest {
+  title: string;
+  file: string;
+  status: 'pass' | 'fail' | 'skip';
+  durationMs: number;
+  attachments?: string[];
+}
+
 export interface ProofRecord {
   claim: string;
   verdict: StoredVerdict;
   runId: string;
+  /** Free-text label of the run (an environment name). Absent on older rows. */
+  runLabel?: string;
+  /** The tests behind the verdict in the run that wrote it. Absent on older rows and non-test evidence. */
+  tests?: ProofTest[];
   /** SHA-256 of the spec file at ingest. */
   specHash: string;
   /**
@@ -72,6 +85,8 @@ export interface ProofRecord {
 export interface LayerProof {
   verdict: StoredVerdict;
   runId: string;
+  runLabel?: string;
+  tests?: ProofTest[];
   specHash: string;
   claimHash?: string;
   hashVersion?: number;
@@ -153,7 +168,7 @@ export function effectiveVerdict(
 // ---------------------------------------------------------------------------
 
 const LAYER_FIELDS = [
-  'verdict', 'runId', 'specHash', 'claimHash', 'hashVersion', 'repoSha', 'fileHashes', 'dependencyFingerprint',
+  'verdict', 'runId', 'runLabel', 'tests', 'specHash', 'claimHash', 'hashVersion', 'repoSha', 'fileHashes', 'dependencyFingerprint',
   'exercised', 'counterexamples', 'evidencePath', 'evidence', 'origin', 'repo', 'branch', 'actor', 'ingestedAt',
 ] as const;
 
