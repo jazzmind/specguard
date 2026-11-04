@@ -14,7 +14,7 @@ export function coverageFromApi(cov: CoverageResponse, specs: SpecsResponse, opt
   const specFile = new Map(specs.specs.map((s) => [s.id, s.file]));
   const items: CoverageItem[] = cov.capabilities.map((c) => {
     const file = specFile.get(c.id);
-    return { app: opts.name, key: c.id, hasSpec: true, hasTest: c.tests > 0, ...(file ? { specPath: resolveEvidenceFile(opts.workspaceRoot, opts.configDir ?? opts.workspaceRoot, file) } : {}) };
+    return { app: opts.name, key: c.id, hasSpec: true, hasTest: c.tests > 0, tests: c.tests, claims: c.counts.claims, proven: c.counts.proven, ...(file ? { specPath: resolveEvidenceFile(opts.workspaceRoot, opts.configDir ?? opts.workspaceRoot, file) } : {}) };
   });
   for (const file of cov.unowned) items.push({ app: opts.name, key: file, hasSpec: false, hasTest: false });
   return [
@@ -23,6 +23,9 @@ export function coverageFromApi(cov: CoverageResponse, specs: SpecsResponse, opt
       specCount: cov.totals.capabilities,
       sourceCount: cov.totals.sourceFiles,
       testCount: cov.capabilities.filter((c) => c.tests > 0).length,
+      testsTotal: cov.capabilities.reduce((s, c) => s + c.tests, 0),
+      claimsTotal: cov.totals.claims,
+      claimsProven: cov.totals.proven,
       percentage: cov.sourceCoverage,
       basis: 'capability',
       items,

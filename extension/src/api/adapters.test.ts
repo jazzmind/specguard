@@ -29,10 +29,10 @@ describe('coverage from the API [adapters-coverage]', () => {
 
   it('makes one entry for the project, a capability per item, and a missing-spec item per unowned file', () => {
     const [app] = coverageFromApi(cov, specs, { name: 'portal', workspaceRoot: '/work/portal' });
-    expect(app).toMatchObject({ name: 'portal', specCount: 2, sourceCount: 10, testCount: 1, percentage: 80, basis: 'capability' });
+    expect(app).toMatchObject({ name: 'portal', specCount: 2, sourceCount: 10, testCount: 1, testsTotal: 2, claimsTotal: 4, claimsProven: 1, percentage: 80, basis: 'capability' });
     expect(app.items).toEqual([
-      { app: 'portal', key: 'auth', hasSpec: true, hasTest: true, specPath: '/work/portal/specs/capabilities/auth.md' },
-      { app: 'portal', key: 'shop', hasSpec: true, hasTest: false },
+      { app: 'portal', key: 'auth', hasSpec: true, hasTest: true, tests: 2, claims: 4, proven: 1, specPath: '/work/portal/specs/capabilities/auth.md' },
+      { app: 'portal', key: 'shop', hasSpec: true, hasTest: false, tests: 0, claims: 4, proven: 1 },
       { app: 'portal', key: 'src/orphan.ts', hasSpec: false, hasTest: false },
     ]);
   });

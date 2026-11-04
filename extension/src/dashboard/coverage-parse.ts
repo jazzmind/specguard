@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { AppCoverage, CoverageItem } from './protocol.js';
 
-const V2_CAPABILITY = /^# (\S+) \[(capability|component)\] (\d+) files, (\d+) tests, (\d+) claims/;
+const V2_CAPABILITY = /^# (\S+) \[(capability|component)\] (\d+) files, (\d+) tests, (\d+) claims(?: \((\d+) proven)?/;
 const V2_TOTAL = /TOTAL: (\d+) source files, (\d+) specs \((\d+)%\), (\d+) tests/;
 
 /**
@@ -14,7 +14,10 @@ function parseV2Coverage(raw: string): AppCoverage[] {
   for (const line of raw.split('\n')) {
     const header = line.match(V2_CAPABILITY);
     if (header) {
-      items.push({ app: 'capabilities', key: header[1], hasSpec: true, hasTest: parseInt(header[4], 10) > 0 });
+      items.push({
+        app: 'capabilities', key: header[1], hasSpec: true, hasTest: parseInt(header[4], 10) > 0,
+        tests: parseInt(header[4], 10), claims: parseInt(header[5], 10), proven: header[6] ? parseInt(header[6], 10) : 0,
+      });
       continue;
     }
     const missing = line.match(/^\s+\[missing-spec\]\s+(\S+)/);
@@ -27,6 +30,9 @@ function parseV2Coverage(raw: string): AppCoverage[] {
     specCount: specs.length,
     sourceCount: total ? parseInt(total[1], 10) : specs.length,
     testCount: specs.filter((item) => item.hasTest).length,
+    testsTotal: specs.reduce((s, i) => s + (i.tests ?? 0), 0),
+    claimsTotal: specs.reduce((s, i) => s + (i.claims ?? 0), 0),
+    claimsProven: specs.reduce((s, i) => s + (i.proven ?? 0), 0),
     percentage: total ? parseInt(total[3], 10) : (specs.length > 0 ? 100 : 0),
     basis: 'capability',
     items,

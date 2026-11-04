@@ -36,4 +36,15 @@ TOTAL: 9 source files, 8 specs (89%), 8 tests (89%), 1 missing specs
     expect(apps[0].items[0].hasTest).toBe(false);
     expect(apps[0].items[1].hasTest).toBe(true);
   });
+
+  // [claims: capabilities/integration-surfaces#vscode-dashboard]
+  it('reports tests and proven claims per capability, not just whether a test exists', () => {
+    const [app] = parseCoverageText(`# docs [capability] 4 files, 0 tests, 3 claims (0 proven, 0 stale, 0 failed, 3 unproven)
+# api [component] 2 files, 12 tests, 5 claims (4 proven, 0 stale, 1 failed, 0 unproven)
+TOTAL: 6 source files, 2 specs (100%), 12 tests (100%), 0 missing specs
+`);
+    expect(app.items[1]).toMatchObject({ key: 'api', tests: 12, claims: 5, proven: 4 });
+    expect(app.testCount).toBe(1); // capabilities that have any test
+    expect(app).toMatchObject({ testsTotal: 12, claimsTotal: 8, claimsProven: 4 });
+  });
 });

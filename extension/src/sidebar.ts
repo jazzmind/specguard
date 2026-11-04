@@ -188,7 +188,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
     if (element.appData) {
       return element.appData.items.map((item) => {
-        const status = !item.hasSpec ? '⚠ missing spec' : !item.hasTest ? '∅ no test' : '✓';
+        const detail = item.tests !== undefined && item.claims !== undefined ? ` ${item.tests} test${item.tests === 1 ? '' : 's'} · ${item.proven ?? 0}/${item.claims} claims proven` : '';
+        const status = !item.hasSpec ? '⚠ missing spec' : !item.hasTest ? `∅ no test${item.claims !== undefined ? ` · 0/${item.claims} claims proven` : ''}` : `✓${detail}`;
         const treeItem = new CoverageTreeItem(
           item.key,
           vscode.TreeItemCollapsibleState.None,
@@ -427,7 +428,8 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
     const basis = outputBasis(this._apps);
     const stateDir = configDirFor(root);
     const totalSpecs = this._apps.reduce((s, a) => s + a.specCount, 0);
-    const totalTests = this._apps.reduce((s, a) => s + a.testCount, 0);
+    // testsTotal counts tests; testCount (capabilities that have any test) is only the fallback for sources without per-item counts.
+    const totalTests = this._apps.reduce((s, a) => s + (a.testsTotal ?? a.testCount), 0);
     for (const [kind, label, icon, description] of [
       ['specs', `Specs: ${totalSpecs}`, 'book', specsOutputDescription(basis)],
       ['tests', `Tests: ${totalTests}`, 'beaker', testsOutputDescription(totalTests, basis)],

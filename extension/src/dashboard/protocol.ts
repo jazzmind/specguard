@@ -16,12 +16,24 @@ export interface ActivityEntry {
   logLines?: string[];
 }
 
-export interface CoverageItem { app: string; key: string; hasSpec: boolean; hasTest: boolean; specPath?: string; }
+export interface CoverageItem {
+  app: string; key: string; hasSpec: boolean; hasTest: boolean; specPath?: string;
+  /** Number of tests linked to the capability (hasTest only says there is at least one). */
+  tests?: number;
+  /** Claims in the capability and how many are proven. */
+  claims?: number;
+  proven?: number;
+}
 export interface AppCoverage {
   name: string;
   specCount: number;
   sourceCount: number;
+  /** Specs (capabilities) that have at least one test; NOT a test count. See `testsTotal`. */
   testCount: number;
+  /** Total tests across the items, when the source reports per-item counts. */
+  testsTotal?: number;
+  claimsTotal?: number;
+  claimsProven?: number;
   percentage: number;
   items: CoverageItem[];
   /**
