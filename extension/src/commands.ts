@@ -2,6 +2,7 @@ import { repoNavigator } from './repo-navigation.js';
 /**
  * VS Code command handlers for SpecGuard extension.
  */
+import { openReportPanel } from './report-panel.js';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -217,6 +218,11 @@ export function registerCommands(
     if (repo?.overlayFor?.length) openWorkspacePanel(context);
     else openDashboardPanel(context, root);
   }, (root, key) => vscode.commands.executeCommand('specguard.switchToRepo', root, key))));
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.openReport', () => openReportPanel(context)),
+    vscode.commands.registerCommand('specguard.rebuildReport', () => openReportPanel(context, { rebuild: true })),
+  );
 
   context.subscriptions.push(vscode.commands.registerCommand('specguard.repoDashboard', (root: string) => openDashboardPanel(context, root)));
 

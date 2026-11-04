@@ -124,6 +124,15 @@
         "icon": "$(graph)"
       },
       {
+        "command": "specguard.openReport",
+        "title": "SpecGuard: Open Test Report (workspace rollup, evidence)",
+        "icon": "$(report)"
+      },
+      {
+        "command": "specguard.rebuildReport",
+        "title": "SpecGuard: Rebuild and Open Test Report"
+      },
+      {
         "command": "specguard.switchProject",
         "title": "SpecGuard: Switch Project",
         "icon": "$(folder-active)"

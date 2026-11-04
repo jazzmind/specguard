@@ -434,12 +434,13 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
       ['specs', `Specs: ${totalSpecs}`, 'book', specsOutputDescription(basis)],
       ['tests', `Tests: ${totalTests}`, 'beaker', testsOutputDescription(totalTests, basis)],
       ['docs', 'Docs', 'file-text', 'local and team-server documents'],
+      ['report', 'Test report', 'report', 'workspace rollup with screenshots, video and traces'],
     ]) {
       const item = new CoverageTreeItem(label, vscode.TreeItemCollapsibleState.None, 'output-item');
       item.iconPath = new vscode.ThemeIcon(icon);
       item.description = description;
-      item.tooltip = `Browse all ${kind} inside VS Code`;
-      item.command = { command: 'specguard.openOutputs', title: `Browse ${kind}`, arguments: [kind] };
+      item.tooltip = kind === 'report' ? 'Open the workspace test report (per-repo drilldown, screenshots, video, traces)' : `Browse all ${kind} inside VS Code`;
+      item.command = kind === 'report' ? { command: 'specguard.openReport', title: 'Open test report' } : { command: 'specguard.openOutputs', title: `Browse ${kind}`, arguments: [kind] };
       items.push(item);
     }
 

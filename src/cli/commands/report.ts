@@ -4,6 +4,7 @@
  * Spec: specs/capabilities/traceability-and-drift.md
  */
 import { runReport } from '../../pipelines/report.js';
+import { runWorkspaceReport } from '../../pipelines/workspace-report.js';
 import { emptyResult } from '../../core/types.js';
 import { ExitCode } from '../../core/exit-codes.js';
 import { loadCliConfig, outputResult, type GlobalOpts } from './helpers.js';
@@ -13,6 +14,8 @@ export interface ReportCliOpts extends GlobalOpts {
   run?: string;
   baseline?: string;
   format?: string;
+  /** `--workspace [path]`: report every repo in the workspace manifest and write a rollup landing page. */
+  workspace?: string | boolean;
 }
 
 export async function reportCommand(opts: ReportCliOpts): Promise<void> {
@@ -23,6 +26,10 @@ export async function reportCommand(opts: ReportCliOpts): Promise<void> {
     bad.exitCode = ExitCode.ValidationFailed;
     bad.messages.push(`unknown --format '${format}'. Use html or json.`);
     outputResult(bad, opts);
+  }
+  if (opts.workspace) {
+    outputResult(await runWorkspaceReport(process.cwd(), { out: opts.out, ...(typeof opts.workspace === 'string' ? { workspace: opts.workspace } : {}) }), opts);
+    return;
   }
   const config = await loadCliConfig(opts);
   outputResult(await runReport(config, { out: opts.out, run: opts.run, baseline: opts.baseline, format: format as 'html' | 'json' }), opts);

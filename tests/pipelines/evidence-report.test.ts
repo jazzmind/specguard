@@ -302,3 +302,44 @@ describe('report', () => {
     expect(renderReportHtml(json)).toContain('No run has been recorded');
   });
 });
+
+describe('workspace report', () => {
+  // [claims: capabilities/traceability-and-drift#workspace-report]
+  it('builds one report per repo and a landing page that links to them, with totals, evidence counts and extra links', async () => {
+    const { mkdtempSync, mkdirSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { runWorkspaceReport } = await import('../../src/pipelines/workspace-report.js');
+
+    const a = makeV2Repo();
+    a.write('reports/shots/a.png', 'PNGDATA');
+    a.write('reports/pw.json', playwright([{ title: `logs in @claim:${AUTH}`, attachments: [{ name: 'shot', contentType: 'image/png', path: 'shots/a.png' }] }]));
+    await runResultsIngest(['reports/pw.json'], a.dir, { runId: 'r1', runLabel: 'hermetic' });
+    const b = makeV2Repo(); // a repo that has never recorded a run
+
+    const ws = mkdtempSync(path.join(tmpdir(), 'sg-ws-'));
+    mkdirSync(path.join(ws, '.specguard'), { recursive: true });
+    writeFileSync(path.join(ws, '.specguard', 'workspace.json'), JSON.stringify({ version: '1.0', name: 'demo', repos: { alpha: { path: a.dir, role: 'consumer' }, beta: { path: b.dir, role: 'provider' } } }));
+    writeFileSync(path.join(ws, '.specguard', 'report-links.json'), JSON.stringify([{ title: 'Playwright <report>', href: 'pw/index.html', note: 'videos' }]));
+
+    const res = await runWorkspaceReport(ws, {});
+    expect(res.exitCode).toBe(0);
+    const out = path.join(ws, '.specguard', 'report', 'workspace');
+    const html = readFileSync(path.join(out, 'index.html'), 'utf8');
+    expect(html).toContain('href="repos/alpha/index.html"');
+    expect(html).toContain('href="repos/beta/index.html"');
+    expect(html).toContain('Playwright &lt;report&gt;');
+    expect(html).toContain('file://');
+    expect(existsSync(path.join(out, 'repos', 'alpha', 'index.html'))).toBe(true);
+    expect(readFileSync(path.join(out, 'repos', 'alpha', 'index.html'), 'utf8')).toContain('href="../../index.html"');
+
+    const json = JSON.parse(readFileSync(path.join(out, 'workspace-report.json'), 'utf8'));
+    expect(json.schema).toBe('specguard-workspace-report/1');
+    const alpha = json.repos.find((r: { key: string }) => r.key === 'alpha');
+    expect(alpha.tests.pass).toBe(1);
+    expect(alpha.evidence.screenshots).toBe(1);
+    expect(alpha.history).toHaveLength(1);
+    expect(json.totals.repos).toBe(2);
+    expect(json.totals.tests).toBe(1);
+    expect(json.totals.claimsProven).toBeGreaterThanOrEqual(1);
+  });
+});

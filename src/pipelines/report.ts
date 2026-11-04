@@ -34,6 +34,8 @@ export interface ReportOpts {
   /** Run to diff against. Default: the previous run with the same label, else the previous run. */
   baseline?: string;
   format?: 'html' | 'json';
+  /** Link back to a workspace report, shown at the top of the page (set by `report --workspace`). */
+  backHref?: string;
 }
 
 export interface ReportAttachment {
@@ -394,7 +396,7 @@ export function esc(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-const CSS = `
+export const REPORT_CSS = `
 :root{color-scheme:light dark;--bg:#fff;--fg:#1d2330;--mut:#667085;--line:#d9dde5;--ok:#157f3c;--bad:#b42318;--warn:#a15c07;--chip:#eef1f6}
 @media(prefers-color-scheme:dark){:root{--bg:#14171c;--fg:#e6e9ef;--mut:#98a2b3;--line:#2c323c;--ok:#4cc27d;--bad:#ff7b72;--warn:#e3a008;--chip:#222831}}
 body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
@@ -447,12 +449,13 @@ function changeList(title: string, rows: Array<{ label: string; detail: string }
   return `<h3>${esc(title)} <span class="badge">${rows.length}</span></h3><table><tbody>${rows.map((r) => `<tr><td><code>${esc(r.label)}</code></td><td class="mut">${esc(r.detail)}</td></tr>`).join('')}</tbody></table>`;
 }
 
-export function renderReportHtml(data: ReportData): string {
+export function renderReportHtml(data: ReportData, backHref?: string): string {
   const run = data.run;
   const t = data.totals;
   const reg = data.regression;
   const card = (label: string, value: number | string, cls = ''): string => `<div class="card"><b class="${cls}">${esc(value)}</b>${esc(label)}</div>`;
   const parts: string[] = [];
+  if (backHref) parts.push(`<p><a href="${esc(backHref)}">&larr; Workspace report</a></p>`);
   parts.push(`<h1>SpecGuard test report</h1>`);
   parts.push(
     run
@@ -512,7 +515,7 @@ export function renderReportHtml(data: ReportData): string {
     .join('')}<tr><th>Total</th>${GAP_KINDS.map((g) => `<th>${data.gaps.counts[g]}</th>`).join('')}</tr></tbody></table>`);
   parts.push(`<h3>Top gaps</h3>${data.gaps.top.length === 0 ? '<p class="mut">No gaps.</p>' : `<table><thead><tr><th>#</th><th>Claim</th><th>Gap</th><th>Why</th></tr></thead><tbody>${data.gaps.top.slice(0, 25).map((g, i) => `<tr><td>${i + 1}</td><td><code>${esc(g.claim)}</code></td><td class="g-${esc(g.gap)}">${esc(g.gap)}</td><td class="mut">${esc(g.reason)}</td></tr>`).join('')}</tbody></table>`}`);
 
-  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>SpecGuard test report</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${CSS}</style></head><body>${parts.join('\n')}<script>${JS}</script></body></html>\n`;
+  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>SpecGuard test report</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${REPORT_CSS}</style></head><body>${parts.join('\n')}<script>${JS}</script></body></html>\n`;
 }
 
 // ---------------------------------------------------------------------------
@@ -545,7 +548,7 @@ export async function runReport(config: SpecGuardConfig, opts: ReportOpts = {}):
       await copyFile(from, to);
       copied += 1;
     }
-    await writeFile(path.join(out, 'index.html'), renderReportHtml(data));
+    await writeFile(path.join(out, 'index.html'), renderReportHtml(data, opts.backHref));
     result.messages.push(`report: ${path.relative(root, path.join(out, 'index.html')) || 'index.html'} (${copied} evidence file(s) copied)`);
   }
   result.messages.push(`report: ${path.relative(root, path.join(out, 'report.json'))}`);

@@ -854,7 +854,8 @@ program
   .option('--run <runId>', 'run to report (default: the latest)')
   .option('--baseline <runId>', 'run to diff against (default: the previous run with the same label, else the previous run)')
   .option('--format <fmt>', 'html (index.html and report.json) or json (report.json only)', 'html')
-  .action(async (opts: { out?: string; run?: string; baseline?: string; format?: string }, cmd: Command) => {
+  .option('--workspace [path]', 'one landing page over every repo in a workspace manifest, drilling down into each repo\'s report (default out .specguard/report/workspace)')
+  .action(async (opts: { out?: string; run?: string; baseline?: string; format?: string; workspace?: string | boolean }, cmd: Command) => {
     await reportCommand(withGlobals(cmd, opts));
   });
 
