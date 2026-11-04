@@ -140,7 +140,7 @@ export async function runWorkspacePublishCheck(cwd: string, explicit: string | u
     try {
       const { project, config } = await projectOf(manifest, key, repo);
       const loaded = config ?? (await loadConfig(path.resolve(manifest.rootDir, repo.path)));
-      const check: PublishCheck = await checkPublish(loaded, { project, key, server: target.url, token: target.token, fetchImpl: opts.fetchImpl, env: opts.env });
+      const check: PublishCheck = await checkPublish(loaded, { project, key, server: target.url, token: target.token, fetchImpl: opts.fetchImpl, env: opts.env, ...(opts.evidence ? { evidence: opts.evidence } : {}) });
       out.repos.push(check);
       if (check.server.role && !out.server.role) out.server.role = check.server.role;
       if (check.server.features.length > out.server.features.length) out.server.features = check.server.features;

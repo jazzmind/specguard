@@ -80,13 +80,15 @@ describe('publish --check [publish-check]', () => {
     const { repo } = await makeRunRepo({ server: { url: server.url, project: 'demo' }, files: [{ name: 'a.png', content: 'aaaa' }, { name: 'b.png', content: 'bbbbbb' }] });
     const config = await loadConfig(repo.dir);
     await runPublish(config, { push: true });
-    const check = await checkPublish(config);
+    // without --evidence a run does not count: a project that publishes no evidence is not "needs publish" forever
+    expect((await checkPublish(config)).reasons).toEqual([]);
+    const check = await checkPublish(config, { evidence: 'all' });
     expect(check.reasons).toEqual(['new-run']);
     expect(check.local.latestRun).toEqual({ runId: 'run-1', files: 2, bytes: 10 });
     // After the evidence is published, the same check is clean.
     const sent = await runPublish(config, { push: true, evidence: 'all' });
     expect(sent.exitCode, sent.messages.join('\n')).toBe(0);
-    expect((await checkPublish(config)).needsPublish).toBe(false);
+    expect((await checkPublish(config, { evidence: 'all' })).needsPublish).toBe(false);
   });
 
   // [claims: capabilities/team-server#publish-state-check]
@@ -101,7 +103,7 @@ describe('publish --check [publish-check]', () => {
     const cfgFailing = await loadConfig(repo.dir);
     const res = await runPublish({ ...cfgFailing, server: { ...cfgFailing.server!, url: failing.url } }, { push: true, evidence: 'all', sleep: async () => undefined });
     expect(res.failed).toBe(1);
-    const check = await checkPublish({ ...cfgFailing, server: { ...cfgFailing.server!, url: failing.url } });
+    const check = await checkPublish({ ...cfgFailing, server: { ...cfgFailing.server!, url: failing.url } }, { evidence: 'all' });
     expect(check.reasons).toContain('run-evidence-incomplete');
     await failing.close();
   });

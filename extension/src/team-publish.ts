@@ -129,7 +129,8 @@ export type PublishAction = 'check' | 'publish' | 'definition';
 
 /** Command line for an action. The token is never part of it (it travels in the environment). `key` is validated: it must not look like a flag. */
 export function publishArgs(action: PublishAction, key?: string, evidence = false): string[] {
-  if (action === 'check') return ['workspace', 'publish', '--check', '--json'];
+  // The check counts an unpublished run only when evidence is being published, so the toggle is part of the check too.
+  if (action === 'check') return ['workspace', 'publish', '--check', '--json', ...(evidence ? ['--evidence'] : [])];
   if (action === 'definition') return ['workspace', 'publish'];
   const args = ['workspace', 'publish', '--repos'];
   if (key !== undefined) {

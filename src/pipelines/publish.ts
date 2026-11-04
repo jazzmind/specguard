@@ -403,7 +403,8 @@ export async function checkPublish(config: SpecGuardConfig, opts: PublishOpts = 
     } else {
       check.reasons.push('never-published');
     }
-    if (latestRun) {
+    // A run only counts when evidence publishing is in play: a project that publishes no evidence must not show "needs publish" forever.
+    if (latestRun && opts.evidence) {
       const pending = state.runs.find((r) => r.runId === latestRun.runId && r.status === 'pending');
       if (pending) check.reasons.push('run-evidence-incomplete');
       else if (!complete.some((r) => r.runId === latestRun.runId)) check.reasons.push('new-run');

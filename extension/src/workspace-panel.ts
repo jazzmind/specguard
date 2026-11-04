@@ -125,7 +125,7 @@ async function handleMessage(msg: PanelMsg): Promise<void> {
     if (url) await vscode.env.openExternal(vscode.Uri.parse(url));
     return;
   }
-  if (msg.type === 'teamSetEvidence') { _team = { ..._team, evidence: msg.on === true }; postTeam('teamState'); return; }
+  if (msg.type === 'teamSetEvidence') { _team = { ..._team, evidence: msg.on === true }; postTeam('teamState'); void teamCheck(); return; } // the check counts unpublished runs only with evidence on
   if (msg.type === 'teamSignIn') {
     const root = getWorkspaceManifestRoot();
     if (root) await vscode.commands.executeCommand('specguard.signIn', root);
@@ -230,7 +230,7 @@ async function teamCheck(): Promise<void> {
   const lines: string[] = [];
   try {
     const cli = await resolveCliPath(root);
-    const handle = spawnCli(cli, publishArgs('check'), root, (l) => lines.push(l), env);
+    const handle = spawnCli(cli, publishArgs('check', undefined, _team.evidence), root, (l) => lines.push(l), env);
     _teamHandle = handle;
     const code = await handle.promise;
     _teamHandle = undefined;
