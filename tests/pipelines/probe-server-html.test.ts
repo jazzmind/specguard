@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { probeServer } from '../../src/pipelines/publish.js';
 
 const htmlFetch = (url: string): typeof fetch =>
-  (async () => Object.assign(new Response('<!doctype html><html></html>', { status: 200, headers: { 'content-type': 'text/html' } }), { url })) as unknown as typeof fetch;
+  (async () => Object.defineProperty(new Response('<!doctype html><html></html>', { status: 200, headers: { 'content-type': 'text/html' } }), 'url', { value: url })) as unknown as typeof fetch;
 
 describe('probeServer with a non-API answer', () => {
   it('names the sign-in gate instead of a JSON parse error', async () => {
