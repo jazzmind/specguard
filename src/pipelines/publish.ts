@@ -295,6 +295,13 @@ export async function probeServer(url: string, fetchImpl: typeof fetch = fetch, 
   try {
     const res = await fetchImpl(`${url}/api/v1/health`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) return { reachable: false, features: [], error: `the server answered ${res.status} to its health check` };
+    const ctype = res.headers.get('content-type') ?? '';
+    if (!ctype.includes('json')) {
+      const gate = /\/auth\/|login|signin/i.test(res.url ?? '');
+      return { reachable: false, features: [], error: gate
+        ? `${url} answered with a sign-in page, not the SpecGuard API: the host's single sign-on is blocking API requests to it. The server's /api/v1 path must be reachable with a token (ask the sandbox owner to exempt it from SSO), or use a URL that is.`
+        : `${url} answered with a web page (${ctype || 'no content type'}), not the SpecGuard API. Check the server URL (it should be the base address of a SpecGuard server, e.g. http://host/specguard).` };
+    }
     const health = (await res.json()) as { ok?: boolean; features?: unknown };
     if (!health.ok) return { reachable: false, features: [], error: 'that address does not look like a SpecGuard server' };
     return { reachable: true, features: Array.isArray(health.features) ? health.features.filter((f): f is string => typeof f === 'string') : [] };

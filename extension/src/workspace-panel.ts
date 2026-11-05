@@ -34,6 +34,8 @@ let _catalogFiles = new Map<string, string[]>();
 type PanelMsg =
   | { type: 'settings' }
   | { type: 'journeys' }
+  | { type: 'reportOpen' }
+  | { type: 'reportRebuild' }
   | { type: 'openDashboard'; key: string }
   | { type: 'ready' }
   | { type: 'runDrift' }
@@ -102,6 +104,8 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
 
 async function handleMessage(msg: PanelMsg): Promise<void> {
   if (!_panel) return;
+  if (msg.type === 'reportOpen') { await vscode.commands.executeCommand('specguard.openReport'); return; }
+  if (msg.type === 'reportRebuild') { await vscode.commands.executeCommand('specguard.rebuildReport'); return; }
   if (msg.type === 'journeys') { await vscode.commands.executeCommand('specguard.businessJourneys'); return; }
   if (msg.type === 'settings') { await vscode.commands.executeCommand('specguard.workspaceSettings'); return; }
 
@@ -368,6 +372,7 @@ export function buildHtml(_webview: vscode.Webview): string {
   .stat-card .sub { font-size: 11px; opacity: .6; margin-top: 2px; }
 
   /* ── Repo grid ── */
+  .ver { font-size: 12px; font-weight: 400; opacity: .6; margin-left: 8px; }
   .section-title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: 8px; margin-top: 20px; }
   .repo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
   .repo-card {
@@ -506,7 +511,7 @@ export function buildHtml(_webview: vscode.Webview): string {
 </style>
 </head>
 <body>
-<h1>⊕ Workspace Dashboard</h1>
+<h1>⊕ Workspace Dashboard <span class="ver" title="SpecGuard extension version">v${String(_context?.extension.packageJSON.version ?? '?')}</span></h1>
 
 <div class="tabs">
   <button class="tab-btn active" data-tab="status">Status</button>
@@ -639,6 +644,7 @@ export function buildHtml(_webview: vscode.Webview): string {
         <div class="c-stat" style="opacity:.7">\${manifest.rollupAt ? 'Checked ' + new Date(manifest.rollupAt).toLocaleString() : 'Not checked yet'}\${manifest.codeWorkspace ? ' · follows ' + manifest.codeWorkspace.split('/').pop() : ''}</div>
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           \${manifest.codeWorkspace ? '<button class="btn secondary" data-act="syncNow">Sync folders</button>' : ''}
+          <button class="btn secondary" data-act="reportOpen">Test report</button><button class="btn secondary" data-act="reportRebuild" title="Re-run the rollup from the latest results">Rebuild report</button>
           <button class="btn secondary" data-act="journeys">Business journeys</button><button class="btn" data-act="refreshAll">Refresh all repos</button>
         </div>
       </div>
@@ -732,6 +738,8 @@ export function buildHtml(_webview: vscode.Webview): string {
     const d = el.dataset;
     if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
     else if (d.act === 'journeys') vscode.postMessage({ type: 'journeys' });
+    else if (d.act === 'reportOpen') vscode.postMessage({ type: 'reportOpen' });
+    else if (d.act === 'reportRebuild') vscode.postMessage({ type: 'reportRebuild' });
     else if (d.act === 'settings') vscode.postMessage({ type: 'settings' });
     else if (d.act === 'openDashboard') vscode.postMessage({ type: 'openDashboard', key: d.key });
     else if (d.act === 'switch') switchRepo(d.abs, d.key);

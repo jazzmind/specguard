@@ -87,14 +87,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Coverage tree view
   coverageProvider = new CoverageProvider();
-  context.subscriptions.push(vscode.window.createTreeView('specguard.workspaceView', {
+  const workspaceTree = vscode.window.createTreeView('specguard.workspaceView', {
     treeDataProvider: new WorkspaceProvider(coverageProvider),
     showCollapseAll: true,
-  }));
+  });
+  workspaceTree.description = `v${context.extension.packageJSON.version}`;
+  context.subscriptions.push(workspaceTree);
   const treeView = vscode.window.createTreeView('specguard.coverageView', {
     treeDataProvider: coverageProvider,
     showCollapseAll: true,
   });
+  treeView.description = `v${context.extension.packageJSON.version}`;
   context.subscriptions.push(treeView);
 
   // Pipelines tree view
