@@ -98,7 +98,7 @@ export async function runWorkspacePublishCheck(cwd: string, explicit: string | u
     return result;
   }
   out.server.url = target.url;
-  const probe = await probeServer(target.url, opts.fetchImpl);
+  const probe = await probeServer(target.url, opts.fetchImpl, undefined, target.token);
   out.server.reachable = probe.reachable;
   out.server.features = probe.features;
   if (!probe.reachable) {

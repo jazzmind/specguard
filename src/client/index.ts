@@ -187,7 +187,7 @@ export function resetProbeCache(): void {
 
 async function probe(target: ServerTarget, fetchImpl: typeof fetch): Promise<Connection | string> {
   try {
-    const res = await fetchImpl(`${target.url}/api/v1/health`, { signal: AbortSignal.timeout(target.timeoutMs), headers: { Accept: 'application/json' } });
+    const res = await fetchImpl(`${target.url}/api/v1/health`, { signal: AbortSignal.timeout(target.timeoutMs), headers: { Accept: 'application/json', ...(target.token ? { Authorization: `Bearer ${target.token}` } : {}) } });
     if (!res.ok) return `the server answered ${res.status} to its health check`;
     if (!(res.headers.get('content-type') ?? '').includes('json')) {
       return /\/auth\/|login|signin/i.test(res.url ?? '') ? `${target.url} answered with a sign-in page, not the SpecGuard API: single sign-on is blocking API requests to it` : `${target.url} answered with a web page, not the SpecGuard API (check the server URL)`;

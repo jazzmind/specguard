@@ -291,15 +291,17 @@ export interface ServerProbe {
 }
 
 /** Ask `/health` whether a server answers and which features it lists. */
-export async function probeServer(url: string, fetchImpl: typeof fetch = fetch, timeoutMs = 8000): Promise<ServerProbe> {
+export async function probeServer(url: string, fetchImpl: typeof fetch = fetch, timeoutMs = 8000, token?: string): Promise<ServerProbe> {
   try {
-    const res = await fetchImpl(`${url}/api/v1/health`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetchImpl(`${url}/api/v1/health`, { headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) return { reachable: false, features: [], error: `the server answered ${res.status} to its health check` };
     const ctype = res.headers.get('content-type') ?? '';
     if (!ctype.includes('json')) {
       const gate = /\/auth\/|login|signin/i.test(res.url ?? '');
       return { reachable: false, features: [], error: gate
-        ? `${url} answered with a sign-in page, not the SpecGuard API: the host's single sign-on is blocking API requests to it. The server's /api/v1 path must be reachable with a token (ask the sandbox owner to exempt it from SSO), or use a URL that is.`
+        ? (token
+          ? `${url} answered with a sign-in page even though a token was sent: the host's single sign-on is not letting API requests through (the app needs DEPLOYKIT_TOKEN_AUTH_PATHS=/api/v1).`
+          : `${url} is behind the host's single sign-on and no SpecGuard token was found. Run "SpecGuard: Sign In" (or set SPECGUARD_TOKEN) so API requests carry a token.`)
         : `${url} answered with a web page (${ctype || 'no content type'}), not the SpecGuard API. Check the server URL (it should be the base address of a SpecGuard server, e.g. http://host/specguard).` };
     }
     const health = (await res.json()) as { ok?: boolean; features?: unknown };
@@ -362,7 +364,7 @@ export async function checkPublish(config: SpecGuardConfig, opts: PublishOpts = 
     check.error = 'no team server is configured: set "server.url" in .specguard/config.json, SPECGUARD_SERVER, or pass --server';
     return check;
   }
-  const probe = await probeServer(target.url, opts.fetchImpl);
+  const probe = await probeServer(target.url, opts.fetchImpl, undefined, target.token);
   check.server.reachable = probe.reachable;
   check.server.features = probe.features;
   if (!probe.reachable) {
