@@ -29,6 +29,21 @@ const makers: Array<[string, () => Promise<Backend>]> = [
       return pgBackend(new Pool() as unknown as Db);
     },
   ],
+  // Opt-in: a real Postgres (SPECGUARD_TEST_PG_URL), one fresh schema per backend. pg-mem differs from it in places (bytea, ordering).
+  ...(process.env.SPECGUARD_TEST_PG_URL
+    ? [[
+        'postgres (real)',
+        async () => {
+          const { default: pg } = await import('pg');
+          const schema = `t_${Math.random().toString(36).slice(2, 10)}`;
+          const admin = new pg.Pool({ connectionString: process.env.SPECGUARD_TEST_PG_URL, max: 1 });
+          await admin.query(`CREATE SCHEMA ${schema}`);
+          await admin.end();
+          const pool = new pg.Pool({ connectionString: process.env.SPECGUARD_TEST_PG_URL, options: `-c search_path=${schema}`, max: 4 });
+          return pgBackend(pool as unknown as Db);
+        },
+      ] as [string, () => Promise<Backend>]]
+    : []),
 ];
 
 let template: Snapshot | undefined;
