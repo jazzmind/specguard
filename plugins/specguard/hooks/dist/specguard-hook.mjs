@@ -7285,6 +7285,7 @@ __export(overlay_exports, {
   enclosingGitRoot: () => enclosingGitRoot,
   entriesOfConfig: () => entriesOfConfig,
   findOwnConfigDir: () => findOwnConfigDir,
+  isPureOverlayRoot: () => isPureOverlayRoot,
   matchOverlayEntries: () => matchOverlayEntries,
   overlayCoverage: () => overlayCoverage,
   overlayMissHint: () => overlayMissHint,
@@ -7572,6 +7573,11 @@ function overlayCoverage(dir, env = process.env) {
 function configDirOf(dir, env = process.env) {
   if (existsSync2(path3.join(dir, CONFIG_REL))) return path3.resolve(dir);
   return overlayCoverage(dir, env)?.dir ?? null;
+}
+function isPureOverlayRoot(dir, env = process.env) {
+  if (existsSync2(path3.join(dir, ".specguard", "config.json"))) return false;
+  const real = realPathLoose(dir);
+  return readOverlayRegistry(env).registry.overlays.some((o) => realPathLoose(o.root) === real);
 }
 var OVERLAY_ENV, CONFIG_ENV, OVERLAY_SCAN_DEPTH, CONFIG_REL, SKIP_DIRS, isRecord, isDirectory, emptyRegistry;
 var init_overlay = __esm({

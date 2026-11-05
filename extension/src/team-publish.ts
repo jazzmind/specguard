@@ -56,15 +56,17 @@ export function parseCliLine(line: string): CliLine {
 /** Find the workspace check in the CLI's output lines (stdout and stderr arrive mixed); progress lines and logs are skipped. */
 export function parseCheckOutput(lines: string[]): { check?: TeamCheck; text: string[] } {
   const text = lines.filter((l) => parseCliLine(l).kind === 'text' && l.trim() !== '');
-  const valid = (v: unknown): v is TeamCheck => !!v && typeof v === 'object' && (v as TeamCheck).schema === WORKSPACE_CHECK_SCHEMA && Array.isArray((v as TeamCheck).repos);
+  const isCheck = (v: unknown): v is TeamCheck => !!v && typeof v === 'object' && (v as TeamCheck).schema === WORKSPACE_CHECK_SCHEMA && Array.isArray((v as TeamCheck).repos);
+  // The CLI prints the pipeline result, which carries the check under `publish`; older builds printed the check itself.
+  const unwrap = (v: unknown): TeamCheck | undefined => (isCheck(v) ? v : v && typeof v === 'object' && isCheck((v as { publish?: unknown }).publish) ? (v as { publish: TeamCheck }).publish : undefined);
   const joined = text.join('\n');
   const from = joined.indexOf('{');
   const to = joined.lastIndexOf('}');
   if (from >= 0 && to > from) {
-    try { const v: unknown = JSON.parse(joined.slice(from, to + 1)); if (valid(v)) return { check: v, text }; } catch { /* try line by line */ }
+    try { const v = unwrap(JSON.parse(joined.slice(from, to + 1))); if (v) return { check: v, text }; } catch { /* try line by line */ }
   }
   for (const l of text) {
-    try { const v: unknown = JSON.parse(l); if (valid(v)) return { check: v, text }; } catch { /* next */ }
+    try { const v = unwrap(JSON.parse(l)); if (v) return { check: v, text }; } catch { /* next */ }
   }
   return { text };
 }

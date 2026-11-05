@@ -14,7 +14,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { loadConfig } from '../core/config.js';
-import { readOverlayRegistry, realPathLoose } from '../core/overlay.js';
+import { isPureOverlayRoot } from '../core/overlay.js';
 import { listRunIndexes, type RunIndex } from '../core/evidence.js';
 import { ExitCode } from '../core/exit-codes.js';
 import { emptyResult, type PipelineResult } from '../core/types.js';
@@ -167,10 +167,9 @@ export async function runWorkspaceReport(cwd: string, opts: WorkspaceReportOpts 
 
   const repos: WorkspaceRepoReport[] = [];
   // An overlay repository only holds specs, tests and evidence FOR other projects; it is not a project and has no config of its own.
-  const overlayRoots = new Set(readOverlayRegistry().registry.overlays.map((o) => realPathLoose(o.root)));
   for (const [key, repo] of Object.entries(ws.repos).sort(([a], [b]) => a.localeCompare(b))) {
     const dir = path.resolve(ws.rootDir, repo.path);
-    if (overlayRoots.has(realPathLoose(dir)) && !existsSync(path.join(dir, '.specguard', 'config.json'))) {
+    if (isPureOverlayRoot(dir)) {
       result.messages.push(`[info] ${key}: overlay repository, left out of the rollup (its projects are reported individually)`);
       continue;
     }

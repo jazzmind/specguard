@@ -10,6 +10,7 @@
 import path from 'node:path';
 
 import { SpecGuardClient, serverTarget, ServerRequestError, type ServerTarget } from '../client/index.js';
+import { isPureOverlayRoot } from '../core/overlay.js';
 import { loadConfig } from '../core/config.js';
 import { ExitCode } from '../core/exit-codes.js';
 import type { SpecGuardConfig, PipelineResult } from '../core/types.js';
@@ -45,6 +46,7 @@ export async function buildWorkspaceDef(manifest: WorkspaceManifest): Promise<Wo
   const projects: WorkspaceDefBody['projects'] = [];
   const seen = new Set<string>();
   const add = async (key: string, unit: { path: string; role?: string }, ignore: boolean): Promise<void> => {
+    if (isPureOverlayRoot(path.resolve(manifest.rootDir, unit.path))) return;
     const { project } = await projectOf(manifest, key, unit);
     if (seen.has(project)) return;
     seen.add(project);
@@ -137,6 +139,7 @@ export async function runWorkspacePublishCheck(cwd: string, explicit: string | u
 
   for (const [key, repo] of Object.entries(manifest.repos).sort(([a], [b]) => a.localeCompare(b))) {
     if (opts.only && !opts.only.includes(key)) continue;
+    if (isPureOverlayRoot(path.resolve(manifest.rootDir, repo.path))) continue; // an overlay repo supplies evidence for other projects; it is not published itself
     try {
       const { project, config } = await projectOf(manifest, key, repo);
       const loaded = config ?? (await loadConfig(path.resolve(manifest.rootDir, repo.path)));
@@ -193,6 +196,7 @@ export async function runWorkspacePublish(cwd: string, explicit: string | undefi
   const sink = progressSink(opts);
   for (const [key, repo] of Object.entries(manifest.repos).sort(([a], [b]) => a.localeCompare(b))) {
     if (opts.only && !opts.only.includes(key)) continue;
+    if (isPureOverlayRoot(path.resolve(manifest.rootDir, repo.path))) continue;
     try {
       const { project, config } = await projectOf(manifest, key, repo);
       const loaded = config ?? (await loadConfig(path.resolve(manifest.rootDir, repo.path)));

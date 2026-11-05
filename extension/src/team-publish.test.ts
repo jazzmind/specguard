@@ -26,6 +26,14 @@ describe('parseCliLine', () => {
 });
 
 // [claims: capabilities/integration-surfaces#extension-team-publish]
+describe('parseCheckOutput, pipeline-wrapped', () => {
+  it('finds the check under `publish` in the CLI result', () => {
+    const wrapped = JSON.stringify({ pipeline: 'workspace-publish', exitCode: 9, messages: ['x'], publish: { schema: 'specguard-workspace-publish-check/1', workspace: 'w', server: { url: 'u', reachable: true, signedIn: true, features: [] }, definition: { needsPublish: true, reasons: ['missing'] }, repos: [] } });
+    const out = parseCheckOutput([wrapped]);
+    expect(out.check?.workspace).toBe('w');
+  });
+});
+
 describe('parseCheckOutput', () => {
   it('finds a pretty-printed check among progress and log lines', () => {
     const lines = ['warming up', ...JSON.stringify(mixed, null, 2).split('\n'), '{"sg":"progress","phase":"hash","done":1,"total":2,"bytes":0}'];

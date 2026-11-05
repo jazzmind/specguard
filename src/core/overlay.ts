@@ -479,3 +479,10 @@ export function configDirOf(dir: string, env: NodeJS.ProcessEnv = process.env): 
   if (existsSync(path.join(dir, CONFIG_REL))) return path.resolve(dir);
   return overlayCoverage(dir, env)?.dir ?? null;
 }
+
+/** True for a registered overlay repository that has no config of its own: it holds specs/evidence for other projects and is not a project. */
+export function isPureOverlayRoot(dir: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (existsSync(path.join(dir, '.specguard', 'config.json'))) return false;
+  const real = realPathLoose(dir);
+  return readOverlayRegistry(env).registry.overlays.some((o) => realPathLoose(o.root) === real);
+}
