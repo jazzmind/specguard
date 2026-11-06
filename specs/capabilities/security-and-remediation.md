@@ -41,9 +41,7 @@ tests:
   - "tests/pipelines/security-plan.test.ts"
 docs:
   - "README.md"
-  - "docs/user/security.md"
-  - "docs/user/npm-audit.md"
-  - "docs/user/docker.md"
+  - "docs/guide/reference/security-and-remediation.md"
   - "docs/ci-remediate.md"
   - "docs/examples/**"
   - "schemas/remediation-plan.v1.json"

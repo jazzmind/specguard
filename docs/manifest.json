@@ -1,0 +1,3218 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "id": "what-is-specguard",
+      "title": "What is SpecGuard and why it exists",
+      "audience": "user",
+      "group": "Start here",
+      "file": "guide/what-is-specguard.md",
+      "sourceHash": "aa0191f20532f4e676b4eeefb1c95f0a9ff57a6b19b52c641e4970f3d9dfc06e",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "the-problem",
+          "title": "The problem"
+        },
+        {
+          "anchor": "the-idea",
+          "title": "The idea"
+        },
+        {
+          "anchor": "the-four-pillars",
+          "title": "The four pillars"
+        },
+        {
+          "anchor": "what-a-day-looks-like",
+          "title": "What a day looks like"
+        },
+        {
+          "anchor": "what-specguard-is-not",
+          "title": "What SpecGuard is not"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "fits-with-tools",
+      "title": "How SpecGuard fits with other tools",
+      "audience": "user",
+      "group": "Start here",
+      "file": "guide/fits-with-tools.md",
+      "sourceHash": "079f6daa606860c8d8a53b758bdd870a977c3ceb1e6f88237e12c152bd6d65a9",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "coding-agents-claude-code-codex-cursor",
+          "title": "Coding agents: Claude Code, Codex, Cursor"
+        },
+        {
+          "anchor": "host-agent-mode-no-api-key",
+          "title": "Host-agent mode: no API key"
+        },
+        {
+          "anchor": "model-providers-including-proxies",
+          "title": "Model providers, including proxies"
+        },
+        {
+          "anchor": "test-frameworks-and-results",
+          "title": "Test frameworks and results"
+        },
+        {
+          "anchor": "ci-the-github-action",
+          "title": "CI: the GitHub Action"
+        },
+        {
+          "anchor": "git-notes-proof-store",
+          "title": "Git-notes proof store"
+        },
+        {
+          "anchor": "vs-code-and-cursor-extension",
+          "title": "VS Code and Cursor extension"
+        },
+        {
+          "anchor": "team-server",
+          "title": "Team server"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Core concepts",
+      "audience": "user",
+      "group": "Start here",
+      "file": "guide/concepts.md",
+      "sourceHash": "ffc6a3adb008377fbf7b726785c7ecaff944feb5930ee09afe56fbd5ff4b949e",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "specs",
+          "title": "Specs"
+        },
+        {
+          "anchor": "capabilities",
+          "title": "Capabilities"
+        },
+        {
+          "anchor": "claims",
+          "title": "Claims"
+        },
+        {
+          "anchor": "proofs",
+          "title": "Proofs"
+        },
+        {
+          "anchor": "history",
+          "title": "History"
+        },
+        {
+          "anchor": "drift",
+          "title": "Drift"
+        },
+        {
+          "anchor": "workspaces-and-units",
+          "title": "Workspaces and units"
+        },
+        {
+          "anchor": "overlays",
+          "title": "Overlays"
+        },
+        {
+          "anchor": "contracts",
+          "title": "Contracts"
+        },
+        {
+          "anchor": "plugins",
+          "title": "Plugins"
+        },
+        {
+          "anchor": "the-change-protocol",
+          "title": "The change protocol"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "vscode-extension",
+      "title": "The VS Code extension",
+      "audience": "user",
+      "group": "Start here",
+      "file": "guide/vscode-extension.md",
+      "sourceHash": "691ba1e6dfb947a3490fdbeaf7a4cb74f121bdc3d33b0079b5a38530009888ea",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "set-up-a-repository",
+          "title": "Set up a repository"
+        },
+        {
+          "anchor": "open-the-dashboard",
+          "title": "Open the dashboard"
+        },
+        {
+          "anchor": "repository-dashboard",
+          "title": "Repository dashboard"
+        },
+        {
+          "anchor": "overview-tab",
+          "title": "Overview tab"
+        },
+        {
+          "anchor": "coverage-tab",
+          "title": "Coverage tab"
+        },
+        {
+          "anchor": "actions-tab",
+          "title": "Actions tab"
+        },
+        {
+          "anchor": "plans-tab",
+          "title": "Plans tab"
+        },
+        {
+          "anchor": "findings-tab",
+          "title": "Findings tab"
+        },
+        {
+          "anchor": "activity-tab",
+          "title": "Activity tab"
+        },
+        {
+          "anchor": "docs-tab",
+          "title": "Docs tab"
+        },
+        {
+          "anchor": "specs-tab",
+          "title": "Specs tab"
+        },
+        {
+          "anchor": "tests-tab",
+          "title": "Tests tab"
+        },
+        {
+          "anchor": "traceability-tab",
+          "title": "Traceability tab"
+        },
+        {
+          "anchor": "settings-tab",
+          "title": "Settings tab"
+        },
+        {
+          "anchor": "workspace-dashboard",
+          "title": "Workspace dashboard"
+        },
+        {
+          "anchor": "workspace-status",
+          "title": "Workspace status"
+        },
+        {
+          "anchor": "repos-in-the-workspace",
+          "title": "Repos in the workspace"
+        },
+        {
+          "anchor": "cross-repo-drift",
+          "title": "Cross-repo drift"
+        },
+        {
+          "anchor": "contracts-in-the-workspace",
+          "title": "Contracts in the workspace"
+        },
+        {
+          "anchor": "team-server-in-the-workspace",
+          "title": "Team server in the workspace"
+        },
+        {
+          "anchor": "workspace-settings",
+          "title": "Workspace settings"
+        },
+        {
+          "anchor": "sidebar-views",
+          "title": "Sidebar views"
+        },
+        {
+          "anchor": "coverage-view",
+          "title": "Coverage view"
+        },
+        {
+          "anchor": "pipelines-view",
+          "title": "Pipelines view"
+        },
+        {
+          "anchor": "plugins-view",
+          "title": "Plugins view"
+        },
+        {
+          "anchor": "workspace-view",
+          "title": "Workspace view"
+        },
+        {
+          "anchor": "help-and-documentation",
+          "title": "Help and documentation"
+        },
+        {
+          "anchor": "help-icons",
+          "title": "Help icons"
+        },
+        {
+          "anchor": "open-the-docs",
+          "title": "Open the docs"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "single-repo",
+      "title": "Quickstart: one repository",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/single-repo.md",
+      "sourceHash": "f3874b26ffb1e8f2a1d14d9d7d331cb43bbc4ed682b1bf3b82fa463cda03aacf",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "start",
+          "title": "Start"
+        },
+        {
+          "anchor": "read-what-was-drafted",
+          "title": "Read what was drafted"
+        },
+        {
+          "anchor": "run-the-first-check",
+          "title": "Run the first check"
+        },
+        {
+          "anchor": "link-tests-to-requirements",
+          "title": "Link tests to requirements"
+        },
+        {
+          "anchor": "run-the-tests-and-record-proof",
+          "title": "Run the tests and record proof"
+        },
+        {
+          "anchor": "keep-the-history",
+          "title": "Keep the history"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "multi-repo",
+      "title": "Quickstart: multiple repositories",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/multi-repo.md",
+      "sourceHash": "a2dcd21c9e7b5ba5c95e55aba32e0a850b33b62a6dedf018b298b669e6d4d412",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "monorepos-first",
+          "title": "Monorepos first"
+        },
+        {
+          "anchor": "create-the-workspace",
+          "title": "Create the workspace"
+        },
+        {
+          "anchor": "leave-repositories-out",
+          "title": "Leave repositories out"
+        },
+        {
+          "anchor": "keep-it-in-step-with-the-folders",
+          "title": "Keep it in step with the folders"
+        },
+        {
+          "anchor": "see-the-whole-system",
+          "title": "See the whole system"
+        },
+        {
+          "anchor": "connect-the-repositories",
+          "title": "Connect the repositories"
+        },
+        {
+          "anchor": "organize-the-business-view",
+          "title": "Organize the business view"
+        },
+        {
+          "anchor": "a-worked-monorepo-configuration",
+          "title": "A worked monorepo configuration"
+        },
+        {
+          "anchor": "organize-an-application-s-features-and-specs",
+          "title": "Organize an application's features and specs"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "overlays",
+      "title": "Quickstart: overlays",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/overlays.md",
+      "sourceHash": "bf3d33e71a02c05654fd28c25119b1ca43c0b8281c9f92ab29c21d17c6d47178",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "lay-out-the-overlay",
+          "title": "Lay out the overlay"
+        },
+        {
+          "anchor": "register-it-once-per-machine",
+          "title": "Register it once per machine"
+        },
+        {
+          "anchor": "work-from-an-application-repository",
+          "title": "Work from an application repository"
+        },
+        {
+          "anchor": "keep-it-current",
+          "title": "Keep it current"
+        },
+        {
+          "anchor": "resolution-rules",
+          "title": "Resolution rules"
+        },
+        {
+          "anchor": "choose-where-generated-files-go",
+          "title": "Choose where generated files go"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "from-a-prd",
+      "title": "Quickstart: working from a PRD",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/from-a-prd.md",
+      "sourceHash": "4144d19020bfd20cdccabc3ed3ef635f7604442d9b00c3ae3865f36adcb10058",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "import-the-document",
+          "title": "Import the document"
+        },
+        {
+          "anchor": "add-to-an-existing-capability-instead",
+          "title": "Add to an existing capability instead"
+        },
+        {
+          "anchor": "make-the-requirements-testable",
+          "title": "Make the requirements testable"
+        },
+        {
+          "anchor": "record-why",
+          "title": "Record why"
+        },
+        {
+          "anchor": "approve-in-your-own-terminal",
+          "title": "Approve in your own terminal"
+        },
+        {
+          "anchor": "build-it-spec-first",
+          "title": "Build it spec first"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "existing-code",
+      "title": "Quickstart: working with existing code",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/existing-code.md",
+      "sourceHash": "19c34d78da6843540ac4d4f15e7a2fda8e63cacdc7054d7f8c01114eaa56fac9",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "initialise",
+          "title": "Initialise"
+        },
+        {
+          "anchor": "draft-specs-from-the-code",
+          "title": "Draft specs from the code"
+        },
+        {
+          "anchor": "link-the-tests-you-already-have",
+          "title": "Link the tests you already have"
+        },
+        {
+          "anchor": "record-proof-from-your-own-runs",
+          "title": "Record proof from your own runs"
+        },
+        {
+          "anchor": "find-the-gaps",
+          "title": "Find the gaps"
+        },
+        {
+          "anchor": "turn-drafts-into-intent",
+          "title": "Turn drafts into intent"
+        },
+        {
+          "anchor": "migrate-an-older-repository",
+          "title": "Migrate an older repository"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "new-features",
+      "title": "Quickstart: adding new features",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/new-features.md",
+      "sourceHash": "7e7d39cd1a715369d19a21c674b3644df64157f36d74ddf28f312c6de5999b92",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "open-a-change",
+          "title": "Open a change"
+        },
+        {
+          "anchor": "write-the-requirement-and-stop",
+          "title": "Write the requirement and stop"
+        },
+        {
+          "anchor": "write-tests-and-see-them-fail",
+          "title": "Write tests and see them fail"
+        },
+        {
+          "anchor": "write-the-code-then-record-green",
+          "title": "Write the code, then record green"
+        },
+        {
+          "anchor": "push-and-let-ci-validate",
+          "title": "Push and let CI validate"
+        },
+        {
+          "anchor": "close-the-change",
+          "title": "Close the change"
+        },
+        {
+          "anchor": "decide-how-strict-each-capability-is",
+          "title": "Decide how strict each capability is"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "drift",
+      "title": "Quickstart: detecting drift",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/drift.md",
+      "sourceHash": "616a3bfe0d9975671be2bffffefe27f9e906f891e5adf58cc29743e4560618ae",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "one-verdict-per-capability",
+          "title": "One verdict per capability"
+        },
+        {
+          "anchor": "the-older-commands-still-work",
+          "title": "The older commands still work"
+        },
+        {
+          "anchor": "stale-proofs-are-drift-too",
+          "title": "Stale proofs are drift too"
+        },
+        {
+          "anchor": "intent-gaps",
+          "title": "Intent gaps"
+        },
+        {
+          "anchor": "across-repositories",
+          "title": "Across repositories"
+        },
+        {
+          "anchor": "make-it-automatic",
+          "title": "Make it automatic"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "contracts",
+      "title": "Quickstart: contracts between repositories",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/contracts.md",
+      "sourceHash": "001a846c439b53052f0ae50d3ce50e127b566ee2c0683ef860eeb43fd75e6d13",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "build-the-contract-graph",
+          "title": "Build the contract graph"
+        },
+        {
+          "anchor": "map-consumer-specs-to-provider-specs",
+          "title": "Map consumer specs to provider specs"
+        },
+        {
+          "anchor": "rebuild-the-graph-with-the-mappings",
+          "title": "Rebuild the graph with the mappings"
+        },
+        {
+          "anchor": "ask-what-a-change-reaches",
+          "title": "Ask what a change reaches"
+        },
+        {
+          "anchor": "check-drift-across-the-edges",
+          "title": "Check drift across the edges"
+        },
+        {
+          "anchor": "contracts-in-the-workspace-dashboard",
+          "title": "Contracts in the workspace dashboard"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "qa-automation",
+      "title": "Quickstart: QA automation",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/qa-automation.md",
+      "sourceHash": "2f7c877d3d47c15f06d913bd756f2503a39dae2821c09a4bd5fc5fe636f9b9ec",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "write-the-workflows",
+          "title": "Write the workflows"
+        },
+        {
+          "anchor": "or-use-the-action-directly",
+          "title": "Or use the action directly"
+        },
+        {
+          "anchor": "let-ci-run-your-tests-then-ingest",
+          "title": "Let CI run your tests, then ingest"
+        },
+        {
+          "anchor": "declare-which-layers-a-claim-needs",
+          "title": "Declare which layers a claim needs"
+        },
+        {
+          "anchor": "verify-the-running-app-with-a-browser-agent",
+          "title": "Verify the running app with a browser agent"
+        },
+        {
+          "anchor": "certify-on-ci-evidence",
+          "title": "Certify on CI evidence"
+        },
+        {
+          "anchor": "keep-ci-cheap-and-key-free",
+          "title": "Keep CI cheap and key-free"
+        },
+        {
+          "anchor": "releases",
+          "title": "Releases"
+        },
+        {
+          "anchor": "read-the-results",
+          "title": "Read the results"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "vulnerability-management",
+      "title": "Quickstart: vulnerability management automation",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/vulnerability-management.md",
+      "sourceHash": "d3b510258c510b8099665b29f2f0390ea0e105f39e6a7ce0e247404f678b1ab1",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "scan",
+          "title": "Scan"
+        },
+        {
+          "anchor": "track-the-plan",
+          "title": "Track the plan"
+        },
+        {
+          "anchor": "fix-with-proof",
+          "title": "Fix with proof"
+        },
+        {
+          "anchor": "repair-the-application-for-failing-claims",
+          "title": "Repair the application for failing claims"
+        },
+        {
+          "anchor": "schedule-it",
+          "title": "Schedule it"
+        },
+        {
+          "anchor": "suppress-a-known-advisory",
+          "title": "Suppress a known advisory"
+        },
+        {
+          "anchor": "auto-merge-dependency-fixes-only-when-provably-safe",
+          "title": "Auto-merge dependency fixes, only when provably safe"
+        },
+        {
+          "anchor": "known-limits",
+          "title": "Known limits"
+        },
+        {
+          "anchor": "over-mcp",
+          "title": "Over MCP"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "team-collaboration",
+      "title": "Quickstart: collaborating with a team",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/team-collaboration.md",
+      "sourceHash": "15a9855870393e81e8ae34c7feb683109a96bfef3c65379558cbc2d8c7adc78f",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "what-lives-where",
+          "title": "What lives where"
+        },
+        {
+          "anchor": "connect-a-project",
+          "title": "Connect a project"
+        },
+        {
+          "anchor": "publish-from-ci",
+          "title": "Publish from CI"
+        },
+        {
+          "anchor": "see-what-the-team-sees",
+          "title": "See what the team sees"
+        },
+        {
+          "anchor": "share-a-workspace",
+          "title": "Share a workspace"
+        },
+        {
+          "anchor": "run-a-server",
+          "title": "Run a server"
+        },
+        {
+          "anchor": "tokens",
+          "title": "Tokens"
+        },
+        {
+          "anchor": "test-runs-and-evidence-on-the-server",
+          "title": "Test runs and evidence on the server"
+        },
+        {
+          "anchor": "remote-mcp",
+          "title": "Remote MCP"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "title": "Quickstart: plugins",
+      "audience": "user",
+      "group": "Quickstarts",
+      "file": "guide/plugins.md",
+      "sourceHash": "254c40064dec59a08baf0976c73c1086b4e3005d9c8de154b6701a8255eb04f4",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "see-what-is-available",
+          "title": "See what is available"
+        },
+        {
+          "anchor": "turn-one-on-or-off",
+          "title": "Turn one on or off"
+        },
+        {
+          "anchor": "add-an-npm-plugin",
+          "title": "Add an npm plugin"
+        },
+        {
+          "anchor": "configure-the-feature-catalog",
+          "title": "Configure the feature catalog"
+        },
+        {
+          "anchor": "read-contract-mappings-from-an-older-file",
+          "title": "Read contract mappings from an older file"
+        },
+        {
+          "anchor": "in-the-editor",
+          "title": "In the editor"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "agentic-verification",
+      "title": "Agentic Verification",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/agentic-verification.md",
+      "sourceHash": "db800a8f15c2cac7ceedf1d26ff2e96625682ed26864ee22c0cc6e89abfe00e4",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "conformance-testing",
+      "title": "Conformance Testing",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/conformance-testing.md",
+      "sourceHash": "cd034bba20e840e94990f6b5e07800427ad81ab34007c6f0e7dafd7b7bead580",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "generate-tests-from-a-spec",
+          "title": "Generate tests from a spec"
+        },
+        {
+          "anchor": "tag-tests-with-claims",
+          "title": "Tag tests with claims"
+        },
+        {
+          "anchor": "record-proof-from-a-test-run",
+          "title": "Record proof from a test run"
+        },
+        {
+          "anchor": "check-what-is-proven-failed-or-stale",
+          "title": "Check what is proven, failed or stale"
+        },
+        {
+          "anchor": "heal-broken-tests",
+          "title": "Heal broken tests"
+        },
+        {
+          "anchor": "run-only-some-tests",
+          "title": "Run only some tests"
+        },
+        {
+          "anchor": "more-control",
+          "title": "More control"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "coverage-and-mutation",
+      "title": "Coverage and Mutation Evidence",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/coverage-and-mutation.md",
+      "sourceHash": "b5b6b9c55ae0f6a0aee617556b2e704d59896185714b62978427a26295e3358f",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "ingest-coverage-reports",
+          "title": "Ingest coverage reports"
+        },
+        {
+          "anchor": "scope-coverage-to-one-capability",
+          "title": "Scope coverage to one capability"
+        },
+        {
+          "anchor": "see-coverage-of-changed-lines",
+          "title": "See coverage of changed lines"
+        },
+        {
+          "anchor": "ingest-mutation-reports",
+          "title": "Ingest mutation reports"
+        },
+        {
+          "anchor": "apply-a-mutation-policy",
+          "title": "Apply a mutation policy"
+        },
+        {
+          "anchor": "help-specguard-find-your-files",
+          "title": "Help SpecGuard find your files"
+        },
+        {
+          "anchor": "other-options",
+          "title": "Other options"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "documentation-api",
+      "title": "Documentation and API",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/documentation-api.md",
+      "sourceHash": "9550810f563e08c55c8fddd7bcab75c7a25751e18578163b87c25ed385ef2db5",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "generate-user-facing-pages",
+          "title": "Generate user-facing pages"
+        },
+        {
+          "anchor": "keep-front-door-files-in-sync",
+          "title": "Keep front-door files in sync"
+        },
+        {
+          "anchor": "build-the-full-documentation-set",
+          "title": "Build the full documentation set"
+        },
+        {
+          "anchor": "read-the-audit-documents",
+          "title": "Read the audit documents"
+        },
+        {
+          "anchor": "serve-documentation-over-a-local-api",
+          "title": "Serve documentation over a local API"
+        },
+        {
+          "anchor": "check-your-guides",
+          "title": "Check your guides"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "integration-surfaces",
+      "title": "Integration Surfaces - CLI, Agents, CI, IDE and Plugins",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/integration-surfaces.md",
+      "sourceHash": "f0f979238e1293ff1827b6818ad3446fc8ced5caa554f22e5b230434261ac63b",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "use-the-command-line",
+          "title": "Use the command line"
+        },
+        {
+          "anchor": "set-up-a-project",
+          "title": "Set up a project"
+        },
+        {
+          "anchor": "let-coding-agents-drive-specguard",
+          "title": "Let coding agents drive SpecGuard"
+        },
+        {
+          "anchor": "gate-pull-requests-in-ci",
+          "title": "Gate pull requests in CI"
+        },
+        {
+          "anchor": "work-inside-vs-code",
+          "title": "Work inside VS Code"
+        },
+        {
+          "anchor": "extend-specguard-with-plugins",
+          "title": "Extend SpecGuard with plugins"
+        },
+        {
+          "anchor": "work-with-overlays",
+          "title": "Work with overlays"
+        },
+        {
+          "anchor": "developing-and-installing-locally",
+          "title": "Developing and installing locally"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "intent-approval",
+      "title": "Intent Approval",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/intent-approval.md",
+      "sourceHash": "51a761004b199390e28d7487c8d9909d0bbd446ddf999bced025d6f4bd3673d4",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "approve-requirements",
+          "title": "Approve requirements"
+        },
+        {
+          "anchor": "see-where-approval-stands",
+          "title": "See where approval stands"
+        },
+        {
+          "anchor": "make-a-pull-request-s-review-approvals-permanent",
+          "title": "Make a pull request's review approvals permanent"
+        },
+        {
+          "anchor": "review-approvals-in-ci",
+          "title": "Review approvals in CI"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "platform-foundation",
+      "title": "Platform Foundation",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/platform-foundation.md",
+      "sourceHash": "f3125295fdbcc2c58d4dd821f8ec06a8f1ab8370f3449c061f504066f59925c8",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "configure-a-project",
+          "title": "Configure a project"
+        },
+        {
+          "anchor": "use-a-config-that-lives-outside-the-repo-overlays",
+          "title": "Use a config that lives outside the repo (overlays)"
+        },
+        {
+          "anchor": "control-how-models-are-used",
+          "title": "Control how models are used"
+        },
+        {
+          "anchor": "cap-spending-and-track-usage",
+          "title": "Cap spending and track usage"
+        },
+        {
+          "anchor": "record-and-replay-model-responses",
+          "title": "Record and replay model responses"
+        },
+        {
+          "anchor": "work-with-a-coding-agent-host-mode",
+          "title": "Work with a coding agent (host mode)"
+        },
+        {
+          "anchor": "keep-sensitive-text-private",
+          "title": "Keep sensitive text private"
+        },
+        {
+          "anchor": "find-files-safely",
+          "title": "Find files safely"
+        },
+        {
+          "anchor": "support-several-languages",
+          "title": "Support several languages"
+        },
+        {
+          "anchor": "upgrade-an-existing-repository-with-specguard-migrate",
+          "title": "Upgrade an existing repository with `specguard migrate`"
+        },
+        {
+          "anchor": "script-against-stable-exit-codes-and-versions",
+          "title": "Script against stable exit codes and versions"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "proof-store",
+      "title": "Proof Store",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/proof-store.md",
+      "sourceHash": "74739e5c221923dc3ddd4bd1c8c7e68c351a577ffcdabe06f620ed0aa49c12dc",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "requirement-history",
+      "title": "Requirement History",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/requirement-history.md",
+      "sourceHash": "462f26bcc44137cc882710fea5b156ac4e93bb7e5123e2e4ce0b3768adf2d215",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "record-a-decision-prompt-or-plan-by-hand",
+          "title": "Record a decision, prompt or plan by hand"
+        },
+        {
+          "anchor": "read-the-timeline",
+          "title": "Read the timeline"
+        },
+        {
+          "anchor": "capture-claude-code-sessions-automatically",
+          "title": "Capture Claude Code sessions automatically"
+        },
+        {
+          "anchor": "find-changes-with-no-recorded-reason",
+          "title": "Find changes with no recorded reason"
+        },
+        {
+          "anchor": "use-it-from-agents",
+          "title": "Use it from agents"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "security-and-remediation",
+      "title": "Security Scanning and Remediation",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/security-and-remediation.md",
+      "sourceHash": "7ff639acabd789fa0f05397c02634aa899ab002dcbfdaadf02719272df768cf8",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "generate-security-tests-and-run-a-quick-scan",
+          "title": "Generate security tests and run a quick scan"
+        },
+        {
+          "anchor": "check-for-vulnerable-dependencies-and-secrets",
+          "title": "Check for vulnerable dependencies and secrets"
+        },
+        {
+          "anchor": "get-proven-safe-fixes",
+          "title": "Get proven-safe fixes"
+        },
+        {
+          "anchor": "repair-failing-claims",
+          "title": "Repair failing claims"
+        },
+        {
+          "anchor": "build-a-tracked-remediation-plan",
+          "title": "Build a tracked remediation plan"
+        },
+        {
+          "anchor": "use-it-from-other-tools",
+          "title": "Use it from other tools"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        },
+        {
+          "anchor": "the-behaviour-verdict",
+          "title": "The behaviour verdict"
+        },
+        {
+          "anchor": "exit-codes",
+          "title": "Exit codes"
+        },
+        {
+          "anchor": "before-any-patch-is-applied",
+          "title": "Before any patch is applied"
+        },
+        {
+          "anchor": "when-tools-are-missing",
+          "title": "When tools are missing"
+        },
+        {
+          "anchor": "secrets",
+          "title": "Secrets"
+        },
+        {
+          "anchor": "plans-keep-their-history",
+          "title": "Plans keep their history"
+        },
+        {
+          "anchor": "merging",
+          "title": "Merging"
+        },
+        {
+          "anchor": "privacy-and-safety",
+          "title": "Privacy and safety"
+        },
+        {
+          "anchor": "not-included",
+          "title": "Not included"
+        }
+      ]
+    },
+    {
+      "id": "spec-authoring",
+      "title": "Spec Authoring",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/spec-authoring.md",
+      "sourceHash": "163e1cda3a7f5e81aac9f62557598300f414a1c403745f9081af27622e58c91d",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "spec-first-changes",
+      "title": "Spec-First Changes",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/spec-first-changes.md",
+      "sourceHash": "4e003b8d9d3017153b3122386f241f3510e3e810e69c2480401f49458cc8fc5a",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "work-through-a-change-in-order",
+          "title": "Work through a change in order"
+        },
+        {
+          "anchor": "tighten-enforcement-one-capability-at-a-time",
+          "title": "Tighten enforcement one capability at a time"
+        },
+        {
+          "anchor": "let-the-edit-guard-keep-agents-on-track",
+          "title": "Let the edit guard keep agents on track"
+        },
+        {
+          "anchor": "review-from-a-proof-packet",
+          "title": "Review from a proof packet"
+        },
+        {
+          "anchor": "verdicts-and-merge-effect",
+          "title": "Verdicts and merge effect"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "team-server",
+      "title": "Local-first operation with an optional team server",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/team-server.md",
+      "sourceHash": "d74586a29d0217d206f655975a3024e3b51e076e158a700006fedd6bb67ad782",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "keep-working-locally",
+          "title": "Keep working locally"
+        },
+        {
+          "anchor": "publish-proof-from-ci",
+          "title": "Publish proof from CI"
+        },
+        {
+          "anchor": "see-the-team-s-proof-next-to-yours",
+          "title": "See the team's proof next to yours"
+        },
+        {
+          "anchor": "share-security-remediation-plans",
+          "title": "Share security remediation plans"
+        },
+        {
+          "anchor": "share-generated-documents",
+          "title": "Share generated documents"
+        },
+        {
+          "anchor": "browse-in-the-web-ui",
+          "title": "Browse in the web UI"
+        },
+        {
+          "anchor": "use-your-usual-tools",
+          "title": "Use your usual tools"
+        },
+        {
+          "anchor": "let-the-server-collect-ci-evidence-itself",
+          "title": "Let the server collect CI evidence itself"
+        },
+        {
+          "anchor": "sign-in-and-manage-tokens",
+          "title": "Sign in and manage tokens"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        },
+        {
+          "anchor": "not-available-yet",
+          "title": "Not available yet"
+        }
+      ]
+    },
+    {
+      "id": "test-strength",
+      "title": "Test Strength",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/test-strength.md",
+      "sourceHash": "a49d91f61bbf810e22f1de331a9a9b2385974bcad7fe2a3702c152389670d397",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "traceability-and-drift",
+      "title": "Traceability and Drift",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/traceability-and-drift.md",
+      "sourceHash": "cfe7430f1a8b8024aac3aaa1635d595948d9490590082d28bd8d36ba51e6576a",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "see-what-lacks-a-spec-or-a-test-specguard-status",
+          "title": "See what lacks a spec or a test: `specguard status`"
+        },
+        {
+          "anchor": "export-a-traceability-table-specguard-matrix",
+          "title": "Export a traceability table: `specguard matrix`"
+        },
+        {
+          "anchor": "find-what-isn-t-built-yet-specguard-gap-analysis",
+          "title": "Find what isn't built yet: `specguard gap-analysis`"
+        },
+        {
+          "anchor": "find-what-tests-don-t-exercise-specguard-align",
+          "title": "Find what tests don't exercise: `specguard align`"
+        },
+        {
+          "anchor": "detect-drift-specguard-drift",
+          "title": "Detect drift: `specguard drift`"
+        },
+        {
+          "anchor": "one-combined-view-specguard-check",
+          "title": "One combined view: `specguard check`"
+        },
+        {
+          "anchor": "read-the-proof-statement",
+          "title": "Read the proof statement"
+        },
+        {
+          "anchor": "decide-what-blocks",
+          "title": "Decide what blocks"
+        },
+        {
+          "anchor": "build-a-shareable-report-specguard-report",
+          "title": "Build a shareable report: `specguard report`"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "workspaces",
+      "title": "Workspaces - Multi-Repo and Monorepo",
+      "audience": "user",
+      "group": "Reference",
+      "file": "guide/reference/workspaces.md",
+      "sourceHash": "aa4ba92dafba521255afd19e63d12270d36cf602e7acc501dde9cee07f6885b5",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "why-it-exists",
+          "title": "Why it exists"
+        },
+        {
+          "anchor": "what-you-can-do",
+          "title": "What you can do"
+        },
+        {
+          "anchor": "register-your-repos-as-a-workspace",
+          "title": "Register your repos as a workspace"
+        },
+        {
+          "anchor": "map-the-contracts-between-specs",
+          "title": "Map the contracts between specs"
+        },
+        {
+          "anchor": "ask-what-is-affected",
+          "title": "Ask \"what is affected?\""
+        },
+        {
+          "anchor": "check-consumers-after-a-provider-changes",
+          "title": "Check consumers after a provider changes"
+        },
+        {
+          "anchor": "work-in-a-monorepo",
+          "title": "Work in a monorepo"
+        },
+        {
+          "anchor": "see-the-whole-system",
+          "title": "See the whole system"
+        },
+        {
+          "anchor": "organize-the-workspace-as-a-business-story",
+          "title": "Organize the workspace as a business story"
+        },
+        {
+          "anchor": "share-with-a-team-server",
+          "title": "Share with a team server"
+        },
+        {
+          "anchor": "keep-api-keys-in-one-place",
+          "title": "Keep API keys in one place"
+        },
+        {
+          "anchor": "plugin-commands-at-a-workspace-root",
+          "title": "Plugin commands at a workspace root"
+        },
+        {
+          "anchor": "what-to-expect",
+          "title": "What to expect"
+        }
+      ]
+    },
+    {
+      "id": "architecture",
+      "title": "SpecGuard architecture",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/architecture.md",
+      "sourceHash": "c972e80e8bdb2cd9ca7230829d92a7bc8058f9004e79aed4663a84e635ccd6af",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "one-core-several-surfaces",
+          "title": "One core, several surfaces"
+        },
+        {
+          "anchor": "rules-the-code-follows",
+          "title": "Rules the code follows"
+        },
+        {
+          "anchor": "specs-claims-and-proofs-in-the-code",
+          "title": "Specs, claims and proofs in the code"
+        },
+        {
+          "anchor": "state-on-disk",
+          "title": "State on disk"
+        },
+        {
+          "anchor": "documentation-is-generated-from-the-specs",
+          "title": "Documentation is generated from the specs"
+        },
+        {
+          "anchor": "plugins",
+          "title": "Plugins"
+        },
+        {
+          "anchor": "workspaces-and-the-team-server",
+          "title": "Workspaces and the team server"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "extending-with-plugins",
+      "title": "Extending SpecGuard with plugins",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/extending-with-plugins.md",
+      "sourceHash": "10eca0fe3431d351dc44ce374bca536df08a1d932c32212afe66bf78b4f88530",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "the-shape-of-a-plugin",
+          "title": "The shape of a plugin"
+        },
+        {
+          "anchor": "add-a-built-in-plugin",
+          "title": "Add a built-in plugin"
+        },
+        {
+          "anchor": "publish-an-npm-plugin",
+          "title": "Publish an npm plugin"
+        },
+        {
+          "anchor": "test-it",
+          "title": "Test it"
+        },
+        {
+          "anchor": "use-plugins-to-render-docs",
+          "title": "Use plugins to render docs"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "developing-specguard",
+      "title": "Developing SpecGuard",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/developing-specguard.md",
+      "sourceHash": "d16f76000588be05eb6c15780776a12bb5b15ad68132b9efee3278c604955d81",
+      "generator": "deterministic",
+      "sections": [
+        {
+          "anchor": "goal",
+          "title": "Goal"
+        },
+        {
+          "anchor": "prerequisites",
+          "title": "Prerequisites"
+        },
+        {
+          "anchor": "steps",
+          "title": "Steps"
+        },
+        {
+          "anchor": "set-up",
+          "title": "Set up"
+        },
+        {
+          "anchor": "the-loop-for-a-change",
+          "title": "The loop for a change"
+        },
+        {
+          "anchor": "build",
+          "title": "Build"
+        },
+        {
+          "anchor": "validate",
+          "title": "Validate"
+        },
+        {
+          "anchor": "regenerate-the-documentation",
+          "title": "Regenerate the documentation"
+        },
+        {
+          "anchor": "use-the-local-build",
+          "title": "Use the local build"
+        },
+        {
+          "anchor": "release",
+          "title": "Release"
+        },
+        {
+          "anchor": "activity-logs-and-clean-commits",
+          "title": "Activity logs and clean commits"
+        },
+        {
+          "anchor": "outcome",
+          "title": "Outcome"
+        },
+        {
+          "anchor": "related",
+          "title": "Related"
+        },
+        {
+          "anchor": "reference-pages",
+          "title": "Reference pages"
+        }
+      ]
+    },
+    {
+      "id": "agentic-verification",
+      "title": "Agentic Verification (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/agentic-verification.md",
+      "sourceHash": "b131a9bd01ab8699501fed9ff98c1f85ff70ae4aa31f9744d1838f0166aef024",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "conformance-testing",
+      "title": "Conformance Testing (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/conformance-testing.md",
+      "sourceHash": "6accf374f80dd8e816e6971029bb50dd4f7f55f032573486f03ab3a131462010",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "mcp-tools",
+          "title": "MCP tools"
+        },
+        {
+          "anchor": "files-and-configuration",
+          "title": "Files and configuration"
+        },
+        {
+          "anchor": "claim-tag",
+          "title": "Claim tag"
+        },
+        {
+          "anchor": "exit-codes",
+          "title": "Exit codes"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "generation",
+          "title": "Generation"
+        },
+        {
+          "anchor": "claim-tags-runners-and-results",
+          "title": "Claim tags, runners and results"
+        },
+        {
+          "anchor": "ledger-and-staleness",
+          "title": "Ledger and staleness"
+        },
+        {
+          "anchor": "ingest",
+          "title": "Ingest"
+        },
+        {
+          "anchor": "heal",
+          "title": "Heal"
+        },
+        {
+          "anchor": "test-command-group",
+          "title": "`test` command group"
+        },
+        {
+          "anchor": "layered-proofs",
+          "title": "Layered proofs"
+        },
+        {
+          "anchor": "example-rows",
+          "title": "Example rows"
+        },
+        {
+          "anchor": "targeted-runs-and-title-selection",
+          "title": "Targeted runs and title selection"
+        },
+        {
+          "anchor": "evidence-run-index-and-partial-evidence",
+          "title": "Evidence, run index and partial evidence"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "coverage-and-mutation",
+      "title": "Coverage and Mutation Evidence (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/coverage-and-mutation.md",
+      "sourceHash": "19aaee6317ea746d1474f8f4c8facb6a8cc539c7945ee4d07ecc8142760109f9",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "files-written",
+          "title": "Files written"
+        },
+        {
+          "anchor": "config",
+          "title": "Config"
+        },
+        {
+          "anchor": "exit-codes",
+          "title": "Exit codes"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "behaviour-by-scenario",
+          "title": "Behaviour by scenario"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "documentation-api",
+      "title": "Documentation and API (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/documentation-api.md",
+      "sourceHash": "112cff4d2d79f5ad9fb36bd5c7dac5b48adbfe9449c3f7fb74d084649667eefb",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "http-get-only-under-api-v1",
+          "title": "HTTP (GET only, under `/api/v1`)"
+        },
+        {
+          "anchor": "mcp",
+          "title": "MCP"
+        },
+        {
+          "anchor": "files",
+          "title": "Files"
+        },
+        {
+          "anchor": "spec-syntax",
+          "title": "Spec syntax"
+        },
+        {
+          "anchor": "config",
+          "title": "Config"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "per-spec-docs-and-root-sync",
+          "title": "Per-spec docs and root sync"
+        },
+        {
+          "anchor": "server-and-api",
+          "title": "Server and API"
+        },
+        {
+          "anchor": "guides-help-topics-and-the-doc-set",
+          "title": "Guides, help topics and the doc set"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "integration-surfaces",
+      "title": "Integration Surfaces - CLI, Agents, CI, IDE and Plugins (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/integration-surfaces.md",
+      "sourceHash": "df324f5c4f782bd7ce5affd94cd24eddb6d2b1a4cbf4dc443cf0b38c9619ee4a",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "output-routing-and-editor-actions",
+          "title": "Output routing and editor actions"
+        },
+        {
+          "anchor": "build-and-release",
+          "title": "Build and release"
+        },
+        {
+          "anchor": "cli-core",
+          "title": "CLI core"
+        },
+        {
+          "anchor": "init-scaffold-and-harness-wiring",
+          "title": "Init, scaffold and harness wiring"
+        },
+        {
+          "anchor": "mcp-server",
+          "title": "MCP server"
+        },
+        {
+          "anchor": "claude-code-and-codex-plugin-distribution",
+          "title": "Claude Code and Codex plugin distribution"
+        },
+        {
+          "anchor": "github-action-and-ci",
+          "title": "GitHub Action and CI"
+        },
+        {
+          "anchor": "specguard-ci-run",
+          "title": "`specguard ci run`"
+        },
+        {
+          "anchor": "overlays",
+          "title": "Overlays"
+        },
+        {
+          "anchor": "vs-code-extension",
+          "title": "VS Code extension"
+        },
+        {
+          "anchor": "plugin-system",
+          "title": "Plugin system"
+        },
+        {
+          "anchor": "feature-catalog-and-state",
+          "title": "Feature catalog and state"
+        },
+        {
+          "anchor": "code-quality-and-git-helpers",
+          "title": "Code quality and git helpers"
+        },
+        {
+          "anchor": "contract-mappings-contract-mappings-plugin",
+          "title": "Contract mappings (`contract-mappings` plugin)"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "intent-approval",
+      "title": "Intent Approval (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/intent-approval.md",
+      "sourceHash": "b2091ea3dc186cafaca7e0d24609392b58453337b7b3fa8338a343578d311616",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "platform-foundation",
+      "title": "Platform Foundation (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/platform-foundation.md",
+      "sourceHash": "f4308624cd0b95991e3efc6539918250f125f6bedc7523639289f36224dda718",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "configuration",
+          "title": "Configuration"
+        },
+        {
+          "anchor": "overlays",
+          "title": "Overlays"
+        },
+        {
+          "anchor": "model-access",
+          "title": "Model access"
+        },
+        {
+          "anchor": "redaction",
+          "title": "Redaction"
+        },
+        {
+          "anchor": "files-ignore-rules-and-languages",
+          "title": "Files, ignore rules and languages"
+        },
+        {
+          "anchor": "errors",
+          "title": "Errors"
+        },
+        {
+          "anchor": "migration",
+          "title": "Migration"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "proof-store",
+      "title": "Proof Store (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/proof-store.md",
+      "sourceHash": "8801407b92444d98e58c265e3f00fafd3a023fb4e5d48a254b024c7bc5590fff",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "configuration-proofstore",
+          "title": "Configuration (`proofStore`)"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "mcp",
+          "title": "MCP"
+        },
+        {
+          "anchor": "note-and-check-run-contract",
+          "title": "Note and check-run contract"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "note-format",
+          "title": "Note format"
+        },
+        {
+          "anchor": "compact-expand-limits-merge",
+          "title": "Compact, expand, limits, merge"
+        },
+        {
+          "anchor": "verification",
+          "title": "Verification"
+        },
+        {
+          "anchor": "git-storage",
+          "title": "Git storage"
+        },
+        {
+          "anchor": "reading-and-publishing",
+          "title": "Reading and publishing"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "requirement-history",
+      "title": "Requirement History (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/requirement-history.md",
+      "sourceHash": "47441a97414e1d3337017e0d9361cab46e59389e4192674445c2f477bd2e6dca",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "security-and-remediation",
+      "title": "Security Scanning and Remediation (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/security-and-remediation.md",
+      "sourceHash": "25d8d05e4d7addad50a9539f9c9b43835cf600c5d6d0e94da2d0320bedd90183",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "security-test-stubs-and-sast",
+          "title": "Security test stubs and SAST"
+        },
+        {
+          "anchor": "detection",
+          "title": "Detection"
+        },
+        {
+          "anchor": "remediation-pipeline",
+          "title": "Remediation pipeline"
+        },
+        {
+          "anchor": "application-repair",
+          "title": "Application repair"
+        },
+        {
+          "anchor": "remediation-plans",
+          "title": "Remediation plans"
+        },
+        {
+          "anchor": "auto-merge",
+          "title": "Auto-merge"
+        },
+        {
+          "anchor": "process-safety",
+          "title": "Process safety"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "spec-authoring",
+      "title": "Spec Authoring (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/spec-authoring.md",
+      "sourceHash": "f3411f02a5036d271c1055ca00e46e1f03b940a3b204387322dc189bc7eee79c",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "spec-files",
+          "title": "Spec files"
+        },
+        {
+          "anchor": "config-keys",
+          "title": "Config keys"
+        },
+        {
+          "anchor": "exit-codes",
+          "title": "Exit codes"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "format-parsing-and-identity",
+          "title": "Format, parsing and identity"
+        },
+        {
+          "anchor": "claims",
+          "title": "Claims"
+        },
+        {
+          "anchor": "spec-graph",
+          "title": "Spec graph"
+        },
+        {
+          "anchor": "generating-specs",
+          "title": "Generating specs"
+        },
+        {
+          "anchor": "linking-tests",
+          "title": "Linking tests"
+        },
+        {
+          "anchor": "import-safety",
+          "title": "Import safety"
+        },
+        {
+          "anchor": "example-tables",
+          "title": "Example tables"
+        },
+        {
+          "anchor": "assurance-evidence-and-testability",
+          "title": "Assurance, evidence and testability"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "spec-first-changes",
+      "title": "Spec-First Changes (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/spec-first-changes.md",
+      "sourceHash": "4d6994529cbd86ecf8e16b38d26b493fe88fd4e18c48bf5fedbc71a0405696e4",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "change-records-and-base",
+          "title": "Change records and base"
+        },
+        {
+          "anchor": "claims-and-stages",
+          "title": "Claims and stages"
+        },
+        {
+          "anchor": "change-commands",
+          "title": "Change commands"
+        },
+        {
+          "anchor": "enforcement-levels",
+          "title": "Enforcement levels"
+        },
+        {
+          "anchor": "proof-packet",
+          "title": "Proof packet"
+        },
+        {
+          "anchor": "unrequested-code",
+          "title": "Unrequested code"
+        },
+        {
+          "anchor": "edit-guard-behaviour",
+          "title": "Edit guard behaviour"
+        },
+        {
+          "anchor": "guard-robustness-and-entry",
+          "title": "Guard robustness and entry"
+        },
+        {
+          "anchor": "index-cache-log-bundle",
+          "title": "Index, cache, log, bundle"
+        },
+        {
+          "anchor": "end-to-end-guarantees",
+          "title": "End-to-end guarantees"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "team-server",
+      "title": "Local-first operation with an optional team server (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/team-server.md",
+      "sourceHash": "5684ecc9c9113bc743aa6e03db7ced0cc61b6456f1407b9fdd6a274ee49d980d",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "identity-roles-and-access",
+          "title": "Identity, roles and access"
+        },
+        {
+          "anchor": "projects-and-api",
+          "title": "Projects and API"
+        },
+        {
+          "anchor": "snapshots-and-publishing",
+          "title": "Snapshots and publishing"
+        },
+        {
+          "anchor": "storage-and-documents",
+          "title": "Storage and documents"
+        },
+        {
+          "anchor": "evidence",
+          "title": "Evidence"
+        },
+        {
+          "anchor": "client-behaviour",
+          "title": "Client behaviour"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "test-strength",
+      "title": "Test Strength (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/test-strength.md",
+      "sourceHash": "356228f2f0b941a0e94acd2f1e094e73df7c51b503025052cbb6d9899210aac6",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "scenarios-the-behaviour-must-satisfy",
+          "title": "Scenarios the behaviour must satisfy"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "traceability-and-drift",
+      "title": "Traceability and Drift (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/traceability-and-drift.md",
+      "sourceHash": "8649e87fcafe96cce20c3f72c4e52c18f59bf0b6b077e7c5f6162c0b4cee6383",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "status-and-coverage",
+          "title": "Status and coverage"
+        },
+        {
+          "anchor": "matrix",
+          "title": "Matrix"
+        },
+        {
+          "anchor": "gap-analysis",
+          "title": "Gap analysis"
+        },
+        {
+          "anchor": "alignment",
+          "title": "Alignment"
+        },
+        {
+          "anchor": "drift",
+          "title": "Drift"
+        },
+        {
+          "anchor": "provenance-and-unified-check",
+          "title": "Provenance and unified check"
+        },
+        {
+          "anchor": "proof-statement",
+          "title": "Proof statement"
+        },
+        {
+          "anchor": "check-integration",
+          "title": "`check` integration"
+        },
+        {
+          "anchor": "statement-input",
+          "title": "Statement input"
+        },
+        {
+          "anchor": "reports",
+          "title": "Reports"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    },
+    {
+      "id": "workspaces",
+      "title": "Workspaces - Multi-Repo and Monorepo (developer reference)",
+      "audience": "dev",
+      "group": "Developer",
+      "file": "dev/reference/workspaces.md",
+      "sourceHash": "70e62fef641fa751bf6135edbfd81735a4bdb2c6690248721d7cedc2fb1b7a77",
+      "generator": "llm",
+      "sections": [
+        {
+          "anchor": "purpose",
+          "title": "Purpose"
+        },
+        {
+          "anchor": "responsibilities",
+          "title": "Responsibilities"
+        },
+        {
+          "anchor": "interfaces",
+          "title": "Interfaces"
+        },
+        {
+          "anchor": "cli",
+          "title": "CLI"
+        },
+        {
+          "anchor": "mcp-tools",
+          "title": "MCP tools"
+        },
+        {
+          "anchor": "http",
+          "title": "HTTP"
+        },
+        {
+          "anchor": "files",
+          "title": "Files"
+        },
+        {
+          "anchor": "spec-syntax",
+          "title": "Spec syntax"
+        },
+        {
+          "anchor": "exit-codes",
+          "title": "Exit codes"
+        },
+        {
+          "anchor": "requirements",
+          "title": "Requirements"
+        },
+        {
+          "anchor": "business-organization",
+          "title": "Business organization"
+        },
+        {
+          "anchor": "manifest-and-registration",
+          "title": "Manifest and registration"
+        },
+        {
+          "anchor": "monorepo-detection-and-units",
+          "title": "Monorepo detection and units"
+        },
+        {
+          "anchor": "contract-graph-impact-and-drift",
+          "title": "Contract graph, impact and drift"
+        },
+        {
+          "anchor": "rollup-serving-and-server",
+          "title": "Rollup, serving and server"
+        },
+        {
+          "anchor": "environment-and-keys",
+          "title": "Environment and keys"
+        },
+        {
+          "anchor": "code-map",
+          "title": "Code map"
+        },
+        {
+          "anchor": "tests",
+          "title": "Tests"
+        },
+        {
+          "anchor": "security-and-data",
+          "title": "Security and data"
+        },
+        {
+          "anchor": "extending-it",
+          "title": "Extending it"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "cli.agents": {
+    "title": "What you can do",
+    "text": "Drive SpecGuard from a coding agent through the MCP server, hooks and skills, or from CI through the action.",
+    "page": "guide/reference/integration-surfaces.md",
+    "anchor": "what-you-can-do"
+  },
+  "dashboard.activity": {
+    "title": "Activity tab",
+    "text": "A local log of what the extension ran, with output, status and duration.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "activity-tab"
+  },
+  "dashboard.coverage": {
+    "title": "Coverage tab",
+    "text": "Spec coverage (source files a spec owns) and test coverage (owned files whose capability has tests).",
+    "page": "guide/vscode-extension.md",
+    "anchor": "coverage-tab"
+  },
+  "dashboard.docs": {
+    "title": "Docs tab",
+    "text": "Generated documentation for this repository, and the way into the SpecGuard docs.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "docs-tab"
+  },
+  "dashboard.findings": {
+    "title": "Findings tab",
+    "text": "Code-quality and security findings, filterable by severity, with links to the file and line.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "findings-tab"
+  },
+  "dashboard.flow": {
+    "title": "Actions tab",
+    "text": "The pipeline as steps you can run in order: create specs, generate and run tests, scan, generate docs.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "actions-tab"
+  },
+  "dashboard.overview": {
+    "title": "Overview tab",
+    "text": "Spec health for this repository at a glance, with the next step when no specs exist yet.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "overview-tab"
+  },
+  "dashboard.plans": {
+    "title": "Plans tab",
+    "text": "Implementation plans from gap analysis, each with a status so you and an agent share one list of what is left.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "plans-tab"
+  },
+  "dashboard.settings": {
+    "title": "Settings tab",
+    "text": "Per-repository overrides of the model provider and team server; keys stay in secret storage.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "settings-tab"
+  },
+  "dashboard.specs": {
+    "title": "Specs tab",
+    "text": "Every spec with the files and tests it owns; organize them into groups for presentation.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "specs-tab"
+  },
+  "dashboard.tests": {
+    "title": "Tests tab",
+    "text": "The test files found in the configured test sources and the latest run.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "tests-tab"
+  },
+  "dashboard.traceability": {
+    "title": "Traceability tab",
+    "text": "Each claim with the tests that carry its tag and its proof state.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "traceability-tab"
+  },
+  "docs.build": {
+    "title": "What to expect",
+    "text": "Documentation pages are built from the specs; after you change a spec, run `specguard docs build` and commit the result.",
+    "page": "guide/reference/documentation-api.md",
+    "anchor": "what-to-expect"
+  },
+  "plugins.about": {
+    "title": "Why it exists",
+    "text": "Plugins add commands, contract importers, detectors and documentation renderers without changing core.",
+    "page": "guide/reference/integration-surfaces.md",
+    "anchor": "why-it-exists"
+  },
+  "sidebar.coverage": {
+    "title": "Coverage view",
+    "text": "Capabilities with their claim, test and proof counts; select one to open its spec.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "coverage-view"
+  },
+  "sidebar.pipelines": {
+    "title": "Pipelines view",
+    "text": "The actions you can run, limited to those of enabled plugins, plus each plugin's own commands.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "pipelines-view"
+  },
+  "sidebar.plugins": {
+    "title": "Plugins view",
+    "text": "Built-in and npm plugins, on or off; enable, disable, add or remove them here.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "plugins-view"
+  },
+  "workspace.about": {
+    "title": "Why it exists",
+    "text": "What a workspace is: several repositories or packages treated as one system, with ignored repos left out.",
+    "page": "guide/reference/workspaces.md",
+    "anchor": "why-it-exists"
+  },
+  "workspace.contracts": {
+    "title": "Contracts in the workspace dashboard",
+    "text": "Edges and nodes of the contract graph and how many have gone unverified for more than 30 days; build or rebuild it here.",
+    "page": "guide/contracts.md",
+    "anchor": "contracts-in-the-workspace-dashboard"
+  },
+  "workspace.drift": {
+    "title": "Cross-repo drift",
+    "text": "Checks every repository for spec drift through the contract edges.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "cross-repo-drift"
+  },
+  "workspace.ignore": {
+    "title": "What you can do",
+    "text": "Ignore a repository to leave it out of contracts, drift, security, proofs and the rollup.",
+    "page": "guide/reference/workspaces.md",
+    "anchor": "what-you-can-do"
+  },
+  "workspace.repos": {
+    "title": "Repos in the workspace",
+    "text": "One card per repository with its role, capabilities, claims proven and a link to its dashboard.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "repos-in-the-workspace"
+  },
+  "workspace.settings": {
+    "title": "Workspace settings",
+    "text": "Defaults every repository inherits: provider, model, server and project mapping.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "workspace-settings"
+  },
+  "workspace.status": {
+    "title": "Workspace status",
+    "text": "Repos specced, current specs, contract edges and ignored repos, with refresh and report actions.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "workspace-status"
+  },
+  "workspace.teamServer": {
+    "title": "Team server in the workspace",
+    "text": "Whether this workspace is connected to a team server and what was last published.",
+    "page": "guide/vscode-extension.md",
+    "anchor": "team-server-in-the-workspace"
+  }
+}

@@ -36,7 +36,8 @@ import {
   securityPlanShowCommand,
   securityScanCommand,
 } from './commands/security.js';
-import { docsCommand } from './commands/docs.js';
+import { docsBuildCommand, docsCommand } from './commands/docs.js';
+import { commandTree, registerCommandTree } from '../core/guides.js';
 import { initCommand, scaffoldCommand } from './commands/init.js';
 import { validateCommand } from './commands/validate.js';
 import { matrixCommand } from './commands/matrix.js';
@@ -451,6 +452,16 @@ program
     async (opts: { spec?: string; all?: boolean; out?: string; app?: string }, cmd: Command) => {
       await docsCommand(withGlobals(cmd, opts));
     },
+  )
+  .addCommand(
+    new Command('build')
+      .description('build the documentation set (guides, capability reference, index, manifest, help topics) from the specs')
+      .option('--no-llm', 'render capability pages directly from the specs, without a model')
+      .option('--check', 'exit non-zero when a page is out of date with its spec; calls no model and writes nothing')
+      .option('--out <dir>', 'output directory (default docs)')
+      .action(async (opts: { llm?: boolean; check?: boolean; out?: string }, cmd: Command) => {
+        await docsBuildCommand(withGlobals(cmd, { noLlm: opts.llm === false, check: opts.check, out: opts.out ?? (cmd.optsWithGlobals() as { out?: string }).out }));
+      }),
   );
 
 // --- drift ----------------------------------------------------------------
@@ -1121,6 +1132,13 @@ registerHookCommands(program);
 registerCiCommands(program);
 registerMigrateCommand(program);
 registerOverlayCommands(program);
+
+/** The commander program, fully registered. For tools that read the command list (guide validation); parsing is left to `main`. */
+export function buildProgram(): Command {
+  return program;
+}
+
+registerCommandTree(() => commandTree(program));
 
 export async function main(): Promise<void> {
   // `specguard --version --json` is machine-readable: the extension uses it to detect a CLI/extension mismatch.

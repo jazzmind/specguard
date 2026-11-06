@@ -42,7 +42,7 @@ CODE ?= $(shell command -v code 2>/dev/null || for app in "/Applications/Visual 
 .PHONY: help install install-dev install-cli install-vsix build build-cli build-ext build-hook build-vsix typecheck lint test test-ext ci check prove audit \
         clean bump release-check publish publish-dry publish-ext watch
 
-help: ## Show commands grouped by workflow (see docs/development.md for examples)
+help: ## Show commands grouped by workflow (see docs/dev/developing-specguard.md for examples)
 	@printf '%s\n' 'Example flows:' \
 	  '  Install and run this checkout locally:' \
 	  '    make install-dev' \

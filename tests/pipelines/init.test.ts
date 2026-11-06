@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { runInit } from '../../src/pipelines/init.js';
-import { applyIgnoreBlock, GENERATED_STATE_PATHS, IGNORE_END, IGNORE_START } from '../../src/core/state-ignore.js';
+import { applyIgnoreBlock, GENERATED_STATE_PATHS, hasNestedRepos, IGNORE_END, IGNORE_START } from '../../src/core/state-ignore.js';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'sg-init-'));
 
@@ -54,6 +54,35 @@ describe('generated state ignore', () => {
     execFileSync('git', ['add', '-f', '.specguard/gaps.json'], { cwd: dir });
     const result = await runInit({ cwd: dir, harness: 'claude' });
     expect(result.messages.join('\n')).toContain('git rm --cached .specguard/gaps.json');
+  });
+});
+
+describe('nested repos ignore block [ignore-block-nested-repos]', () => {
+  // [claims: capabilities/platform-foundation#ignore-block-nested-repos]
+  it('uses any-depth patterns only when the manifest lists repos inside the root', () => {
+    const dir = tmp();
+    expect(hasNestedRepos(dir)).toBe(false);
+    mkdirSync(path.join(dir, '.specguard'), { recursive: true });
+    writeFileSync(path.join(dir, '.specguard', 'workspace.json'), JSON.stringify({ repos: { web: { path: '../web' }, self: { path: '.' } } }));
+    expect(hasNestedRepos(dir)).toBe(false);
+    writeFileSync(path.join(dir, '.specguard', 'workspace.json'), JSON.stringify({ repos: { web: { path: 'apps/web' } } }));
+    expect(hasNestedRepos(dir)).toBe(true);
+    const block = applyIgnoreBlock('', { nested: true });
+    expect(block).toContain('**/.specguard/runs/');
+    expect(block).toContain('**/.specguard/publish/');
+    expect(block).not.toMatch(/^\.specguard\/runs\/$/m);
+    expect(applyIgnoreBlock(block, { nested: true })).toBe(block);
+    expect(applyIgnoreBlock('')).toMatch(/^\.specguard\/runs\/$/m);
+  });
+
+  // [claims: capabilities/platform-foundation#ignore-block-nested-repos]
+  it('init in an overlay writes the any-depth block', async () => {
+    const dir = tmp();
+    mkdirSync(path.join(dir, '.specguard'), { recursive: true });
+    writeFileSync(path.join(dir, '.specguard', 'workspace.json'), JSON.stringify({ repos: { web: { path: 'apps/web' } } }));
+    await runInit({ cwd: dir, harness: 'claude' });
+    const gi = readFileSync(path.join(dir, '.gitignore'), 'utf8');
+    expect(gi).toContain('**/.specguard/runs/');
   });
 });
 

@@ -14,8 +14,15 @@ import { loadConfig } from '../core/config.js';
 import { enabledPluginCommands } from '../plugins/commands.js';
 import { loadCliConfig, outputResult, type GlobalOpts } from './commands/helpers.js';
 
-export async function registerPluginCommands(program: Command, cwd: string = process.cwd()): Promise<void> {
-  const commands = await enabledPluginCommands(cwd, (m) => process.stderr.write(`${m}\n`));
+/** The value of `--workspace <path>` (or `--workspace=<path>`) on the command line, read before commander parses. */
+function workspaceFromArgv(argv: string[]): string | undefined {
+  const i = argv.findIndex((a) => a === '--workspace' || a.startsWith('--workspace='));
+  if (i < 0) return undefined;
+  return argv[i]!.includes('=') ? argv[i]!.slice('--workspace='.length) : argv[i + 1];
+}
+
+export async function registerPluginCommands(program: Command, cwd: string = process.cwd(), argv: string[] = process.argv.slice(2)): Promise<void> {
+  const commands = await enabledPluginCommands(cwd, (m) => process.stderr.write(`${m}\n`), workspaceFromArgv(argv));
   const taken = new Set(program.commands.map((c) => c.name()));
   for (const spec of commands) {
     if (taken.has(spec.name)) continue;

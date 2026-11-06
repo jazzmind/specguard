@@ -36,7 +36,8 @@ import {
   warmProjectConfigs,
   type WorkspaceRepo,
 } from './workspace-state.js';
-import { cachedProjectConfig, configDirFor, describeProjectConfig } from './project-config.js';
+import { cachedProjectConfig, configDirFor, configFileFor, describeProjectConfig } from './project-config.js';
+import { contractMappingsEnabled, readConfigFile } from './contract-mappings.js';
 
 // ---------------------------------------------------------------------------
 // Tree item types
@@ -51,6 +52,7 @@ type ItemType =
   | 'spec-item'
   | 'output-item'
   | 'workspace-repo'
+  | 'workspace-contracts'
   | 'workspace-repo-ignored'
   | 'workspace-repos-group'
   | 'workspace-ignored-group';
@@ -223,6 +225,9 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
 
   private _buildWorkspaceItems(): CoverageTreeItem[] {
     const manifest = loadWorkspaceManifest();
+    // Gates the Generate Contract Mappings buttons: some repo of the workspace enables the plugin.
+    void vscode.commands.executeCommand('setContext', 'specguard.contractMappingsEnabled',
+      Boolean(manifest?.repos.some((r) => !r.ignore && contractMappingsEnabled(readConfigFile(configFileFor(r.absPath))))));
     if (!manifest) {
       const init = new CoverageTreeItem('Initialize Workspace', vscode.TreeItemCollapsibleState.None, 'output-item');
       init.description = 'Group and inspect your repositories';
@@ -285,6 +290,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         vscode.TreeItemCollapsibleState.None,
         'output-item',
       );
+      contractsItem.contextValue = 'workspace-contracts';
       contractsItem.iconPath = new vscode.ThemeIcon(
         contractSummary.staleCount > 0 ? 'warning' : 'pass-filled',
         contractSummary.staleCount > 0
@@ -311,6 +317,7 @@ export class CoverageProvider implements vscode.TreeDataProvider<CoverageTreeIte
         vscode.TreeItemCollapsibleState.None,
         'output-item',
       );
+      noContracts.contextValue = 'workspace-contracts';
       noContracts.iconPath = new vscode.ThemeIcon('git-merge');
       noContracts.description = 'not built';
       noContracts.tooltip = 'Run "SpecGuard: Build Contract Graph" to generate contracts.json';

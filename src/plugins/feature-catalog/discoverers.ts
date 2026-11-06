@@ -10,8 +10,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-import { parse as parseYaml } from 'yaml';
-
+import { clientRequestPaths, findOpenApiDocs, parseOpenApi, routeRegex } from '../../core/endpoints/index.js';
+import type { OpenApiOperation } from '../../core/endpoints/index.js';
 import type {
   CatalogFeatureInput,
   ChannelImplementation,
@@ -188,83 +188,11 @@ export const graphqlDiscoverer: ImplementationDiscoverer = {
 };
 
 // ---------------------------------------------------------------------------
-// REST / OpenAPI
+// REST / OpenAPI (the shared helpers live in src/core/endpoints)
 // ---------------------------------------------------------------------------
 
-export interface OpenApiOperation {
-  method: string;
-  path: string;
-  operationId?: string;
-  tags: string[];
-}
-
-const OPENAPI_NAMES = ['openapi.json', 'openapi.yaml', 'openapi.yml', 'swagger.json', 'swagger.yaml', 'swagger.yml'];
-const OPENAPI_DIRS = ['', 'docs', 'api', 'spec', 'specs', 'openapi'];
-const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
-
-/** Operations from an OpenAPI 3 / Swagger 2 document (JSON or YAML text). */
-export function parseOpenApi(text: string): OpenApiOperation[] {
-  let doc: unknown;
-  try {
-    doc = parseYaml(text);
-  } catch {
-    return [];
-  }
-  const paths = doc && typeof doc === 'object' ? (doc as { paths?: Record<string, Record<string, unknown>> }).paths : undefined;
-  if (!paths || typeof paths !== 'object') return [];
-  const ops: OpenApiOperation[] = [];
-  for (const [route, item] of Object.entries(paths)) {
-    if (!item || typeof item !== 'object') continue;
-    for (const method of HTTP_METHODS) {
-      const op = (item as Record<string, unknown>)[method];
-      if (!op || typeof op !== 'object') continue;
-      const rec = op as { operationId?: unknown; tags?: unknown };
-      ops.push({
-        method: method.toUpperCase(),
-        path: route,
-        operationId: typeof rec.operationId === 'string' ? rec.operationId : undefined,
-        tags: Array.isArray(rec.tags) ? rec.tags.map(String) : [],
-      });
-    }
-  }
-  return ops;
-}
-
-function findOpenApiDocs(repos: Array<{ key: string; absPath: string }>): Array<{ repo: string; ops: OpenApiOperation[] }> {
-  const docs: Array<{ repo: string; ops: OpenApiOperation[] }> = [];
-  for (const repo of repos) {
-    for (const dir of OPENAPI_DIRS) {
-      for (const name of OPENAPI_NAMES) {
-        const file = path.join(repo.absPath, dir, name);
-        if (!isFile(file)) continue;
-        const ops = parseOpenApi(readFileSync(file, 'utf8'));
-        if (ops.length > 0) docs.push({ repo: repo.key, ops });
-      }
-    }
-  }
-  return docs;
-}
-
-function routeRegex(route: string): RegExp {
-  const body = route
-    .split('/')
-    .map((seg) => (/^\{.+\}$/.test(seg) || /^:/.test(seg) ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
-    .join('/');
-  return new RegExp(`^${body}/?$`);
-}
-
-/** Request URLs found in client code. Template holes become `{}`; origin and query are dropped. */
-export function clientRequestPaths(source: string): Array<{ method: string | null; path: string }> {
-  const out: Array<{ method: string | null; path: string }> = [];
-  const re = /\b(fetch|axios(?:\.(get|post|put|patch|delete))?|ky(?:\.(get|post|put|patch|delete))?|\$http\.(get|post|put|patch|delete)|http\.(get|post|put|patch|delete))\(\s*([`'"])([^`'"]+)\6/g;
-  for (const match of source.matchAll(re)) {
-    const method = (match[2] ?? match[3] ?? match[4] ?? match[5] ?? null)?.toUpperCase() ?? null;
-    let url = match[7].replace(/\$\{[^}]*\}/g, '{}');
-    url = url.replace(/^[a-z]+:\/\/[^/]+/i, '').replace(/[?#].*$/, '');
-    if (url.startsWith('/')) out.push({ method, path: url });
-  }
-  return out;
-}
+export { clientRequestPaths, parseOpenApi };
+export type { OpenApiOperation };
 
 export const restDiscoverer: ImplementationDiscoverer = {
   id: 'rest',

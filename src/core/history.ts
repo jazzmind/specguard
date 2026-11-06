@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
+import { slugify } from './slug.js';
 import { specsRootDir } from './spec-key.js';
 import type { SpecGuardConfig } from './types.js';
 
@@ -48,16 +49,7 @@ export function historyDir(config: SpecGuardConfig): string {
   return path.join(specsRootDir(config), HISTORY_DIR);
 }
 
-export function slugify(text: string, max = 40): string {
-  return (
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, max)
-      .replace(/-+$/g, '') || 'entry'
-  );
-}
+export { slugify };
 
 /** `YYYY-MM-DD-slug`, made unique among `taken` with a numeric suffix. */
 export function historyId(date: string, title: string, taken: Set<string> = new Set()): string {

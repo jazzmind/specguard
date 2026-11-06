@@ -8004,7 +8004,10 @@ var init_config = __esm({
         spec: external_exports.string().optional(),
         providers: external_exports.array(external_exports.string()).optional(),
         docs: external_exports.string().optional(),
-        edgeType: external_exports.string().optional()
+        edgeType: external_exports.string().optional(),
+        basePrefixes: external_exports.array(external_exports.string()).optional(),
+        baseRepos: external_exports.record(external_exports.string(), external_exports.string()).optional(),
+        providerRepos: external_exports.array(external_exports.string()).optional()
       }).optional(),
       server: external_exports.object({
         url: external_exports.string().optional(),
@@ -16408,6 +16411,16 @@ var init_enforce = __esm({
   }
 });
 
+// src/core/slug.ts
+function slugify(text, max = 40, fallback = "entry") {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, max).replace(/-+$/g, "") || fallback;
+}
+var init_slug = __esm({
+  "src/core/slug.ts"() {
+    "use strict";
+  }
+});
+
 // src/core/history.ts
 var history_exports = {};
 __export(history_exports, {
@@ -16424,9 +16437,6 @@ import fs3 from "node:fs";
 import path9 from "node:path";
 function historyDir(config2) {
   return path9.join(specsRootDir(config2), HISTORY_DIR);
-}
-function slugify(text, max = 40) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, max).replace(/-+$/g, "") || "entry";
 }
 function historyId(date5, title, taken = /* @__PURE__ */ new Set()) {
   const base = `${date5}-${slugify(title)}`;
@@ -16537,6 +16547,7 @@ var init_history = __esm({
   "src/core/history.ts"() {
     "use strict";
     import_yaml3 = __toESM(require_dist(), 1);
+    init_slug();
     init_spec_key();
     HISTORY_DIR = "history";
     FRONT2 = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;

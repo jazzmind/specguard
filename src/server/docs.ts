@@ -25,7 +25,7 @@ import type { DocRenderer } from '../plugins/types.js';
 
 export const AUDIENCES = ['user', 'dev', 'agent'] as const;
 export type Audience = (typeof AUDIENCES)[number];
-export const PROMPT_VERSION = 'v2';
+export const PROMPT_VERSION = 'v3';
 
 export class DocNotFoundError extends Error {}
 
@@ -110,7 +110,7 @@ export function renderFallback(audience: Audience, node: SpecNode): string {
   const pv = section(node, 'Problem & Value') || node.spec.overview;
   const journeys = section(node, 'Users & Journeys');
   if (audience === 'user') {
-    return [`# ${node.spec.title || node.id}`, pv, journeys ? `## What you can do\n${journeys}` : '', `## What to expect\n${reqs(node, false)}`].filter(Boolean).join('\n\n');
+    return [`# ${node.spec.title || node.id}`, pv ? `## Why it exists\n${pv}` : '', journeys ? `## What you can do\n${journeys}` : '', `## What to expect\n${reqs(node, false)}`].filter(Boolean).join('\n\n');
   }
   return [`# ${node.spec.title || node.id}`, pv, `## Requirements\n${reqs(node, true)}`, section(node, 'Interfaces') ? `## Interfaces\n${section(node, 'Interfaces')}` : '', `## Code map\n${(node.spec.meta.sources ?? []).map((s) => `- ${s}`).join('\n')}`]
     .filter(Boolean)
@@ -120,7 +120,7 @@ export function renderFallback(audience: Audience, node: SpecNode): string {
 const USER_SYSTEM =
   'You write user documentation for one capability of a software system, for the people who use the product, not its developers. ' +
   'Plain language. Explain what it is for, what a person can do with it, and what to expect. Never mention code, files, requirement ids or internals. ' +
-  'Describe only what the material says; do not invent features. Markdown with a title and short sections.';
+  'Describe only what the material says; do not invent features. Markdown with a title and short sections; use these section headings where they apply: "Why it exists", "What you can do", "What to expect".';
 const DEV_SYSTEM =
   'You write developer documentation for one capability of a software system. Sections: Purpose, Responsibilities, Interfaces, Requirements (keep the ids), ' +
   'Code map, Tests, Security and data, Extending it. Use only the material given; do not invent behaviour. Markdown.';

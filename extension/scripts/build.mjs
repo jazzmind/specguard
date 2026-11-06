@@ -10,7 +10,7 @@
  *   __SPECGUARD_VERSION__    the bundled CLI reports it (specguard --version)
  *   __EXPECTED_CLI_VERSION__ the host warns when the CLI it finds differs
  */
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +58,22 @@ const targets = {
   },
 };
 
+/**
+ * The generated documentation ships inside the extension (media/docs) so it opens offline: the index, the user
+ * and developer pages, the manifest and the help topics. Rebuilt from docs/ on every host build.
+ */
+function copyDocs() {
+  const from = path.resolve(extRoot, '..', 'docs');
+  const to = path.resolve(extRoot, 'media', 'docs');
+  rmSync(to, { recursive: true, force: true });
+  mkdirSync(to, { recursive: true });
+  for (const entry of ['index.md', 'guide', 'dev', 'manifest.json', 'help-topics.json']) {
+    const src = path.join(from, entry);
+    if (existsSync(src)) cpSync(src, path.join(to, entry), { recursive: true });
+    else console.warn(`docs: ${entry} not found; run "specguard docs build" first`);
+  }
+}
+
 const options = targets[target];
 if (!options) {
   console.error(`usage: node scripts/build.mjs <${Object.keys(targets).join('|')}> [--watch]`);
@@ -67,6 +83,8 @@ if (!options) {
 // Tests can verify the real host bundle in isolation without replacing an active extension's files.
 const outIndex = process.argv.indexOf('--out');
 if (outIndex !== -1 && process.argv[outIndex + 1]) options.outfile = path.resolve(process.argv[outIndex + 1]);
+
+if (target === 'host') copyDocs();
 
 if (watch) {
   const ctx = await context(options);

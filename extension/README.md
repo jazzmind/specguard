@@ -77,4 +77,4 @@ An application's **Evidence → Specs → Organize features & specs** opens its 
 
 Generate, Reverse, Import, Docs and Gap Analysis show their input scope and let you select an output directory. Choices are remembered per application, with separate unit/integration/e2e destinations. Existing conventions are suggested; mapping directories such as `tags/` are flagged. Changing a spec root explicitly copies the specs while retaining originals and canonical keys. Configure an existing test runner to include any new directory you introduce.
 
-See [the workflow guide](../docs/business-organization.md) for CLI commands, persistence and draft/review semantics.
+See [the workflow guide](../docs/guide/multi-repo.md#organize-an-applications-features-and-specs) for CLI commands, persistence and draft/review semantics.

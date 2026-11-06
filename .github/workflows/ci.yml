@@ -34,6 +34,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The documentation is generated from the specs; this fails when a page is older than its spec.
+      # It compares hashes and renders deterministic pages only: no model is called. Fix: `specguard docs build`, commit.
+      - name: Documentation is up to date with the specs
+        run: node dist/cli/index.js docs build --check
+
       # SpecGuard checks itself with the action in this repository.
       - name: Dogfood — SpecGuard on SpecGuard
         uses: ./

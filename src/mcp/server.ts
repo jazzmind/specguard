@@ -1086,11 +1086,15 @@ export function buildServer(opts: { legacy?: boolean } = {}): McpServer {
   return server;
 }
 
+/** Plugin tools for the server, none in read-only mode: a plugin's command may write anything. */
+export async function registerPluginToolsUnlessReadOnly(server: McpServer, cwd: string = process.cwd()): Promise<string[]> {
+  return mcpReadOnly() ? [] : registerPluginTools(server, cwd);
+}
+
 /** Start the server on a stdio transport. Only called when run as main. */
 async function main(): Promise<void> {
   const server = buildServer();
-  // A plugin's command may write anything, so a read-only server offers none.
-  if (!mcpReadOnly()) await registerPluginTools(server);
+  await registerPluginToolsUnlessReadOnly(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

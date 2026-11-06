@@ -52,9 +52,7 @@ tests:
   - "tests/pipelines/import-capability.test.ts"
 docs:
   - "README.md"
-  - "docs/user/spec-parser.md"
-  - "docs/user/reverse-generate.md"
-  - "docs/user/import.md"
+  - "docs/guide/reference/spec-authoring.md"
 history:
   - 2026-10-29-output-routing-and-business-organization
   - 2026-10-15-functional-specs-and-four-pillars

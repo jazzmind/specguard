@@ -102,6 +102,9 @@ export interface ProjectConfig {
   configFound: boolean;
 }
 
+/** A help topic (from the shipped `help-topics.json`): popover text and where "Read more" opens. */
+export interface HelpTopic { title: string; text: string; page: string; anchor: string }
+
 export type DashboardTab = 'overview' | 'flow' | 'activity' | 'findings' | 'coverage' | 'matrix' | 'docs' | 'plans' | 'specs' | 'tests' | 'traceability' | 'settings';
 
 export type DashboardEvent =
@@ -119,6 +122,7 @@ export type DashboardEvent =
   | { type: 'clearArtifacts' }
   | { type: 'error'; scope: string; message: string }
   | { type: 'projectConfig'; config: ProjectConfig }
+  | { type: 'helpTopics'; topics: Record<string, HelpTopic> }
   /** Navigate to a tab and optionally scroll to a pipeline card. */
   | { type: 'navigate'; tab: DashboardTab; scrollTo?: string };
 
@@ -138,6 +142,8 @@ export interface FindingItem {
 
 export type DashboardCommand =
   | { type: 'organizeApplication' }
+  /** Open the docs panel at a help key or `page.md#anchor`. */
+  | { type: 'openDocs'; topic: string }
   | { type: 'openWorkspaceSettings' }
   | { type: 'openRepositorySettings' }
   | { type: 'openWorkspace' }

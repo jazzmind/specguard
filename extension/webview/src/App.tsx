@@ -13,6 +13,7 @@ import { CoverageView } from './views/CoverageView.js';
 import { PlansView } from './views/PlansView.js';
 import { SpecsView } from './views/SpecsView.js';
 import { SettingsView } from './views/SettingsView.js';
+import { HelpContext, HelpIcon } from './components/HelpIcon.js';
 
 type MainTabId = 'overview' | 'actions' | 'docs' | 'settings';
 type SubTabId = DashboardTab | 'traceability' | 'specs' | 'settings';
@@ -137,7 +138,9 @@ export function App() {
   };
 
   const ws = vm.workspace;
+  const activeLabel = TAB_GROUPS.flatMap((g) => g.subtabs).find((t) => t.id === subTab)?.label ?? activeGroup.label;
   return (
+    <HelpContext.Provider value={vm.helpTopics}>
     <div className="sg-app">
       <div className="sg-workspace-bar">
         {ws && (
@@ -217,6 +220,11 @@ export function App() {
         </div>
       )}
 
+      <div className="sg-tab-title">
+        <span>{activeLabel}</span>
+        <HelpIcon topic={`dashboard.${subTab === 'matrix' ? 'traceability' : subTab}`} />
+      </div>
+
       <main>
         {subTab === 'overview' && <OverviewView vm={vm} onNavigate={(tab) => { setMainTab('settings'); setSubTab(tab as 'settings'); }} />}
         {subTab === 'coverage' && <CoverageView vm={vm} />}
@@ -232,5 +240,6 @@ export function App() {
       </main>
       {vm.errors.length > 0 && <footer className="sg-errors">{vm.errors.at(-1)}</footer>}
     </div>
+    </HelpContext.Provider>
   );
 }

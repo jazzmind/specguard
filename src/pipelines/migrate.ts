@@ -34,7 +34,7 @@ import {
 } from '../core/migrate-plan.js';
 import { expandGlobs, fileExists, readFile } from '../core/reader.js';
 import { loadRepoSpecs } from '../core/spec-graph.js';
-import { applyIgnoreBlock, IGNORE_END, IGNORE_START } from '../core/state-ignore.js';
+import { applyIgnoreBlock, hasNestedRepos, IGNORE_END, IGNORE_START } from '../core/state-ignore.js';
 import { PROOF_STORE_DEFAULTS, type ParsedSpec, type PipelineResult, type SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
 import { writeFile } from '../core/writer.js';
@@ -265,7 +265,7 @@ async function survey(cwd: string): Promise<Survey> {
       activityLog: inGit && isTracked(root, '.specguard/activity-log.json'),
       publishSnapshot: false,
     },
-    gitignoreBlock: !hasBlock ? 'missing' : applyIgnoreBlock(gitignore) === gitignore ? 'current' : 'outdated',
+    gitignoreBlock: !hasBlock ? 'missing' : applyIgnoreBlock(gitignore, { nested: hasNestedRepos(root) }) === gitignore ? 'current' : 'outdated',
     hasApprovals: await allClaimsApproved(config),
     notes: {
       localRef: inGit && gitTry(root, ['rev-parse', '--verify', '--quiet', notesRef]) !== undefined,
@@ -424,7 +424,7 @@ function failStep(what: string, err: unknown): SpecGuardError {
 async function applyGitignore(c: Ctx): Promise<boolean> {
   const file = path.join(c.root, GITIGNORE_REL);
   const old = (await fileExists(file)) ? await readFile(file) : undefined;
-  const next = applyIgnoreBlock(old ?? '');
+  const next = applyIgnoreBlock(old ?? '', { nested: hasNestedRepos(c.root) });
   if (next === old) return false;
   if (old === undefined) c.manifest.undo.push({ op: 'remove', path: GITIGNORE_REL });
   else {

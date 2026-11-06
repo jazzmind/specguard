@@ -2,6 +2,7 @@ import type { ViewModel } from '../reducer.js';
 import { vscodeApi } from '../vscode.js';
 
 const open = (p: string) => vscodeApi.postMessage({ type: 'openFile', path: p });
+const openSpecGuardDocs = () => vscodeApi.postMessage({ type: 'openDocs', topic: 'dashboard.docs' });
 const runDocs = () => vscodeApi.postMessage({ type: 'run', pipeline: 'docs' });
 
 /** Fixed display order for categories — maps category key to display label. */
@@ -35,7 +36,8 @@ export function DocsView({ vm }: { vm: ViewModel }) {
         <p style={{ marginBottom: 12, color: 'var(--vscode-descriptionForeground)' }}>
           No generated docs yet. Run the <strong>docs</strong> pipeline to create user-facing documentation from your Living Specs.
         </p>
-        <button onClick={runDocs}>Run docs</button>
+        <button onClick={runDocs}>Run docs</button>{' '}
+        <button onClick={openSpecGuardDocs}>SpecGuard documentation</button>
       </div>
     );
   }
@@ -63,6 +65,7 @@ export function DocsView({ vm }: { vm: ViewModel }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <h3 style={{ margin: 0 }}>Generated docs ({docs.length})</h3>
         <button onClick={runDocs} style={{ fontSize: 11 }}>Re-run docs</button>
+        <button onClick={openSpecGuardDocs} style={{ fontSize: 11 }}>SpecGuard documentation</button>
       </div>
 
       {CATEGORY_ORDER.map(({ key, label }) => {

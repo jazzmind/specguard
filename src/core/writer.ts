@@ -29,3 +29,8 @@ export async function writeFile(filePath: string, content: string): Promise<void
     throw err;
   }
 }
+
+/** Remove a file if it exists. A missing file is not an error. */
+export async function removeFile(filePath: string): Promise<void> {
+  await rm(filePath, { force: true });
+}

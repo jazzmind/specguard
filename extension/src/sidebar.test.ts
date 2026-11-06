@@ -14,7 +14,7 @@ describe('extension drawers and outputs', () => {
   // [claims: capabilities/integration-surfaces#extension-navigation-order]
   it('declares Workspace, Coverage, Pipelines, Plugins in order and makes workspace independent of coverage', () => {
     const pkg = JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
-    expect(pkg.contributes.views['specguard-sidebar'].map((v: { name: string }) => v.name)).toEqual(['Workspace', 'Coverage', 'Pipelines', 'Plugins']);
+    expect(pkg.contributes.views['specguard-sidebar'].map((v: { name: string }) => v.name)).toEqual(['Workspace', 'Coverage', 'Pipelines', 'Plugins', 'Help & Docs']);
     const coverage = new CoverageProvider();
     expect(coverage.getChildren().map((i) => i.label)).not.toContain('Workspace');
     expect(new WorkspaceProvider(coverage).getChildren()[0].command?.command).toBe('specguard.initWorkspace');

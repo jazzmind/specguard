@@ -27,6 +27,7 @@ sources:
   - "src/pipelines/init.ts"
   - "src/cli/plugin-commands.ts"
   - "src/plugins/**"
+  - "src/core/endpoints/**"
   - "action/**"
   - "action.yml"
   - "extension/src/**"
@@ -57,6 +58,8 @@ tests:
   - "tests/core/mcp-server.test.ts"
   - "tests/core/extension.test.ts"
   - "tests/cli/features.test.ts"
+  - "tests/plugins/contracts-map*.test.ts"
+  - "tests/core/endpoints*.test.ts"
   - "tests/cli/check-base.test.ts"
   - "tests/pipelines/init.test.ts"
   - "tests/mcp/agent-work-tool.test.ts"
@@ -80,15 +83,15 @@ tests:
   - "tests/hooks/overlay.test.ts"
   - "tests/plugins/session-status.test.ts"
 docs:
+  - "docs/guide/reference/integration-surfaces.md"
+  - "docs/guide/plugins.md"
+  - "docs/guide/vscode-extension.md"
+  - "docs/dev/extending-with-plugins.md"
   - "docs/business-organization.md"
   - "docs/development.md"
   - "README.md"
   - "docs/ci.md"
   - "docs/ci-remediate.md"
-  - "docs/user/cli.md"
-  - "docs/user/mcp-server.md"
-  - "docs/user/extension.md"
-  - "docs/user/exit-codes.md"
   - "docs/examples/**"
   - "docs/feature-catalog.md"
   - "extension/README.md"
@@ -125,6 +128,12 @@ history:
   - 2026-11-03-workspace-spec-count-matches-coverage
   - 2026-11-04-workspace-report-and-vs-code-report-pane
   - 2026-11-04-team-server-publish-status-and-test-evid
+  - 2026-11-06-contracts-map-proposes-mappings-from-spe
+  - 2026-11-06-contracts-map-with-llm-is-catalogue-only
+  - 2026-11-06-contracts-map-reads-code-locally-and-sen
+  - 2026-11-06-endpoint-helpers-move-to-core-and-plugin
+  - 2026-11-06-contracts-map-precision-from-a-real-over
+  - 2026-11-06-extension-ships-the-docs-and-shows-help
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins
@@ -147,7 +156,7 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] CLI and editor actions resolve saved output directories per application and artifact kind, including separate unit, integration and e2e tests; generated directories join test discovery, native sources remain intact, and changing a spec root copies existing Markdown without deleting originals or overwriting conflicting content while preserving canonical spec/claim keys <!-- claim: output-destinations -->
 - [ ] Before Generate, Reverse, Import, Docs or Gap Analysis writes outputs, the editor shows the application, code/config locations and chosen destination, offers established runnable directories and an alternate directory, flags mapping-only test directories, remembers the choice and scopes the action to the chosen application; cancelled routing does not start generation <!-- claim: extension-output-routing -->
 - [ ] SpecGuard never stages runtime `.specguard/activity-log.json` files, including nested projects and explicit generated, dependency or code-fix scopes; a legacy tracked log can be untracked once by migration while retaining its local history, after which post-commit activity remains local <!-- claim: activity-log-never-committed -->
-- [ ] The VS Code sidebar defaults to Workspace, Coverage, Pipelines and Plugins in that order; Workspace has its own independent tree and remains usable when the active repo has no coverage or its coverage load fails <!-- claim: extension-navigation-order -->
+- [ ] The VS Code sidebar defaults to Workspace, Coverage, Pipelines, Plugins and Help & Docs in that order; Workspace has its own independent tree and remains usable when the active repo has no coverage or its coverage load fails <!-- claim: extension-navigation-order -->
 - [ ] The workspace dashboard lists every repo's configured feature catalog files, schema versions, content revision, feature-to-current-spec link coverage and missing links; it separately shows the installed extension version, last harness setup version, spec format, current Git revision and working changes, and the revision and engine version of the last spec check; absent or differing check evidence is shown as needing a refresh, and catalog links alone never claim verified content alignment <!-- claim: extension-workspace-alignment -->
 - [ ] Clicking Specs, Tests or Docs in Outputs opens a searchable inventory inside VS Code, using configured directories, colocated tests and overlay spec roots while excluding archived specs and dependency/build output; files open in the editor, and authenticated team-server specs and docs can be listed and read through the existing API, with local files still available when the server cannot answer <!-- claim: extension-output-browser -->
 - [ ] Before updating agent setup files, the extension explains and previews per file that CLAUDE.md retains custom rules outside SpecGuard sections, entire marked skills/commands and AGENTS.md are replaced, unmarked standalone files are skipped, and unrelated JSON settings/MCP entries are retained; cancelling runs nothing, and a failed scaffold never records a successful setup version <!-- claim: extension-setup-preview -->
@@ -184,6 +193,17 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] `init --history-hooks` installs history hooks (into `.claude/settings.local.json`, personal and uncommitted) so prompts and plans are captured into the requirement history automatically, using the same safe, idempotent merge rules as the existing hooks <!-- claim: planned-history-hooks -->
 - [ ] The feature catalog's layout is entirely `featureState` config (catalog directory and format, file-name globs to leave out, results directories, id rules, placeholder and MCP patterns, repo channels, module stems, and where agent tools are declared and which of them do not count); a config's catalog path is relative to the directory holding that config's `.specguard/`, including in an overlay beneath a workspace manifest; no platform's layout is built in, and a test fails if a customer platform is named anywhere in code, docs or specs <!-- claim: catalog-layout-config -->
 - [ ] The `contract-mappings` plugin adds contract edges from a JSON file of spec-to-provider mappings whose location and key names are `contractMappings` config, with plain defaults, and yields nothing for a missing or malformed file <!-- claim: contract-mappings-importer -->
+- [ ] `contracts-map` (a `contract-mappings` plugin command, `specguard_contracts-map` on MCP) proposes consumer-to-provider spec mappings from spec text alone, with no model: for each consumer repo (role `consumer`, or every repo when none has a role) it matches the spec text against a catalogue of the other repos' specs by `repo::spec` reference (0.95), spec path (0.9), spec key or id (0.8) and whole-phrase title of two or more words (0.7), keeps matches at or above `--min-confidence`, and writes `.specguard/contract-mappings.json` per consumer repo with the `contractMappings` key names, provider paths relative to that repo, and a `suggestions` list carrying provider, source, confidence, reason and the evidence sentence <!-- claim: contracts-map-spec-text -->
+- [ ] `contracts-map` merges into an existing mappings file without losing hand work: an entry without `generated: true` is manual and untouched, a generated entry whose providers no longer equal its suggestions was edited by hand and becomes manual, `pinned: true` entries stay, and any other generated entry that is not found again is removed and listed under "Removed:"; the output summarises per repo what was added, kept and removed and how many specs had no match <!-- claim: contracts-map-merge -->
+- [ ] `contracts-map --dry-run` prints the proposal and writes nothing <!-- claim: contracts-map-dry-run -->
+- [ ] The mappings importer ignores the extra fields `contracts-map` writes (`generated`, `pinned`, `suggestions`, `reason`, `confidence`, `evidence`, `source`): the edges are the same with or without them <!-- claim: contract-importer-ignores-extra-fields -->
+- [ ] `contracts-map --with-llm` asks the model only about specs with no spec-text match (every spec with `--all-specs`), sends the spec text (frontmatter stripped, secrets redacted) with a numbered catalogue of provider specs and nothing else, and rejects any answer that names a provider outside the catalogue, logging it <!-- claim: contracts-map-llm-catalogue-only -->
+- [ ] Before `contracts-map --with-llm` sends anything it says to which provider and model, lists each spec it will send and stops at `--max-llm-specs` (default 50), naming the specs it did not send <!-- claim: contracts-map-llm-egress-notice -->
+- [ ] `contracts-map --with-code` finds consumer call sites and provider endpoint definitions with built-in extractors (fetch, axios and ky style calls, Angular `HttpClient`, Spring and JAX-RS annotations, Express and Fastify routes, OpenAPI documents; a plugin may add more through `endpointExtractors`), normalises paths (origin, query and configured base prefixes dropped, parameters as `{}`), and matches by exact path and method (0.9), normalised suffix (0.75) or base key and path tail (0.6) <!-- claim: contracts-map-code-extractors -->
+- [ ] Code matches become suggestions with source `code` and evidence `file:line METHOD path` by mapping the consumer file to the spec that owns it and the provider file to its owning spec (spec-graph owned files, falling back to the trace), so a call site in a file no spec owns proposes nothing <!-- claim: contracts-map-code-ownership -->
+- [ ] `contracts-map --assess` reads only local files and writes nothing: it reports the share of consumer specs with no spec-text match, the call sites found and how many are named in spec text or sit in files no spec owns, the provider endpoint definitions per repo, and recommends "code likely helps", "spec text is sufficient" or "code won't help: no provider endpoint definitions found"; a plain run prints a one-line hint from a cheap form of the same assessment <!-- claim: contracts-map-assess -->
+- [ ] `contracts-map` proposes only real dependencies: when any repo has role `provider`, only provider repos are candidates (sibling consumers that share titles are not); the system spec is neither consumer nor candidate; a title named in a heading or table row describes the consumer itself and is not a reference; a title phrase that names specs in more than one provider repo scores 0.5 and is reported as ambiguous; an overlay app's code is read where its config `repo` points; an endpoint defined in more than one provider repo is capped at 0.6 and flagged, unless `contractMappings.baseRepos` maps the call's unresolved base to one repo; a consumer's `contractMappings.providerRepos` names the only provider repos it may depend on <!-- claim: contracts-map-precision -->
+- [ ] Code is never sent to a model unless asked twice: `--send-code` requires `--with-llm`, sends only ±15-line excerpts around unmatched consumer call sites plus the provider endpoint list, under the same notice and cap, and skips and logs any file that looks like it holds a secret <!-- claim: contracts-map-code-egress-opt-in -->
 - [ ] Core reaches optional functionality only through enabled plugins: `quality` exists only when a plugin provides it, and core commands never run code quality themselves <!-- claim: core-plugin-boundary -->
 - [ ] Built-in plugins are described in a catalog (id, title, description, the parts of the plugin interface each provides, its config key and whether `init` turns it on); the catalog lists exactly the directories under `src/plugins/` and each plugin exports the id it is listed under; an npm plugin may describe itself with `meta` <!-- claim: plugin-catalog -->
 - [ ] `specguard plugin list [--json]` shows every built-in and every configured npm plugin with whether it is on, whether it is inherited through `extends` or turned off here, the commands it adds and any load error; `plugin enable|disable <id>` edit only the repo's own raw config (keeping every other key), a repo with no list of its own writes one that restates what it inherits, and a plugin enabled only by an extended config is turned off with `disabledPlugins`; a disabled npm plugin keeps its package so it can be re-enabled by id <!-- claim: plugin-manage -->
@@ -223,6 +243,10 @@ This capability is the set of surfaces through which people, agents and systems 
 - [ ] Workspace repository rows preview the dashboard on a single click and activate on a double click. Evidence containers are labelled as overlays with their code consumers, and repositories show discovered specs, code, tests and docs contributions without requiring an app config on an evidence container. Coverage links resolve from the owning config directory. Workspace cards open each project dashboard without activating it; sidebar output links open the dashboard evidence sections with persistent Workspace navigation. Repository cards and refresh controls have separate spacing, and spec descriptions exclude YAML frontmatter. Repository cards use at most two columns (one in narrow views), show compact catalog and proof summaries, and keep technical diagnostics collapsed by default; the sidebar reports configured team-server availability separately from project access. <!-- claim: extension-overlay-workspace -->
 
 - [ ] Workspace Settings configures shared AI provider, model, endpoint and team-server defaults once per VS Code workspace. Explicit repository overrides win, inherited settings display their source, and reset restores workspace defaults. Existing project config and environment credentials remain fallbacks; each repo retains its server project mapping unless explicitly changed. Newly entered API keys and server tokens use VS Code SecretStorage, never shareable configuration, argv or webview state. The same resolved defaults and credentials drive extension CLI runs and API connections, and connection tests report connectivity and project access without echoing secrets or running model generation. Workspace dashboard, sidebar and repository Settings link to the same editor, including repository relationships. <!-- claim: extension-workspace-settings -->
+- [ ] `SpecGuard: Generate Contract Mappings` (`specguard.generateContractMappings`) offers a QuickPick of modes (spec text only, spec text + model, assess whether code helps, with code locally, with code + model) and a dry-run option, runs `specguard contracts-map` with the matching flags in a terminal at the workspace manifest root (adding `--repo <key>` from a repo row), then offers to open each repo's mapping file and to build the contract graph; it is shown only when a workspace repo enables the `contract-mappings` plugin, and `specguard.contracts` offers a QuickPick of build, rebuild from scratch (`--force`) and with a model (`--with-llm`) <!-- claim: extension-generate-contract-mappings -->
+- [ ] The extension ships the generated documentation inside the package (`media/docs`, copied at build time) and `SpecGuard: Open Documentation` (`specguard.openDocs`) shows it in a singleton "SpecGuard Docs" panel with a table of contents from the manifest, in-panel links between pages and anchors, external links opened through the host, no raw HTML rendered from markdown, and a topic that is a help key, `page.md#anchor` or unknown (which opens the index) <!-- claim: extension-docs-viewer -->
+- [ ] A Help & Docs sidebar view (`specguard.helpView`) lists the manifest pages grouped as Start here, Quickstarts, Reference and Developer, each opening in the docs panel, and the repository dashboard's Docs tab offers the SpecGuard documentation <!-- claim: extension-help-view -->
+- [ ] Question-mark help icons on the repository dashboard tabs, the workspace dashboard sections and the Coverage, Pipelines and Plugins views show the help topic's text and a Read more link that opens the matching docs page and anchor; every help key the extension uses exists in `docs/help-topics.json` <!-- claim: extension-help-popovers -->
 
 ## Scenarios
 
@@ -292,6 +316,10 @@ This capability is the set of surfaces through which people, agents and systems 
 - The dry run lists what would be staged and changes nothing.
 - The real run commits only the generated tests, skipping the source change, and logs the entry in `.specguard/changelog.md`.
 
+## Help Topics
+- `plugins.about` → Why it exists: Plugins add commands, contract importers, detectors and documentation renderers without changing core.
+- `cli.agents` → What you can do: Drive SpecGuard from a coding agent through the MCP server, hooks and skills, or from CI through the action.
+
 ## Security & Data Considerations
 - Setup writes agent configuration files that can run commands (hooks and MCP servers), so it never overwrites an existing entry silently, prints a diff instead, and always writes the exact runner it resolved.
 - `.specguard/.env` holds API keys; it contains only a placeholder at creation, is git-ignored by the managed block, and is excluded from CI evidence uploads along with auth state.
@@ -301,12 +329,12 @@ This capability is the set of surfaces through which people, agents and systems 
 - The Action's token is only needed in remediate mode and only for push and pull request creation; nothing is ever merged.
 
 ## Interfaces
-- CLI: `specguard <command>` with global `--config`, `--json`, `--record`; setup commands `init` (`--with-playwright`, `--language`, `--harness claude|cursor|both`, `--single`, `--runner node|npx|path`, `--runner-path`, `--update-hooks`) and `scaffold`; plus the commands of enabled plugins: `features [--state] [--cases <file>]` (feature-catalog), `quality [--app] [--fix]` (quality), `commit [--dry-run] [--message] [--app] [--pipeline]` (git).
-- MCP: binary `specguard-mcp` over stdio, tools named `specguard_<command>` (including `specguard_scaffold`, `specguard_read_spec`, `specguard_write_spec`), plus `specguard_<command>` for each enabled plugin command (`specguard_features`, `specguard_quality`, `specguard_commit`).
+- CLI: `specguard <command>` with global `--config`, `--json`, `--record`; setup commands `init` (`--with-playwright`, `--language`, `--harness claude|cursor|both`, `--single`, `--runner node|npx|path`, `--runner-path`, `--update-hooks`) and `scaffold`; plus the commands of enabled plugins: `features [--state] [--cases <file>]` (feature-catalog), `quality [--app] [--fix]` (quality), `commit [--dry-run] [--message] [--app] [--pipeline]` (git), `contracts-map [--workspace] [--repo] [--dry-run] [--min-confidence] [--with-llm] [--max-llm-specs] [--all-specs] [--with-code] [--send-code] [--assess]` (contract-mappings).
+- MCP: binary `specguard-mcp` over stdio, tools named `specguard_<command>` (including `specguard_scaffold`, `specguard_read_spec`, `specguard_write_spec`), plus `specguard_<command>` for each enabled plugin command (`specguard_features`, `specguard_quality`, `specguard_commit`, `specguard_contracts-map`).
 - Files written: `.specguard/config.json`, `.specguard/.env`, `.specguard/activity-log.json`, `.specguard/code-quality.json`, `.specguard/changelog.md`, `.specguard/ci/<gate>.json`, `CLAUDE.md`, `AGENTS.md`, `.claude/settings.json`, `.claude/skills/specguard/SKILL.md`, `.claude/commands/goal.md`, `.cursor/mcp.json`, `.cursor/skills/specguard/SKILL.md`.
-- Config keys: `plugins`, `featureState` (catalog, catalogFormat, reporters, resultsDirs, externalIds, channelByType, repoChannels, moduleStems, idSkipSegments, placeholderSummaryPattern, mcpModulePattern, agentTools), `contractMappings`, `runners`, `llm.*`.
+- Config keys: `plugins`, `featureState` (catalog, catalogFormat, reporters, resultsDirs, externalIds, channelByType, repoChannels, moduleStems, idSkipSegments, placeholderSummaryPattern, mcpModulePattern, agentTools), `contractMappings` (file, list, spec, providers, docs, edgeType, basePrefixes, baseRepos, providerRepos), `runners`, `llm.*`.
 - GitHub Action inputs: `mode`, `gates`, `fail-on`, `results`, `run-id`, `drift-since`, `validate-url`, `version`, `working-directory`, `remediate-args`, `open-pr`, `github-token`, `upload-evidence`; output `remediate-exit`.
-- VS Code: view container `specguard-sidebar`, commands such as `specguard.openDashboard`, `specguard.status`, `specguard.registerMcp`, settings `specguard.cliPath`, `specguard.autoRefresh`, `specguard.showStatusBar`.
+- VS Code: view container `specguard-sidebar` with views `specguard.workspaceView`, `specguard.coverageView`, `specguard.pipelinesView`, `specguard.pluginsView` and `specguard.helpView` (Help & Docs), commands such as `specguard.openDashboard`, `specguard.generateContractMappings`, `specguard.openDocs` (optional topic: help key or `page.md#anchor`), context key `specguard.contractMappingsEnabled`, `specguard.status`, `specguard.registerMcp`, settings `specguard.cliPath`, `specguard.autoRefresh`, `specguard.showStatusBar`.
 - Exit codes: 0 to 5, 7 and 8 as listed above; remediate has its own 8 to 11.
 
 ## Out of Scope

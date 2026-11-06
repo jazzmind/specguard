@@ -16,6 +16,7 @@ import { artifactEventFor, cliArgsFor } from './flow-events.js';
 import { ActivityLogService } from './activity-log.js';
 import { loadProjectData, type ProjectData } from '../api/data.js';
 import { getHub } from '../api/shared.js';
+import { loadHelpTopics } from '../docs-content.js';
 import { projectNameOf } from '../api/hub.js';
 import { configDirFor, configFileFor, detectProjectConfig, resolveEvidenceFile } from '../project-config.js';
 
@@ -89,11 +90,13 @@ export class DashboardHost {
 
     this._pushWorkspaceInfo();
     this._pushProjectConfig();
+    this.post({ type: 'helpTopics', topics: loadHelpTopics() });
     void this.refresh();
   }
 
   async handle(cmd: DashboardCommand): Promise<void> {
     if (cmd.type === 'refresh') return this.refresh();
+    if (cmd.type === 'openDocs') { await vscode.commands.executeCommand('specguard.openDocs', cmd.topic); return; }
     if (cmd.type === 'organizeApplication') { await vscode.commands.executeCommand('specguard.organizeApplication', this.workspaceRoot); return; }
     if (cmd.type === 'openFile') {
       const resolved = resolveEvidenceFile(this.workspaceRoot, configDirFor(this.workspaceRoot), cmd.path);
@@ -383,6 +386,7 @@ export class DashboardHost {
     await detectProjectConfig(this.workspaceRoot);
     this._pushWorkspaceInfo();
     this._pushProjectConfig();
+    this.post({ type: 'helpTopics', topics: loadHelpTopics() });
     // Clear accumulated artifacts from any previous project before re-populating.
     this.post({ type: 'clearArtifacts' });
 

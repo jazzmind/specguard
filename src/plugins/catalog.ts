@@ -47,8 +47,8 @@ export const BUILTIN_PLUGINS: readonly BuiltinPluginInfo[] = [
   {
     id: 'contract-mappings',
     title: 'Contract mappings',
-    description: 'Reads contract mapping files to add edges to the cross-repo contract graph.',
-    provides: ['contractImporters'],
+    description: 'Reads contract mapping files to add edges to the cross-repo contract graph, and proposes the mappings from spec text or code (adds the `contracts-map` command).',
+    provides: ['commands', 'contractImporters'],
     configKey: 'contractMappings',
     defaultOn: false,
   },

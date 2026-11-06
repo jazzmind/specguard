@@ -2,6 +2,8 @@
 
 A reusable, codebase-agnostic system that keeps Living Specifications as the **single source of truth** for your codebase — running in parallel with your coding agent to automatically gather requirements, generate tests, validate security, and produce documentation at every plan phase.
 
+**Documentation:** start at [docs/index.md](docs/index.md): what SpecGuard is, quickstarts by use case (one repo, multi-repo, overlays, PRD, existing code, new features, drift, contracts, QA automation, vulnerability management, teams, plugins) and developer guides. It is generated from SpecGuard's own specs (`specguard docs build`).
+
 Inspired by [PrintingPress](https://printingpress.dev)'s approach of a slim skill + CLI + MCP. Drop it into any project in under five minutes.
 
 ---
@@ -116,7 +118,7 @@ specguard security scan|fix|plan        # one plan of findings, fixes, and statu
 specguard publish [--push]              # a snapshot of this project for a team server (CI runs this)
 specguard check --team                  # what the team server has proven, set against this working tree
 specguard login --server <url>          # remember a team server token on this machine
-specguard server                        # run the team server (optional; see docs/team-server.md)
+specguard server                        # run the team server (optional; see docs/guide/team-collaboration.md)
 ```
 
 `status`, `drift`, `matrix` and `gap-analysis` keep working, with the same exit codes, and delegate to the same model in a repo that uses capability specs. Specs are described in [specs/README.md](specs/README.md).
@@ -131,7 +133,7 @@ specguard init --ci github                                     # PR gate that co
 specguard remediate --from failing --pr                        # repair the app for failing claims (a PR for a person)
 ```
 
-Proofs now record the test layer that earned them (unit, integration, e2e, security, functional), capabilities can require layers, a passing `verify` can become a Playwright test, and dependency fixes that provably keep every proof can be auto-merged on a protected branch. See [docs/workspaces-layers-plugins.md](docs/workspaces-layers-plugins.md).
+Proofs now record the test layer that earned them (unit, integration, e2e, security, functional), capabilities can require layers, a passing `verify` can become a Playwright test, and dependency fixes that provably keep every proof can be auto-merged on a protected branch. See [docs/guide/multi-repo.md](docs/guide/multi-repo.md).
 
 ### Security model
 
@@ -139,7 +141,7 @@ SpecGuard runs as you and holds your files and keys, so it limits what it sends 
 
 ### Local first, with an optional team server
 
-Everything above runs on your machine and needs nothing else. A **team server** is optional: CI publishes a snapshot of each commit (`publish`), and the server then shows everyone the same proof state, generates each document once for the whole team, and holds the remediation plans that trackers update. The command line, the MCP server and the VS Code extension all use the server when one answers and fall back to local files when it does not, and tell you which they used. Only specs, history, the trace, proof rows and the newest plan ever leave a machine. See [docs/team-server.md](docs/team-server.md).
+Everything above runs on your machine and needs nothing else. A **team server** is optional: CI publishes a snapshot of each commit (`publish`), and the server then shows everyone the same proof state, generates each document once for the whole team, and holds the remediation plans that trackers update. The command line, the MCP server and the VS Code extension all use the server when one answers and fall back to local files when it does not, and tell you which they used. Only specs, history, the trace, proof rows and the newest plan ever leave a machine. See [docs/guide/team-collaboration.md](docs/guide/team-collaboration.md).
 
 ---
 
@@ -941,7 +943,7 @@ Core SpecGuard is platform-neutral. Optional functionality is a plugin named in 
 |---|---|
 | `quality` | `specguard quality`: ESLint, Knip and Ruff findings in `.specguard/code-quality.json` |
 | `git` | `specguard commit`: stage and commit only generated files, with a changelog |
-| `feature-catalog` | `specguard features [--state]`: a feature catalog and its state across UI, API and agent-tool channels ([docs/feature-catalog.md](docs/feature-catalog.md)) |
+| `feature-catalog` | `specguard features [--state]`: a feature catalog and its state across UI, API and agent-tool channels ([docs/guide/plugins.md#configure-the-feature-catalog](docs/guide/plugins.md#configure-the-feature-catalog)) |
 | `contract-mappings` | contract edges from a JSON mappings file whose location and keys are config |
 
 `specguard init` enables `quality` and `git` for new projects. A plugin that cannot be loaded is reported once and its commands are skipped; core commands win a name clash. Layout is configured, not assumed:
@@ -1025,7 +1027,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # only drift/align/validate need it
 ```
 
-`fail-on` thresholds: `missing-specs`, `drift`, `proof-failed`, `proof-stale`, `proof-unexercised`, `proof-unproven`, `align-below:<percent>`, `results`, `validate`, `security`, `deps`, `none`. The full reference, a Playwright and a JUnit example, and the replay setup for key-free CI are in [docs/ci.md](docs/ci.md).
+`fail-on` thresholds: `missing-specs`, `drift`, `proof-failed`, `proof-stale`, `proof-unexercised`, `proof-unproven`, `align-below:<percent>`, `results`, `validate`, `security`, `deps`, `none`. The full reference, a Playwright and a JUnit example, and the replay setup for key-free CI are in [docs/guide/qa-automation.md](docs/guide/qa-automation.md).
 
 Without the action, the same gates are plain commands:
 
@@ -1079,7 +1081,7 @@ The [QA-Agent](./QA-Agent-README.md) project is an autonomous browser-driven QA 
 | Per-domain feature memory | Validation history tracks what's been tested per host, when, and result |
 
 **Not adopted** (different architectural goals):
-- A required hosted service — SpecGuard is a dev tool that works fully offline; the [team server](docs/team-server.md) is an optional shared layer
+- A required hosted service — SpecGuard is a dev tool that works fully offline; the [team server](docs/guide/team-collaboration.md) is an optional shared layer
 - Human-in-the-loop steering — contradicts the parallel-agent autonomous design
 - DeepAgents/LangGraph framework — SpecGuard uses ai-sdk directly
 - Web UI / SPA — SpecGuard's UI is the IDE extension
@@ -1212,7 +1214,7 @@ Blocked actions appear in the validation/heal report as `BLOCKED` verdicts with 
 
 ### CI / GitHub Actions
 
-The action in this repository (`jazzmind/specguard`) sets up Node, installs the CLI, runs the gates and uploads the evidence; see [CI Integration](#ci-integration) and [docs/ci.md](docs/ci.md). Docker and Playwright are only needed for the SAST and `validate` gates; set `install-playwright: true` for `validate`.
+The action in this repository (`jazzmind/specguard`) sets up Node, installs the CLI, runs the gates and uploads the evidence; see [CI Integration](#ci-integration) and [docs/guide/qa-automation.md](docs/guide/qa-automation.md). Docker and Playwright are only needed for the SAST and `validate` gates; set `install-playwright: true` for `validate`.
 
 ### Environment Requirements Summary
 
@@ -1306,7 +1308,7 @@ The verdict is PRESERVED only when no baseline-passing test fails or disappears,
 
 ## Contributing
 
-See [development and release commands](docs/development.md) for installing this
+See [development and release commands](docs/dev/developing-specguard.md) for installing this
 checkout, local builds and checks, and publishing. `make help` groups the commands
 by workflow and includes example flows. `make install-dev` sets up development
 dependencies; `make install` builds and installs both local tools.

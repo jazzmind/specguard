@@ -925,6 +925,15 @@ export interface SpecGuardConfig {
     docs?: string;
     /** Contract type for provider edges. Default `dependency`. */
     edgeType?: string;
+    /** `contracts-map --with-code`: leading path segments that are a deployment prefix, not part of an endpoint. Default `['/api', '/v1', '/v2']`. */
+    basePrefixes?: string[];
+    /**
+     * Which provider repo a client's base URL points at, keyed by the unresolved base (`environment.ordersApi`).
+     * Settles calls whose endpoint is defined in more than one provider repo.
+     */
+    baseRepos?: Record<string, string>;
+    /** The provider repos (workspace keys) this consumer calls; only their specs are candidates. Default: every provider. */
+    providerRepos?: string[];
   };
   apps: AppConfig[];
   runners?: RunnersConfig;

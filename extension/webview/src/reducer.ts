@@ -1,4 +1,4 @@
-import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, PlanItem, ProjectConfig } from './protocol.js';
+import type { DashboardEvent, AppCoverage, MatrixModel, ActivityEntry, FindingItem, WorkspaceInfo, PipelineRunInfo, PlanItem, ProjectConfig, HelpTopic } from './protocol.js';
 
 export type NodeState = 'idle' | 'running' | 'done' | 'failed';
 export interface ViewModel {
@@ -18,6 +18,8 @@ export interface ViewModel {
   plans: PlanItem[];
   /** LLM config and env vars from .specguard/ (null until first push). */
   projectConfig: ProjectConfig | null;
+  /** Help popover topics by key, sent once by the host. */
+  helpTopics: Record<string, HelpTopic>;
 }
 
 export function initialViewModel(): ViewModel {
@@ -35,6 +37,7 @@ export function initialViewModel(): ViewModel {
     selectedLogPipeline: null,
     plans: [],
     projectConfig: null,
+    helpTopics: {},
   };
 }
 
@@ -70,6 +73,8 @@ export function reduce(vm: ViewModel, e: DashboardEvent): ViewModel {
       return { ...vm, artifacts: [] };
     case 'plans':
       return { ...vm, plans: e.items };
+    case 'helpTopics':
+      return { ...vm, helpTopics: e.topics };
     case 'projectConfig':
       return { ...vm, projectConfig: e.config };
     case 'error':

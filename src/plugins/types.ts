@@ -9,6 +9,7 @@
  */
 import type { ZodTypeAny } from 'zod';
 
+import type { EndpointExtractor } from '../core/endpoints/types.js';
 import type { NpmPluginRef, ParsedSpec, PipelineResult, PluginEntry, SpecGuardConfig } from '../core/types.js';
 
 export type { NpmPluginRef, PluginEntry };
@@ -260,6 +261,8 @@ export interface SpecGuardPlugin {
   detectors?: SecurityDetector[];
   /** Renderers the docs API tries before the model. */
   docRenderers?: DocRenderer[];
+  /** Extra readers of client calls and endpoint definitions for `contracts-map --with-code`, alongside the built-in ones. */
+  endpointExtractors?: EndpointExtractor[];
 }
 
 /** An edge a contract importer contributes. Provider is a node id `<repo>::<path>`. */

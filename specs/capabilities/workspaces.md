@@ -37,7 +37,12 @@ tests:
   - "tests/core/workspace-units.test.ts"
   - "tests/pipelines/workspaces.test.ts"
   - "tests/core/workspace-sync-overlay.test.ts"
+  - "tests/pipelines/contracts-node-ids.test.ts"
+  - "tests/plugins/commands-workspace.test.ts"
 docs:
+  - "docs/guide/reference/workspaces.md"
+  - "docs/guide/multi-repo.md"
+  - "docs/guide/contracts.md"
   - "docs/business-organization.md"
   - "README.md"
 history:
@@ -56,6 +61,7 @@ history:
   - 2026-10-23-workspace-panel-route-clicks-by-data-act
   - 2026-10-24-key-set-status-and-a-per-user-env-file
   - 2026-10-26-overlay-spec-sources-specs-kept-outside
+  - 2026-11-06-endpoint-helpers-move-to-core-and-plugin
 ---
 
 # Workspaces - Multi-Repo and Monorepo
@@ -104,6 +110,8 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - [ ] A team server keeps named workspaces (a set of projects, each with a key, a role and an ignore flag; file and Postgres storage) defined with `PUT /api/v1/workspaces/<name>` by a maintainer with an unscoped token, readable at `GET /api/v1/workspaces[/<name>]`, and `GET /api/v1/workspaces/<name>/rollup` combines each project's newest snapshot the way the local rollup does (a project with no snapshot shows as `no-trace`, ignored projects are listed and not counted); a token limited to one project may not define a workspace and sees only one made of that project alone <!-- claim: server-workspace -->
 - [ ] `workspace publish [--name n] [--server url]` defines the workspace on the team server from the manifest: each repo is named by the manifest's `server.projects` map, else its own `server.project`, else its folder, ignored repos are flagged, and a missing server or a refusal is reported and fails the command; each repo still publishes its own snapshot <!-- claim: workspace-publish -->
 - [ ] `contracts --with-llm` says before it sends anything that only each spec's Dependencies section goes to the model (and to which provider and model), lists each spec it sends, and stops at `--max-llm-specs` (default 50), naming the specs it did not send <!-- claim: contracts-llm-cap -->
+- [ ] The contract graph names a spec's node the same way in every pass, by `<repo>::<repo-relative spec path>` (never the spec key), so a spec found by a structured block and by the model is one node; graphs built earlier are corrected with `contracts --force` <!-- claim: contract-node-ids-consistent -->
+- [ ] Plugin commands are available from a workspace root whose own folder has no config: when no config is found at or above the directory but a workspace manifest is, the commands are those of the plugins enabled by the union of the workspace repos' configs, the same rule `contracts` uses <!-- claim: plugin-commands-from-workspace -->
 - [ ] A per-user `~/.config/specguard/.env` (or `$XDG_CONFIG_HOME/specguard/.env`) supplies keys to every workspace and repo on the machine at the lowest precedence, below the repo's and the workspace's file and below real environment variables <!-- claim: user-env -->
 - [ ] `specguard key set` saves the model API key (`llm.apiKeyEnv`, default `ANTHROPIC_API_KEY`) into the user's, the workspace's or the repo's `.env` with mode 600, reading it from a hidden prompt, stdin or `--from-env` and never from an argument, replacing an existing line, refusing a multi-line value, and never printing the key; `key status` says which files define it without showing it; `config.json` only ever names the variable <!-- claim: key-command -->
 - [ ] When `.specguard/.env` (which holds secrets) is readable by other users the CLI warns, names the file and the fix (`chmod 600`), never prints a value, and still loads the file <!-- claim: env-permission-warning -->
@@ -167,6 +175,10 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - The change maps to the owning unit and then to the capability, which receives one drift verdict.
 - Only the affected units' tests run, and a proof recorded through `api:capabilities/auth#logout` is stored as the root claim.
 
+## Help Topics
+- `workspace.about` → Why it exists: What a workspace is: several repositories or packages treated as one system, with ignored repos left out.
+- `workspace.ignore` → What you can do: Ignore a repository to leave it out of contracts, drift, security, proofs and the rollup.
+
 ## Security & Data Considerations
 - File reads and git commands are bounded to the repos listed in the manifest; paths are resolved relative to the workspace root and the manifest cannot cause reads outside it by default.
 - Monorepo detection only reads configuration files and never runs project code or package scripts.
@@ -175,7 +187,7 @@ This capability lets several repos, or several packages in one monorepo, be trea
 - `workspace drift` runs the SpecGuard CLI in sibling repos; only repos named in the manifest are touched.
 
 ## Interfaces
-- CLI: `specguard workspace init [--name]`, `specguard workspace status`, `specguard workspace drift [--since <ref>] [--force] [--repo <key>]`, `specguard contracts [--force] [--with-llm] [--repo <key>]`, `specguard impact <target> [--max-depth <n>] [--upstream]` (target: a node id, a unit, or a file); `specguard test run [--unit <keys...>] [--affected] [--since <ref>]`; `specguard init` (and `--single`) detects monorepos and writes the units manifest.
+- CLI: `specguard workspace init [--name]`, `specguard workspace status`, `specguard workspace drift [--since <ref>] [--force] [--repo <key>]`, `specguard contracts [--force] [--with-llm] [--repo <key>]` (and, with the `contract-mappings` plugin, `specguard contracts-map`, see integration-surfaces), `specguard impact <target> [--max-depth <n>] [--upstream]` (target: a node id, a unit, or a file); `specguard test run [--unit <keys...>] [--affected] [--since <ref>]`; `specguard init` (and `--single`) detects monorepos and writes the units manifest.
 - MCP tools: `specguard_contracts`, `specguard_impact`, `specguard_workspace_status`, `specguard_workspace_drift`.
 - Files: `.specguard/workspace.json` (name, repos with path, role and description, optional catalog), `.specguard/contracts.json` (version, generatedAt, nodes, edges), workspace-level `.specguard/.env`. `units` map in the manifest (path, kind, role, packageName, ecosystem, test command and framework); `.specguard/trace.json` and `GET /api/v1/units` carry the per-unit rollup.
 - Spec syntax: a contracts block in the Dependencies section, delimited by `<!-- contracts:start -->` and `<!-- contracts:end -->`, with lines like `<repoKey>::<specPath> [<type>: <surface>, ...]`; claim refs `repo:specKey#claim`.

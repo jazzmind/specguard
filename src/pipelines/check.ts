@@ -31,6 +31,8 @@ import { buildStatementInput } from './statement-input.js';
 import type { LedgerStore } from '../core/state/ledger-store.js';
 import { collectSourceFiles } from './spec-synth.js';
 import { versionInfo } from '../core/version.js';
+import { docsCheckLines } from './doc-build.js';
+import { registeredCommandTree } from '../core/guides.js';
 
 export type CheckView = 'summary' | 'coverage' | 'gaps' | 'matrix' | 'drift' | 'align';
 
@@ -148,6 +150,8 @@ export async function runCheck(config: SpecGuardConfig, opts: CheckOpts = {}): P
   if (statement && opts.explain === undefined) result.messages.push(...withSources(headlineLines(statement), statement, eff));
   for (const w of statementWarnings) log(`  [warn] ${w}`);
   for (const issue of model.issues) log(`  [${issue.level === 'error' ? 'error' : 'warn'}] ${issue.code}: ${issue.message}`);
+  // Guide specs, help topics and the generated docs: advisory, never a failure.
+  if (view === 'summary') for (const line of await docsCheckLines(config, registeredCommandTree()).catch(() => [])) log(line);
 
   if (statement && opts.explain !== undefined) {
     const cap = statement.capabilities.find((c) => c.capability === opts.explain || model.nodes.some((n) => n.id === c.capability && n.specKey === opts.explain))!;

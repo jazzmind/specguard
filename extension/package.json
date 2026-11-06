@@ -153,6 +153,31 @@
         "icon": "$(git-merge)"
       },
       {
+        "command": "specguard.generateContractMappings",
+        "title": "SpecGuard: Generate Contract Mappings",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "specguard.openDocs",
+        "title": "SpecGuard: Open Documentation",
+        "icon": "$(book)"
+      },
+      {
+        "command": "specguard.help.coverage",
+        "title": "SpecGuard: Help (Coverage view)",
+        "icon": "$(question)"
+      },
+      {
+        "command": "specguard.help.pipelines",
+        "title": "SpecGuard: Help (Pipelines view)",
+        "icon": "$(question)"
+      },
+      {
+        "command": "specguard.help.plugins",
+        "title": "SpecGuard: Help (Plugins view)",
+        "icon": "$(question)"
+      },
+      {
         "command": "specguard.workspaceStatus",
         "title": "SpecGuard: Workspace Status",
         "icon": "$(server-process)"
@@ -324,6 +349,21 @@
           "command": "specguard.refreshWorkspace",
           "when": "view == specguard.workspaceView && specguard.hasWorkspaceManifest == true",
           "group": "navigation@1"
+        },
+        {
+          "command": "specguard.help.coverage",
+          "when": "view == specguard.coverageView",
+          "group": "navigation@9"
+        },
+        {
+          "command": "specguard.help.pipelines",
+          "when": "view == specguard.pipelinesView",
+          "group": "navigation@9"
+        },
+        {
+          "command": "specguard.help.plugins",
+          "when": "view == specguard.pluginsView",
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
@@ -366,6 +406,34 @@
           "command": "specguard.plugins.remove",
           "when": "view == specguard.pluginsView && viewItem =~ /^plugin-npm-/",
           "group": "plugin@1"
+        },
+        {
+          "command": "specguard.generateContractMappings",
+          "when": "view == specguard.workspaceView && viewItem == workspace-contracts && specguard.contractMappingsEnabled",
+          "group": "inline@0"
+        },
+        {
+          "command": "specguard.generateContractMappings",
+          "when": "view == specguard.workspaceView && viewItem == workspace-repo && specguard.contractMappingsEnabled",
+          "group": "contracts@0"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "specguard.generateContractMappings",
+          "when": "specguard.contractMappingsEnabled"
+        },
+        {
+          "command": "specguard.help.coverage",
+          "when": "false"
+        },
+        {
+          "command": "specguard.help.pipelines",
+          "when": "false"
+        },
+        {
+          "command": "specguard.help.plugins",
+          "when": "false"
         }
       ]
     },
@@ -409,6 +477,14 @@
           "icon": "$(extensions)",
           "tooltip": "SpecGuard Plugins",
           "description": "Browse, enable, disable, add and remove plugins.",
+          "type": "tree"
+        },
+        {
+          "id": "specguard.helpView",
+          "name": "Help & Docs",
+          "icon": "$(book)",
+          "tooltip": "SpecGuard documentation",
+          "description": "Guides, quickstarts and reference.",
           "type": "tree"
         }
       ]
@@ -496,11 +572,13 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^22",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.1",
     "jsonc-parser": "^3.3.1",
+    "markdown-it": "^15.0.3",
     "typescript": "^5.7",
     "vitest": "^4.1.11"
   }

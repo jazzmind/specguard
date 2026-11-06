@@ -191,7 +191,7 @@ const BADGE: Record<RepoStatus, { cls: string; label: string }> = {
 export function teamSectionHtml(m: TeamModel): string {
   const busy = m.phase !== 'idle';
   const dis = busy ? ' disabled' : '';
-  const head = '<div class="section-title">Team server</div>';
+  const head = '<div class="section-title">Team server<button class="help-btn" data-act="help" data-help="workspace.teamServer" aria-label="Help: Team server in the workspace">?</button></div>';
   if (m.noServer) {
     return `<section id="team" class="team">${head}<div class="team-card"><p>No team server is configured. Set the server in Workspace Settings to publish specs and test reports.</p><button class="btn" data-act="settings">Open Workspace Settings</button></div></section>`;
   }

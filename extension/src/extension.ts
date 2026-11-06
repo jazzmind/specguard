@@ -25,6 +25,8 @@ import { watchCodeWorkspace } from './code-workspace.js';
 import { registerPluginViews } from './plugins-view.js';
 import { getPlugins, onDidChangePlugins } from './plugins-state.js';
 import * as path from 'path';
+import { openDocs, registerDocsCommands } from './docs-panel.js';
+import { HelpProvider } from './help-view.js';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let coverageProvider: CoverageProvider | undefined;
@@ -117,6 +119,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(onDidChangePlugins(() => void syncPipelines()));
   context.subscriptions.push(onDidChangeActiveWorkspaceRoot(() => void syncPipelines()));
   void syncPipelines();
+
+  // Help & Docs: the shipped documentation, its sidebar view, and the Help action of the tree views.
+  registerDocsCommands(context);
+  context.subscriptions.push(
+    vscode.window.createTreeView('specguard.helpView', { treeDataProvider: new HelpProvider() }),
+    ...(['coverage', 'pipelines', 'plugins'] as const).map((view) =>
+      vscode.commands.registerCommand(`specguard.help.${view}`, () => openDocs(context, `sidebar.${view}`))),
+  );
 
   // Status bar: shows "SpecGuard: 82%" or similar
   const config = vscode.workspace.getConfiguration('specguard');

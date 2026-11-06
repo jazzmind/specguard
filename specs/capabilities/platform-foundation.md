@@ -55,12 +55,7 @@ tests:
   - "tests/helpers/overlay-fixture.ts"
 docs:
   - "README.md"
-  - "docs/user/config.md"
-  - "docs/user/llm.md"
-  - "docs/user/errors.md"
-  - "docs/user/exit-codes.md"
-  - "docs/user/reader.md"
-  - "docs/user/writer.md"
+  - "docs/guide/reference/platform-foundation.md"
 history:
   - 2026-10-29-editor-endpoint-startup
   - 2026-10-15-functional-specs-and-four-pillars
@@ -79,6 +74,7 @@ history:
   - 2026-10-27-keep-runtime-activity-logging-out-of-com
   - 2026-10-28-workspace-defaults-and-secure-editor-cre
   - 2026-11-03-project-link-from-vs-code-recover-unpars
+  - 2026-11-06-ignore-block-covers-nested-repos-in-over
 ---
 
 # Platform Foundation
@@ -119,6 +115,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] No tracked file of the repository contains the name of a private project, an employer or an internal host: a test compares every word of every tracked file with a list kept as SHA-256 hashes, so the list names no one, and fails with the offending file <!-- claim: no-private-names -->
 - [ ] The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as "basic requirements"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing <!-- claim: secret-redaction -->
 - [ ] File access goes through small reader and writer helpers: reads return UTF-8 text and reject on a missing file, existence checks return false instead of throwing, and writes create intermediate directories and replace the file atomically (a temp file renamed over it, so a reader never sees half a write); sentinel-delimited regions let SpecGuard own part of a hand-written file without touching the rest, and generated run state is kept out of version control through a managed ignore block <!-- claim: filesystem-access -->
+- [ ] Where a workspace manifest lists repos or units inside the git root (an overlay or monorepo), `init` and `migrate` write the managed ignore block with any-depth patterns (`**/.specguard/runs/` and so on) so nested repos' generated state, including run records and publish snapshots, stays out of version control too; a repo whose manifest lists only itself or repos outside it keeps root-anchored patterns <!-- claim: ignore-block-nested-repos -->
 - [ ] Language and framework profiles describe source globs, test file naming, test command and result parsing for TypeScript, Python, Go, Rust and Java, detect the language from marker files with a fixed tie-break, and honour per-app prefix stripping when deriving feature names <!-- claim: language-profiles -->
 - [ ] Failures use typed errors that carry an exit code (default 1), and exit codes are stable across releases: 0 success, 1 internal, 2 validation failed, 3 drift, 4 missing specs, 5 security issues, 7 heal failed, 8 budget exceeded, 12 waiting for the host agent (not a failure), with remediation-specific codes 8 to 11 scoped to that command <!-- claim: errors-and-exit-codes -->
 - [ ] One build version is reported everywhere: `--version` prints it, `--version --json` prints name, version and Node version on one line, and the MCP server and extension report the same value <!-- claim: single-version-source -->

@@ -18,7 +18,7 @@ function reportTarget(): { root: string; reportDir: string; workspace: boolean }
   return active ? { root: active, reportDir: path.join(active, '.specguard', 'report'), workspace: false } : undefined;
 }
 
-export async function rebuildReport(context: vscode.ExtensionContext): Promise<boolean> {
+export async function rebuildReport(_context: vscode.ExtensionContext): Promise<boolean> {
   const target = reportTarget();
   if (!target) { void vscode.window.showErrorMessage('SpecGuard: open a workspace folder first.'); return false; }
   const cli = await resolveCliPath(target.root);

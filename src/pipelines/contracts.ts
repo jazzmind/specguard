@@ -170,6 +170,11 @@ Output ONLY the formatted lines, one per dependency. No explanations. If no cros
   }
 }
 
+/** A spec's repo-relative POSIX path: the part of its node id after `<repo>::`, the same in every pass. */
+function relSpecPath(repoAbs: string, specFilePath: string): string {
+  return path.relative(repoAbs, path.resolve(repoAbs, specFilePath)).split(path.sep).join('/');
+}
+
 // ---------------------------------------------------------------------------
 // Node title helpers
 // ---------------------------------------------------------------------------
@@ -296,16 +301,17 @@ export async function runContracts(
 
     for (const spec of specs) {
       if (!spec.dependencies) continue;
-      const blockEdges = extractSpecBlockEdges(repo.key, spec.filePath.replace(repo.absPath + '/', ''), spec.dependencies);
+      const specRelPath = relSpecPath(repo.absPath, spec.filePath);
+      const blockEdges = extractSpecBlockEdges(repo.key, specRelPath, spec.dependencies);
       if (blockEdges.length === 0) continue;
 
       log(`  ${repo.key}::${spec.specKey}: found ${blockEdges.length} structured contract(s)`);
 
       // Ensure consumer node exists
       upsertNode(graph, {
-        id: nodeId(repo.key, spec.filePath.replace(repo.absPath + path.sep, '').split(path.sep).join('/')),
+        id: nodeId(repo.key, specRelPath),
         repo: repo.key,
-        spec: spec.specKey,
+        spec: specRelPath,
         title: spec.title,
       });
 
@@ -360,10 +366,7 @@ export async function runContracts(
         }
         sent += 1;
         log(`  [send] ${repo.key}::${spec.specKey}`);
-        const specRelPath = spec.filePath
-          .replace(repo.absPath + path.sep, '')
-          .split(path.sep)
-          .join('/');
+        const specRelPath = relSpecPath(repo.absPath, spec.filePath);
         const llmEdges = await extractLlmEdges(
           repo.key,
           specRelPath,

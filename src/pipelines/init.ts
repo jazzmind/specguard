@@ -27,7 +27,7 @@ import {
   type LanguageProfile,
 } from '../core/language-profiles.js';
 import { scaffoldCodexFiles, scaffoldHarnessFiles, type Harness } from '../core/scaffold.js';
-import { applyIgnoreBlock, GENERATED_STATE_PATHS } from '../core/state-ignore.js';
+import { applyIgnoreBlock, hasNestedRepos, ignorePatterns } from '../core/state-ignore.js';
 import { detectMonorepo, testCommandFor, type Ecosystem, type MonorepoInfo, type WorkspacePackage } from '../core/monorepo.js';
 import { unitsFromMonorepo } from '../core/workspace-units.js';
 import { installCommandFor, renderPullRequestWorkflow, renderRemediateWorkflow, WORKFLOW_FILES } from '../core/ci-workflow.js';
@@ -189,9 +189,9 @@ Do not write one spec per file; several files that deliver one piece of function
 `;
 
 /** Generated-state files that git already tracks (so ignoring them is not enough). */
-function trackedGeneratedState(cwd: string): string[] {
+function trackedGeneratedState(cwd: string, nested: boolean): string[] {
   try {
-    const out = execFileSync('git', ['ls-files', '--', ...GENERATED_STATE_PATHS], {
+    const out = execFileSync('git', ['ls-files', '--', ...ignorePatterns({ nested }).map((p) => `:(glob)${p}`)], {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -247,12 +247,13 @@ export async function runInit(opts: InitOpts = {}): Promise<InitResult> {
   // Best-effort: keep generated run state (and the .env secrets file) out of version control.
   try {
     const before = (await fileExists(gitignorePath)) ? await readFile(gitignorePath) : '';
-    const after = applyIgnoreBlock(before);
+    const nested = hasNestedRepos(cwd);
+    const after = applyIgnoreBlock(before, { nested });
     if (after !== before) {
       await writeFile(gitignorePath, after);
       result.messages.push('  updated  .gitignore (generated SpecGuard state ignored)');
     }
-    const tracked = trackedGeneratedState(cwd);
+    const tracked = trackedGeneratedState(cwd, nested);
     if (tracked.length > 0) {
       result.messages.push(
         `  note     ${tracked.length} generated file(s) are already tracked by git; untrack with:`,

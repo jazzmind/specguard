@@ -24,4 +24,10 @@ describe('reduce', () => {
     vm = reduce(vm, { type: 'artifact', kind: 'spec', path: 'specs/core/x.md', change: 'create' });
     expect(vm.artifacts.at(-1)).toMatchObject({ kind: 'spec', path: 'specs/core/x.md' });
   });
+  // [claims: capabilities/integration-surfaces#extension-help-popovers]
+  it('keeps the help topics the host sends', () => {
+    const topic = { title: 'T', text: 'x', page: 'guide/a.md', anchor: 'a' };
+    const vm = reduce(initialViewModel(), { type: 'helpTopics', topics: { 'dashboard.overview': topic } });
+    expect(vm.helpTopics['dashboard.overview']).toEqual(topic);
+  });
 });

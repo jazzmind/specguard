@@ -13,6 +13,8 @@ import { getActiveWorkspaceRoot, pickWorkspaceRoot, setActiveWorkspaceRoot, getW
 import { forceUpdateProjectFiles } from './project-updater.js';
 import { openWorkspacePanel, registerWorkspacePanelCommands } from './workspace-panel.js';
 import { resolveCliCommand } from './dashboard/cli.js';
+import { CONTRACTS_MODES, MAP_MODES, contractsArgs, existingMappingFiles, mapArgs, readConfigFile } from './contract-mappings.js';
+import { configFileFor } from './project-config.js';
 import { shellQuote } from './safe-spawn.js';
 import { initWorkspace, setRepoIgnored, syncCodeWorkspace } from './code-workspace.js';
 import { ensurePluginEnabled } from './plugins-view.js';
@@ -279,15 +281,63 @@ export function registerCommands(
         );
         return;
       }
+      const picked = await vscode.window.showQuickPick(
+        CONTRACTS_MODES.map((m) => ({ label: m.label, description: m.description, mode: m.mode })),
+        { title: 'Build Contract Graph', placeHolder: 'How should the contract graph be built?' },
+      );
+      if (!picked) return;
       const cli = await resolveCliCommand(manifestRoot);
       const terminal = vscode.window.createTerminal({
         name: 'SpecGuard: Build Contracts',
         cwd: manifestRoot,
       });
-      terminal.sendText(`${cli} contracts`);
+      terminal.sendText([`${cli} contracts`, ...contractsArgs(picked.mode)].join(' '));
       terminal.show();
       // Refresh sidebar after a short delay so the new contracts.json is reflected
       setTimeout(() => void coverageProvider.refresh(), 5_000);
+    }),
+  );
+
+  // --- specguard.generateContractMappings -----------------------------------
+  // From a repo row the argument is the tree item (its repoData names the consumer); from the palette, none.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('specguard.generateContractMappings', async (arg?: unknown) => {
+      const manifestRoot = getWorkspaceManifestRoot();
+      if (!manifestRoot) {
+        vscode.window.showErrorMessage('SpecGuard: no workspace.json found. Run "specguard workspace init" first.');
+        return;
+      }
+      const repoKey = arg && typeof arg === 'object' ? (arg as { repoData?: { key?: string } }).repoData?.key : typeof arg === 'string' ? arg : undefined;
+      const mode = await vscode.window.showQuickPick(
+        MAP_MODES.map((m) => ({ label: m.label, description: m.description, mode: m.mode })),
+        { title: repoKey ? `Generate Contract Mappings for ${repoKey}` : 'Generate Contract Mappings', placeHolder: 'What should the proposal be based on?' },
+      );
+      if (!mode) return;
+      let dryRun = false;
+      if (mode.mode !== 'assess') {
+        const run = await vscode.window.showQuickPick(
+          [
+            { label: 'Write the mapping files', description: 'merges into .specguard/contract-mappings.json', dry: false },
+            { label: 'Preview only (dry run)', description: 'prints the proposal, writes nothing', dry: true },
+          ],
+          { title: 'Generate Contract Mappings', placeHolder: 'Write the result or preview it?' },
+        );
+        if (!run) return;
+        dryRun = run.dry;
+      }
+      const cli = await resolveCliCommand(manifestRoot);
+      const terminal = vscode.window.createTerminal({ name: 'SpecGuard: Contract Mappings', cwd: manifestRoot });
+      terminal.sendText([`${cli} contracts-map`, ...mapArgs(mode.mode, dryRun, repoKey)].join(' '));
+      terminal.show();
+      const choice = await vscode.window.showInformationMessage(
+        dryRun || mode.mode === 'assess'
+          ? 'SpecGuard: contract mappings are running (nothing is written).'
+          : 'SpecGuard: contract mappings are running. The result is a proposal to review before building the graph.',
+        'Open mapping files',
+        'Build Contract Graph',
+      );
+      if (choice === 'Open mapping files') await openMappingFiles(repoKey);
+      else if (choice === 'Build Contract Graph') await vscode.commands.executeCommand('specguard.contracts');
     }),
   );
 
@@ -450,4 +500,16 @@ async function changeIgnore(coverageProvider: CoverageProvider, ignore: boolean,
     void coverageProvider.refresh();
     await vscode.commands.executeCommand('specguard.workspacePanel.refresh');
   }
+}
+
+/** Open each mapping file that exists (for the repo, or for every repo of the workspace). */
+async function openMappingFiles(repoKey?: string): Promise<void> {
+  const data = loadWorkspaceManifest();
+  const repos = (data?.repos ?? []).filter((r) => !r.ignore && (!repoKey || r.key === repoKey));
+  const files = existingMappingFiles(repos, (r) => readConfigFile(configFileFor(r.absPath)));
+  if (files.length === 0) {
+    vscode.window.showInformationMessage('SpecGuard: no mapping files yet. They appear once the run has written them.');
+    return;
+  }
+  for (const f of files) await vscode.window.showTextDocument(vscode.Uri.file(f), { preview: false });
 }

@@ -14,6 +14,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { SpecGuardConfig } from '../../core/types.js';
+import { z } from 'zod';
+
+import { runContractsMap, type MapOpts } from './map.js';
 import type { ContractImporter, ImportedContractEdge, SpecGuardPlugin } from '../types.js';
 
 export const DEFAULT_MAPPINGS_FILE = '.specguard/contract-mappings.json';
@@ -70,4 +73,37 @@ export const mappingImporter: ContractImporter = {
 export const plugin: SpecGuardPlugin = {
   id: 'contract-mappings',
   contractImporters: [mappingImporter],
+  commands: [
+    {
+      name: 'contracts-map',
+      description: 'propose consumer-to-provider spec mappings (from spec text, optionally a model and code) and write .specguard/contract-mappings.json',
+      needsConfig: false,
+      output: 'messages',
+      options: [
+        { flags: '--workspace <path>', description: 'workspace manifest, root or .code-workspace' },
+        { flags: '--repo <key>', description: 'map only this consumer repo' },
+        { flags: '--dry-run', description: 'print the proposal, write nothing' },
+        { flags: '--min-confidence <n>', description: 'drop suggestions below this confidence, 0 to 1 (default 0.6)' },
+        { flags: '--with-llm', description: 'ask the model about specs the text did not settle (sends their text; says so first)' },
+        { flags: '--max-llm-specs <n>', description: 'most specs or files one run sends to the model (default 50)' },
+        { flags: '--all-specs', description: 'with --with-llm: ask about every spec, not only the unmatched ones' },
+        { flags: '--with-code', description: 'also match client calls to endpoint definitions in code (local, no model)' },
+        { flags: '--send-code', description: 'with --with-llm and --with-code: send code excerpts around unmatched calls to the model' },
+        { flags: '--assess', description: 'report whether reading code would help; no model, nothing written' },
+      ],
+      mcpParams: {
+        workspace: z.string().optional().describe('Workspace manifest, root or .code-workspace.'),
+        repo: z.string().optional().describe('Map only this consumer repo.'),
+        dryRun: z.boolean().optional().describe('Print the proposal, write nothing.'),
+        minConfidence: z.number().optional().describe('Drop suggestions below this confidence (default 0.6).'),
+        withLlm: z.boolean().optional().describe('Ask the model about specs the text did not settle.'),
+        maxLlmSpecs: z.number().optional().describe('Most specs or files one run sends to the model (default 50).'),
+        allSpecs: z.boolean().optional().describe('With withLlm: ask about every spec.'),
+        withCode: z.boolean().optional().describe('Also match client calls to endpoint definitions in code.'),
+        sendCode: z.boolean().optional().describe('With withLlm and withCode: send code excerpts to the model.'),
+        assess: z.boolean().optional().describe('Report whether reading code would help; writes nothing.'),
+      },
+      run: ({ opts }) => runContractsMap(opts as MapOpts),
+    },
+  ],
 };

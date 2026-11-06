@@ -20,6 +20,7 @@ import { projectHealth } from './project-health.js';
 import { warmProjectConfigs } from './workspace-state.js';
 import { settingsLayers, serverToken } from './settings.js';
 import { getHub } from './api/shared.js';
+import { loadHelpTopics } from './docs-content.js';
 import { parseCliLine, parseCheckOutput, teamSectionHtml, publishArgs, reportUrl, repoKey, type TeamModel, type TeamCheck, type TeamProgress } from './team-publish.js';
 
 // ---------------------------------------------------------------------------
@@ -38,6 +39,7 @@ type PanelMsg =
   | { type: 'reportRebuild' }
   | { type: 'openDashboard'; key: string }
   | { type: 'ready' }
+  | { type: 'openDocs'; topic: string }
   | { type: 'runDrift' }
   | { type: 'runContracts' }
   | { type: 'refreshAll' }
@@ -104,6 +106,7 @@ export function openWorkspacePanel(context: vscode.ExtensionContext, initialTab:
 
 async function handleMessage(msg: PanelMsg): Promise<void> {
   if (!_panel) return;
+  if (msg.type === 'openDocs') { if (typeof msg.topic === 'string') await vscode.commands.executeCommand('specguard.openDocs', msg.topic); return; }
   if (msg.type === 'reportOpen') { await vscode.commands.executeCommand('specguard.openReport'); return; }
   if (msg.type === 'reportRebuild') { await vscode.commands.executeCommand('specguard.rebuildReport'); return; }
   if (msg.type === 'journeys') { await vscode.commands.executeCommand('specguard.businessJourneys'); return; }
@@ -373,6 +376,15 @@ export function buildHtml(_webview: vscode.Webview): string {
 
   /* ── Repo grid ── */
   .ver { font-size: 12px; font-weight: 400; opacity: .6; margin-left: 8px; }
+  .help-btn { width: 16px; height: 16px; padding: 0; margin-left: 6px; border-radius: 50%; vertical-align: middle; text-transform: none; letter-spacing: 0;
+    border: 1px solid var(--vscode-descriptionForeground, #888); background: none; color: var(--vscode-descriptionForeground, #888); font-size: 10px; line-height: 14px; cursor: pointer; }
+  .help-btn:hover, .help-btn:focus-visible { color: var(--vscode-textLink-foreground, #4fc3f7); border-color: var(--vscode-textLink-foreground, #4fc3f7); outline: none; }
+  .tabs .help-btn { align-self: center; margin: 0 10px 0 -8px; }
+  .help-pop { position: absolute; z-index: 30; width: 280px; padding: 10px 12px; border-radius: 4px; font-size: 12px; line-height: 1.45; font-weight: 400; text-transform: none; letter-spacing: 0;
+    background: var(--vscode-editorHoverWidget-background, #252526); color: var(--vscode-editorHoverWidget-foreground, #ccc);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545); box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .help-pop strong { display: block; margin-bottom: 4px; }
+  .help-pop a { display: inline-block; margin-top: 8px; }
   .section-title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: 8px; margin-top: 20px; }
   .repo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
   .repo-card {
@@ -515,8 +527,11 @@ export function buildHtml(_webview: vscode.Webview): string {
 
 <div class="tabs">
   <button class="tab-btn active" data-tab="status">Status</button>
+  <button class="help-btn" data-act="help" data-help="workspace.status" aria-label="Help: Workspace status">?</button>
   <button class="tab-btn" data-tab="drift">Cross-Repo Drift</button>
+  <button class="help-btn" data-act="help" data-help="workspace.drift" aria-label="Help: Cross-repo drift">?</button>
   <button class="tab-btn" data-act="settings">Settings</button>
+  <button class="help-btn" data-act="help" data-help="workspace.settings" aria-label="Help: Workspace settings">?</button>
 </div>
 
 <!-- ── Status Tab ── -->
@@ -537,7 +552,7 @@ export function buildHtml(_webview: vscode.Webview): string {
 <!-- ── Drift Tab ── -->
 <div id="tab-drift" class="tab-panel">
   <div class="stream-header">
-    <h2>Cross-Repo Drift Detection</h2>
+    <h2>Cross-Repo Drift Detection<button class="help-btn" data-act="help" data-help="workspace.drift" aria-label="Help: Cross-repo drift">?</button></h2>
     <button id="btn-drift" class="btn" data-act="runDrift">Run Workspace Drift</button>
     <div id="drift-spinner" style="display:none"><div class="spinner"></div></div>
   </div>
@@ -546,6 +561,8 @@ export function buildHtml(_webview: vscode.Webview): string {
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
+  // Help topics (title, text, docs page) from the shipped help-topics.json; "Read more" opens the docs panel.
+  const HELP = ${JSON.stringify(loadHelpTopics()).replace(/</g, '\\u003c')};
 
   // ── Tab switching ──────────────────────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -621,7 +638,7 @@ export function buildHtml(_webview: vscode.Webview): string {
     // Contracts bar
     const contractsBarHtml = contracts ? \`
       <div class="contracts-bar">
-        <div class="c-stat"><strong>\${edgeCount}</strong> contract edges</div>
+        <div class="c-stat"><strong>\${edgeCount}</strong> contract edges<button class="help-btn" data-act="help" data-help="workspace.contracts" aria-label="Help: Contracts in the workspace">?</button></div>
         <div class="c-stat"><strong>\${nodeCount}</strong> nodes</div>
         \${staleCount > 0 ? \`<span class="stale">⚠ \${staleCount} unverified &gt;30d</span>\` : ''}
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
@@ -631,7 +648,7 @@ export function buildHtml(_webview: vscode.Webview): string {
       </div>
     \` : \`
       <div class="contracts-bar">
-        <div class="c-stat" style="opacity:.6">No contracts graph yet.</div>
+        <div class="c-stat" style="opacity:.6">No contracts graph yet.<button class="help-btn" data-act="help" data-help="workspace.contracts" aria-label="Help: Contracts in the workspace">?</button></div>
         <div class="ml-auto" style="display:flex;align-items:center;gap:8px">
           <div id="contracts-bar-spinner" style="display:none"><div class="spinner"></div></div>
           <button id="btn-contracts" class="btn" data-act="runContracts">Build Contracts</button>
@@ -654,7 +671,7 @@ export function buildHtml(_webview: vscode.Webview): string {
       toolbarHtml +
       statsHtml +
 
-      \`<div class="section-title">Repos</div><div class="repo-grid">\${activeCardsHtml}</div>\` +
+      \`<div class="section-title">Repos<button class="help-btn" data-act="help" data-help="workspace.repos" aria-label="Help: Repos in the workspace">?</button></div><div class="repo-grid">\${activeCardsHtml}</div>\` +
       ignoredCardsHtml +
       contractsBarHtml;
   }
@@ -731,12 +748,53 @@ export function buildHtml(_webview: vscode.Webview): string {
     if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-team-evidence')) vscode.postMessage({ type: 'teamSetEvidence', on: e.target.checked });
   });
 
+  // ── Help popover ───────────────────────────────────────────────────────────
+  let helpPop = null;
+  let helpOwner = null;
+  function onHelpKey(e) { if (e.key === 'Escape') closeHelp(true); }
+  function closeHelp(refocus) {
+    if (!helpPop) return;
+    helpPop.remove();
+    document.removeEventListener('keydown', onHelpKey);
+    if (refocus && helpOwner && helpOwner.focus) helpOwner.focus();
+    helpPop = null; helpOwner = null;
+  }
+  function showHelp(owner, key) {
+    const same = helpOwner === owner;
+    closeHelp(false);
+    const topic = HELP[key];
+    if (same || !topic) return;
+    const pop = document.createElement('div');
+    pop.className = 'help-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', topic.title);
+    const title = document.createElement('strong');
+    title.textContent = topic.title;
+    const text = document.createElement('span');
+    text.textContent = topic.text;
+    const more = document.createElement('a');
+    more.href = '#';
+    more.textContent = 'Read more';
+    more.dataset.act = 'helpMore';
+    more.dataset.help = key;
+    pop.append(title, text, document.createElement('br'), more);
+    const rect = owner.getBoundingClientRect();
+    pop.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = Math.max(8, Math.min(rect.left + window.scrollX, window.innerWidth - 300)) + 'px';
+    document.body.appendChild(pop);
+    helpPop = pop; helpOwner = owner;
+    document.addEventListener('keydown', onHelpKey);
+  }
+
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
+    if (!el || (el.dataset.act !== 'help' && el.dataset.act !== 'helpMore')) closeHelp(false);
     if (!el) return;
     e.preventDefault();
     const d = el.dataset;
-    if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
+    if (d.act === 'help') showHelp(el, d.help);
+    else if (d.act === 'helpMore') { closeHelp(false); vscode.postMessage({ type: 'openDocs', topic: d.help }); }
+    else if (d.act === 'ignore') setIgnore(d.key, d.ignore === 'true');
     else if (d.act === 'journeys') vscode.postMessage({ type: 'journeys' });
     else if (d.act === 'reportOpen') vscode.postMessage({ type: 'reportOpen' });
     else if (d.act === 'reportRebuild') vscode.postMessage({ type: 'reportRebuild' });

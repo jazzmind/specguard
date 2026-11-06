@@ -7,6 +7,7 @@ value: At any moment a team can see how every spec relates to its code, tests, d
 status: active
 sources:
   - "src/pipelines/report.ts"
+  - "src/pipelines/workspace-report.ts"
   - "src/cli/commands/report.ts"
   - "src/core/drift-registry.ts"
   - "src/core/claim-hash.ts"

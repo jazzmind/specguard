@@ -466,6 +466,9 @@ const configSchema = z
         providers: z.array(z.string()).optional(),
         docs: z.string().optional(),
         edgeType: z.string().optional(),
+        basePrefixes: z.array(z.string()).optional(),
+        baseRepos: z.record(z.string(), z.string()).optional(),
+        providerRepos: z.array(z.string()).optional(),
       })
       .optional(),
     server: z
