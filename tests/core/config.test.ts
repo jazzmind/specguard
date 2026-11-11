@@ -219,10 +219,14 @@ describe('the llm block is optional [platform-foundation]', () => {
     expect(config.llm).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKeyEnv: 'ANTHROPIC_API_KEY' });
   });
 
-  // [claims: capabilities/platform-foundation#config-apps-and-defaults]
+  // [claims: capabilities/platform-foundation#config-apps-and-defaults, capabilities/platform-foundation#llm-connectivity]
   it('fills in a partial llm block, with the key variable that goes with the provider', async () => {
     expect((await loadConfig(configIn({ provider: 'openai', model: 'gpt-x' }))).llm.apiKeyEnv).toBe('OPENAI_API_KEY');
     expect((await loadConfig(configIn({ provider: 'host' }))).llm).toMatchObject({ provider: 'host', model: 'claude-sonnet-4-6' });
     expect((await loadConfig(configIn({ provider: 'anthropic', apiKeyEnv: 'MY_KEY' }))).llm.apiKeyEnv).toBe('MY_KEY');
+    expect((await loadConfig(configIn({ provider: 'xai' }))).llm.apiKeyEnv).toBe('XAI_API_KEY');
+    expect((await loadConfig(configIn({ provider: 'cursor' }))).llm.apiKeyEnv).toBe('XAI_API_KEY');
+    expect((await loadConfig(configIn({ provider: 'bedrock-iam' }))).llm.apiKeyEnv).toBe('AWS_ACCESS_KEY_ID');
+    expect((await loadConfig(configIn({ provider: 'bedrock-mantle' }))).llm.apiKeyEnv).toBe('AWS_BEARER_TOKEN_BEDROCK');
   });
 });

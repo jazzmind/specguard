@@ -1,6 +1,7 @@
 import { getWorkspaceManifestRoot } from '../workspace-state.js';
 import { prepareOutputRun, queryCli } from '../output-routing.js';
 import { settingsLayers, aiCredential, saveSettings, setAiCredential } from '../settings.js';
+import { providerKeyOptional } from '../settings-model.js';
 import { collectOutputs } from '../output-inventory.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -626,7 +627,7 @@ export class DashboardHost {
     const { effective } = settingsLayers(this.workspaceRoot);
     const credential = await aiCredential(this.workspaceRoot, effective.llm);
     this.post({ type: 'projectConfig', config: { llm: effective.llm, envVars: { [effective.llm.apiKeyEnv]: credential.value ? '***' : '' },
-      hasApiKey: effective.llm.provider === 'litellm' || !!credential.value, configFound: fs.existsSync(configFileFor(this.workspaceRoot)),
+      hasApiKey: providerKeyOptional(effective.llm.provider) || !!credential.value, configFound: fs.existsSync(configFileFor(this.workspaceRoot)),
       llmSource: effective.llmSource, keySource: credential.source, serverSource: effective.serverSource, serverUrl: effective.server.url } });
   }
 

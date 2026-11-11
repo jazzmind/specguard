@@ -90,7 +90,7 @@ export interface ProjectConfig {
   serverSource?: string;
   serverUrl?: string;
   llm: {
-    provider: 'anthropic' | 'openai' | 'litellm';
+    provider: 'anthropic' | 'openai' | 'litellm' | 'xai' | 'cursor' | 'bedrock-iam' | 'bedrock-mantle';
     model: string;
     apiKeyEnv: string;
     baseUrl?: string;

@@ -62,7 +62,7 @@
       "audience": "user",
       "group": "Start here",
       "file": "guide/fits-with-tools.md",
-      "sourceHash": "079f6daa606860c8d8a53b758bdd870a977c3ceb1e6f88237e12c152bd6d65a9",
+      "sourceHash": "49627d52ccbf56860685b71ef1cbf56b1db16199fc708e3714e6d5036a1e1111",
       "generator": "deterministic",
       "sections": [
         {
@@ -1295,7 +1295,7 @@
       "audience": "user",
       "group": "Reference",
       "file": "guide/reference/integration-surfaces.md",
-      "sourceHash": "f0f979238e1293ff1827b6818ad3446fc8ced5caa554f22e5b230434261ac63b",
+      "sourceHash": "994d0bc4e9829e082d8b3d1c0d0861ffd6bea26d5742c283c749250b4cac5184",
       "generator": "llm",
       "sections": [
         {
@@ -1389,7 +1389,7 @@
       "audience": "user",
       "group": "Reference",
       "file": "guide/reference/platform-foundation.md",
-      "sourceHash": "f3125295fdbcc2c58d4dd821f8ec06a8f1ab8370f3449c061f504066f59925c8",
+      "sourceHash": "32d713daf66c2e3b237d05ff03d4743cce070626ea47e84c3ef7d17de7923140",
       "generator": "llm",
       "sections": [
         {
@@ -2352,7 +2352,7 @@
       "audience": "dev",
       "group": "Developer",
       "file": "dev/reference/integration-surfaces.md",
-      "sourceHash": "df324f5c4f782bd7ce5affd94cd24eddb6d2b1a4cbf4dc443cf0b38c9619ee4a",
+      "sourceHash": "fece6fa8f1975a34099c099cb28b694ed975fa304ee109a9ac5c0635da90a1ba",
       "generator": "llm",
       "sections": [
         {
@@ -2494,7 +2494,7 @@
       "audience": "dev",
       "group": "Developer",
       "file": "dev/reference/platform-foundation.md",
-      "sourceHash": "f4308624cd0b95991e3efc6539918250f125f6bedc7523639289f36224dda718",
+      "sourceHash": "24337fd7316a4b922b36a86f0b99a17f4312020289a6b64796d3ba28152cf3d9",
       "generator": "llm",
       "sections": [
         {

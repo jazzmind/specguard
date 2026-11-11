@@ -26,7 +26,11 @@ SpecGuard keeps your specs as the source of truth and shows, per requirement, wh
 codex plugin marketplace add jazzmind/specguard
 ```
 
-then install `specguard` from `/plugins` and ask it to run `specguard start`. Codex does not announce itself, so set `SPECGUARD_HOST_AGENT=1` for any `specguard` command you run in its shell (the plugin's MCP server and skills already do).
+then install `specguard` from `/plugins` and ask it to run `specguard start`. Codex is recognised when `CODEX_THREAD_ID` is set. In a shell that does not set it, set `SPECGUARD_HOST_AGENT=1` (the plugin's MCP server and skills already do).
+
+**Cursor**
+
+Cursor sets `CURSOR_AGENT=1` for the commands it runs, so SpecGuard hands model work to the agent and no separate API key is required. To call a model directly, set `llm.provider` to `cursor` (xAI, `XAI_API_KEY`), `anthropic`, `openai`, `litellm`, `bedrock-iam` or `bedrock-mantle`.
 
 **Any terminal** (with an API key set once by `specguard key set`, or inside any agent with `SPECGUARD_HOST_AGENT=1`)
 

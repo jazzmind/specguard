@@ -75,16 +75,18 @@ Out of scope:
 **Environment variables**
 - `SPECGUARD_IDE_LLM`
 - `SPECGUARD_HOST_AGENT` (`1` enables, `0` disables)
+- `CURSOR_AGENT` (`1` or `true` recognises a Cursor session)
+- `CLAUDECODE`, `CODEX_THREAD_ID`
 - `SPECGUARD_OVERLAY` (path-list separated)
 - `SPECGUARD_CONFIG`
-- the named key variable for each provider (default `ANTHROPIC_API_KEY` for Anthropic)
+- the named key variable for each provider (default `ANTHROPIC_API_KEY` for Anthropic, `XAI_API_KEY` for `xai` and `cursor`, `AWS_BEARER_TOKEN_BEDROCK` for `bedrock-mantle`, `AWS_ACCESS_KEY_ID` for `bedrock-iam`)
 
 **CLI flags and output**
 - `--config <path>`, `--record`, `--json`
 - `--version`, and `--version --json` (name, version and Node version on one line)
 - `migrate`: `--yes`, `--allow-dirty`, `--consolidate`
 
-**Providers:** `anthropic`, `openai`, `replay`, `none`, `host`, plus any provider the layer registers.
+**Providers:** `anthropic`, `openai`, `litellm`, `xai`, `cursor` (xAI), `bedrock-iam`, `bedrock-mantle`, `host`, `replay`, `none`.
 
 **Exit codes** (stable across releases)
 
@@ -140,6 +142,7 @@ Out of scope:
 ### Model access
 
 - **llm-provider-layer**: one layer for all calls. The key comes only from a named environment variable and is never logged or put in an error. A missing key or unknown provider fails clearly. Structured output is validated against the caller's schema.
+- **llm-connectivity**: Anthropic, OpenAI, LiteLLM, xAI and the `cursor` alias of xAI, Bedrock IAM (SigV4 through the AWS credential chain; an empty API key so a bearer token cannot override IAM) and Bedrock Mantle (bearer token when set, otherwise the same chain). A missing key or unresolved IAM credentials names the variable or the chain and never the secret. Bedrock IAM and Mantle are not handed to the host agent merely because no API key is set.
   - A reply with code fences or chatter is accepted if the object inside is valid.
   - A reply cut off at the output limit is retried once with twice the room (up to 32000 tokens).
   - An unusable reply fails with the reason and the start of the reply.
@@ -151,7 +154,7 @@ Out of scope:
 - **llm-usage-log**: every real call adds tokens, call count and estimated cost, in total and per pipeline and model. It uses a built-in price table that config can override.
 - **llm-replay-record**: the replay provider serves recordings keyed by a hash of prompt, system text and image bytes, with no network. A miss names the hash and how to record. `--record` or config writes every real response.
 - **llm-disabled-and-images**: provider `none` fails every call with a disabled error without touching the network. Disallowing images rejects any call that carries them.
-- **host-agent-provider**: applies with `llm.provider: "host"`, or when a keyed provider's key is unset inside a coding agent (Claude Code is auto-recognised; other agents use `SPECGUARD_HOST_AGENT=1`; `=0` turns it off). A call with no recorded answer writes a request file under `.specguard/agent-requests/` (system text, credential-masked prompt and, for structured output, the JSON Schema), records it as pending and raises a typed error with exit code 12, without calling a model. The agent records its answer in the replay store. The next run validates it with the caller's schema and serves it. An answer that fails the schema is set aside with the reason written on the request, so it is asked again.
+- **host-agent-provider**: applies with `llm.provider: "host"`, or when a keyed provider's key is unset inside a coding agent (Claude Code via `CLAUDECODE`, Codex via `CODEX_THREAD_ID` and Cursor via `CURSOR_AGENT` of `1` or `true` are auto-recognised; other agents use `SPECGUARD_HOST_AGENT=1`; `=0` turns it off). A call with no recorded answer writes a request file under `.specguard/agent-requests/` (system text, credential-masked prompt and, for structured output, the JSON Schema), records it as pending and raises a typed error with exit code 12, without calling a model. The agent records its answer in the replay store. The next run validates it with the caller's schema and serves it. An answer that fails the schema is set aside with the reason written on the request, so it is asked again.
 - **host-agent-batching**: a step that makes many requests asks for all of them in one round (file summaries in batches of up to 25). It applies nothing and writes no system spec until every answer is in. It never records a guessed verdict: a drift judgement still waiting leaves the change unassessed. A hook's own call opts out so a hook never leaves a request behind.
 
 <a id="redaction"></a>
@@ -208,7 +211,7 @@ The spec lists files without per-file responsibilities. The only explicit mappin
 
 **Sources (22 owned files)**
 - Config and overlays: `src/core/config.ts`, `src/core/overlay.ts`
-- Model layer: `src/core/llm.ts`, `src/core/llm-runtime.ts`, `src/core/llm-usage.ts`, `src/core/llm-replay.ts`, `src/core/agent-work.ts`
+- Model layer: `src/core/llm.ts`, `src/core/llm-provider-ids.ts`, `src/core/llm-providers.ts`, `src/core/llm-runtime.ts`, `src/core/llm-usage.ts`, `src/core/llm-replay.ts`, `src/core/agent-work.ts`
 - Redaction: `src/core/redact.ts`
 - File access and ignore handling: `src/core/reader.ts`, `src/core/writer.ts`, `src/core/sentinels.ts`, `src/core/state-ignore.ts`, `src/core/activity-ignore.ts`
 - Languages: `src/core/language-profiles.ts`

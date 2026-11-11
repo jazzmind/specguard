@@ -15,8 +15,6 @@
  */
 
 import { asSchema, generateText, generateObject, type LanguageModel } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOpenAI } from '@ai-sdk/openai';
 import path from 'node:path';
 import type { ZodType } from 'zod';
 
@@ -45,6 +43,8 @@ import {
   runSpend,
 } from './llm-runtime.js';
 import { estimateUsd, priceFor, recordUsage } from './llm-usage.js';
+import { KEYLESS_PROVIDERS } from './llm-provider-ids.js';
+import { buildLanguageModel } from './llm-providers.js';
 import type { LlmTarget, LlmTier } from './types.js';
 
 export {
@@ -141,36 +141,16 @@ export function resolveModel(provider: string, model: string, apiKeyEnv: string)
     throw new SpecGuardError('The host provider hands requests to the coding agent and has no model.', ExitCode.InternalError);
   }
 
-  // LiteLLM is a local server — API key may not be required.
-  if (provider !== 'litellm' && !apiKey) {
+  // LiteLLM may have no key. Bedrock IAM and Mantle use the AWS credential chain.
+  if (!KEYLESS_PROVIDERS.has(provider) && !apiKey) {
     throw new SpecGuardError(
       `Missing API key: environment variable \`${apiKeyEnv}\` is not set or empty. ` +
-        `Set it to your ${provider} API key.`,
+        `Set it to your ${provider === 'cursor' ? 'xAI' : provider} API key.`,
       ExitCode.InternalError,
     );
   }
 
-  switch (provider) {
-    case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey });
-      return anthropic(model);
-    }
-    case 'openai': {
-      const baseURL = getLlmRuntime()?.llm.baseUrl || process.env['OPENAI_BASE_URL'] || undefined;
-      const openai = createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-      return openai.chat(model);
-    }
-    case 'litellm': {
-      const baseURL = getLlmRuntime()?.llm.baseUrl || process.env['LITELLM_BASE_URL'] || 'http://localhost:4000';
-      const openai = createOpenAI({ apiKey: apiKey || 'nokey', baseURL });
-      return openai.chat(model);
-    }
-    default:
-      throw new SpecGuardError(
-        `Unknown LLM provider: \`${provider}\`. Supported: anthropic, openai, litellm, host, replay, none.`,
-        ExitCode.InternalError,
-      );
-  }
+  return buildLanguageModel({ provider, model, apiKey, baseURL: getLlmRuntime()?.llm.baseUrl });
 }
 
 // ---------------------------------------------------------------------------
@@ -323,11 +303,12 @@ function replayDir(): string {
 /**
  * Whether a call goes to the host coding agent: `llm.provider: "host"`, or a keyed provider whose key is not
  * set while running inside an agent (an agent with no API key is the whole point of the host provider).
+ * Bedrock IAM and Mantle stay on the model: they authenticate with AWS credentials, not an API key.
  */
 export function usesHostAgent(target: LlmTarget, opts?: Pick<LlmTextOpts, 'hostAgent'>): boolean {
   if (opts?.hostAgent === false) return false;
   if (target.provider === 'host') return true;
-  if (target.provider === 'none' || target.provider === 'replay' || target.provider === 'litellm') return false;
+  if (target.provider === 'none' || target.provider === 'replay' || KEYLESS_PROVIDERS.has(target.provider)) return false;
   return !process.env[target.apiKeyEnv ?? ''] && detectHostAgent();
 }
 
@@ -461,9 +442,13 @@ async function invoke<T>(
 export function scopeCallOptions(provider: string): { providerOptions?: Record<string, Record<string, unknown>>; headers?: Record<string, string> } {
   const scope = currentLlmScope();
   if (!scope?.user && !scope?.tags?.length) return {};
+  // SigV4 signs the request. Extra headers are omitted so they cannot sit outside the signature.
+  if (provider === 'bedrock-iam') return {};
   if (provider === 'anthropic') return scope.user ? { providerOptions: { anthropic: { metadata: { userId: scope.user } } } } : {};
+  const openaiUser = scope.user ? { providerOptions: { openai: { user: scope.user } } } : {};
+  if (provider === 'bedrock-mantle') return openaiUser;
   return {
-    ...(scope.user ? { providerOptions: { openai: { user: scope.user } } } : {}),
+    ...openaiUser,
     ...(scope.tags?.length ? { headers: { 'x-litellm-tags': scope.tags.join(',') } } : {}),
   };
 }

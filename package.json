@@ -41,8 +41,11 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.214",
     "@ai-sdk/anthropic": "^4.0.86",
     "@ai-sdk/openai": "^4.0.99",
+    "@ai-sdk/xai": "^4.0.59",
+    "@aws-sdk/credential-providers": "^3.1166.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "ai": "^7.0.149",
     "commander": "^13.1.0",

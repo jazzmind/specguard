@@ -7048,6 +7048,23 @@ var init_llm_runtime = __esm({
   }
 });
 
+// src/core/llm-provider-ids.ts
+var DEFAULT_KEY_ENV;
+var init_llm_provider_ids = __esm({
+  "src/core/llm-provider-ids.ts"() {
+    "use strict";
+    DEFAULT_KEY_ENV = {
+      anthropic: "ANTHROPIC_API_KEY",
+      openai: "OPENAI_API_KEY",
+      litellm: "LITELLM_API_KEY",
+      xai: "XAI_API_KEY",
+      cursor: "XAI_API_KEY",
+      "bedrock-iam": "AWS_ACCESS_KEY_ID",
+      "bedrock-mantle": "AWS_BEARER_TOKEN_BEDROCK"
+    };
+  }
+});
+
 // src/core/testability.ts
 function isTestabilityRuleId(id) {
   if (id in DEFAULT_SEVERITY) return true;
@@ -7696,7 +7713,7 @@ async function loadConfig(cwd = process.cwd(), opts = {}) {
   configureLlm({ rootDir, llm: config2.llm });
   return config2;
 }
-var regexSource, gitRefName, gitRemoteName, notesRefName, insidePath, appSourcesSchema, appSecuritySchema, appConfigSchema, runnersSchema, llmTargetSchema, DEFAULT_KEY_ENV, llmObjectSchema, llmSchema, triggersSchema, healSchema, matrixSchema, authProfileSchema, validateSchema, pathsSchema, featureStateSchema, remediateSchema, granularitySchema, testStrengthSchema, ruleSeverity, testabilityRuleId, testabilitySchema, coverageSchema, mutationSchema, proofStoreSchema, changeSchema, enforceSchema, hooksSchema, approvalsSchema, unrequestedSchema, ciSchema, configSchema, CONFIG_REL2;
+var regexSource, gitRefName, gitRemoteName, notesRefName, insidePath, appSourcesSchema, appSecuritySchema, appConfigSchema, runnersSchema, llmTargetSchema, llmObjectSchema, llmSchema, triggersSchema, healSchema, matrixSchema, authProfileSchema, validateSchema, pathsSchema, featureStateSchema, remediateSchema, granularitySchema, testStrengthSchema, ruleSeverity, testabilityRuleId, testabilitySchema, coverageSchema, mutationSchema, proofStoreSchema, changeSchema, enforceSchema, hooksSchema, approvalsSchema, unrequestedSchema, ciSchema, configSchema, CONFIG_REL2;
 var init_config = __esm({
   "src/core/config.ts"() {
     "use strict";
@@ -7708,6 +7725,7 @@ var init_config = __esm({
     init_errors2();
     init_reader();
     init_llm_runtime();
+    init_llm_provider_ids();
     init_testability();
     init_overlay();
     regexSource = external_exports.string().refine(
@@ -7790,7 +7808,6 @@ var init_config = __esm({
       model: external_exports.string(),
       apiKeyEnv: external_exports.string().optional()
     }).passthrough();
-    DEFAULT_KEY_ENV = { anthropic: "ANTHROPIC_API_KEY", openai: "OPENAI_API_KEY", litellm: "LITELLM_API_KEY" };
     llmObjectSchema = external_exports.object({
       provider: external_exports.string().default("anthropic"),
       model: external_exports.string().default("claude-sonnet-4-6"),

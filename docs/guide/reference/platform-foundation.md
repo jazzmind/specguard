@@ -56,7 +56,7 @@ Overlays work like this:
 <a id="control-how-models-are-used"></a>
 ### Control how models are used
 
-- **Choose a provider.** Built-in providers are `anthropic`, `openai`, `replay` and `none`. Keys are read only from the environment variable you name, and keys are never logged or included in error messages. A missing key or unknown provider fails clearly.
+- **Choose a provider.** Built-in providers are `anthropic`, `openai`, `litellm`, `xai`, `cursor` (the same xAI connection), `bedrock-iam`, `bedrock-mantle`, `replay` and `none`. Keys are read only from the environment variable you name, and keys are never logged or included in error messages. A missing key or unknown provider fails clearly. Bedrock IAM signs requests with the AWS credential chain and does not use an API key. Bedrock Mantle uses `AWS_BEARER_TOKEN_BEDROCK` when it is set, and the same chain otherwise. Neither Bedrock mode is handed to the host agent just because no API key is set.
 - **Pick model tiers.** Configure `fast` and `frontier` models. Pipelines that summarise, document or propose history use `fast`. Pipelines that cluster or review specs use `frontier`. A pipeline's own override beats its tier, and the tier beats the global default.
 - **Override a single pipeline.** Set provider, model, key variable, tier and fallback for one named pipeline.
 - **Survive failures.** Each attempt has a timeout. Timeouts, rate limits, server errors and network resets are retried with exponential backoff and jitter, up to a number you configure. Authentication, validation and missing-key failures are never retried.
@@ -81,7 +81,7 @@ Overlays work like this:
 <a id="work-with-a-coding-agent-host-mode"></a>
 ### Work with a coding agent (host mode)
 
-If `llm.provider` is `host`, or a keyed provider has no key set while SpecGuard runs inside a coding agent, SpecGuard doesn't call a model. Claude Code is recognised automatically. Other agents need `SPECGUARD_HOST_AGENT=1`, and `=0` turns detection off. Instead, when a call has no recorded answer:
+If `llm.provider` is `host`, or a keyed provider has no key set while SpecGuard runs inside a coding agent, SpecGuard doesn't call a model. Claude Code, Codex and Cursor are recognised automatically (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`). Other agents need `SPECGUARD_HOST_AGENT=1`, and `=0` turns detection off. Inside Cursor this means model work needs no separate API key. Instead, when a call has no recorded answer:
 
 1. SpecGuard writes a request under `.specguard/agent-requests/`. It contains the system text, the credential-masked prompt and, for structured output, the shape of the expected answer.
 2. It marks the request as pending and exits with code 12. This means "waiting for the agent", not a failure.

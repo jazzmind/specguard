@@ -49,6 +49,7 @@ beforeEach(() => {
   delete process.env[KEY];
   delete process.env.CLAUDECODE;
   delete process.env.CODEX_THREAD_ID;
+  delete process.env.CURSOR_AGENT;
   delete process.env.SPECGUARD_HOST_AGENT;
   root = mkdtempSync(path.join(os.tmpdir(), 'sg-host-'));
   configure();
@@ -136,11 +137,29 @@ describe('host agent provider [platform-foundation]', () => {
     process.env.SPECGUARD_HOST_AGENT = '0';
     await expect(keyed()).rejects.toThrow(/Missing API key/);
 
+    // No key inside Cursor: the agent is asked, same as Claude Code.
+    delete process.env.SPECGUARD_HOST_AGENT;
+    delete process.env.CLAUDECODE;
+    process.env.CURSOR_AGENT = '1';
+    await expect(keyed()).rejects.toBeInstanceOf(AgentWorkPendingError);
+
     // With a key, the model is called even inside an agent.
     delete process.env.SPECGUARD_HOST_AGENT;
     process.env[KEY] = 'sk-test';
     go.mockResolvedValue({ object: { summary: 'from the model', n: 1 }, usage: { inputTokens: 1, outputTokens: 1 } });
     await expect(keyed()).resolves.toEqual({ summary: 'from the model', n: 1 });
+  });
+
+  // [claims: capabilities/platform-foundation#llm-connectivity]
+  it('keeps Bedrock IAM and Mantle on the model inside Cursor when no API key is set', async () => {
+    process.env.CURSOR_AGENT = '1';
+    delete process.env.AWS_ACCESS_KEY_ID;
+    delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+    go.mockResolvedValue({ object: { summary: 'from the model', n: 1 }, usage: { inputTokens: 1, outputTokens: 1 } });
+    await expect(ask({ provider: 'bedrock-iam', model: 'm', apiKeyEnv: 'AWS_ACCESS_KEY_ID' })).resolves.toEqual({ summary: 'from the model', n: 1 });
+    await expect(ask({ provider: 'bedrock-mantle', model: 'm', apiKeyEnv: 'AWS_BEARER_TOKEN_BEDROCK' })).resolves.toEqual({ summary: 'from the model', n: 1 });
+    expect(go).toHaveBeenCalledTimes(2);
+    expect(listAgentRequests(root)).toEqual([]);
   });
 
   // [claims: capabilities/platform-foundation#host-agent-provider]
@@ -160,11 +179,15 @@ describe('host agent provider [platform-foundation]', () => {
 
 describe('agent work helpers [platform-foundation]', () => {
   // [claims: capabilities/platform-foundation#host-agent-provider]
-  it('detects an agent: Claude Code on its own, others by SPECGUARD_HOST_AGENT, either way switch-off-able', () => {
+  it('detects an agent: Claude Code, Codex and Cursor on their own, others by SPECGUARD_HOST_AGENT, either way switch-off-able', () => {
     expect(detectHostAgent({})).toBe(false);
     expect(detectHostAgent({ CLAUDECODE: '1' })).toBe(true);
+    expect(detectHostAgent({ CODEX_THREAD_ID: 'thread-1' })).toBe(true);
+    expect(detectHostAgent({ CURSOR_AGENT: '1' })).toBe(true);
+    expect(detectHostAgent({ CURSOR_AGENT: 'true' })).toBe(true);
+    expect(detectHostAgent({ CURSOR_AGENT: '0' })).toBe(false);
     expect(detectHostAgent({ SPECGUARD_HOST_AGENT: '1' })).toBe(true);
-    expect(detectHostAgent({ SPECGUARD_HOST_AGENT: '0', CLAUDECODE: '1' })).toBe(false);
+    expect(detectHostAgent({ SPECGUARD_HOST_AGENT: '0', CLAUDECODE: '1', CURSOR_AGENT: '1' })).toBe(false);
   });
 
   // [claims: capabilities/platform-foundation#host-agent-provider]
