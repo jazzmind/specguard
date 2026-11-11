@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DEFAULT_AI, resolveSettings, validateLayer } from './settings-model.js';
+import { AI_PROVIDER_DEFAULTS, DEFAULT_AI, resolveSettings, validateLayer } from './settings-model.js';
 
 const state = vi.hoisted(() => ({ config: {} as Record<string, unknown>, overlay: '', root: '/code/app', prompt: '', writes: [] as unknown[] }));
 vi.mock('vscode', () => ({
@@ -104,6 +104,32 @@ describe('workspace defaults and secure repo overrides', () => {
     expect(mockFetch.mock.calls[0][1]).toMatchObject({ redirect: 'error', headers: { 'x-api-key': 'ai-test-secret' } });
     mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'example-model' }] })));
     expect(await testConnection(state.root, 'ai', { llm: DEFAULT_AI }, true)).toContain('generation was not run');
+  });
+  // [claims: capabilities/integration-surfaces#editor-llm-connectivity]
+  it('accepts each connectivity provider and checks Bedrock without sending credentials', async () => {
+    for (const provider of ['xai', 'cursor', 'bedrock-iam', 'bedrock-mantle'] as const) {
+      expect(validateLayer({ llm: { provider, model: AI_PROVIDER_DEFAULTS[provider].model, apiKeyEnv: AI_PROVIDER_DEFAULTS[provider].apiKeyEnv } }).llm?.provider).toBe(provider);
+    }
+    expect(() => validateLayer({ llm: { ...DEFAULT_AI, provider: 'grok' } })).toThrow(/provider/);
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+    const secret = 'aws-access-secret-value';
+    vi.stubEnv('AWS_ACCESS_KEY_ID', secret);
+    const message = await testConnection(state.root, 'ai', { llm: { provider: 'bedrock-iam', model: 'm', apiKeyEnv: 'AWS_ACCESS_KEY_ID' } }, true);
+    expect(message).toMatch(/credential chain/);
+    expect(message).not.toContain(secret);
+    expect(mockFetch).not.toHaveBeenCalled();
+    vi.stubEnv('XAI_API_KEY', secret);
+    await saveSettings(undefined, { llm: { provider: 'cursor', model: 'grok-4.7', apiKeyEnv: 'XAI_API_KEY', baseUrl: 'https://api.x.ai/v1' } });
+    const env = await runtimeEnvironment(state.root);
+    expect(env.XAI_BASE_URL).toBe('https://api.x.ai/v1');
+    expect(env.OPENAI_BASE_URL).toBeUndefined();
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'grok-4.7' }] })));
+    const connected = await testConnection(state.root, 'ai', { llm: { provider: 'cursor', model: 'grok-4.7', apiKeyEnv: 'XAI_API_KEY' } }, true);
+    expect(connected).toContain('generation was not run');
+    expect(connected).not.toContain(secret);
+    expect(mockFetch.mock.calls[0][0]).toBe('https://api.x.ai/v1/models');
+    expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe(`Bearer ${secret}`);
   });
   it('rejects invalid settings and strips unrelated values before saving', () => {
     expect(() => validateLayer({ llm: { ...DEFAULT_AI, model: '' } })).toThrow();

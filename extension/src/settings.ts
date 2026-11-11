@@ -4,7 +4,7 @@ import * as path from 'path';
 import { createHash } from 'crypto';
 import { configFileFor, configDirFor } from './project-config.js';
 import { loadDotEnv } from './env-file.js';
-import { DEFAULT_SERVER, resolveSettings, validateLayer, type SettingsLayer, type AiSettings } from './settings-model.js';
+import { DEFAULT_SERVER, providerKeyOptional, resolveSettings, validateLayer, type SettingsLayer, type AiSettings } from './settings-model.js';
 import { ApiClient, SUPPORTED_API_VERSION } from './api/client.js';
 import { normalizeUrl, readSavedToken } from './api/connection.js';
 
@@ -107,10 +107,9 @@ export async function runtimeEnvironment(root: string): Promise<NodeJS.ProcessEn
   if (layers.workspace.llm || layers.repo.llm) {
     env.SPECGUARD_IDE_LLM = JSON.stringify(llm);
     // Explicit editor endpoints (including provider defaults) must also supersede legacy endpoint env vars.
-    if (llm.provider === 'openai' && llm.baseUrl) env.OPENAI_BASE_URL = llm.baseUrl;
-    else delete env.OPENAI_BASE_URL;
-    if (llm.provider === 'litellm' && llm.baseUrl) env.LITELLM_BASE_URL = llm.baseUrl;
-    else delete env.LITELLM_BASE_URL;
+    for (const name of ['OPENAI_BASE_URL', 'LITELLM_BASE_URL', 'XAI_BASE_URL']) delete env[name];
+    const endpointEnv = llm.provider === 'openai' ? 'OPENAI_BASE_URL' : llm.provider === 'litellm' ? 'LITELLM_BASE_URL' : llm.provider === 'xai' || llm.provider === 'cursor' ? 'XAI_BASE_URL' : undefined;
+    if (endpointEnv && llm.baseUrl) env[endpointEnv] = llm.baseUrl;
   }
   if (layers.workspace.server || layers.repo.server) {
     env.SPECGUARD_SERVER = server.mode === 'off' ? '' : server.url;
@@ -132,8 +131,12 @@ export async function testConnection(root: string, kind: 'ai' | 'server', draft:
       return 'Connected. Server and project access verified.';
     }
     const value = workspaceScope ? await secrets?.get(credentialId(llm)) || process.env[llm.apiKeyEnv] : (await aiCredential(root, llm)).value;
-    if (!value && llm.provider !== 'litellm') return 'Set an API key first.';
-    const base = llm.baseUrl || (llm.provider === 'anthropic' ? 'https://api.anthropic.com/v1' : llm.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:4000/v1');
+    if (llm.provider === 'bedrock-iam' || (!value && llm.provider === 'bedrock-mantle')) {
+      return 'Bedrock uses the AWS credential chain (or AWS_BEARER_TOKEN_BEDROCK for Mantle when that variable is set). This check does not call Bedrock and does not send credentials.';
+    }
+    if (!value && !providerKeyOptional(llm.provider)) return 'Set an API key first.';
+    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1';
+    const base = llm.baseUrl || (llm.provider === 'anthropic' ? 'https://api.anthropic.com/v1' : llm.provider === 'openai' ? 'https://api.openai.com/v1' : llm.provider === 'xai' || llm.provider === 'cursor' ? 'https://api.x.ai/v1' : llm.provider === 'bedrock-mantle' ? `https://bedrock-mantle.${region}.api.aws/v1` : 'http://localhost:4000/v1');
     const url = `${base.replace(/\/+$/, '')}${base.endsWith('/v1') ? '' : '/v1'}/models`;
     const headers: Record<string, string> = llm.provider === 'anthropic' ? { 'anthropic-version': '2023-06-01', ...(value ? { 'x-api-key': value } : {}) } : value ? { Authorization: `Bearer ${value}` } : {};
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(5000), redirect: 'error' });

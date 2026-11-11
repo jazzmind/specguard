@@ -16,6 +16,8 @@ describe('the shared settings editor', () => {
     expect(html).toContain('data-act="workspace"');
     expect(html).toContain('data-act="dashboard"');
     for (const field of ['provider', 'model', 'endpoint', 'keyEnv', 'serverUrl', 'mode', 'project']) expect(html).toContain(`for="${field}"`);
+    for (const provider of ['anthropic', 'openai', 'litellm', 'xai', 'cursor', 'bedrock-iam', 'bedrock-mantle']) expect(html).toContain(`value="${provider}"`);
+    expect(html).toContain('xAI (Cursor)');
   });
   it('shows inherited repo settings and posts only enabled overrides, never credential values', () => {
     const html = settingsHtml();

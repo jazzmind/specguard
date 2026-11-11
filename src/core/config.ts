@@ -31,6 +31,7 @@ import { COVERAGE_FORMATS } from './coverage.js';
 import { ConfigNotFoundError, ConfigInvalidError } from './errors.js';
 import { readFile, fileExists } from './reader.js';
 import { configureLlm } from './llm-runtime.js';
+import { DEFAULT_KEY_ENV } from './llm-provider-ids.js';
 import { isTestabilityRuleId } from './testability.js';
 import { overlayMissHint, resolveConfigDirDetailed } from './overlay.js';
 
@@ -151,12 +152,10 @@ const llmTargetSchema = z
   })
   .passthrough();
 
-/** Key variable for a provider when the config does not name one. */
-const DEFAULT_KEY_ENV: Record<string, string> = { anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', litellm: 'LITELLM_API_KEY' };
-
 /**
  * The whole `llm` block is optional. Without it a project uses Anthropic with `ANTHROPIC_API_KEY`, and inside a
  * coding agent with no key set the host agent does the model work (provider `host`, see core/agent-work.ts).
+ * Cursor, Claude Code and Codex are recognised without a separate key.
  */
 const llmObjectSchema = z
   .object({

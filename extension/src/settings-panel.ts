@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { randomBytes } from 'crypto';
 import { getActiveWorkspaceRoot, loadWorkspaceManifest, warmProjectConfigs } from './workspace-state.js';
 import { saveSettings, settingsSnapshot, setAiCredential, setServerToken, testConnection, resetRepoSettings } from './settings.js';
-import { validateLayer } from './settings-model.js';
+import { AI_PROVIDER_DEFAULTS, AI_PROVIDER_LABELS, AI_PROVIDERS, validateLayer } from './settings-model.js';
 
 let panel: vscode.WebviewPanel | undefined;
 let selectedRoot: string | undefined;
@@ -76,6 +76,8 @@ async function push(notice?: string): Promise<void> {
 
 export function settingsHtml(): string {
   const nonce = randomBytes(16).toString('hex');
+  const providerOptions = AI_PROVIDERS.map((id) => `<option value="${id}">${AI_PROVIDER_LABELS[id]}</option>`).join('');
+  const providerDefaults = JSON.stringify(AI_PROVIDER_DEFAULTS);
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'">
 <style>
@@ -85,7 +87,7 @@ export function settingsHtml(): string {
 <h1 id="title">Workspace Settings</h1><p id="subtitle">Shared defaults for repositories in this VS Code workspace. Credentials are stored securely on this machine.</p>
 <section><header><h2>AI provider</h2><span class="badge" id="aiSource"></span></header>
 <label class="override hidden" id="aiOverrideLabel"><input type="checkbox" id="aiOverride">Override workspace AI settings for this repo</label>
-<fieldset id="aiFields"><div class="grid"><div class="field"><label for="provider">Provider</label><select id="provider"><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="litellm">LiteLLM / compatible endpoint</option></select></div><div class="field"><label for="model">Model</label><input id="model"></div><div class="field"><label for="endpoint">Base URL (optional)</label><input id="endpoint" placeholder="Provider default"></div><div class="field"><label for="keyEnv">API key environment variable</label><input id="keyEnv"></div></div></fieldset>
+<fieldset id="aiFields"><div class="grid"><div class="field"><label for="provider">Provider</label><select id="provider">${providerOptions}</select></div><div class="field"><label for="model">Model</label><input id="model"></div><div class="field"><label for="endpoint">Base URL (optional)</label><input id="endpoint" placeholder="Provider default"></div><div class="field"><label for="keyEnv">API key environment variable</label><input id="keyEnv"></div></div></fieldset>
 <div class="credential"><strong>API key</strong><p class="hint" id="keyStatus"></p><div class="actions"><button data-act="key">Set / replace key</button><button data-act="removeKey">Remove stored key</button><button data-act="testAI">Test AI connection</button></div><p class="hint">Keys use VS Code secure storage. An empty key falls back to an existing environment variable or project .env file. Save provider changes before setting a key.</p></div></section>
 <section><header><h2>Team server</h2><span class="badge" id="serverSource"></span></header><label class="override hidden" id="serverOverrideLabel"><input type="checkbox" id="serverOverride">Override workspace server settings for this repo</label>
 <fieldset id="serverFields"><div class="grid"><div class="field"><label for="serverUrl">Server URL</label><input id="serverUrl" placeholder="https://specguard.example.com"></div><div class="field"><label for="mode">Connection mode</label><select id="mode"><option value="auto">Use server when available; fall back to local</option><option value="off">Local only</option></select></div><div class="field"><label for="project">Project name (optional)</label><input id="project" placeholder="Use each repo's project mapping or folder name"></div></div></fieldset>
@@ -98,7 +100,7 @@ function draft(){const layer={};if(!repo||$('aiOverride').checked)layer.llm={pro
 function toggles(){$('aiFields').disabled=repo&&!$('aiOverride').checked;$('serverFields').disabled=repo&&!$('serverOverride').checked;}
 window.addEventListener('message',e=>{const m=e.data;if(m.type==='notice'){$('notice').textContent=m.text;return;}if(m.type!=='settings')return;const s=m.snapshot;repo=!!m.selectedRoot;$('scope').replaceChildren(new Option('Workspace defaults',''),...m.roots.map(r=>new Option(r.name,r.root)));$('scope').value=m.selectedRoot;$('title').textContent=repo?'Repository Settings':'Workspace Settings';$('subtitle').textContent=repo?'Workspace defaults apply unless you enable a repo override. API keys may be shared or set separately for this repo.':'Shared defaults for repositories in this VS Code workspace. Credentials are stored securely on this machine.';for(const id of ['aiOverrideLabel','serverOverrideLabel','dashboard','reset'])$(id).classList.toggle('hidden',!repo);$('aiOverride').checked=!!s.layer.llm;$('serverOverride').checked=!!s.layer.server;$('provider').value=s.llm.provider;$('model').value=s.llm.model;$('endpoint').value=s.llm.baseUrl||'';$('keyEnv').value=s.llm.apiKeyEnv;$('serverUrl').value=s.server.url;$('project').value=s.server.project||'';$('mode').value=s.server.mode;$('aiSource').textContent=repo?s.llmSource:'Workspace default';$('serverSource').textContent=repo?s.serverSource:'Workspace default';$('keyStatus').textContent=(s.hasKey?'Configured · ':'')+s.keySource;$('tokenStatus').textContent=s.hasToken?'Token available for this server':'No token found for this server';$('notice').textContent=m.notice||'Ready. Secrets are never written to workspace files.';toggles();});
 $('scope').addEventListener('change',()=>vscode.postMessage({type:'scope',root:$('scope').value}));for(const id of ['aiOverride','serverOverride'])$(id).addEventListener('change',toggles);
-$('provider').addEventListener('change',()=>{const p=$('provider').value;$('keyEnv').value=p==='anthropic'?'ANTHROPIC_API_KEY':'OPENAI_API_KEY';$('model').value=p==='anthropic'?'claude-sonnet-4-6':p==='openai'?'gpt-4o':'gpt-4';$('endpoint').value=p==='litellm'?'http://localhost:4000':'';});
+const providerDefaults=${providerDefaults};$('provider').addEventListener('change',()=>{const d=providerDefaults[$('provider').value];if(!d)return;$('keyEnv').value=d.apiKeyEnv;$('model').value=d.model;$('endpoint').value=d.baseUrl;});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;$('notice').textContent='Working…';vscode.postMessage({type:b.dataset.act,layer:draft()});});vscode.postMessage({type:'ready'});
 </script></body></html>`;
 }

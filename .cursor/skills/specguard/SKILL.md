@@ -95,7 +95,7 @@ npx tsx src/cli/index.ts generate --all        # or --spec <key>, --force to ove
 npx tsx src/cli/index.ts heal --all            # or --spec <key>, --max-retries <n>
 ```
 
-- `generate` writes `<testOutput>/<feature>.test.ts`, one `it()` per scenario, importing the module from the spec's `meta.module`. Requires `ANTHROPIC_API_KEY` (or the configured `llm.apiKeyEnv`).
+- `generate` writes `<testOutput>/<feature>.test.ts`, one `it()` per scenario, importing the module from the spec's `meta.module`. Requires the configured provider key (`ANTHROPIC_API_KEY` by default), or a host agent (Cursor, Claude Code or Codex) with no key set.
 - `heal` runs `config.heal.testCommand`, parses failures, and asks the LLM to classify each as a **test bug** (rewritten + re-run, up to `maxRetries`) or an **app bug** (reported, source never touched).
 
 ## Security Check + Docs (CLI)

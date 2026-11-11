@@ -9,7 +9,7 @@ SpecGuard keeps a project's specs as the source of truth and shows, per requirem
 
 ## Running it
 
-Run `specguard <command>`. With this plugin it is on your PATH; elsewhere use `npx -y -p specguard-ai specguard <command>` (the package is `specguard-ai`; `npx specguard` is a different, unrelated package). Outside Claude Code set `SPECGUARD_HOST_AGENT=1` so you, not an API key, do the model work.
+Run `specguard <command>`. With this plugin it is on your PATH; elsewhere use `npx -y -p specguard-ai specguard <command>` (the package is `specguard-ai`; `npx specguard` is a different, unrelated package). Claude Code, Codex and Cursor are recognised on their own, so the agent does the model work without an API key. In any other agent set `SPECGUARD_HOST_AGENT=1`. Direct model calls can use Anthropic, OpenAI, LiteLLM, xAI (`xai` or `cursor`), Bedrock IAM or Bedrock Mantle.
 
 | To | Run |
 |---|---|

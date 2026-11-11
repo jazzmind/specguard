@@ -8,6 +8,8 @@ status: active
 sources:
   - "src/core/config.ts"
   - "src/core/llm.ts"
+  - "src/core/llm-provider-ids.ts"
+  - "src/core/llm-providers.ts"
   - "src/core/llm-runtime.ts"
   - "src/core/llm-usage.ts"
   - "src/core/llm-replay.ts"
@@ -75,6 +77,7 @@ history:
   - 2026-10-28-workspace-defaults-and-secure-editor-cre
   - 2026-11-03-project-link-from-vs-code-recover-unpars
   - 2026-11-06-ignore-block-covers-nested-repos-in-over
+  - 2026-11-11-model-calls-can-use-cursor-xai-bedrock-i
 ---
 
 # Platform Foundation
@@ -102,6 +105,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Config describes one or more apps, each with language, repo directory, spec directory, source globs, framework, test output, test command settings, entry points, exclusions and path-prefix stripping, plus top-level paths, granularity, plugin and validation settings; sensible defaults apply to anything omitted, including TypeScript as the default language and the whole `llm` block (Anthropic with `ANTHROPIC_API_KEY`, or the key variable that goes with a named provider), so a project needs no model setup to start <!-- claim: config-apps-and-defaults -->
 - [ ] Glob expansion never descends into dependency, build or VCS directories (node_modules, dist, build, coverage, .next, .git) even when a pattern would reach them, returns only sorted, de-duplicated absolute file paths, and skips dot-files <!-- claim: default-glob-excludes -->
 - [ ] Every model call goes through one layer that supports multiple providers, takes the API key only from a named environment variable, never logs or includes the key in an error, fails clearly on a missing key or unknown provider, and validates structured output against the caller's schema; a structured reply that is not clean JSON (code fences or chatter around it) is used when the object inside it is valid, a reply cut off at the output limit is retried once with twice the room (up to 32000 tokens), and a reply that still cannot be used fails with the reason and the start of the reply, never a bare "could not parse" <!-- claim: llm-provider-layer -->
+- [ ] Model calls can connect through Anthropic (`anthropic`, `ANTHROPIC_API_KEY`), OpenAI (`openai`, `OPENAI_API_KEY`, optional `OPENAI_BASE_URL` or `llm.baseUrl`), LiteLLM (`litellm`, optional `LITELLM_API_KEY`, `LITELLM_BASE_URL` defaulting to `http://localhost:4000`), xAI (`xai`, `XAI_API_KEY`, optional `XAI_BASE_URL` or `llm.baseUrl`) and the `cursor` alias of that same xAI connection, Amazon Bedrock IAM (`bedrock-iam`: SigV4 through the AWS credential chain in `AWS_REGION` or `AWS_DEFAULT_REGION`, otherwise `us-east-1`; an empty API key is passed so a Bedrock bearer token cannot switch the call off IAM), and Amazon Bedrock Mantle (`bedrock-mantle`: the Mantle chat API, bearer token from the named key variable or `AWS_BEARER_TOKEN_BEDROCK` when set, otherwise the same IAM chain). A missing key or unresolved IAM credentials fails naming the variable or the credential chain and never the secret. An unknown provider fails and names this set. `bedrock-iam` and `bedrock-mantle` are not handed to the host agent merely because no API key is set. <!-- claim: llm-connectivity -->
 - [ ] Each model attempt has a timeout; retryable failures (timeouts, rate limits, server errors, network resets) are retried with exponential backoff and jitter a configurable number of times, while authentication, validation and missing-key failures are never retried <!-- claim: llm-timeout-retry -->
 - [ ] After a target exhausts its attempts, an ordered fallback chain (global or per pipeline) is tried; a budget or disabled-model error never triggers fallback <!-- claim: llm-fallback-chain -->
 - [ ] Named model tiers `fast` and `frontier` can be configured; pipelines that summarise, document or propose history use `fast` and those that cluster or review specs use `frontier`, a pipeline's own override wins over its tier, and the tier wins over the global default <!-- claim: llm-model-tiers -->
@@ -110,7 +114,7 @@ Platform Foundation is the shared engine underneath every other capability. It f
 - [ ] Every real call adds tokens, call count and estimated cost to a usage log, in total and per pipeline and model, using a built-in price table that config can override <!-- claim: llm-usage-log -->
 - [ ] A replay provider serves recorded responses keyed by a hash of the prompt, system text and image bytes with no network call; a miss names the hash and how to record, and `--record` or config writes every real response so a later run reproduces it <!-- claim: llm-replay-record -->
 - [ ] Setting the provider to `none` makes every model call fail with a disabled error without touching the network so deterministic-only runs work, and disallowing images rejects any call that carries them <!-- claim: llm-disabled-and-images -->
-- [ ] With `llm.provider: "host"`, or a keyed provider whose key is not set while running inside a coding agent (Claude Code is recognised on its own, other agents through `SPECGUARD_HOST_AGENT=1`, which `=0` turns off), a model call with no recorded answer writes a request file (system text, credential-masked prompt and, for structured output, the JSON Schema of the answer) under `.specguard/agent-requests/`, records it as pending and raises a typed error whose exit code is 12, without calling any model; the agent records its answer in the replay store, the next run validates it with the caller's schema and serves it, and an answer that fails the schema is set aside with the reason written on the request so it is asked again <!-- claim: host-agent-provider -->
+- [ ] With `llm.provider: "host"`, or a keyed provider whose key is not set while running inside a coding agent (Claude Code via `CLAUDECODE`, Codex via `CODEX_THREAD_ID` and Cursor via `CURSOR_AGENT` of `1` or `true` are recognised on their own, other agents through `SPECGUARD_HOST_AGENT=1`, which `=0` turns off), a model call with no recorded answer writes a request file (system text, credential-masked prompt and, for structured output, the JSON Schema of the answer) under `.specguard/agent-requests/`, records it as pending and raises a typed error whose exit code is 12, without calling any model; the agent records its answer in the replay store, the next run validates it with the caller's schema and serves it, and an answer that fails the schema is set aside with the reason written on the request so it is asked again <!-- claim: host-agent-provider -->
 - [ ] Host-agent calls never leave a mess: a step that makes many requests (file summaries, one spec per capability, test tagging) asks for all of them in one round (summaries in batches of up to 25 files), applies nothing and writes no system spec until every answer is in, never records a guessed verdict (a drift judgement still waiting for the agent leaves the change unassessed instead of recording "every requirement affected"), and a call a hook makes on its own opts out so a hook never leaves a request behind <!-- claim: host-agent-batching -->
 - [ ] No tracked file of the repository contains the name of a private project, an employer or an internal host: a test compares every word of every tracked file with a list kept as SHA-256 hashes, so the list names no one, and fails with the offending file <!-- claim: no-private-names -->
 - [ ] The redactor masks emails, phone numbers, US social security numbers, Luhn-valid card numbers, bearer and basic credentials (a token-shaped value, never the words in prose such as "basic requirements"), JWTs, private-key blocks, `password=`-style assignments and common API-key shapes with fixed placeholders, in time linear in the input; projects can add patterns, blank page selectors and a hook, redaction applies to every text kind, and re-redacting already redacted text changes nothing <!-- claim: secret-redaction -->
@@ -230,10 +234,10 @@ Config stores only the names of environment variables that hold keys and credent
 - Config keys: `apps[]`, `paths.*`, `granularity.*`, `plugins`, `llm.provider|model|apiKeyEnv`, `llm.models.fast|frontier`, `llm.pipelines.<name>`, `llm.fallback`, `llm.timeoutMs|retries|backoffMs`, `llm.budget.maxUsd|maxTokens|maxCalls`, `llm.pricing`, `llm.replay.*`, `llm.allowImages`, `validate.redaction.*`.
 - CLI flags and output: `--config <path>`, `--record`, `--version`, `--version --json`, `--json`.
 - Exit codes: 0, 1, 2, 3, 4, 5, 7, 8 as listed above; `remediate` uses 8 to 11 for its own outcomes.
-- Providers: `anthropic`, `openai`, `replay`, `none`, plus any provider the layer registers.
+- Providers: `anthropic`, `openai`, `litellm`, `xai`, `cursor` (xAI), `bedrock-iam`, `bedrock-mantle`, `host`, `replay`, `none`.
 
 ## Out of Scope
 - Deciding which specs exist or whether code satisfies them (other capabilities).
 - Running tests or browsers; this capability only describes how to find the right command.
-- Hosting a model gateway or managing API keys; it reads keys from the environment.
+- Hosting a model gateway or managing API keys; it reads keys from the environment, and Bedrock IAM and Mantle use the AWS credential chain when no bearer token is set.
 - Any customer or platform specific configuration; those live in project config or plugins.

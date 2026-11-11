@@ -480,15 +480,18 @@ export interface GranularityConfig {
 
 /** LLM provider configuration. */
 export interface LlmConfig {
-  /** anthropic | openai | litellm | replay (serve recordings) | none (deterministic only). */
-  provider: 'anthropic' | 'openai' | 'litellm' | 'replay' | 'none' | string;
+  /**
+   * anthropic | openai | litellm | xai | cursor (xAI) | bedrock-iam | bedrock-mantle |
+   * replay (serve recordings) | none (deterministic only) | host.
+   */
+  provider: 'anthropic' | 'openai' | 'litellm' | 'xai' | 'cursor' | 'bedrock-iam' | 'bedrock-mantle' | 'replay' | 'none' | 'host' | string;
   model: string;
-  /** Name of the env var holding the API key. */
+  /** Name of the env var holding the API key. Bedrock IAM names a chain variable; the call uses SigV4. */
   apiKeyEnv: string;
   /**
-   * Endpoint for the `openai` and `litellm` providers (an OpenAI-compatible gateway). Overrides the
-   * `OPENAI_BASE_URL` / `LITELLM_BASE_URL` environment variables, so one server process can serve projects
-   * that use different gateways.
+   * Endpoint override. Used by `openai`, `litellm`, `xai`, `cursor`, `bedrock-iam` and `bedrock-mantle`.
+   * Overrides `OPENAI_BASE_URL`, `LITELLM_BASE_URL` or `XAI_BASE_URL` for the matching provider, so one
+   * server process can serve projects that use different gateways.
    */
   baseUrl?: string;
   /**
