@@ -135,6 +135,7 @@ history:
   - 2026-11-06-contracts-map-precision-from-a-real-over
   - 2026-11-06-extension-ships-the-docs-and-shows-help
   - 2026-11-11-model-calls-can-use-cursor-xai-bedrock-i
+  - 2026-11-11-mcp-server-starts-through-a-linked-bin
 ---
 
 # Integration Surfaces - CLI, Agents, CI, IDE and Plugins

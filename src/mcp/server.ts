@@ -14,7 +14,6 @@
  * See specs/core/mcp-server.md.
  */
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -28,6 +27,7 @@ import { writeFile } from '../core/writer.js';
 import { isInside, OutsideRootError } from '../core/safe-path.js';
 import { emptyResult } from '../core/types.js';
 import { resolveProfile } from '../core/language-profiles.js';
+import { isEntrypoint } from './entrypoint.js';
 import { scaffoldHarnessFiles } from '../core/scaffold.js';
 
 import { runReverseGenerate } from '../pipelines/reverse-generate.js';
@@ -1099,18 +1099,7 @@ async function main(): Promise<void> {
   await server.connect(transport);
 }
 
-/** True when this module is the process entrypoint. */
-function isMainModule(): boolean {
-  const argv1 = process.argv[1];
-  if (!argv1) return false;
-  try {
-    return fileURLToPath(import.meta.url) === path.resolve(argv1);
-  } catch {
-    return false;
-  }
-}
-
-if (isMainModule()) {
+if (isEntrypoint(import.meta.url, process.argv[1])) {
   main().catch((err) => {
     console.error('[specguard-mcp] fatal:', err);
     process.exit(1);
