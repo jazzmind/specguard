@@ -34,7 +34,11 @@ describe('Make workflows [integration-surfaces]', () => {
     expect(local).not.toMatch(/git (tag|push)|vsce publish|npm publish|release-check/);
     expect(local).not.toContain('--install-extension');
     const install = make('-n', 'install', 'CODE=code');
-    expect(install).toContain('npm install --global .');
+    const webviewInstall = install.indexOf('npm --prefix webview install');
+    const globalInstall = install.indexOf('npm install --global .');
+    expect(webviewInstall).toBeGreaterThan(-1);
+    expect(globalInstall).toBeGreaterThan(webviewInstall);
+    expect(install.slice(0, webviewInstall)).toContain('npm install');
     expect(install).toContain('--install-extension');
     expect(install).not.toContain('npm ci');
     expect(install).not.toMatch(/git (tag|push)|npm publish|vsce publish/);

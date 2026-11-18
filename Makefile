@@ -39,7 +39,7 @@ SG      := $(NODE) --import tsx src/cli/index.ts
 # VS Code may be installed on macOS without its optional shell command. Override for another editor.
 CODE ?= $(shell command -v code 2>/dev/null || for app in "/Applications/Visual Studio Code.app" "$(HOME)/Applications/Visual Studio Code.app"; do if [ -x "$$app/Contents/Resources/app/bin/code" ]; then printf '%s\n' "$$app/Contents/Resources/app/bin/code"; break; fi; done)
 
-.PHONY: help install install-dev install-cli install-vsix build build-cli build-ext build-hook build-vsix typecheck lint test test-ext ci check prove audit \
+.PHONY: help install install-npm install-dev install-cli install-vsix build build-cli build-ext build-hook build-vsix typecheck lint test test-ext ci check prove audit \
         clean bump release-check publish publish-dry publish-ext watch
 
 help: ## Show commands grouped by workflow (see docs/dev/developing-specguard.md for examples)
@@ -61,8 +61,14 @@ help: ## Show commands grouped by workflow (see docs/dev/developing-specguard.md
 	  '    make watch    # follows publishing progress'
 	@awk 'BEGIN {FS = ":.*## "} /^##@ / {printf "\n%s\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-##@ Local usage — install this checkout (run make install-dev first)
-install: install-cli install-vsix ## Build and install both the CLI and VS Code extension for local use
+##@ Local usage — install this checkout
+install: install-npm install-cli install-vsix ## Install npm dependencies, then build and install the CLI and VS Code extension
+
+# `npm install` (not `npm ci`) so a checkout with missing node_modules can build.
+# `install-dev` remains the clean locked setup.
+install-npm:
+	$(NPM) install
+	cd $(EXT) && $(NPM) install && $(NPM) --prefix webview install
 
 install-cli: build-cli ## Build and install this checkout's CLI globally (npm install --global .)
 	$(NPM) install --global .

@@ -157,7 +157,7 @@ All of them accept `--json`. When a command runs through an overlay, `check` and
 <a id="developing-and-installing-locally"></a>
 ### Developing and installing locally
 
-`make help` groups commands for local use, development, validation and publishing, with example flows. `make install` builds and installs this checkout's CLI and VS Code extension. `make build-vsix` packages the extension without installing it. Local installs and packaging never tag or publish. `make release-check` and `make publish` confirm that the latest CI run on `main` succeeded for the exact commit being released. They watch a running build to completion, and block with an explanation before any tag or push if the run failed, was cancelled, is missing or is unreadable.
+`make help` groups commands for local use, development, validation and publishing, with example flows. `make install` installs npm dependencies in the root, extension and webview, then builds and installs this checkout's CLI and VS Code extension. `make build-vsix` packages the extension without installing it. Local installs and packaging never tag or publish. `make release-check` and `make publish` confirm that the latest CI run on `main` succeeded for the exact commit being released. They watch a running build to completion, and block with an explanation before any tag or push if the run failed, was cancelled, is missing or is unreadable.
 
 <a id="what-to-expect"></a>
 ## What to expect

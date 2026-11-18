@@ -91,7 +91,7 @@ Out of scope:
 
 <a id="build-and-release"></a>
 ### Build and release
-- **make-workflows**: `make help` groups commands and gives example flows. `install`, `install-cli`, `install-vsix`, `install-dev` (`npm ci` in root, extension and webview) and `build-vsix` are defined. `install-vsix` finds `code` on PATH, in a macOS app location or via `CODE`. Local install and packaging never tag or publish.
+- **make-workflows**: `make help` groups commands and gives example flows. `install` runs `npm install` in the root, extension and webview before `install-cli` and `install-vsix`. `install-dev` sets up locked dependencies with `npm ci` in the root, extension and webview. `build-vsix` packages without installing. `install-vsix` finds `code` on PATH, in a macOS app location or via `CODE`. Local install and packaging never tag or publish.
 - **release-waits-for-ci**: `make release-check` and `make publish` check the latest CI run on `main` for the exact commit. They watch queued or running runs to completion and proceed only on confirmed success. Failed, cancelled, interrupted, missing or unreadable runs block before any tag or push.
 
 <a id="cli-core"></a>

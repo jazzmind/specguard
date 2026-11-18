@@ -80,7 +80,7 @@ make install
 specguard --help
 ```
 
-`make install` builds and installs both the CLI (`npm install --global .`) and the extension (`code --install-extension ... --force`). `make install-cli` and `make install-vsix` do one each, `make build-vsix` only writes `extension/specguard-<version>.vsix`. For another editor use `make install-vsix CODE="/path/to/code"`. None of these needs CI to pass or publishes anything.
+`make install` runs `npm install` in the root, the extension and the webview, then builds and installs both the CLI (`npm install --global .`) and the extension (`code --install-extension ... --force`). `make install-cli` and `make install-vsix` do one each, `make build-vsix` only writes `extension/specguard-<version>.vsix`. For another editor use `make install-vsix CODE="/path/to/code"`. None of these needs CI to pass or publishes anything.
 
 ### Release
 ```bash

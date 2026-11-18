@@ -1295,7 +1295,7 @@
       "audience": "user",
       "group": "Reference",
       "file": "guide/reference/integration-surfaces.md",
-      "sourceHash": "994d0bc4e9829e082d8b3d1c0d0861ffd6bea26d5742c283c749250b4cac5184",
+      "sourceHash": "7c84f7054a34524eff76132195eb0fac369f7b2b5b851e75638bee61320e7baa",
       "generator": "llm",
       "sections": [
         {
@@ -1997,7 +1997,7 @@
       "audience": "dev",
       "group": "Developer",
       "file": "dev/developing-specguard.md",
-      "sourceHash": "d16f76000588be05eb6c15780776a12bb5b15ad68132b9efee3278c604955d81",
+      "sourceHash": "44cb44d59cb9b19d7498ee94f86457cd719b300dd275179e31284680525a3a62",
       "generator": "deterministic",
       "sections": [
         {
@@ -2352,7 +2352,7 @@
       "audience": "dev",
       "group": "Developer",
       "file": "dev/reference/integration-surfaces.md",
-      "sourceHash": "fece6fa8f1975a34099c099cb28b694ed975fa304ee109a9ac5c0635da90a1ba",
+      "sourceHash": "6a2a28cb696d10777df5e3de82a7bd8fe2efcc32e05abd659ba542d95a944d21",
       "generator": "llm",
       "sections": [
         {
