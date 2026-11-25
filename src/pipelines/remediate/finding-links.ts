@@ -5,8 +5,9 @@
  * `origin` remote URL, lower-cased; `<fingerprint>` is the remediation-plan
  * item's fingerprint, and only a 6 to 64 character lower-case hex string is
  * kept. Anything else is dropped so it cannot forge a git trailer or close
- * the HTML comment. Rendering is pure: callers append the returned text, and
- * empty text leaves a message or body unchanged.
+ * the HTML comment. The map key is {@link findingLinkKey}: repository, ecosystem,
+ * package and advisory id, or rule, file and line. Rendering is pure: callers
+ * append the returned text, and empty text leaves a message or body unchanged.
  *
  * Spec: specs/capabilities/security-and-remediation.md
  */
@@ -103,15 +104,70 @@ export function normalizeFindingIds(ids: readonly string[]): { ids: string[]; dr
   return { ids: out.slice(0, MAX_FINDING_IDS), dropped };
 }
 
+/**
+ * The fields one remediate item is built from.
+ * An advisory item is one package in one repository, and may clear several advisory ids.
+ * A code item is one hit: the rule, the file, and the line that separates two hits.
+ */
+export type FindingLinkParts =
+  | { kind: 'advisory'; repo: string; ecosystem: string; packageName: string; advisoryId: string }
+  | { kind: 'code'; ruleId: string; file: string; line?: number };
+
+/**
+ * One key for one remediate item's share of a plan item. Both sides call this, so the
+ * plan and the executor cannot describe the same fix differently. A dependency key is
+ * repository, ecosystem, package and advisory id. A code key is rule, file and line.
+ */
+export function findingLinkKey(parts: FindingLinkParts): string {
+  if (parts.kind === 'advisory') {
+    return ['advisory', parts.repo, parts.ecosystem, parts.packageName, parts.advisoryId].join('\0');
+  }
+  return ['code', parts.ruleId, parts.file, parts.line === undefined ? '' : String(parts.line)].join('\0');
+}
+
+/** The plan item's key, or undefined when the item does not carry the fields a remediate item is built from. */
+export function linkKeyForPlanItem(item: {
+  type: string;
+  findings: ReadonlyArray<{ id: string; ruleId?: string; file?: string; line?: number; ecosystem?: string; package?: string; repo?: string }>;
+}): string | undefined {
+  const finding = item.findings[0];
+  if (!finding) return undefined;
+  if (item.type === 'code') {
+    if (!finding.ruleId || !finding.file) return undefined;
+    return findingLinkKey({ kind: 'code', ruleId: finding.ruleId, file: finding.file, line: finding.line });
+  }
+  if (item.type === 'dependency') {
+    if (!finding.ecosystem || !finding.package || !finding.id) return undefined;
+    return findingLinkKey({ kind: 'advisory', repo: finding.repo ?? '', ecosystem: finding.ecosystem, packageName: finding.package, advisoryId: finding.id });
+  }
+  return undefined;
+}
+
+/** Keys for the plan items one remediate item resolves. A package bump returns one key per advisory. */
+export function linkKeysForRemediateItem(item: {
+  changeType: 'dependency' | 'code';
+  advisories: ReadonlyArray<{ id: string; ecosystem: string; package: string; repo?: string }>;
+  issue?: { ruleId: string; path: string; line?: number };
+}): string[] {
+  if (item.changeType === 'code' && item.issue) {
+    return [findingLinkKey({ kind: 'code', ruleId: item.issue.ruleId, file: item.issue.path, line: item.issue.line })];
+  }
+  return item.advisories.map((advisory) =>
+    findingLinkKey({ kind: 'advisory', repo: advisory.repo ?? '', ecosystem: advisory.ecosystem, packageName: advisory.package, advisoryId: advisory.id }),
+  );
+}
+
 export interface FindingLinkItem {
-  /** The id remediate uses for this plan item: an advisory id, or `semgrep:<rule>@<path>`. */
+  /** {@link findingLinkKey} for this plan item. */
   key: string;
   fingerprint: string;
 }
 
 export interface FindingLinkResult {
-  /** Ids for each plan item that had a well-formed fingerprint, keyed by {@link FindingLinkItem.key}. */
+  /** Ids for each plan item that had a well-formed fingerprint. A key owned by more than one plan item is omitted. */
   byItem?: Record<string, string[]>;
+  /** Keys that more than one plan item produced. A fix that needs one of these names nothing. */
+  ambiguous?: string[];
   /** Set when `origin` could not be read or parsed. The fix still ships. */
   reason?: string;
   /** A fingerprint or id was not well-formed and was left out. The value is not included. */
@@ -137,19 +193,33 @@ export function findingIdsByKey(remoteUrl: string | undefined, items: readonly F
   }
   const slug = repoSlugFromRemote(remoteUrl);
   if (!slug) return { reason: 'finding links omitted: the origin remote URL could not be parsed', ...droppedFlag };
-  const byItem: Record<string, string[]> = {};
+  const grouped = new Map<string, string[]>();
   for (const item of valid) {
     const id = findingId(slug, item.fingerprint);
     if (!id) {
       dropped = true;
       continue;
     }
-    const normalized = normalizeFindingIds([...(byItem[item.key] ?? []), id]);
-    if (normalized.dropped) dropped = true;
-    if (normalized.ids.length > 0) byItem[item.key] = normalized.ids;
+    const list = grouped.get(item.key) ?? [];
+    list.push(id);
+    grouped.set(item.key, list);
   }
+  const byItem: Record<string, string[]> = {};
+  const ambiguous: string[] = [];
+  for (const [key, raw] of grouped) {
+    const normalized = normalizeFindingIds(raw);
+    if (normalized.dropped) dropped = true;
+    // Two plan items under one key are not one fix. Their ids are not merged.
+    if (normalized.ids.length > 1) {
+      ambiguous.push(key);
+      continue;
+    }
+    if (normalized.ids.length === 1) byItem[key] = normalized.ids;
+  }
+  ambiguous.sort();
   return {
     ...(Object.keys(byItem).length > 0 ? { byItem } : {}),
+    ...(ambiguous.length > 0 ? { ambiguous } : {}),
     ...(dropped ? { dropped: true } : {}),
   };
 }
@@ -172,21 +242,26 @@ export function findingIdsFromRemote(remoteUrl: string | undefined, fingerprints
 }
 
 /**
- * Ids for one remediate item: only the map entries whose key is one of its advisory ids.
- * An item the plan did not name gets nothing.
+ * Ids for one remediate item: the map entries for the keys that item resolves.
+ * A package bump passes one key per advisory and names each of them.
+ * A key in `blocked` (shared by more than one plan item, or by more than one fix) matches nothing:
+ * the whole item is left off. A key the plan did not name adds nothing.
  */
-export function findingIdsForAdvisories(
+export function findingIdsForKeys(
   map: Readonly<Record<string, readonly string[]>> | undefined,
-  advisoryIds: readonly string[],
-): { ids: string[]; dropped: boolean } {
-  if (!map) return { ids: [], dropped: false };
+  keys: readonly string[],
+  blocked?: ReadonlySet<string>,
+): { ids: string[]; dropped: boolean; leftOff: boolean } {
+  if (keys.some((key) => blocked?.has(key))) return { ids: [], dropped: false, leftOff: true };
+  if (!map) return { ids: [], dropped: false, leftOff: false };
   const raw: string[] = [];
-  for (const id of advisoryIds) {
-    const hit = map[id];
+  for (const key of keys) {
+    const hit = map[key];
     if (hit) raw.push(...hit);
   }
-  if (raw.length === 0) return { ids: [], dropped: false };
-  return normalizeFindingIds(raw);
+  if (raw.length === 0) return { ids: [], dropped: false, leftOff: false };
+  const normalized = normalizeFindingIds(raw);
+  return { ids: normalized.ids, dropped: normalized.dropped, leftOff: false };
 }
 
 /** Blank line, then one `Resolves-Finding` trailer per id. Empty when there are no ids. */

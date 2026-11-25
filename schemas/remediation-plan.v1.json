@@ -116,6 +116,18 @@
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
+                },
+                "ecosystem": {
+                  "description": "Package ecosystem, for a dependency finding.",
+                  "type": "string"
+                },
+                "package": {
+                  "description": "Package name, for a dependency finding.",
+                  "type": "string"
+                },
+                "repo": {
+                  "description": "Project directory relative to the config root. Empty or absent: the root.",
+                  "type": "string"
                 }
               },
               "required": [

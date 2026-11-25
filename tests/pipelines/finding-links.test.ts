@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   findingId,
   findingIdsByKey,
-  findingIdsForAdvisories,
+  findingIdsForKeys,
   findingIdsFromRemote,
+  findingLinkKey,
+  linkKeysForRemediateItem,
   MAX_FINDING_IDS,
   renderFindingLinksBlock,
   renderFindingTrailers,
@@ -125,20 +127,66 @@ describe('finding links [finding-links]', () => {
   // [claims: capabilities/security-and-remediation#finding-links]
   it('keeps each plan item\'s id under its own key, and a remediate item not in the map gets none', () => {
     const other = 'bbbbbb222222';
+    const vuln = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'vulnlib', advisoryId: 'GHSA-test-vuln-0001' });
+    const second = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'otherlib', advisoryId: 'GHSA-test-vuln-0002' });
+    const broke = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'brokelib', advisoryId: 'GHSA-test-broke-0004' });
     const linked = findingIdsByKey('ssh://git@host:22/Example-Org/Example-App.git', [
-      { key: 'GHSA-test-vuln-0001', fingerprint: FP },
-      { key: 'GHSA-test-vuln-0002', fingerprint: other },
-      { key: 'GHSA-test-broke-0004', fingerprint: 'cccccc\nForged: x' },
+      { key: vuln, fingerprint: FP },
+      { key: second, fingerprint: other },
+      { key: broke, fingerprint: 'cccccc\nForged: x' },
     ]);
     expect(linked.reason).toBeUndefined();
     expect(linked.dropped).toBe(true);
+    expect(linked.ambiguous).toBeUndefined();
     expect(linked.byItem).toEqual({
-      'GHSA-test-vuln-0001': [ID],
-      'GHSA-test-vuln-0002': [`sg:example-org/example-app:${other}`],
+      [vuln]: [ID],
+      [second]: [`sg:example-org/example-app:${other}`],
     });
     expect(JSON.stringify(linked)).not.toContain('Forged');
-    expect(findingIdsForAdvisories(linked.byItem, ['GHSA-test-vuln-0001']).ids).toEqual([ID]);
-    expect(findingIdsForAdvisories(linked.byItem, ['GHSA-test-extra-0005'])).toEqual({ ids: [], dropped: false });
-    expect(findingIdsForAdvisories(undefined, ['GHSA-test-vuln-0001'])).toEqual({ ids: [], dropped: false });
+    expect(findingIdsForKeys(linked.byItem, [vuln])).toEqual({ ids: [ID], dropped: false, leftOff: false });
+    expect(findingIdsForKeys(linked.byItem, [findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'extralib', advisoryId: 'GHSA-test-extra-0005' })])).toEqual({ ids: [], dropped: false, leftOff: false });
+    expect(findingIdsForKeys(undefined, [vuln])).toEqual({ ids: [], dropped: false, leftOff: false });
+  });
+
+  // [claims: capabilities/security-and-remediation#finding-links]
+  it('keys one remediate item, and does not merge two plan items that share a key', () => {
+    const line10 = findingLinkKey({ kind: 'code', ruleId: 'js.rule', file: 'src/app.mjs', line: 10 });
+    const line20 = findingLinkKey({ kind: 'code', ruleId: 'js.rule', file: 'src/app.mjs', line: 20 });
+    expect(line10).not.toBe(line20);
+    const pkgA = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'alphalib', advisoryId: 'GHSA-shared-0001' });
+    const pkgB = findingLinkKey({ kind: 'advisory', repo: 'packages/web', ecosystem: 'npm', packageName: 'alphalib', advisoryId: 'GHSA-shared-0001' });
+    const pkgC = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'betalib', advisoryId: 'GHSA-shared-0001' });
+    expect(new Set([pkgA, pkgB, pkgC]).size).toBe(3);
+
+    const shared = findingLinkKey({ kind: 'code', ruleId: 'js.rule', file: 'src/app.mjs' });
+    const linked = findingIdsByKey('https://host/example-org/example-app.git', [
+      { key: shared, fingerprint: 'aaaaaa111111' },
+      { key: shared, fingerprint: 'bbbbbb222222' },
+      { key: line10, fingerprint: FP },
+    ]);
+    expect(linked.byItem).toEqual({ [line10]: [ID] });
+    expect(linked.ambiguous).toEqual([shared]);
+    expect(JSON.stringify(linked.byItem)).not.toContain('aaaaaa111111');
+    expect(JSON.stringify(linked.byItem)).not.toContain('bbbbbb222222');
+    expect(findingIdsForKeys(linked.byItem, [shared], new Set(linked.ambiguous))).toEqual({ ids: [], dropped: false, leftOff: true });
+
+    // One package bump clears several advisories for that package in that repository: both ids, and no other package's.
+    const first = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'lodash', advisoryId: 'GHSA-1' });
+    const second = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'lodash', advisoryId: 'GHSA-2' });
+    const otherPackage = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'axios', advisoryId: 'GHSA-1' });
+    const bump = findingIdsByKey('https://host/example-org/example-app.git', [
+      { key: first, fingerprint: 'aaaaaa111111' },
+      { key: second, fingerprint: 'bbbbbb222222' },
+      { key: otherPackage, fingerprint: 'cccccc333333' },
+    ]);
+    const keys = linkKeysForRemediateItem({
+      changeType: 'dependency',
+      advisories: [
+        { id: 'GHSA-1', ecosystem: 'npm', package: 'lodash' },
+        { id: 'GHSA-2', ecosystem: 'npm', package: 'lodash' },
+      ],
+    });
+    expect(findingIdsForKeys(bump.byItem, keys).ids).toEqual(['sg:example-org/example-app:aaaaaa111111', 'sg:example-org/example-app:bbbbbb222222']);
+    expect(findingIdsForKeys(bump.byItem, keys).ids).not.toContain('sg:example-org/example-app:cccccc333333');
   });
 });

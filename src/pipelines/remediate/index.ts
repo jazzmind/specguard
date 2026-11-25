@@ -37,7 +37,7 @@ import {
   type Worktree,
 } from './git.js';
 import { existingWork, planDependencies, sastBranch } from './plan.js';
-import { findingIdsForAdvisories, renderFindingLinksBlock, renderFindingTrailers } from './finding-links.js';
+import { findingIdsForKeys, linkKeysForRemediateItem, renderFindingLinksBlock, renderFindingTrailers } from './finding-links.js';
 import { renderPrBody } from './report.js';
 import { importingFiles, loadRegistryAt, selectTests, specsForFiles, type Selection } from './select-tests.js';
 import { armAutoMerge, ship } from './ship.js';
@@ -221,8 +221,14 @@ export async function runRemediate(config: SpecGuardConfig, opts: RemediateOpts 
     // ---- per item -------------------------------------------------------------------------------------
     const advisoriesBefore = [...detection.advisories, ...detection.belowThreshold, ...detection.sast.map(pseudoAdvisory)];
     const registry = loadRegistryAt(baseRoot, root);
+    const linkKeyCounts = new Map<string, number>();
     for (const item of runnable) {
-      const itemReport = await processItem({ item, config, cfg, deps, opts, gitTop, relRoot, tmpRoot, baseline, advisoriesBefore, registry, evidenceDir, runId, threshold, worktrees, log });
+      for (const key of linkKeysForRemediateItem(item)) linkKeyCounts.set(key, (linkKeyCounts.get(key) ?? 0) + 1);
+    }
+    // A key shared by two fixes does not name either of them. A key shared by two plan items is the same.
+    const blockedFindingKeys = new Set<string>([...(opts.ambiguousFindingKeys ?? []), ...[...linkKeyCounts].filter(([, n]) => n > 1).map(([key]) => key)]);
+    for (const item of runnable) {
+      const itemReport = await processItem({ item, config, cfg, deps, opts, gitTop, relRoot, tmpRoot, baseline, advisoriesBefore, registry, evidenceDir, runId, threshold, worktrees, log, blockedFindingKeys });
       report.results.push(itemReport);
       result.items.push({ key: item.branch, status: itemReport.error ? 'failed' : itemReport.skipped ? 'skipped' : 'created', message: itemReport.error ?? itemReport.verdict });
       if (itemReport.error) result.failed += 1;
@@ -277,6 +283,7 @@ interface ItemCtx {
   threshold: Severity;
   worktrees: Worktree[];
   log: (l: string) => void;
+  blockedFindingKeys: ReadonlySet<string>;
 }
 
 async function processItem(c: ItemCtx): Promise<ItemReport> {
@@ -371,7 +378,8 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
     }
     c.log(`[verdict] ${item.branch}: ${rep.verdict}${out.verdict.reasons.length ? ` (${out.verdict.reasons.map((r) => r.kind).join(', ')})` : ''}`);
 
-    const linked = findingIdsForAdvisories(opts.findingIdsByItem, item.advisories.map((a) => a.id));
+    const linked = findingIdsForKeys(opts.findingIdsByItem, linkKeysForRemediateItem(item), c.blockedFindingKeys);
+    if (linked.leftOff) c.log('finding links: a finding link was left off');
     if (linked.dropped) c.log('finding links: a finding id was dropped');
     const body = renderPrBody({ runId: c.runId, item, result: rep, verdict: out.verdict, evidenceRel: path.relative(c.gitTop, itemDir).split(path.sep).join('/') }) + renderFindingLinksBlock(linked.ids);
     const bodyPath = path.join(itemDir, 'pr-body.md');

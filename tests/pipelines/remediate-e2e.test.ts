@@ -7,7 +7,9 @@ import { loadConfig } from '../../src/core/config.js';
 import { compareVer } from '../../src/core/ecosystems/semver.js';
 import { RemediateExit } from '../../src/core/exit-codes.js';
 import type { PlanItem, RemediationPlan } from '../../src/core/remediation-schema.js';
+import { findingLinkKey } from '../../src/pipelines/remediate/finding-links.js';
 import { runRemediate } from '../../src/pipelines/remediate/index.js';
+import { sastBranch } from '../../src/pipelines/remediate/plan.js';
 import type { Exec } from '../../src/pipelines/remediate/types.js';
 import { runSecurityFix } from '../../src/pipelines/security-fix.js';
 import { writePlan } from '../../src/pipelines/security-plan.js';
@@ -221,7 +223,9 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     const fx = makeFixture('safe');
     const config = await fx.config();
     const id = 'sg:example-org/example-app:3f9a1c0e7b2d';
-    const res = await runRemediate(config, { pr: true, runId: 'run-links', findingIdsByItem: { 'GHSA-test-vuln-0001': [id, id], 'GHSA-not-this-item': ['sg:example-org/example-app:bbbbbb222222'] } }, fx.deps);
+    const ownKey = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'vulnlib', advisoryId: 'GHSA-test-vuln-0001' });
+    const otherKey = findingLinkKey({ kind: 'advisory', repo: '', ecosystem: 'npm', packageName: 'otherlib', advisoryId: 'GHSA-not-this-item' });
+    const res = await runRemediate(config, { pr: true, runId: 'run-links', findingIdsByItem: { [ownKey]: [id, id], [otherKey]: ['sg:example-org/example-app:bbbbbb222222'] } }, fx.deps);
     expect(res.messages.join('\n')).not.toMatch(/\[error\]/);
     expect(res.exitCode).toBe(RemediateExit.Preserved);
     const item = res.report!.results[0];
@@ -278,14 +282,14 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     const C = 'cccccc333333';
     const D = 'dddddd444444';
     const own = (fp: string) => `sg:example-org/example-app:${fp}`;
-    const item = (advisory: string, fingerprint: string): PlanItem => ({
+    const item = (advisory: string, fingerprint: string, packageName: string): PlanItem => ({
       id: advisory,
       title: advisory,
       severity: 'high',
       type: 'dependency',
       change: 'dependency',
       summary: 'bump',
-      findings: [{ id: advisory, detector: 'advisory', message: 'm' }],
+      findings: [{ id: advisory, detector: 'advisory', message: 'm', ecosystem: 'npm', package: packageName }],
       claims: [],
       files: ['package.json'],
       verify: { scope: 'listed', claims: [] },
@@ -299,10 +303,10 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
       createdAt: '2026-11-25T00:00:00Z',
       tool: { name: 'specguard' },
       items: [
-        item('GHSA-test-vuln-0001', A),
-        item('GHSA-test-vuln-0002', B),
-        item('GHSA-test-broke-0004', C),
-        item('GHSA-test-nofix-0003', D),
+        item('GHSA-test-vuln-0001', A, 'vulnlib'),
+        item('GHSA-test-vuln-0002', B, 'otherlib'),
+        item('GHSA-test-broke-0004', C, 'brokelib'),
+        item('GHSA-test-nofix-0003', D, 'nofix'),
       ],
     };
     const config = await loadConfig(fx.dir);
@@ -441,6 +445,203 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(fx.git('branch', '--list')).toBe('* main');
     expect(fx.git('worktree', 'list').split('\n')).toHaveLength(1);
   }, T);
+
+  // [claims: capabilities/security-and-remediation#finding-links]
+  it('names only the code hit this commit fixes, and a skipped hit in the same file is named on none', async () => {
+    const fx = makeFixture('safe');
+    writeFileSync(path.join(fx.dir, '.gitignore'), readFileSync(path.join(fx.dir, '.gitignore'), 'utf8') + '.specguard/security/\n');
+    fx.git('add', '-A');
+    fx.git('commit', '-q', '-m', 'ignore plans');
+    fx.git('push', '-q', 'origin', 'main');
+    const A = 'aaaaaa111111';
+    const B = 'bbbbbb222222';
+    const C = 'cccccc333333';
+    const own = (fp: string) => `sg:example-org/example-app:${fp}`;
+    const codeItem = (line: number, fingerprint: string): PlanItem => ({
+      id: `line-${line}`,
+      title: 'js.rule in src/app.mjs',
+      severity: 'high',
+      type: 'code',
+      change: 'code',
+      summary: 'fix the finding',
+      findings: [{ id: `js.rule@src/app.mjs:${line}`, detector: 'semgrep', ruleId: 'js.rule', message: 'm', file: 'src/app.mjs', line }],
+      claims: [],
+      files: ['src/app.mjs'],
+      verify: { scope: 'listed', claims: [] },
+      status: 'open',
+      statusHistory: [],
+      fingerprint,
+    });
+    const config = await loadConfig(fx.dir);
+    config.remediate = { ...config.remediate, semgrep: true };
+    await writePlan(config, {
+      version: 1,
+      id: 'scan-code',
+      createdAt: '2026-11-25T00:00:00Z',
+      tool: { name: 'specguard' },
+      items: [codeItem(10, A), codeItem(20, B), codeItem(30, C)],
+    });
+    const inner = fx.deps.run!;
+    const run: NonNullable<typeof fx.deps.run> = async (cmd, args, o) => {
+      if (cmd === 'npm' && args[0] === 'audit') return { stdout: JSON.stringify({ auditReportVersion: 2, vulnerabilities: {} }), stderr: '', status: 0 };
+      return inner(cmd, args, o);
+    };
+    const git: Exec = (args, cwd) => {
+      if (args[0] === 'remote' && args[1] === 'get-url' && args[2] === 'origin') return { stdout: 'ssh://git@host:22/Example-Org/Example-App.git\n', stderr: '', status: 0 };
+      return fx.deps.git!(args, cwd);
+    };
+    const issue = (line: number) => ({ kind: 'sast' as const, ruleId: 'js.rule', path: 'src/app.mjs', line, message: 'm', severity: 'high' as const });
+    const branchOf = (line: number) => sastBranch('specguard/remediate/', issue(line));
+    const res = await runSecurityFix(config, { pr: true, noLlm: true }, {
+      ...fx.deps,
+      run,
+      git,
+      sast: async () => ({
+        ok: true,
+        findings: [10, 20, 30].map((line) => ({ ruleId: 'js.rule', path: 'src/app.mjs', line, message: 'm', severity: 'ERROR' })),
+      }),
+      codeFix: async (found, content) => (found.line === 30 ? null : `${content.endsWith('\n') ? content : `${content}\n`}// fixed at ${found.line}\n`),
+    });
+    const creates = fx.ghCalls.filter((c) => c.args[1] === 'create');
+    expect(creates).toHaveLength(2);
+    const expectOwn = (line: number, fp: string, others: string[]) => {
+      const branch = branchOf(line);
+      const message = commitMessage(fx.dir, branch);
+      const body = creates.find((c) => c.args.includes(branch))?.body ?? '';
+      expect(body).not.toBe('');
+      const id = own(fp);
+      expect(message).toContain(`Resolves-Finding: ${id}`);
+      expect(body.endsWith(`<!-- finding-links\n["${id}"]\n-->\n`)).toBe(true);
+      for (const other of others) {
+        expect(message).not.toContain(other);
+        expect(body).not.toContain(other);
+      }
+    };
+    expectOwn(10, A, [B, C]);
+    expectOwn(20, B, [A, C]);
+    expect(fx.git('branch', '--list', branchOf(30))).toBe('');
+    const shipped = `${commitMessage(fx.dir, branchOf(10))}\n${commitMessage(fx.dir, branchOf(20))}\n${creates.map((c) => c.body).join('\n')}`;
+    expect(shipped).not.toContain(C);
+    expect(res.messages.join('\n')).not.toContain(C);
+  }, 300_000);
+
+  // [claims: capabilities/security-and-remediation#finding-links]
+  it('names only its own finding when two packages share an advisory id, and the one that does not ship is named on none', async () => {
+    const fx = makeFixture('safe');
+    const vendor = (name: string, version: string) => {
+      const src = path.join(fx.dir, 'vendor', `vulnlib@${version}`);
+      const dest = path.join(fx.dir, 'vendor', `${name}@${version}`);
+      cpSync(src, dest, { recursive: true });
+      writeFileSync(path.join(dest, 'package.json'), JSON.stringify({ name, version, main: 'index.js' }));
+    };
+    for (const name of ['alphalib', 'betalib']) {
+      vendor(name, '1.0.0');
+      vendor(name, '1.0.1');
+    }
+    const pkgPath = path.join(fx.dir, 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { dependencies: Record<string, string> };
+    pkg.dependencies = { vulnlib: '^1.0.0', alphalib: '^1.0.0', betalib: '^1.0.0' };
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+    writeFileSync(
+      path.join(fx.dir, 'package-lock.json'),
+      JSON.stringify({
+        name: 'fixture-app',
+        lockfileVersion: 3,
+        packages: {
+          '': { name: 'fixture-app' },
+          'node_modules/vulnlib': { version: '1.0.0' },
+          'node_modules/alphalib': { version: '1.0.0' },
+          'node_modules/betalib': { version: '1.0.0' },
+        },
+      }, null, 2) + '\n',
+    );
+    writeFileSync(path.join(fx.dir, '.gitignore'), readFileSync(path.join(fx.dir, '.gitignore'), 'utf8') + '.specguard/security/\n');
+    fx.git('add', '-A');
+    fx.git('commit', '-q', '-m', 'two packages, one advisory id');
+    fx.git('push', '-q', 'origin', 'main');
+    const A = 'aaaaaa111111';
+    const B = 'bbbbbb222222';
+    const own = (fp: string) => `sg:example-org/example-app:${fp}`;
+    const item = (packageName: string, fingerprint: string): PlanItem => ({
+      id: packageName,
+      title: packageName,
+      severity: 'high',
+      type: 'dependency',
+      change: 'dependency',
+      summary: 'bump',
+      findings: [{ id: 'GHSA-shared-0001', detector: 'advisory', message: 'm', ecosystem: 'npm', package: packageName }],
+      claims: [],
+      files: ['package.json'],
+      verify: { scope: 'listed', claims: [] },
+      status: 'open',
+      statusHistory: [],
+      fingerprint,
+    });
+    const config = await loadConfig(fx.dir);
+    await writePlan(config, {
+      version: 1,
+      id: 'scan-shared',
+      createdAt: '2026-11-25T00:00:00Z',
+      tool: { name: 'specguard' },
+      items: [item('alphalib', A), item('betalib', B)],
+    });
+    const versionOf = (cwd: string, name: string): string => {
+      const lock = JSON.parse(readFileSync(path.join(cwd, 'package-lock.json'), 'utf8')) as { packages?: Record<string, { version?: string }> };
+      return lock.packages?.[`node_modules/${name}`]?.version ?? '1.0.0';
+    };
+    const inner = fx.deps.run!;
+    const run: NonNullable<typeof fx.deps.run> = async (cmd, args, o) => {
+      if (cmd === 'npm' && args[0] === 'audit') {
+        const vulnerabilities: Record<string, unknown> = {};
+        for (const name of ['alphalib', 'betalib']) {
+          if (compareVer(versionOf(o.cwd, name), '1.0.1') >= 0) continue;
+          vulnerabilities[name] = {
+            name,
+            severity: 'high',
+            isDirect: true,
+            via: [{ source: 424242, name, dependency: name, title: 'shared', url: 'https://github.com/advisories/GHSA-shared-0001', severity: 'high', range: '<1.0.1' }],
+            effects: [],
+            range: '<1.0.1',
+            nodes: [`node_modules/${name}`],
+            fixAvailable: { name, version: '1.0.1', isSemVerMajor: false },
+          };
+        }
+        const found = Object.keys(vulnerabilities).length > 0;
+        return { stdout: JSON.stringify({ auditReportVersion: 2, vulnerabilities }), stderr: '', status: found ? 1 : 0 };
+      }
+      if (cmd === 'npm' && args[0] === 'install') {
+        const manifest = JSON.parse(readFileSync(path.join(o.cwd, 'package.json'), 'utf8')) as { dependencies: Record<string, string> };
+        const packages: Record<string, { version: string }> = {};
+        for (const name of ['vulnlib', 'alphalib', 'betalib']) {
+          const ver = String(manifest.dependencies[name] ?? '').replace(/^[\^~]/, '');
+          const src = path.join(o.cwd, 'vendor', `${name}@${ver}`);
+          if (!existsSync(src)) return { stdout: '', stderr: `no such version ${name}@${ver}`, status: 1 };
+          rmSync(path.join(o.cwd, 'node_modules', name), { recursive: true, force: true });
+          mkdirSync(path.join(o.cwd, 'node_modules'), { recursive: true });
+          cpSync(src, path.join(o.cwd, 'node_modules', name), { recursive: true });
+          packages[`node_modules/${name}`] = { version: ver };
+        }
+        writeFileSync(path.join(o.cwd, 'package-lock.json'), JSON.stringify({ name: 'fixture-app', lockfileVersion: 3, packages: { '': { name: 'fixture-app' }, ...packages } }, null, 2) + '\n');
+        return { stdout: 'installed', stderr: '', status: 0 };
+      }
+      return inner(cmd, args, o);
+    };
+    const git: Exec = (args, cwd) => {
+      if (args[0] === 'remote' && args[1] === 'get-url' && args[2] === 'origin') return { stdout: 'https://host/Example-Org/Example-App.git\n', stderr: '', status: 0 };
+      return fx.deps.git!(args, cwd);
+    };
+    await runSecurityFix(config, { pr: true, noLlm: true }, { ...fx.deps, run, git });
+    const creates = fx.ghCalls.filter((c) => c.args[1] === 'create');
+    expect(creates).toHaveLength(1);
+    const branch = 'specguard/remediate/ghsa-shared-0001';
+    const message = commitMessage(fx.dir, branch);
+    const body = creates[0].body ?? '';
+    expect(message).toContain('alphalib');
+    expect(message).toContain(`Resolves-Finding: ${own(A)}`);
+    expect(message).not.toContain(B);
+    expect(body.endsWith(`<!-- finding-links\n["${own(A)}"]\n-->\n`)).toBe(true);
+    expect(body).not.toContain(B);
+  }, 300_000);
 });
 
 function rmFile(p: string): void {
