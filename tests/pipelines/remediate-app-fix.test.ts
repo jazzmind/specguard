@@ -26,7 +26,7 @@ describe('finding what to repair [app-fix-targets]', () => {
 });
 
 describe('repair end to end (real git, worktrees and vitest; fake gh and a scripted fixer) [app-fix]', () => {
-  // [claims: capabilities/security-and-remediation#app-fix-loop, capabilities/security-and-remediation#app-fix-pr-only]
+  // [claims: capabilities/security-and-remediation#app-fix-loop, capabilities/security-and-remediation#app-fix-pr-only, capabilities/security-and-remediation#finding-links]
   it('repairs the bug: the targeted claim is proven, nothing else moved, a normal PR is opened, nothing is merged', async () => {
     const fx = await makeAppFixFixture();
     const res = await runAppFix(await fx.config(), { pr: true, runId: 'fix-1' }, { ...fx.deps, appFix: rewrite('src/app.mjs', FIXED) });
@@ -45,6 +45,26 @@ describe('repair end to end (real git, worktrees and vitest; fake gh and a scrip
     expect(create.body).toContain('`capabilities/app#doubles-large`');
     expect(create.body).toContain('never auto-merged');
     expect(fx.ghCalls.flatMap((c) => c.args)).not.toContain('merge');
+    // An app repair supplies no finding id, so the commit message and body stay exactly what this repair writes.
+    const message = spawnSync('git', ['log', '-1', '--format=%B', branch], { cwd: fx.dir, encoding: 'utf8' });
+    expect(message.status).toBe(0);
+    expect(message.stdout).toBe(
+      'fix(app): repair doubles-large\n\nSpecGuard repair run fix-1. Verdict: PRESERVED.\nThis changes application code: a person reviews and merges it.\n\n',
+    );
+    expect(create.body).toBe(`## SpecGuard repair: App
+
+**Repaired.** 1 failing requirement(s) are proven again, and every test and claim that passed before still passes.
+
+### Requirements that failed
+- \`capabilities/app#doubles-large\`: Large numbers are doubled
+
+### Failing tests
+- test/app.test.mjs::double doubles a large number @claim:capabilities/app#doubles-large
+
+### Files changed
+- \`src/app.mjs\`
+
+_Opened by \`specguard remediate --from failing\` (run fix-1). It changes application code, so a person reviews and merges it: it is never auto-merged._`);
     // the user's tree and the buggy file on main are untouched
     expect(fx.git('status', '--porcelain')).toBe('');
     expect(readFileSync(path.join(fx.dir, 'src/app.mjs'), 'utf8')).toBe(BUGGY);

@@ -4,7 +4,7 @@
  * copied by a stubbed `npm install`), canned `npm audit` output, and a fake `gh`.
  */
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -67,7 +67,9 @@ function lock(version: string): string {
 }
 
 export function makeFixture(variant: Variant, opts: { testCommand?: string; extraTest?: boolean } = {}): Fixture {
-  const dir = mkdtempSync(path.join(os.tmpdir(), `sg-rem-${variant}-`));
+  // Resolve the temp directory before anything uses it. On macOS /var is a symlink of /private/var,
+  // and a relative evidence path built from the two spellings walks out of the repository.
+  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), `sg-rem-${variant}-`)));
   const remote = path.join(mkdtempSync(path.join(os.tmpdir(), 'sg-rem-remote-')), 'origin.git');
   const git = (...args: string[]): string => {
     const r = spawnSync('git', args, { cwd: dir, encoding: 'utf8' });

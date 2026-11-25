@@ -34,6 +34,9 @@ export const FindingRefSchema = z.looseObject({
   message: z.string(),
   file: z.string().optional().describe('Repo-relative path.'),
   line: z.number().int().optional(),
+  ecosystem: z.string().optional().describe('Package ecosystem, for a dependency finding.'),
+  package: z.string().optional().describe('Package name, for a dependency finding.'),
+  repo: z.string().optional().describe('Project directory relative to the config root. Empty or absent: the root.'),
 });
 
 export const StatusChangeSchema = z.looseObject({

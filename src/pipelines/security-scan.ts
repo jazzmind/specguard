@@ -187,7 +187,7 @@ export async function runSecurityScan(
       summary: a.fixedVersions.length
         ? `Upgrade ${a.package} to ${a.fixedVersions.join(' or ')}${a.direct ? '' : ' (transitive: pin it with an override)'}.`
         : `No fixed version of ${a.package} is published; replace it or mitigate the exposure.`,
-      findings: [{ id: a.id, detector: 'advisory', ruleId: a.source, message: a.title ?? a.id, file: manifest }],
+      findings: [{ id: a.id, detector: 'advisory', ruleId: a.source, message: a.title ?? a.id, file: manifest, ecosystem: a.ecosystem, package: a.package, ...(a.repo ? { repo: a.repo } : {}) }],
       claims: [],
       files: [manifest],
       verify: { scope: 'all-proven', claims: [] },
