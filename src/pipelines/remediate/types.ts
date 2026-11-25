@@ -62,10 +62,12 @@ export interface RemediateOpts {
   /** Called with progress lines. */
   onLog?: (line: string) => void;
   /**
-   * Finding ids (`sg:<owner>/<repo>:<fingerprint>`) this run's commits and pull
-   * request bodies name. Absent for a plain remediate or an app repair.
+   * Finding ids for each remediate item, keyed by that item's advisory id
+   * (`GHSA-…`, or `semgrep:<rule>@<path>`). The loop names only the ids stored
+   * under the item it is shipping. An item that is not in the map gets no
+   * trailer and no block. Absent for a plain remediate or an app repair.
    */
-  findingIds?: readonly string[];
+  findingIdsByItem?: Readonly<Record<string, readonly string[]>>;
 }
 
 export type FindingKind = 'dependency' | 'sast' | 'secret';

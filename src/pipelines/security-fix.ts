@@ -13,7 +13,7 @@ import { ExitCode } from '../core/exit-codes.js';
 import { canTransition, type ItemStatus, type PlanItem, type RemediationPlan } from '../core/remediation-schema.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
-import { findingIdsFromRemote } from './remediate/finding-links.js';
+import { findingIdsByKey } from './remediate/finding-links.js';
 import { realGit } from './remediate/git.js';
 import { runRemediate, type RemediateResult } from './remediate/index.js';
 import type { Exec, ItemReport, RemediateDeps } from './remediate/types.js';
@@ -139,8 +139,15 @@ export async function runSecurityFix(
     await applyMoves(config, plan.id, selected.map((i) => ({ id: i.id, expect: i.status, to: 'in-progress' as const, note: 'remediation started' })), log);
   }
   let run: RemediateResult;
-  const linked = findingIdsFromRemote(originUrl(deps.git ?? realGit, config.rootDir ?? process.cwd()), selected.map((i) => i.fingerprint));
+  const linked = findingIdsByKey(
+    originUrl(deps.git ?? realGit, config.rootDir ?? process.cwd()),
+    selected.flatMap((item) => {
+      const key = remediationId(item);
+      return key ? [{ key, fingerprint: item.fingerprint }] : [];
+    }),
+  );
   if (linked.reason) log(linked.reason);
+  if (linked.dropped) log('finding links: a finding id was dropped');
   try {
     run = await remediate(
       config,
@@ -154,7 +161,7 @@ export async function runSecurityFix(
         noLlm: opts.noLlm,
         app: opts.app,
         onLog: opts.onLog,
-        ...(linked.ids ? { findingIds: linked.ids } : {}),
+        ...(linked.byItem ? { findingIdsByItem: linked.byItem } : {}),
       },
       deps,
     );

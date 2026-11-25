@@ -11,8 +11,8 @@ import { RemediationPlanSchema } from '../../src/core/remediation-schema.js';
 import { ingestVerdicts } from '../../src/pipelines/proof.js';
 import { detect } from '../../src/pipelines/remediate/detect.js';
 import type { DetectionReport, ItemReport } from '../../src/pipelines/remediate/types.js';
-import { runSecurityFix } from '../../src/pipelines/security-fix.js';
-import { readPlan, runPlanSetStatus } from '../../src/pipelines/security-plan.js';
+import { remediationId, runSecurityFix } from '../../src/pipelines/security-fix.js';
+import { readPlan, runPlanSetStatus, writePlan } from '../../src/pipelines/security-plan.js';
 import { runSecurityScan } from '../../src/pipelines/security-scan.js';
 import { installNpmPlugin } from '../helpers/npm-plugin.js';
 import { makeMonorepo } from '../helpers/monorepo-fixture.js';
@@ -448,13 +448,26 @@ describe('security fix [security-fix]', () => {
   });
 
   // [claims: capabilities/security-and-remediation#finding-links]
-  it('passes each selected plan item finding id through to remediate [finding-links]', async () => {
+  it('passes each plan item\'s finding id under its own advisory key, and drops a malformed fingerprint [finding-links]', async () => {
     const plan = await planWith();
-    const git = () => ({ stdout: 'https://host/example-org/example-app.git\n', stderr: '', status: 0 });
+    const config = await loadConfig(repo.dir);
+    const fixable = plan.items.filter((i) => (i.type === 'dependency' || i.type === 'code') && (i.status === 'open' || i.status === 'planned'));
+    const [first, second] = fixable;
+    first.fingerprint = 'aaaaaa111111';
+    second.fingerprint = 'bbbbbb\nForged-Trailer: pwned';
+    await writePlan(config, plan);
+    const git = () => ({ stdout: 'https://host/Example-Org/Example-App.git\n', stderr: '', status: 0 });
     const remediate = fakeRemediate([result({ advisoryIds: ['GHSA-aaaa'], verdict: 'PRESERVED', branch: 'b' })]);
-    const r = await runSecurityFix(await loadConfig(repo.dir), {}, { git }, remediate);
-    const selected = plan.items.filter((i) => (i.type === 'dependency' || i.type === 'code') && (i.status === 'open' || i.status === 'planned'));
-    expect(remediate.mock.calls[0][1].findingIds).toEqual([...selected.map((i) => `sg:example-org/example-app:${i.fingerprint}`)].sort());
+    const r = await runSecurityFix(config, {}, { git }, remediate);
+    const byItem = remediate.mock.calls[0][1].findingIdsByItem as Record<string, string[]>;
+    expect(byItem[remediationId(first)!]).toEqual(['sg:example-org/example-app:aaaaaa111111']);
+    expect(byItem[remediationId(second)!]).toBeUndefined();
+    expect(JSON.stringify(byItem)).not.toContain('Forged');
+    expect(JSON.stringify(byItem)).not.toContain('bbbbbb');
+    const log = r.messages.join('\n');
+    expect(log).toContain('finding links: a finding id was dropped');
+    expect(log).not.toContain('Forged');
+    expect(log).not.toContain('bbbbbb');
     expect(r.exitCode).toBe(8);
   });
 
@@ -463,19 +476,19 @@ describe('security fix [security-fix]', () => {
     await planWith();
     const unread = fakeRemediate([result({ advisoryIds: ['GHSA-aaaa'], verdict: 'PRESERVED', branch: 'b' })]);
     const missing = await runSecurityFix(await loadConfig(repo.dir), {}, { git: () => ({ stdout: '', stderr: 'no origin', status: 2 }) }, unread);
-    expect(unread.mock.calls[0][1].findingIds).toBeUndefined();
+    expect(unread.mock.calls[0][1].findingIdsByItem).toBeUndefined();
     expect(missing.messages.join('\n')).toContain('finding links omitted: the origin remote could not be read');
     expect(missing.exitCode).toBe(8);
 
     const threw = fakeRemediate([result({ advisoryIds: ['GHSA-aaaa'], verdict: 'PRESERVED', branch: 'b' })]);
     const blown = await runSecurityFix(await loadConfig(repo.dir), {}, { git: () => { throw new Error('git missing'); } }, threw);
-    expect(threw.mock.calls[0][1].findingIds).toBeUndefined();
+    expect(threw.mock.calls[0][1].findingIdsByItem).toBeUndefined();
     expect(blown.messages.join('\n')).toContain('finding links omitted: the origin remote could not be read');
     expect(blown.exitCode).toBe(8);
 
     const bad = fakeRemediate([result({ advisoryIds: ['GHSA-aaaa'], verdict: 'PRESERVED', branch: 'b' })]);
     const parsed = await runSecurityFix(await loadConfig(repo.dir), {}, { git: () => ({ stdout: '/tmp/origin.git\n', stderr: '', status: 0 }) }, bad);
-    expect(bad.mock.calls[0][1].findingIds).toBeUndefined();
+    expect(bad.mock.calls[0][1].findingIdsByItem).toBeUndefined();
     expect(parsed.messages.join('\n')).toContain('finding links omitted: the origin remote URL could not be parsed');
     expect(parsed.exitCode).toBe(8);
   });

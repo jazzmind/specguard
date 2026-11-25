@@ -1,13 +1,85 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
+import { loadConfig } from '../../src/core/config.js';
+import { compareVer } from '../../src/core/ecosystems/semver.js';
 import { RemediateExit } from '../../src/core/exit-codes.js';
+import type { PlanItem, RemediationPlan } from '../../src/core/remediation-schema.js';
 import { runRemediate } from '../../src/pipelines/remediate/index.js';
+import type { Exec } from '../../src/pipelines/remediate/types.js';
+import { runSecurityFix } from '../../src/pipelines/security-fix.js';
+import { writePlan } from '../../src/pipelines/security-plan.js';
 import { makeFixture } from '../fixtures/remediate/make-project.js';
 
 const T = 180_000;
+
+/** `git log` text as git prints it, with nothing trimmed. */
+function commitMessage(dir: string, rev: string): string {
+  const r = spawnSync('git', ['log', '-1', '--format=%B', rev], { cwd: dir, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(r.stderr);
+  return r.stdout;
+}
+
+const UNCHANGED_COMMIT =
+  'fix(deps): bump vulnlib 1.0.0 -> 1.0.1 (GHSA-test-vuln-0001)\n\nSpecGuard remediate run run-safe. Verdict: PRESERVED.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).\n\n';
+
+const UNCHANGED_BODY = `## SpecGuard remediation: PRESERVED
+
+**Behavior preserved.** Every baseline-passing test and proven claim still passes after the change, and the advisory is gone. A person reviews and merges unless the auto-merge policy allows it (its decision is posted as a comment).
+
+### Advisories fixed
+
+| Advisory | Aliases | Package | Severity | Installed | Fixed in | Direct |
+|---|---|---|---|---|---|---|
+| GHSA-test-vuln-0001 | npm:424242 | vulnlib | high | 1.0.0 | 1.0.1 | yes |
+
+### Version change
+
+\`vulnlib\` 1.0.0 -> **1.0.1** (patch, direct dependency)
+
+Risk: **low** (20/100): patch bump (+10); no release notes found, confidence is lower (+10)
+
+Changelog / breaking-change analysis (heuristic, confidence low): No release notes were available; judged from the version change alone.
+
+### Changed files
+
+- \`package-lock.json\` (+1/-1)
+- \`package.json\` (+1/-1)
+
+### Tests
+
+Selected first (fast failure): **2** test(s) (0 claim-tagged, 2 in files importing the package). The full suite then ran in every case.
+
+| Run | Tests | Passed | Failed | Skipped |
+|---|---|---|---|---|
+| Baseline (unpatched) | 2 | 2 | 0 | 0 |
+| Patched (full suite) | 2 | 2 | 0 | 0 |
+
+Build: not configured. Typecheck: not configured.
+
+### Baseline vs patched
+
+- Tests: 2 -> 2
+- Claims: 2 -> 2
+- Regressed tests: 0
+- Vanished tests: 0
+- Proven claims that dropped: 0
+
+### Static analysis
+
+Not run (Semgrep unavailable or not applicable).
+
+### Verdict
+
+**PRESERVED**
+- every preservation condition held
+
+Run \`run-safe\`. Evidence: \`.specguard/remediation/run-safe/ghsa-test-vuln-0001\` (baseline and patched proof ledgers, full report JSON).
+
+_Opened by \`specguard remediate\`. It merges nothing itself: a person decides, except where the auto-merge policy arms GitHub auto-merge for a dependency fix that provably keeps every proof._
+`;
 
 function remoteBranches(remote: string): string[] {
   return spawnSync('git', ['branch', '--list'], { cwd: remote, encoding: 'utf8' }).stdout.split('\n').map((l) => l.replace('*', '').trim()).filter(Boolean);
@@ -58,11 +130,8 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(create.body).toContain('Selected first');
     expect(item.pr).toMatchObject({ draft: false, pushed: true, url: 'https://example.test/acme/fixture/pull/7' });
     // No plan item was supplied, so the commit message and body stay exactly what this run writes on its own.
-    expect(fx.git('log', '-1', '--format=%B', item.branch)).toBe(
-      'fix(deps): bump vulnlib 1.0.0 -> 1.0.1 (GHSA-test-vuln-0001)\n\nSpecGuard remediate run run-safe. Verdict: PRESERVED.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).',
-    );
-    expect(create.body).not.toContain('Resolves-Finding:');
-    expect(create.body).not.toContain('finding-links');
+    expect(commitMessage(fx.dir, item.branch)).toBe(UNCHANGED_COMMIT);
+    expect(create.body).toBe(UNCHANGED_BODY);
     expect(fx.ghCalls.every((c) => !c.args.includes('merge'))).toBe(true);
 
     // evidence: report json, baseline and patched ledgers; patched claims re-proven with a new fingerprint
@@ -152,7 +221,7 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     const fx = makeFixture('safe');
     const config = await fx.config();
     const id = 'sg:example-org/example-app:3f9a1c0e7b2d';
-    const res = await runRemediate(config, { pr: true, runId: 'run-links', findingIds: [id, id] }, fx.deps);
+    const res = await runRemediate(config, { pr: true, runId: 'run-links', findingIdsByItem: { 'GHSA-test-vuln-0001': [id, id], 'GHSA-not-this-item': ['sg:example-org/example-app:bbbbbb222222'] } }, fx.deps);
     expect(res.messages.join('\n')).not.toMatch(/\[error\]/);
     expect(res.exitCode).toBe(RemediateExit.Preserved);
     const item = res.report!.results[0];
@@ -161,9 +230,173 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     const create = fx.ghCalls.find((c) => c.args[1] === 'create')!;
     const block = `<!-- finding-links\n["${id}"]\n-->\n`;
     expect(create.body.endsWith(block)).toBe(true);
+    expect(create.body).not.toContain('bbbbbb222222');
     expect(create.body.slice(0, -block.length)).not.toContain('finding-links');
     expect(create.body.slice(0, -block.length)).not.toContain('Resolves-Finding:');
   }, T);
+
+  // [claims: capabilities/security-and-remediation#finding-links]
+  it('names only the finding this commit resolves, and a failed or skipped item is named on none', async () => {
+    const fx = makeFixture('safe');
+    const vendor = (name: string, version: string) => {
+      const src = path.join(fx.dir, 'vendor', `vulnlib@${version === '1.0.1' ? '1.0.1' : '1.0.0'}`);
+      const dest = path.join(fx.dir, 'vendor', `${name}@${version}`);
+      cpSync(src, dest, { recursive: true });
+      writeFileSync(path.join(dest, 'package.json'), JSON.stringify({ name, version, main: 'index.js' }));
+    };
+    for (const name of ['otherlib', 'extralib']) {
+      vendor(name, '1.0.0');
+      vendor(name, '1.0.1');
+    }
+    vendor('brokelib', '1.0.0');
+    const pkgPath = path.join(fx.dir, 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { dependencies: Record<string, string> };
+    pkg.dependencies = { vulnlib: '^1.0.0', otherlib: '^1.0.0', extralib: '^1.0.0', brokelib: '^1.0.0' };
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+    const locked = (version: string) => ({ version });
+    writeFileSync(
+      path.join(fx.dir, 'package-lock.json'),
+      JSON.stringify({
+        name: 'fixture-app',
+        lockfileVersion: 3,
+        packages: {
+          '': { name: 'fixture-app' },
+          'node_modules/vulnlib': locked('1.0.0'),
+          'node_modules/otherlib': locked('1.0.0'),
+          'node_modules/extralib': locked('1.0.0'),
+          'node_modules/brokelib': locked('1.0.0'),
+        },
+      }, null, 2) + '\n',
+    );
+    writeFileSync(path.join(fx.dir, '.gitignore'), readFileSync(path.join(fx.dir, '.gitignore'), 'utf8') + '.specguard/security/\n');
+    fx.git('add', '-A');
+    fx.git('commit', '-q', '-m', 'two more packages');
+    fx.git('push', '-q', 'origin', 'main');
+
+    const A = 'aaaaaa111111';
+    const B = 'bbbbbb222222';
+    const C = 'cccccc333333';
+    const D = 'dddddd444444';
+    const own = (fp: string) => `sg:example-org/example-app:${fp}`;
+    const item = (advisory: string, fingerprint: string): PlanItem => ({
+      id: advisory,
+      title: advisory,
+      severity: 'high',
+      type: 'dependency',
+      change: 'dependency',
+      summary: 'bump',
+      findings: [{ id: advisory, detector: 'advisory', message: 'm' }],
+      claims: [],
+      files: ['package.json'],
+      verify: { scope: 'listed', claims: [] },
+      status: 'open',
+      statusHistory: [],
+      fingerprint,
+    });
+    const plan: RemediationPlan = {
+      version: 1,
+      id: 'scan-links',
+      createdAt: '2026-11-25T00:00:00Z',
+      tool: { name: 'specguard' },
+      items: [
+        item('GHSA-test-vuln-0001', A),
+        item('GHSA-test-vuln-0002', B),
+        item('GHSA-test-broke-0004', C),
+        item('GHSA-test-nofix-0003', D),
+      ],
+    };
+    const config = await loadConfig(fx.dir);
+    await writePlan(config, plan);
+
+    const versionOf = (cwd: string, name: string): string => {
+      const lock = JSON.parse(readFileSync(path.join(cwd, 'package-lock.json'), 'utf8')) as { packages?: Record<string, { version?: string }> };
+      return lock.packages?.[`node_modules/${name}`]?.version ?? '1.0.0';
+    };
+    const via = (name: string, id: string, source: number, range: string) => ({
+      source, name, dependency: name, title: `issue in ${name}`, url: `https://github.com/advisories/${id}`, severity: 'high', range,
+    });
+    const inner = fx.deps.run!;
+    const run: NonNullable<typeof fx.deps.run> = async (cmd, args, o) => {
+      if (cmd === 'npm' && args[0] === 'audit') {
+        const vulnerabilities: Record<string, unknown> = {};
+        const add = (name: string, id: string, source: number, range: string, fix: string | undefined) => {
+          vulnerabilities[name] = {
+            name, severity: 'high', isDirect: true, via: [via(name, id, source, range)], effects: [], range,
+            nodes: [`node_modules/${name}`],
+            fixAvailable: fix ? { name, version: fix, isSemVerMajor: false } : false,
+          };
+        };
+        if (compareVer(versionOf(o.cwd, 'vulnlib'), '1.0.1') < 0) add('vulnlib', 'GHSA-test-vuln-0001', 424242, '<1.0.1', '1.0.1');
+        if (compareVer(versionOf(o.cwd, 'otherlib'), '1.0.1') < 0) add('otherlib', 'GHSA-test-vuln-0002', 424243, '<1.0.1', '1.0.1');
+        if (compareVer(versionOf(o.cwd, 'extralib'), '1.0.1') < 0) add('extralib', 'GHSA-test-extra-0005', 424244, '<1.0.1', '1.0.1');
+        if (compareVer(versionOf(o.cwd, 'brokelib'), '1.0.1') < 0) add('brokelib', 'GHSA-test-broke-0004', 424245, '<1.0.1', '1.0.1');
+        add('nofix', 'GHSA-test-nofix-0003', 424246, '', undefined);
+        const found = Object.keys(vulnerabilities).length > 0;
+        return { stdout: JSON.stringify({ auditReportVersion: 2, vulnerabilities }), stderr: '', status: found ? 1 : 0 };
+      }
+      if (cmd === 'npm' && args[0] === 'install') {
+        const manifest = JSON.parse(readFileSync(path.join(o.cwd, 'package.json'), 'utf8')) as { dependencies: Record<string, string> };
+        const packages: Record<string, { version: string }> = {};
+        for (const name of ['vulnlib', 'otherlib', 'extralib', 'brokelib']) {
+          const ver = String(manifest.dependencies[name] ?? '').replace(/^[\^~]/, '');
+          const src = path.join(o.cwd, 'vendor', `${name}@${ver}`);
+          if (!existsSync(src)) return { stdout: '', stderr: `no such version ${name}@${ver}`, status: 1 };
+          rmSync(path.join(o.cwd, 'node_modules', name), { recursive: true, force: true });
+          mkdirSync(path.join(o.cwd, 'node_modules'), { recursive: true });
+          cpSync(src, path.join(o.cwd, 'node_modules', name), { recursive: true });
+          packages[`node_modules/${name}`] = { version: ver };
+        }
+        writeFileSync(path.join(o.cwd, 'package-lock.json'), JSON.stringify({ name: 'fixture-app', lockfileVersion: 3, packages: { '': { name: 'fixture-app' }, ...packages } }, null, 2) + '\n');
+        return { stdout: 'installed', stderr: '', status: 0 };
+      }
+      return inner(cmd, args, o);
+    };
+    const git: Exec = (args, cwd) => {
+      if (args[0] === 'remote' && args[1] === 'get-url' && args[2] === 'origin') {
+        return { stdout: 'ssh://git@host:22/Example-Org/Example-App.git\n', stderr: '', status: 0 };
+      }
+      return fx.deps.git!(args, cwd);
+    };
+    const res = await runSecurityFix(config, { pr: true, noLlm: true }, { ...fx.deps, run, git });
+    const shipped = ['ghsa-test-vuln-0001', 'ghsa-test-vuln-0002', 'ghsa-test-extra-0005'];
+    const creates = fx.ghCalls.filter((c) => c.args[1] === 'create');
+    expect(creates).toHaveLength(3);
+    const bodyFor = (slug: string): string => {
+      const call = creates.find((c) => c.args.includes(`specguard/remediate/${slug}`));
+      expect(call?.body, slug).toBeTruthy();
+      return call!.body!;
+    };
+    const expectOwn = (slug: string, fp: string, others: string[]) => {
+      const message = commitMessage(fx.dir, `specguard/remediate/${slug}`);
+      const body = bodyFor(slug);
+      const id = own(fp);
+      expect(message).toContain(`Resolves-Finding: ${id}`);
+      expect(body.endsWith(`<!-- finding-links\n["${id}"]\n-->\n`)).toBe(true);
+      for (const other of others) {
+        expect(message).not.toContain(other);
+        expect(body).not.toContain(other);
+      }
+    };
+    expectOwn('ghsa-test-vuln-0001', A, [B, C, D]);
+    expectOwn('ghsa-test-vuln-0002', B, [A, C, D]);
+    const extraMessage = commitMessage(fx.dir, 'specguard/remediate/ghsa-test-extra-0005');
+    const extraBody = bodyFor('ghsa-test-extra-0005');
+    expect(extraMessage).not.toContain('Resolves-Finding:');
+    expect(extraBody).not.toContain('finding-links');
+    expect(extraBody).not.toContain('Resolves-Finding:');
+    for (const fp of [A, B, C, D]) {
+      expect(extraMessage).not.toContain(fp);
+      expect(extraBody).not.toContain(fp);
+    }
+    expect(fx.git('branch', '--list', 'specguard/remediate/ghsa-test-broke-0004')).toBe('');
+    expect(fx.git('branch', '--list', 'specguard/remediate/ghsa-test-nofix-0003')).toBe('');
+    const shippedText = shipped.map((slug) => `${commitMessage(fx.dir, `specguard/remediate/${slug}`)}\n${bodyFor(slug)}`).join('\n');
+    expect(shippedText).not.toContain(C);
+    expect(shippedText).not.toContain(D);
+    expect(res.messages.join('\n')).not.toContain(C);
+    expect(res.messages.join('\n')).not.toContain(D);
+    expect(shipped).toHaveLength(3);
+  }, 300_000);
 
   // [claims: capabilities/security-and-remediation#worktree-isolation]
   it('refuses a dirty working tree and a fresh lock; replaces a stale lock', async () => {
