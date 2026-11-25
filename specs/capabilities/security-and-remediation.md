@@ -39,6 +39,7 @@ tests:
   - "tests/adapters/python-adapters.test.ts"
   - "tests/pipelines/security-scan.test.ts"
   - "tests/pipelines/security-plan.test.ts"
+  - "tests/pipelines/finding-links.test.ts"
 docs:
   - "README.md"
   - "docs/guide/reference/security-and-remediation.md"
@@ -55,6 +56,7 @@ history:
   - 2026-10-22-security-spec-review-findings-containing
   - 2026-10-22-extension-runs-the-cli-under-the-host-ex
   - 2026-10-27-keep-runtime-activity-logging-out-of-com
+  - 2026-11-25-finding-links-on-remediation-commits
 ---
 
 # Security Scanning and Remediation
@@ -94,6 +96,7 @@ This capability finds security problems in code, dependencies, secrets and the s
 - [ ] Resolving a spec-level item records a requirement-history decision against its capability, once <!-- claim: spec-fix-history -->
 - [ ] A secret finding records only its rule and location, never the detector's message, so a plan can be handed to another system without carrying the secret <!-- claim: plan-no-secret-values -->
 - [ ] `security fix` runs the remediation executor once for the selected dependency and code items, moves each item by what happened to its branch (preserved: fixed; changed: in-progress with the verdict; failed: open; skipped: planned; not attempted: open), records the branch in the item's history, re-reads the plan before writing so a status or external reference a tracker set meanwhile is kept, restores the items if the run crashes, and never patches spec or secret items <!-- claim: security-fix-statuses -->
+- [ ] A fix `security fix` ships for a remediation-plan item names the finding it resolves, so another system can link the pull request to the finding. The id is `sg:<owner>/<repo>:<fingerprint>`, where `<owner>/<repo>` is read from the repository's `origin` remote (`git@host:owner/repo.git` and `https://host/owner/repo`, with or without a trailing `.git`) and `<fingerprint>` is that plan item's `fingerprint`. `security fix` passes the id to the remediate executor through an optional option. When the option is present, the commit message ends with a blank line and one `Resolves-Finding: <id>` trailer per finding, and the pull request body ends with a `<!-- finding-links` block whose next line is a JSON array of those same ids. With no id (a plain `remediate`, or an app repair) the commit message and body are unchanged. When `origin` cannot be read or does not parse, the fix still ships, with no trailer and no block, and one log line says why. At most 50 ids are written, in a stable order, with no duplicates <!-- claim: finding-links -->
 - [ ] `security scan --sarif [file]` also writes the unresolved items of the plan as SARIF 2.1.0 (default `.specguard/security/scan.sarif`): one result per item with a level from its severity, a `security-severity` score, the item id as a stable fingerprint so GitHub tracks one alert per item, and its files and line as locations; fixed, verified and won't-fix items are left out so their alerts close <!-- claim: sarif-export -->
 - [ ] Auto-merge of a remediation pull request is decided by one pure policy, and every condition must hold: `remediate.autoMerge.enabled` and `--auto-merge` are both set; the change is a dependency fix touching only manifests and lockfiles; the bump is a patch, or a minor at version 1.0 or later (never a major or unknown bump, never a package on `denyPackages`); the verdict is PRESERVED with no reasons and at least one test was selected; every claim proven in any layer before the change is proven in that layer again afterwards; risk is low and the breaking-change analysis is clean; each failed condition is listed, written to the report and posted as a pull request comment <!-- claim: auto-merge-policy -->
 - [ ] When the policy allows it, the pull request is not merged at once: `gh pr merge --auto --squash` is requested only after the base branch is confirmed to have required status checks (an unprotected branch, or one whose protection cannot be read, is refused), and a failed request is reported as not armed; draft pull requests and code fixes are never auto-merged <!-- claim: auto-merge-enforcement -->
@@ -164,6 +167,17 @@ This capability finds security problems in code, dependencies, secrets and the s
 - The item has finding type spec, change type spec, a link to the capability, and status open.
 - The tracker's update moves it to fixed and a later verification moves it to verified.
 - The schema file `schemas/remediation-plan.v1.json` validates the plan.
+
+### Scenario 7: A shipped fix names the finding
+**Steps:**
+1. A plan item has fingerprint `3f9a1c0e7b2d` and the repository's `origin` remote is `git@host:example-org/example-app.git` (or `https://host/example-org/example-app.git`).
+2. A maintainer runs `security fix` for that item and the executor opens a pull request.
+
+**Expected Results:**
+- The fix commit ends with `Resolves-Finding: sg:example-org/example-app:3f9a1c0e7b2d`.
+- The pull request body ends with a `<!-- finding-links` block containing `["sg:example-org/example-app:3f9a1c0e7b2d"]`.
+- A plain `remediate` or an app repair, which has no plan item, ships the same commit message and body as before.
+- When `origin` is missing or not one of those URL forms, the fix still ships, the trailer and the block are absent, and the log says why.
 
 ## Security & Data Considerations
 - The pipelines read source files, dependency manifests and test results, and send file contents or finding summaries to the configured LLM only for stub generation, spec-level review, changelog analysis and code fixes. Only the file named by a finding is sent for a code fix. LLM keys are referenced by environment variable name and never logged or written to reports.

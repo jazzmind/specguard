@@ -61,6 +61,11 @@ export interface RemediateOpts {
   autoMerge?: boolean;
   /** Called with progress lines. */
   onLog?: (line: string) => void;
+  /**
+   * Finding ids (`sg:<owner>/<repo>:<fingerprint>`) this run's commits and pull
+   * request bodies name. Absent for a plain remediate or an app repair.
+   */
+  findingIds?: readonly string[];
 }
 
 export type FindingKind = 'dependency' | 'sast' | 'secret';

@@ -13,8 +13,10 @@ import { ExitCode } from '../core/exit-codes.js';
 import { canTransition, type ItemStatus, type PlanItem, type RemediationPlan } from '../core/remediation-schema.js';
 import type { PipelineResult, SpecGuardConfig } from '../core/types.js';
 import { emptyResult } from '../core/types.js';
+import { findingIdsFromRemote } from './remediate/finding-links.js';
+import { realGit } from './remediate/git.js';
 import { runRemediate, type RemediateResult } from './remediate/index.js';
-import type { ItemReport, RemediateDeps } from './remediate/types.js';
+import type { Exec, ItemReport, RemediateDeps } from './remediate/types.js';
 import { planStoreFor, readPlan } from './security-plan.js';
 
 /**
@@ -65,6 +67,19 @@ export function remediationId(item: PlanItem): string | undefined {
   const f = item.findings[0];
   if (!f) return undefined;
   return item.type === 'code' ? `semgrep:${f.ruleId ?? ''}@${f.file ?? ''}` : f.id;
+}
+
+/** `origin`'s URL, or undefined when git cannot read it. A failure here must not stop the fix. */
+function originUrl(git: Exec, cwd: string): string | undefined {
+  try {
+    const result = git(['remote', 'get-url', 'origin'], cwd);
+    if (result.status !== 0) return undefined;
+    const url = result.stdout.trim();
+    return url || undefined;
+  } catch {
+    // Missing git, or a remote read that throws, is the same as an unreadable origin.
+    return undefined;
+  }
 }
 
 const advisorySeverity = (s: PlanItem['severity']): Severity => (s === 'info' ? 'low' : s);
@@ -124,10 +139,23 @@ export async function runSecurityFix(
     await applyMoves(config, plan.id, selected.map((i) => ({ id: i.id, expect: i.status, to: 'in-progress' as const, note: 'remediation started' })), log);
   }
   let run: RemediateResult;
+  const linked = findingIdsFromRemote(originUrl(deps.git ?? realGit, config.rootDir ?? process.cwd()), selected.map((i) => i.fingerprint));
+  if (linked.reason) log(linked.reason);
   try {
     run = await remediate(
       config,
-      { advisory: only, minSeverity: lowest, allowMajor: opts.allowMajor, ledger: opts.ledger, pr: opts.pr, dryRun: opts.dryRun, noLlm: opts.noLlm, app: opts.app, onLog: opts.onLog },
+      {
+        advisory: only,
+        minSeverity: lowest,
+        allowMajor: opts.allowMajor,
+        ledger: opts.ledger,
+        pr: opts.pr,
+        dryRun: opts.dryRun,
+        noLlm: opts.noLlm,
+        app: opts.app,
+        onLog: opts.onLog,
+        ...(linked.ids ? { findingIds: linked.ids } : {}),
+      },
       deps,
     );
   } catch (err) {

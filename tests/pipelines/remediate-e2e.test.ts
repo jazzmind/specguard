@@ -14,7 +14,7 @@ function remoteBranches(remote: string): string[] {
 }
 
 describe('remediate end to end (local bare remote, fake gh, canned npm audit)', () => {
-  // [claims: capabilities/security-and-remediation#branch-and-evidence, capabilities/security-and-remediation#pr-modes-no-merge]
+  // [claims: capabilities/security-and-remediation#branch-and-evidence, capabilities/security-and-remediation#pr-modes-no-merge, capabilities/security-and-remediation#finding-links]
   it('PRESERVED: a safe bump produces a branch and a normal PR; the user tree is untouched', async () => {
     // claim: pr-modes
     // claim: worktree-only
@@ -57,6 +57,12 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(create.body).toMatch(/Baseline \(unpatched\) \| 2 \|/);
     expect(create.body).toContain('Selected first');
     expect(item.pr).toMatchObject({ draft: false, pushed: true, url: 'https://example.test/acme/fixture/pull/7' });
+    // No plan item was supplied, so the commit message and body stay exactly what this run writes on its own.
+    expect(fx.git('log', '-1', '--format=%B', item.branch)).toBe(
+      'fix(deps): bump vulnlib 1.0.0 -> 1.0.1 (GHSA-test-vuln-0001)\n\nSpecGuard remediate run run-safe. Verdict: PRESERVED.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).',
+    );
+    expect(create.body).not.toContain('Resolves-Finding:');
+    expect(create.body).not.toContain('finding-links');
     expect(fx.ghCalls.every((c) => !c.args.includes('merge'))).toBe(true);
 
     // evidence: report json, baseline and patched ledgers; patched claims re-proven with a new fingerprint
@@ -139,6 +145,24 @@ describe('remediate end to end (local bare remote, fake gh, canned npm audit)', 
     expect(fx.git('status', '--porcelain', '--ignored')).toBe('');
     expect(existsSync(path.join(fx.dir, '.specguard/remediation'))).toBe(false);
     expect(fx.git('worktree', 'list').split('\n')).toHaveLength(1);
+  }, T);
+
+  // [claims: capabilities/security-and-remediation#finding-links]
+  it('names the supplied finding on the commit and at the end of the pull request body', async () => {
+    const fx = makeFixture('safe');
+    const config = await fx.config();
+    const id = 'sg:example-org/example-app:3f9a1c0e7b2d';
+    const res = await runRemediate(config, { pr: true, runId: 'run-links', findingIds: [id, id] }, fx.deps);
+    expect(res.messages.join('\n')).not.toMatch(/\[error\]/);
+    expect(res.exitCode).toBe(RemediateExit.Preserved);
+    const item = res.report!.results[0];
+    const plain = 'fix(deps): bump vulnlib 1.0.0 -> 1.0.1 (GHSA-test-vuln-0001)\n\nSpecGuard remediate run run-links. Verdict: PRESERVED.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).';
+    expect(fx.git('log', '-1', '--format=%B', item.branch)).toBe(`${plain}\n\nResolves-Finding: ${id}`);
+    const create = fx.ghCalls.find((c) => c.args[1] === 'create')!;
+    const block = `<!-- finding-links\n["${id}"]\n-->\n`;
+    expect(create.body.endsWith(block)).toBe(true);
+    expect(create.body.slice(0, -block.length)).not.toContain('finding-links');
+    expect(create.body.slice(0, -block.length)).not.toContain('Resolves-Finding:');
   }, T);
 
   // [claims: capabilities/security-and-remediation#worktree-isolation]

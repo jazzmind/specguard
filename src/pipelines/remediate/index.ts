@@ -37,6 +37,7 @@ import {
   type Worktree,
 } from './git.js';
 import { existingWork, planDependencies, sastBranch } from './plan.js';
+import { renderFindingLinksBlock, renderFindingTrailers } from './finding-links.js';
 import { renderPrBody } from './report.js';
 import { importingFiles, loadRegistryAt, selectTests, specsForFiles, type Selection } from './select-tests.js';
 import { armAutoMerge, ship } from './ship.js';
@@ -370,7 +371,7 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
     }
     c.log(`[verdict] ${item.branch}: ${rep.verdict}${out.verdict.reasons.length ? ` (${out.verdict.reasons.map((r) => r.kind).join(', ')})` : ''}`);
 
-    const body = renderPrBody({ runId: c.runId, item, result: rep, verdict: out.verdict, evidenceRel: path.relative(c.gitTop, itemDir).split(path.sep).join('/') });
+    const body = renderPrBody({ runId: c.runId, item, result: rep, verdict: out.verdict, evidenceRel: path.relative(c.gitTop, itemDir).split(path.sep).join('/') }) + renderFindingLinksBlock(opts.findingIds);
     const bodyPath = path.join(itemDir, 'pr-body.md');
     writeFileSync(bodyPath, body);
     rep.prBodyPath = bodyPath;
@@ -388,7 +389,7 @@ async function processItem(c: ItemCtx): Promise<ItemReport> {
       repoRoot: c.gitTop,
       branch: item.branch,
       scope,
-      commitMessage: `fix(${item.changeType === 'dependency' ? 'deps' : 'security'}): ${subject}\n\nSpecGuard remediate run ${c.runId}. Verdict: ${rep.verdict}.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).`,
+      commitMessage: `fix(${item.changeType === 'dependency' ? 'deps' : 'security'}): ${subject}\n\nSpecGuard remediate run ${c.runId}. Verdict: ${rep.verdict}.\nA person reviews and merges unless the auto-merge policy allowed it (see the pull request comment).` + renderFindingTrailers(opts.findingIds),
       title: `[SpecGuard${rep.verdict === 'PRESERVED' ? '' : `: ${rep.verdict}`}] fix: ${subject}`.slice(0, 200),
       bodyPath,
       body,
